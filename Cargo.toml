@@ -18,5 +18,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+enum_dispatch = { version = "0.3" }
 log = { version = "0.4" }
 thiserror = { version = "1.0" }
