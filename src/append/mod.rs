@@ -21,7 +21,7 @@ mod utils;
 
 /// enum_dispatch facade for [log::Log].
 #[enum_dispatch::enum_dispatch]
-pub trait Appender: Sync + Send {
+pub trait Append: Sync + Send {
     /// Dispatch to [log::Log::enabled].
     fn enabled(&self, metadata: &Metadata) -> bool;
 
@@ -32,22 +32,22 @@ pub trait Appender: Sync + Send {
     fn flush(&self);
 }
 
-#[enum_dispatch::enum_dispatch(Appender)]
-pub enum AppenderImpl {
+#[enum_dispatch::enum_dispatch(Append)]
+pub enum AppendImpl {
     Stdout(stdout::Stdout),
     Stderr(stderr::Stderr),
 }
 
-impl log::Log for AppenderImpl {
+impl log::Log for AppendImpl {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        Appender::enabled(self, metadata)
+        Append::enabled(self, metadata)
     }
 
     fn log(&self, record: &Record) {
-        Appender::log(self, record)
+        Append::log(self, record)
     }
 
     fn flush(&self) {
-        Appender::flush(self)
+        Append::flush(self)
     }
 }

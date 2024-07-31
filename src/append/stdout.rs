@@ -18,16 +18,16 @@ use std::io::Write;
 use log::Metadata;
 use log::Record;
 
-use crate::appender::utils::log_fallibly;
-use crate::appender::Appender;
-use crate::appender::AppenderImpl;
+use crate::append::utils::log_fallibly;
+use crate::append::Append;
+use crate::append::AppendImpl;
 
-pub struct Stderr {
-    pub stream: std::io::Stderr,
+pub struct Stdout {
+    pub stream: std::io::Stdout,
     pub sep: Cow<'static, str>,
 }
 
-impl Appender for Stderr {
+impl Append for Stdout {
     fn enabled(&self, _: &Metadata) -> bool {
         true
     }
@@ -45,9 +45,9 @@ impl Appender for Stderr {
     }
 }
 
-impl From<std::io::Stderr> for AppenderImpl {
-    fn from(stream: std::io::Stderr) -> Self {
-        AppenderImpl::Stderr(Stderr {
+impl From<std::io::Stdout> for AppendImpl {
+    fn from(stream: std::io::Stdout) -> Self {
+        AppendImpl::Stdout(Stdout {
             stream,
             sep: Cow::Borrowed("\n"),
         })

@@ -16,17 +16,17 @@ use log::Log;
 use log::Metadata;
 use log::Record;
 
-use crate::appender::AppenderImpl;
+use crate::append::AppendImpl;
 
 pub struct Logger {
-    pub appenders: Vec<AppenderImpl>,
+    pub appends: Vec<AppendImpl>,
 }
 
 impl Logger {
-    /// Dispatch this log record to all appenders.
-    fn do_log(&self, record: &Record) {
-        for appender in &self.appenders {
-            appender.log(record);
+    /// Dispatch this log record to all appends.
+    fn do_append(&self, record: &Record) {
+        for append in &self.appends {
+            append.log(record);
         }
     }
 
@@ -37,7 +37,7 @@ impl Logger {
 
     /// Whether a log with the given metadata would eventually end up logging something.
     fn check_enabled(&self, m: &Metadata) -> bool {
-        !self.check_filtered(m) && self.appenders.iter().any(|a| a.enabled(m))
+        !self.check_filtered(m) && self.appends.iter().any(|a| a.enabled(m))
     }
 }
 
@@ -51,12 +51,12 @@ impl Log for Logger {
             return;
         }
 
-        self.do_log(record);
+        self.do_append(record);
     }
 
     fn flush(&self) {
-        for appender in &self.appenders {
-            appender.flush();
+        for append in &self.appends {
+            append.flush();
         }
     }
 }
