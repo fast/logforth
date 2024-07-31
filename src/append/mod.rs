@@ -21,7 +21,7 @@ mod utils;
 
 /// enum_dispatch facade for [log::Log].
 #[enum_dispatch::enum_dispatch]
-pub trait Append: Sync + Send {
+pub trait Append: Send + Sync {
     /// Dispatch to [log::Log::enabled].
     fn enabled(&self, metadata: &Metadata) -> bool;
 

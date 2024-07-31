@@ -15,4 +15,5 @@
 mod append;
 mod dispatch;
 mod error;
+mod format;
 mod logger;
