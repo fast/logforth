@@ -14,3 +14,4 @@
 
 mod appender;
 mod error;
+mod logger;
