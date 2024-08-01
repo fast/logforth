@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::dynlog::DynLog;
 pub use boxdyn::BoxDyn;
 pub use log_level::LogLevel;
 
@@ -29,30 +30,21 @@ pub enum FilterResult {
 }
 
 pub trait Filter {
-    fn filter(&self, _record: &log::Record) -> FilterResult {
-        FilterResult::Neutral
-    }
-
     fn filter_metadata(&self, metadata: &log::Metadata) -> FilterResult;
 }
 
 #[derive(Debug)]
 pub enum FilterImpl {
     BoxDyn(BoxDyn),
+    DynLog(DynLog),
     LogLevel(LogLevel),
 }
 
 impl Filter for FilterImpl {
-    fn filter(&self, record: &log::Record) -> FilterResult {
-        match self {
-            FilterImpl::BoxDyn(filter) => filter.filter(record),
-            FilterImpl::LogLevel(filter) => filter.filter(record),
-        }
-    }
-
     fn filter_metadata(&self, metadata: &log::Metadata) -> FilterResult {
         match self {
             FilterImpl::BoxDyn(filter) => filter.filter_metadata(metadata),
+            FilterImpl::DynLog(filter) => filter.filter_metadata(metadata),
             FilterImpl::LogLevel(filter) => filter.filter_metadata(metadata),
         }
     }

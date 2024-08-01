@@ -12,34 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt::Debug;
-
-use log::Log;
-use log::Metadata;
 use log::Record;
+use log::{Log, Metadata};
+use std::fmt::Debug;
+use std::sync::Arc;
 
 use crate::append::Append;
 use crate::append::AppendImpl;
+use crate::filter::{Filter, FilterImpl, FilterResult};
 
-pub struct BoxLog(Box<dyn Log>);
+pub struct DynLog(Arc<dyn Log>);
 
-impl Debug for BoxLog {
+impl Debug for DynLog {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "BoxLogAppend {{ ... }}")
+        write!(f, "DynLog {{ ... }}")
     }
 }
 
-impl BoxLog {
+impl DynLog {
     pub fn new(log: impl Log + 'static) -> Self {
-        Self(Box::new(log))
+        Self(Arc::new(log))
+    }
+
+    pub fn new_arc(log: Arc<dyn Log>) -> Self {
+        Self(log)
     }
 }
 
-impl Append for BoxLog {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        (*self.0).enabled(metadata)
-    }
-
+impl Append for DynLog {
     fn try_append(&self, record: &Record) -> anyhow::Result<()> {
         (*self.0).log(record);
         Ok(())
@@ -48,10 +48,30 @@ impl Append for BoxLog {
     fn flush(&self) {
         (*self.0).flush()
     }
+
+    fn default_filters(&self) -> Option<Vec<FilterImpl>> {
+        Some(vec![Self::new_arc(self.0.clone()).into()])
+    }
 }
 
-impl From<BoxLog> for AppendImpl {
-    fn from(append: BoxLog) -> Self {
-        AppendImpl::BoxLog(append)
+impl Filter for DynLog {
+    fn filter_metadata(&self, metadata: &Metadata) -> FilterResult {
+        if self.0.enabled(metadata) {
+            FilterResult::Neutral
+        } else {
+            FilterResult::Reject
+        }
+    }
+}
+
+impl From<DynLog> for AppendImpl {
+    fn from(append: DynLog) -> Self {
+        AppendImpl::DynLog(append)
+    }
+}
+
+impl From<DynLog> for FilterImpl {
+    fn from(filter: DynLog) -> Self {
+        FilterImpl::DynLog(filter)
     }
 }
