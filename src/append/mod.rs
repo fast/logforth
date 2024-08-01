@@ -15,10 +15,13 @@
 use std::fmt;
 
 #[cfg(feature = "fastrace")]
-pub use fastrace::*;
+pub use fastrace::FastraceEvent;
 #[cfg(feature = "opentelemetry")]
-pub use opentelemetry::*;
-pub use stdio::*;
+pub use opentelemetry::OpentelemetryLog;
+#[cfg(feature = "rolling_file")]
+pub use rolling_file::RollingFile;
+pub use stdio::Stderr;
+pub use stdio::Stdout;
 
 use crate::layout::IdenticalLayout;
 use crate::layout::Layout;
