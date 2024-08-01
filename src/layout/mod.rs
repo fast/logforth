@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub use kv_display::KvDisplay;
 use log::Record;
 #[cfg(feature = "json")]
 pub use simple_json::SimpleJsonLayout;

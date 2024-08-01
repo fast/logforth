@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use log::LevelFilter;
-use logforth::SimpleTextLayout;
 use logforth::DispatchAppend;
 use logforth::LogLevelFilter;
 use logforth::Logger;
+use logforth::SimpleTextLayout;
 use logforth::StdoutAppend;
 
 fn main() {

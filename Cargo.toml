@@ -26,12 +26,14 @@ rust-version = "1.71.0"
 version = "0.1.0"
 
 [features]
+fastrace = ["dep:fastrace"]
 json = ["dep:serde_json", "dep:serde"]
 no-color = ["colored/no-color"]
 
 [dependencies]
 anyhow = { version = "1.0" }
 colored = { version = "2.1" }
+fastrace = { version = "0.6", optional = true }
 humantime = { version = "2.1" }
 log = { version = "0.4", features = ["std", "kv_unstable"] }
 paste = { version = "1.0" }
