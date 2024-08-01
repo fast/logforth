@@ -1,10 +1,9 @@
-use anyhow::Context;
-use crossbeam_channel::{bounded, unbounded, SendTimeoutError, Sender};
 use std::io::Write;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::Duration;
+
+use anyhow::Context;
+use crossbeam_channel::{bounded, unbounded, SendTimeoutError, Sender};
 
 use crate::append::file::worker::Worker;
 use crate::append::file::Message;
@@ -58,21 +57,15 @@ impl Drop for WorkerGuard {
 
 #[derive(Clone, Debug)]
 pub struct NonBlocking {
-    error_counter: ErrorCounter,
-    channel: Sender<Message>,
-    is_lossy: bool,
+    sender: Sender<Message>,
 }
 
 impl NonBlocking {
-    pub fn new<T: Write + Send + 'static>(writer: T) -> (NonBlocking, WorkerGuard) {
-        NonBlockingBuilder::default().finish(writer)
-    }
-
     fn create<T: Write + Send + 'static>(
         writer: T,
-        buffered_lines_limit: Option<usize>,
-        is_lossy: bool,
         thread_name: String,
+        buffered_lines_limit: Option<usize>,
+        shutdown_timeout: Option<Duration>,
     ) -> (NonBlocking, WorkerGuard) {
         let (sender, receiver) = match buffered_lines_limit {
             Some(cap) => bounded(cap),
@@ -86,44 +79,22 @@ impl NonBlocking {
             worker.make_thread(thread_name),
             sender.clone(),
             shutdown_sender,
-            None,
+            shutdown_timeout,
         );
 
-        (
-            Self {
-                channel: sender,
-                error_counter: ErrorCounter(Arc::new(AtomicUsize::new(0))),
-                is_lossy,
-            },
-            worker_guard,
-        )
+        (Self { sender }, worker_guard)
     }
 
-    /// Returns the number of times logs where dropped. This will always return zero if
-    /// `NonBlocking` is not lossy.
-    pub fn drop_lines(&self) -> usize {
-        self.error_counter.dropped_lines()
-    }
-
-    fn send(&self, buf: Vec<u8>) -> anyhow::Result<()> {
-        if !self.is_lossy {
-            return self
-                .channel
-                .send(Message::Record(buf))
-                .context("failed to send log message");
-        }
-
-        if self.channel.try_send(Message::Record(buf)).is_err() {
-            self.error_counter.drop_line();
-        }
-
-        Ok(())
+    pub(super) fn send(&self, record: Vec<u8>) -> anyhow::Result<()> {
+        // TODO(tisonkun): consider drop the message if the channel is full
+        self.sender
+            .send(Message::Record(record))
+            .context("failed to send log message")
     }
 }
 
 #[derive(Debug)]
 pub struct NonBlockingBuilder {
-    is_lossy: bool,
     thread_name: String,
     buffered_lines_limit: Option<usize>,
     shutdown_timeout: Option<Duration>,
@@ -142,17 +113,6 @@ impl NonBlockingBuilder {
         self
     }
 
-    /// Sets whether `NonBlocking` should be lossy or not.
-    ///
-    /// If set to `true`, logs will be dropped when the buffered limit is reached. If `false`, backpressure
-    /// will be exerted on senders, blocking them until the buffer has capacity again.
-    ///
-    /// By default, the built `NonBlocking` will be lossy.
-    pub fn lossy(mut self, is_lossy: bool) -> NonBlockingBuilder {
-        self.is_lossy = is_lossy;
-        self
-    }
-
     /// Override the worker thread's name.
     ///
     /// The default worker thread name is "tracing-appender".
@@ -165,9 +125,9 @@ impl NonBlockingBuilder {
     pub fn finish<T: Write + Send + 'static>(self, writer: T) -> (NonBlocking, WorkerGuard) {
         NonBlocking::create(
             writer,
-            self.buffered_lines_limit,
-            self.is_lossy,
             self.thread_name,
+            self.buffered_lines_limit,
+            self.shutdown_timeout,
         )
     }
 }
@@ -175,38 +135,9 @@ impl NonBlockingBuilder {
 impl Default for NonBlockingBuilder {
     fn default() -> Self {
         NonBlockingBuilder {
-            is_lossy: true,
             thread_name: "logforth-rolling-file".to_string(),
             buffered_lines_limit: None,
             shutdown_timeout: None,
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct ErrorCounter(Arc<AtomicUsize>);
-
-impl ErrorCounter {
-    pub fn dropped_lines(&self) -> usize {
-        self.0.load(Ordering::Acquire)
-    }
-
-    fn drop_line(&self) {
-        let mut cnt = self.0.load(Ordering::Acquire);
-
-        if cnt == usize::MAX {
-            return;
-        }
-
-        loop {
-            let next = cnt.saturating_add(1);
-            match self
-                .0
-                .compare_exchange(cnt, next, Ordering::AcqRel, Ordering::Acquire)
-            {
-                Ok(_) => return,
-                Err(now) => cnt = now,
-            }
         }
     }
 }
