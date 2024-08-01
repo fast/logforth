@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub use boxdyn::*;
+pub use boxlog::*;
 pub use dispatch::*;
 #[cfg(feature = "fastrace")]
 pub use fastrace::*;
@@ -19,6 +21,8 @@ pub use fastrace::*;
 pub use file::*;
 pub use stdio::*;
 
+mod boxdyn;
+mod boxlog;
 mod dispatch;
 #[cfg(feature = "fastrace")]
 mod fastrace;
@@ -41,6 +45,8 @@ pub trait Append {
 
 #[derive(Debug)]
 pub enum AppendImpl {
+    BoxDyn(BoxDynAppend),
+    BoxLog(BoxLogAppend),
     Dispatch(DispatchAppend),
     #[cfg(feature = "fastrace")]
     Fastrace(FastraceAppend),
@@ -53,6 +59,8 @@ pub enum AppendImpl {
 impl Append for AppendImpl {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
         match self {
+            AppendImpl::BoxDyn(append) => append.enabled(metadata),
+            AppendImpl::BoxLog(append) => append.enabled(metadata),
             AppendImpl::Dispatch(append) => append.enabled(metadata),
             #[cfg(feature = "fastrace")]
             AppendImpl::Fastrace(append) => append.enabled(metadata),
@@ -65,6 +73,8 @@ impl Append for AppendImpl {
 
     fn try_append(&self, record: &log::Record) -> anyhow::Result<()> {
         match self {
+            AppendImpl::BoxDyn(append) => append.try_append(record),
+            AppendImpl::BoxLog(append) => append.try_append(record),
             AppendImpl::Dispatch(append) => append.try_append(record),
             #[cfg(feature = "fastrace")]
             AppendImpl::Fastrace(append) => append.try_append(record),
@@ -77,6 +87,8 @@ impl Append for AppendImpl {
 
     fn flush(&self) {
         match self {
+            AppendImpl::BoxDyn(append) => append.flush(),
+            AppendImpl::BoxLog(append) => append.flush(),
             AppendImpl::Dispatch(append) => append.flush(),
             #[cfg(feature = "fastrace")]
             AppendImpl::Fastrace(append) => append.flush(),

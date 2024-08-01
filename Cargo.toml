@@ -48,6 +48,10 @@ time = { version = "0.3", features = [
 ], optional = true }
 
 [[example]]
+name = "fn_layout_filter"
+path = "examples/fn_layout_filter.rs"
+
+[[example]]
 name = "simple_stdio"
 path = "examples/simple_stdio.rs"
 

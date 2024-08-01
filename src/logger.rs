@@ -72,12 +72,12 @@ impl log::Log for Logger {
 fn handle_error(record: &Record, error: anyhow::Error) {
     let Err(fallback_error) = write!(
         std::io::stderr(),
-        r#"
-            Error perform logging.
-                Attempted to log: {args}
-                Record: {record:?}
-                Error: {error}
-            "#,
+        r###"
+Error perform logging.
+    Attempted to log: {args}
+    Record: {record:?}
+    Error: {error}
+"###,
         args = record.args(),
         record = record,
         error = error,
@@ -86,13 +86,13 @@ fn handle_error(record: &Record, error: anyhow::Error) {
     };
 
     panic!(
-        r#"
-            Error performing stderr logging after error occurred during regular logging.
-                Attempted to log: {args}
-                Record: {record:?}
-                Error: {error}
-                Fallback error: {fallback_error}
-            "#,
+        r###"
+Error performing stderr logging after error occurred during regular logging.
+    Attempted to log: {args}
+    Record: {record:?}
+    Error: {error}
+    Fallback error: {fallback_error}
+"###,
         args = record.args(),
         record = record,
         error = error,

@@ -12,23 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub use boxdyn::BoxDynLayout;
 pub use kv_display::KvDisplay;
-use log::Record;
 #[cfg(feature = "json")]
 pub use simple_json::SimpleJsonLayout;
 pub use simple_text::SimpleTextLayout;
 
+mod boxdyn;
 mod kv_display;
 #[cfg(feature = "json")]
 mod simple_json;
 mod simple_text;
 
 pub trait Layout {
-    fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>>;
+    fn format_bytes(&self, record: &log::Record) -> anyhow::Result<Vec<u8>>;
 }
 
 #[derive(Debug)]
 pub enum LayoutImpl {
+    BoxDyn(BoxDynLayout),
     SimpleText(SimpleTextLayout),
     #[cfg(feature = "json")]
     SimpleJson(SimpleJsonLayout),
@@ -41,8 +43,9 @@ impl Default for LayoutImpl {
 }
 
 impl Layout for LayoutImpl {
-    fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
+    fn format_bytes(&self, record: &log::Record) -> anyhow::Result<Vec<u8>> {
         match self {
+            LayoutImpl::BoxDyn(layout) => layout.format_bytes(record),
             LayoutImpl::SimpleText(layout) => layout.format_bytes(record),
             #[cfg(feature = "json")]
             LayoutImpl::SimpleJson(layout) => layout.format_bytes(record),
