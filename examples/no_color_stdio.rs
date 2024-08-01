@@ -13,10 +13,9 @@
 // limitations under the License.
 
 use log::LevelFilter;
-use logforth::DispatchAppend;
-use logforth::LogLevelFilter;
-use logforth::Logger;
-use logforth::StdoutAppend;
+use logforth::append::{DispatchAppend, StdoutAppend};
+use logforth::filter::LogLevelFilter;
+use logforth::logger::Logger;
 
 fn main() {
     let append = StdoutAppend::default();

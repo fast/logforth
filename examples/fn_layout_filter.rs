@@ -13,12 +13,11 @@
 // limitations under the License.
 
 use log::LevelFilter;
-use logforth::BoxDynFilter;
-use logforth::BoxDynLayout;
-use logforth::DispatchAppend;
-use logforth::FilterResult;
-use logforth::Logger;
-use logforth::StdoutAppend;
+
+use logforth::append::{DispatchAppend, StdoutAppend};
+use logforth::filter::{BoxDynFilter, FilterResult};
+use logforth::layout::BoxDynLayout;
+use logforth::logger::Logger;
 
 fn main() {
     let layout = BoxDynLayout::new(|record: &log::Record| {

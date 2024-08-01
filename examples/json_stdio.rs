@@ -13,11 +13,10 @@
 // limitations under the License.
 
 use log::LevelFilter;
-use logforth::DispatchAppend;
-use logforth::LogLevelFilter;
-use logforth::Logger;
-use logforth::SimpleJsonLayout;
-use logforth::StdoutAppend;
+use logforth::append::{DispatchAppend, StdoutAppend};
+use logforth::filter::LogLevelFilter;
+use logforth::layout::SimpleJsonLayout;
+use logforth::logger::Logger;
 
 fn main() {
     let append = StdoutAppend::default().with_layout(SimpleJsonLayout);
