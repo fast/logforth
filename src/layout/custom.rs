@@ -21,6 +21,7 @@ use crate::layout::Layout;
 #[derive(Educe)]
 #[educe(Debug)]
 pub struct CustomLayout {
+    #[allow(clippy::type_complexity)]
     #[educe(Debug(ignore))]
     f: Box<
         dyn Fn(&log::Record, &dyn Fn(Arguments) -> anyhow::Result<()>) -> anyhow::Result<()>
