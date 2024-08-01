@@ -13,11 +13,8 @@
 // limitations under the License.
 
 use std::io::Write;
-
-use crate::Append;
-use crate::AppendImpl;
-use crate::Layout;
-use crate::LayoutImpl;
+use crate::append::{Append, AppendImpl};
+use crate::layout::{Layout, LayoutImpl};
 
 #[derive(Default, Debug)]
 pub struct StdoutAppend {
@@ -34,7 +31,7 @@ impl StdoutAppend {
 impl Append for StdoutAppend {
     fn try_append(&self, record: &log::Record) -> anyhow::Result<()> {
         let bytes = self.layout.format_bytes(record)?;
-        std::io::stdout().write_all(&bytes)?;
+        std::io::stdout().write_all(&format!("{}", record.args()).into_bytes())?;
         std::io::stdout().write_all(b"\n")?;
         Ok(())
     }

@@ -14,17 +14,15 @@
 
 use log::Metadata;
 use log::Record;
-
-use crate::Append;
-use crate::AppendImpl;
-use crate::Filter;
-use crate::FilterImpl;
-use crate::FilterResult;
+use crate::append::AppendImpl;
+use crate::filter::FilterImpl;
+use crate::layout::{Layout, LayoutImpl};
 
 #[derive(Debug)]
 pub struct DispatchAppend {
     appends: Vec<AppendImpl>,
     filters: Vec<FilterImpl>,
+    layout: LayoutImpl,
 }
 
 impl DispatchAppend {
@@ -76,6 +74,7 @@ impl Append for DispatchAppend {
         }
 
         for append in &self.appends {
+            let formatted = self.layout.format_bytes(record);
             append.try_append(record)?;
         }
 

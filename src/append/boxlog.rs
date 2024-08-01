@@ -17,9 +17,7 @@ use std::fmt::Debug;
 use log::Log;
 use log::Metadata;
 use log::Record;
-
-use crate::Append;
-use crate::AppendImpl;
+use crate::append::{Append, AppendImpl};
 
 pub struct BoxLogAppend(Box<dyn Log>);
 

@@ -16,9 +16,7 @@ use std::fmt::Debug;
 
 use log::Metadata;
 use log::Record;
-
-use crate::Append;
-use crate::AppendImpl;
+use crate::append::{Append, AppendImpl};
 
 pub struct BoxDynAppend(Box<dyn Append + Send + Sync>);
 

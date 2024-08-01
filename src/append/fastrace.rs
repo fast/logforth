@@ -15,10 +15,8 @@
 use std::time::SystemTime;
 
 use log::Record;
-
-use crate::Append;
-use crate::AppendImpl;
-use crate::KvDisplay;
+use crate::append::{Append, AppendImpl};
+use crate::layout::KvDisplay;
 
 #[derive(Default, Debug, Clone)]
 pub struct FastraceAppend;

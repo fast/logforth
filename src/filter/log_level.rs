@@ -15,58 +15,27 @@
 use log::LevelFilter;
 use log::Metadata;
 
-use crate::filter::Filter;
 use crate::filter::FilterResult;
-use crate::FilterImpl;
+use crate::filter::{Filter, FilterImpl};
 
 #[derive(Debug, Clone)]
 pub struct LogLevelFilter {
-    min_level: LevelFilter,
     max_level: LevelFilter,
-    on_match: FilterResult,
-    on_mismatch: FilterResult,
 }
 
 impl LogLevelFilter {
     pub fn new(level: LevelFilter) -> Self {
-        Self {
-            min_level: LevelFilter::Off,
-            max_level: level,
-            on_match: FilterResult::Neutral,
-            on_mismatch: FilterResult::Reject,
-        }
-    }
-
-    pub fn with_min_level(mut self, level: LevelFilter) -> Self {
-        debug_assert!(level <= self.max_level);
-        self.min_level = level;
-        self
-    }
-
-    pub fn with_max_level(mut self, level: LevelFilter) -> Self {
-        debug_assert!(level >= self.min_level);
-        self.max_level = level;
-        self
-    }
-
-    pub fn with_on_match(mut self, result: FilterResult) -> Self {
-        self.on_match = result;
-        self
-    }
-
-    pub fn with_on_mismatch(mut self, result: FilterResult) -> Self {
-        self.on_mismatch = result;
-        self
+        Self { max_level: level }
     }
 }
 
 impl Filter for LogLevelFilter {
     fn filter_metadata(&self, metadata: &Metadata) -> FilterResult {
         let level = metadata.level();
-        if level >= self.min_level && level <= self.max_level {
-            self.on_match
+        if level <= self.max_level {
+            FilterResult::Neutral
         } else {
-            self.on_mismatch
+            FilterResult::Reject
         }
     }
 }
