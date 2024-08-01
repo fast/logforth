@@ -18,12 +18,12 @@ name = "logforth"
 authors = ["tison <wander4096@gmail.com>"]
 description = "A versatile and extensible logging implementation."
 edition = "2021"
+homepage = "https://github.com/tisonkun/logforth"
 license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/tisonkun/logforth"
 rust-version = "1.71.0"
 version = "0.1.0"
-homepage = "https://github.com/tisonkun/logforth"
-repository = "https://github.com/tisonkun/logforth"
-readme = "README.md"
 
 [features]
 colored = ["dep:colored"]
