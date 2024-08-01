@@ -1,6 +1,5 @@
-use std::fmt::Arguments;
-
 use crate::layout::Layout;
+use std::fmt::Arguments;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Identical;
