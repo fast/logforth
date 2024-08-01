@@ -21,7 +21,7 @@ use serde::Serialize;
 use serde_json::Map;
 use serde_json::Value;
 
-use crate::layout::{make_record_with_args, Layout, LayoutImpl};
+use crate::layout::{Layout, LayoutImpl};
 
 #[derive(Default, Debug, Clone)]
 pub struct SimpleJsonLayout;
@@ -76,7 +76,7 @@ impl Layout for SimpleJsonLayout {
         };
 
         let text = serde_json::to_string(&record_line)?;
-        Ok(make_record_with_args(format_args!("{text}"), record))
+        Ok(record.to_builder().args(format_args!("{text}")).build())
     }
 }
 

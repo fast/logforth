@@ -19,6 +19,7 @@ pub use fastrace::*;
 #[cfg(feature = "file")]
 pub use file::*;
 pub use stdio::*;
+use crate::layout::LayoutImpl;
 
 mod boxdyn;
 mod boxlog;
@@ -38,7 +39,12 @@ pub trait Append {
     fn try_append(&self, record: &log::Record) -> anyhow::Result<()>;
 
     /// Flushes any buffered records.
-    fn flush(&self);
+    fn flush(&self) {}
+
+    /// Preferred layout for this append. If set, override the context layout.
+    fn preferred_layout(&self) -> Option<LayoutImpl> {
+        None
+    }
 }
 
 #[derive(Debug)]

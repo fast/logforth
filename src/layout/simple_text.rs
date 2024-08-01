@@ -21,8 +21,8 @@ use colored::Colorize;
 use log::Level;
 use log::Record;
 
+use crate::layout::{Layout, LayoutImpl};
 use crate::layout::kv_display::KvDisplay;
-use crate::layout::{make_record_with_args, Layout, LayoutImpl};
 
 #[derive(Default, Debug, Clone)]
 pub struct SimpleTextLayout {
@@ -77,7 +77,7 @@ impl Layout for SimpleTextLayout {
             KvDisplay::new(record.key_values()),
         );
 
-        Ok(make_record_with_args(args, record))
+        Ok(record.to_builder().args(args).build())
     }
 }
 

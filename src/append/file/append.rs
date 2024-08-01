@@ -34,8 +34,6 @@ impl Append for RollingFileAppend {
         self.writer.send(bytes)?;
         Ok(())
     }
-
-    fn flush(&self) {}
 }
 
 impl From<RollingFileAppend> for AppendImpl {
