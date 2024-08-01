@@ -28,7 +28,7 @@ use crate::layout::Layout;
 mod fastrace;
 #[cfg(feature = "opentelemetry")]
 mod opentelemetry;
-#[cfg(feature = "file")]
+#[cfg(feature = "rolling_file")]
 pub mod rolling_file;
 mod stdio;
 

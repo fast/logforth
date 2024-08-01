@@ -31,7 +31,7 @@ rustdoc-args = ["--cfg", "docs"]
 
 [features]
 fastrace = ["dep:fastrace"]
-file = ["dep:crossbeam-channel", "dep:parking_lot", "dep:time"]
+rolling_file = ["dep:crossbeam-channel", "dep:parking_lot", "dep:time"]
 json = ["dep:serde_json", "dep:serde"]
 no-color = ["colored/no-color"]
 opentelemetry = [

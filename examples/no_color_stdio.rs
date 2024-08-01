@@ -14,17 +14,16 @@
 
 use log::LevelFilter;
 use logforth::append;
-use logforth::filter;
-use logforth::layout;
-use logforth::logger::Dispatch;
-use logforth::logger::Logger;
+use logforth::layout::TextLayout;
+use logforth::Dispatch;
+use logforth::Logger;
 
 fn main() {
     Logger::new()
         .dispatch(
             Dispatch::new()
                 .filter(LevelFilter::Trace)
-                .layout(layout::Text::default())
+                .layout(TextLayout::default())
                 .append(append::Stdout),
         )
         .apply()
