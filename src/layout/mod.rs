@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(feature = "colored")]
 pub use colored_simple_text::ColoredSimpleTextLayout;
 use log::Record;
 pub use simple_text::SimpleTextLayout;
 
+#[cfg(feature = "colored")]
 mod colored_simple_text;
 mod kv_display;
 mod simple_text;
@@ -27,23 +29,16 @@ pub trait Layout {
 #[derive(Debug)]
 pub enum LayoutImpl {
     SimpleText(SimpleTextLayout),
+    #[cfg(feature = "colored")]
     ColoredSimpleText(ColoredSimpleTextLayout),
 }
 
-macro_rules! enum_dispatch_layout {
-    ($($name:ident),+) => {
-        impl Layout for LayoutImpl {
-            fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
-                match self { $( LayoutImpl::$name(layout) => layout.format_bytes(record), )+ }
-            }
+impl Layout for LayoutImpl {
+    fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
+        match self {
+            LayoutImpl::SimpleText(layout) => layout.format_bytes(record),
+            #[cfg(feature = "colored")]
+            LayoutImpl::ColoredSimpleText(layout) => layout.format_bytes(record),
         }
-
-        $(paste::paste! {
-            impl From<[<$name Layout>]> for LayoutImpl {
-                fn from(layout: [<$name Layout>]) -> Self { LayoutImpl::$name(layout) }
-            }
-        })+
-    };
+    }
 }
-
-enum_dispatch_layout!(SimpleText, ColoredSimpleText);

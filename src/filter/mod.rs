@@ -41,24 +41,16 @@ pub enum FilterImpl {
     LogLevel(LogLevelFilter),
 }
 
-macro_rules! enum_dispatch_filter {
-    ($($name:ident),+) => {
-        impl Filter for FilterImpl {
-            fn filter(&self, record: &Record) -> FilterResult {
-                match self { $( FilterImpl::$name(filter) => filter.filter(record), )+ }
-            }
-
-            fn filter_metadata(&self, metadata: &Metadata) -> FilterResult {
-                match self { $( FilterImpl::$name(filter) => filter.filter_metadata(metadata), )+ }
-            }
+impl Filter for FilterImpl {
+    fn filter(&self, record: &Record) -> FilterResult {
+        match self {
+            FilterImpl::LogLevel(filter) => filter.filter(record),
         }
+    }
 
-        $(paste::paste! {
-            impl From<[<$name Filter>]> for FilterImpl {
-                fn from(filter: [<$name Filter>]) -> Self { FilterImpl::$name(filter) }
-            }
-        })+
-    };
+    fn filter_metadata(&self, metadata: &Metadata) -> FilterResult {
+        match self {
+            FilterImpl::LogLevel(filter) => filter.filter_metadata(metadata),
+        }
+    }
 }
-
-enum_dispatch_filter!(LogLevel);

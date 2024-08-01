@@ -15,6 +15,7 @@
 use std::io::Write;
 
 use crate::Append;
+use crate::AppendImpl;
 use crate::Layout;
 use crate::LayoutImpl;
 use crate::SimpleTextLayout;
@@ -55,6 +56,12 @@ impl Append for StdoutAppend {
     }
 }
 
+impl From<StdoutAppend> for AppendImpl {
+    fn from(append: StdoutAppend) -> Self {
+        AppendImpl::Stdout(append)
+    }
+}
+
 #[derive(Debug)]
 pub struct StderrAppend {
     layout: LayoutImpl,
@@ -88,5 +95,11 @@ impl Append for StderrAppend {
 
     fn flush(&self) {
         let _ = std::io::stderr().flush();
+    }
+}
+
+impl From<StderrAppend> for AppendImpl {
+    fn from(append: StderrAppend) -> Self {
+        AppendImpl::Stderr(append)
     }
 }

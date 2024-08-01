@@ -18,20 +18,28 @@ name = "logforth"
 authors = ["tison <wander4096@gmail.com>"]
 description = "A versatile and extensible logging implementation."
 edition = "2021"
+homepage = "https://github.com/tisonkun/logforth"
 license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/tisonkun/logforth"
 rust-version = "1.71.0"
 version = "0.1.0"
-homepage = "https://github.com/tisonkun/logforth"
-repository = "https://github.com/tisonkun/logforth"
-readme = "README.md"
 
 [features]
-#colored = ["dep:colored"]
+colored = ["dep:colored"]
 
 [dependencies]
 anyhow = { version = "1.0" }
-#colored = { version = "2.1", optional = true }
-colored = { version = "2.1" }
+colored = { version = "2.1", optional = true }
 humantime = { version = "2.1" }
 log = { version = "0.4", features = ["std", "kv_unstable"] }
 paste = { version = "1.0" }
+
+[[example]]
+name = "simple_stdio"
+path = "examples/simple_stdio.rs"
+
+[[example]]
+name = "colored_stdio"
+path = "examples/colored_stdio.rs"
+required-features = ["colored"]
