@@ -12,22 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::dynlog::DynLog;
-use crate::filter::FilterImpl;
-use crate::layout;
-use crate::layout::Layout;
 pub use boxdyn::*;
 #[cfg(feature = "fastrace")]
 pub use fastrace::*;
 #[cfg(feature = "file")]
 pub use file::*;
+#[cfg(feature = "opentelemetry")]
+pub use opentelemetry::*;
 pub use stdio::*;
+
+use crate::dynlog::DynLog;
+use crate::filter::FilterImpl;
+use crate::layout;
+use crate::layout::Layout;
 
 mod boxdyn;
 #[cfg(feature = "fastrace")]
 mod fastrace;
 #[cfg(feature = "file")]
 mod file;
+#[cfg(feature = "opentelemetry")]
+mod opentelemetry;
 mod stdio;
 
 pub trait Append {
@@ -56,6 +61,8 @@ pub enum AppendImpl {
     DynLog(DynLog),
     #[cfg(feature = "fastrace")]
     Fastrace(Fastrace),
+    #[cfg(feature = "opentelemetry")]
+    OpenTelemetryLog(OpenTelemetryLog),
     #[cfg(feature = "file")]
     RollingFile(RollingFile),
     Stdout(Stdout),
@@ -69,6 +76,8 @@ impl Append for AppendImpl {
             AppendImpl::DynLog(append) => append.try_append(record),
             #[cfg(feature = "fastrace")]
             AppendImpl::Fastrace(append) => append.try_append(record),
+            #[cfg(feature = "opentelemetry")]
+            AppendImpl::OpenTelemetryLog(append) => append.try_append(record),
             #[cfg(feature = "file")]
             AppendImpl::RollingFile(append) => append.try_append(record),
             AppendImpl::Stdout(append) => append.try_append(record),
@@ -82,6 +91,8 @@ impl Append for AppendImpl {
             AppendImpl::DynLog(append) => append.flush(),
             #[cfg(feature = "fastrace")]
             AppendImpl::Fastrace(append) => append.flush(),
+            #[cfg(feature = "opentelemetry")]
+            AppendImpl::OpenTelemetryLog(append) => append.flush(),
             #[cfg(feature = "file")]
             AppendImpl::RollingFile(append) => append.flush(),
             AppendImpl::Stdout(append) => append.flush(),
@@ -95,6 +106,8 @@ impl Append for AppendImpl {
             AppendImpl::DynLog(append) => append.default_layout(),
             #[cfg(feature = "fastrace")]
             AppendImpl::Fastrace(append) => append.default_layout(),
+            #[cfg(feature = "opentelemetry")]
+            AppendImpl::OpenTelemetryLog(append) => append.default_layout(),
             #[cfg(feature = "file")]
             AppendImpl::RollingFile(append) => append.default_layout(),
             AppendImpl::Stdout(append) => append.default_layout(),
@@ -108,6 +121,8 @@ impl Append for AppendImpl {
             AppendImpl::DynLog(append) => append.default_filters(),
             #[cfg(feature = "fastrace")]
             AppendImpl::Fastrace(append) => append.default_filters(),
+            #[cfg(feature = "opentelemetry")]
+            AppendImpl::OpenTelemetryLog(append) => append.default_filters(),
             #[cfg(feature = "file")]
             AppendImpl::RollingFile(append) => append.default_filters(),
             AppendImpl::Stdout(append) => append.default_filters(),
