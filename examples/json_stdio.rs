@@ -22,10 +22,9 @@ use logforth::logger::Logger;
 fn main() {
     Logger::new()
         .dispatch(
-            Dispatch::new()
+            Dispatch::builder(append::Stdout)
                 .filter(filter::LogLevel::new(LevelFilter::Trace))
-                .layout(layout::SimpleJson)
-                .append(append::Stdout),
+                .layout(layout::SimpleJson),
         )
         .apply()
         .unwrap();
