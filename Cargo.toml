@@ -35,7 +35,6 @@ no-color = ["colored/no-color"]
 anyhow = { version = "1.0" }
 colored = { version = "2.1" }
 crossbeam-channel = { version = "0.5", optional = true }
-educe = "0.6.0"
 fastrace = { version = "0.6", optional = true }
 humantime = { version = "2.1" }
 log = { version = "0.4", features = ["std", "kv_unstable"] }

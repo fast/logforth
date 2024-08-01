@@ -12,23 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt::Arguments;
-
-use educe::Educe;
+use std::fmt::{Arguments, Debug, Formatter};
 
 use crate::layout::Layout;
 
-#[derive(Educe)]
-#[educe(Debug)]
 pub struct CustomLayout {
     #[allow(clippy::type_complexity)]
-    #[educe(Debug(ignore))]
     f: Box<
         dyn Fn(&log::Record, &dyn Fn(Arguments) -> anyhow::Result<()>) -> anyhow::Result<()>
             + Send
             + Sync
             + 'static,
     >,
+}
+
+impl Debug for CustomLayout {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "CustomLayout {{ ... }}")
+    }
 }
 
 impl CustomLayout {
