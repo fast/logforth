@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use log::LevelFilter;
-use logforth::ColoredSimpleTextLayout;
 use logforth::DispatchAppend;
 use logforth::LogLevelFilter;
 use logforth::Logger;

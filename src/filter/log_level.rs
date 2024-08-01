@@ -17,6 +17,7 @@ use log::Metadata;
 
 use crate::filter::Filter;
 use crate::filter::FilterResult;
+use crate::FilterImpl;
 
 #[derive(Debug, Clone)]
 pub struct LogLevelFilter {
@@ -67,5 +68,11 @@ impl Filter for LogLevelFilter {
         } else {
             self.on_mismatch
         }
+    }
+}
+
+impl From<LogLevelFilter> for FilterImpl {
+    fn from(filter: LogLevelFilter) -> Self {
+        FilterImpl::LogLevel(filter)
     }
 }

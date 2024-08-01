@@ -23,6 +23,7 @@ use log::Record;
 
 use crate::layout::kv_display::KvDisplay;
 use crate::Layout;
+use crate::LayoutImpl;
 
 #[derive(Default, Debug, Clone)]
 pub struct ColoredSimpleTextLayout {
@@ -77,5 +78,11 @@ impl Layout for ColoredSimpleTextLayout {
             KvDisplay::new(record.key_values()),
         );
         Ok(text.into_bytes())
+    }
+}
+
+impl From<ColoredSimpleTextLayout> for LayoutImpl {
+    fn from(layout: ColoredSimpleTextLayout) -> Self {
+        LayoutImpl::ColoredSimpleText(layout)
     }
 }

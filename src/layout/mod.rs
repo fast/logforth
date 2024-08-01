@@ -33,24 +33,12 @@ pub enum LayoutImpl {
     ColoredSimpleText(ColoredSimpleTextLayout),
 }
 
-macro_rules! enum_dispatch_layout {
-    ($($name:ident),+) => {
-        impl Layout for LayoutImpl {
-            fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
-                match self { $(
-                    // opt #[cfg(feature = "colored")]
-                   LayoutImpl::$name(layout) => layout.format_bytes(record),
-                )+ }
-            }
+impl Layout for LayoutImpl {
+    fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
+        match self {
+            LayoutImpl::SimpleText(layout) => layout.format_bytes(record),
+            #[cfg(feature = "colored")]
+            LayoutImpl::ColoredSimpleText(layout) => layout.format_bytes(record),
         }
-
-        $(paste::paste! {
-            // opt #[cfg(feature = "colored")]
-            impl From<[<$name Layout>]> for LayoutImpl {
-                fn from(layout: [<$name Layout>]) -> Self { LayoutImpl::$name(layout) }
-            }
-        })+
-    };
+    }
 }
-
-enum_dispatch_layout!(SimpleText, ColoredSimpleText);

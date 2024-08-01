@@ -88,3 +88,9 @@ impl Append for DispatchAppend {
         }
     }
 }
+
+impl From<DispatchAppend> for AppendImpl {
+    fn from(append: DispatchAppend) -> Self {
+        AppendImpl::Dispatch(append)
+    }
+}

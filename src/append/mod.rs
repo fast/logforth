@@ -41,28 +41,28 @@ pub enum AppendImpl {
     Stderr(StderrAppend),
 }
 
-macro_rules! enum_dispatch_append {
-    ($($name:ident),+) => {
-        impl Append for AppendImpl {
-            fn enabled(&self, metadata: &Metadata) -> bool {
-                match self { $( AppendImpl::$name(append) => append.enabled(metadata), )+ }
-            }
-
-            fn try_append(&self, record: &Record) -> anyhow::Result<()> {
-                match self { $( AppendImpl::$name(append) => append.try_append(record), )+ }
-            }
-
-            fn flush(&self) {
-                match self { $( AppendImpl::$name(append) => append.flush(), )+ }
-            }
+impl Append for AppendImpl {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        match self {
+            AppendImpl::Dispatch(append) => append.enabled(metadata),
+            AppendImpl::Stdout(append) => append.enabled(metadata),
+            AppendImpl::Stderr(append) => append.enabled(metadata),
         }
+    }
 
-        $(paste::paste! {
-            impl From<[<$name Append>]> for AppendImpl {
-                fn from(append: [<$name Append>]) -> Self { AppendImpl::$name(append) }
-            }
-        })+
-    };
+    fn try_append(&self, record: &Record) -> anyhow::Result<()> {
+        match self {
+            AppendImpl::Dispatch(append) => append.try_append(record),
+            AppendImpl::Stdout(append) => append.try_append(record),
+            AppendImpl::Stderr(append) => append.try_append(record),
+        }
+    }
+
+    fn flush(&self) {
+        match self {
+            AppendImpl::Dispatch(append) => append.flush(),
+            AppendImpl::Stdout(append) => append.flush(),
+            AppendImpl::Stderr(append) => append.flush(),
+        }
+    }
 }
-
-enum_dispatch_append!(Dispatch, Stdout, Stderr);
