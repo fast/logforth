@@ -12,46 +12,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::Log;
+use std::io::Write;
+
+use log::LevelFilter;
 use log::Metadata;
 use log::Record;
 
+use crate::append::Append;
 use crate::append::AppendImpl;
 
+#[derive(Debug)]
 pub struct Logger {
-    pub appends: Vec<AppendImpl>,
+    appends: Vec<AppendImpl>,
+}
+
+impl Default for Logger {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Logger {
-    /// Dispatch this log record to all appends.
-    fn do_append(&self, record: &Record) {
-        for append in &self.appends {
-            append.log(record);
-        }
+    pub fn new() -> Self {
+        Self { appends: vec![] }
     }
 
-    /// Whether the filters prevent this log record from logging.
-    fn check_filtered(&self, _: &Metadata) -> bool {
-        false
+    pub fn add_append(mut self, append: impl Into<AppendImpl>) -> Self {
+        self.appends.push(append.into());
+        self
     }
 
-    /// Whether a log with the given metadata would eventually end up logging something.
-    fn check_enabled(&self, m: &Metadata) -> bool {
-        !self.check_filtered(m) && self.appends.iter().any(|a| a.enabled(m))
+    pub fn apply(self) -> Result<(), log::SetLoggerError> {
+        log::set_boxed_logger(Box::new(self))?;
+        log::set_max_level(LevelFilter::Trace);
+        Ok(())
     }
 }
 
-impl Log for Logger {
-    fn enabled(&self, m: &Metadata) -> bool {
-        self.check_enabled(m)
+impl log::Log for Logger {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        self.appends.iter().any(|append| append.enabled(metadata))
     }
 
     fn log(&self, record: &Record) {
-        if self.check_filtered(record.metadata()) {
-            return;
+        for append in &self.appends {
+            if let Err(err) = append.try_append(record) {
+                handle_error(record, err);
+            }
         }
-
-        self.do_append(record);
     }
 
     fn flush(&self) {
@@ -59,4 +67,35 @@ impl Log for Logger {
             append.flush();
         }
     }
+}
+
+fn handle_error(record: &Record, error: anyhow::Error) {
+    let Err(fallback_error) = write!(
+        std::io::stderr(),
+        r#"
+            Error perform logging.
+                Attempted to log: {args}
+                Record: {record:?}
+                Error: {error}
+            "#,
+        args = record.args(),
+        record = record,
+        error = error,
+    ) else {
+        return;
+    };
+
+    panic!(
+        r#"
+            Error performing stderr logging after error occurred during regular logging.
+                Attempted to log: {args}
+                Record: {record:?}
+                Error: {error}
+                Fallback error: {fallback_error}
+            "#,
+        args = record.args(),
+        record = record,
+        error = error,
+        fallback_error = fallback_error,
+    );
 }

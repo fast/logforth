@@ -12,42 +12,57 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub use dispatch::DispatchAppend;
 use log::Metadata;
 use log::Record;
+pub use stdio::StderrAppend;
+pub use stdio::StdoutAppend;
 
-mod stderr;
-mod stdout;
-mod utils;
+mod dispatch;
+mod stdio;
 
-/// enum_dispatch facade for [log::Log].
-#[enum_dispatch::enum_dispatch]
-pub trait Append: Send + Sync {
-    /// Dispatch to [log::Log::enabled].
-    fn enabled(&self, metadata: &Metadata) -> bool;
+pub trait Append {
+    /// Whether this append is enabled; default to `true`.
+    fn enabled(&self, _metadata: &Metadata) -> bool {
+        true
+    }
 
-    /// Dispatch to [log::Log::log].
-    fn log(&self, record: &Record);
+    /// Dispatches a log record to the append target.
+    fn try_append(&self, record: &Record) -> anyhow::Result<()>;
 
-    /// Dispatch to [log::Log::flush].
+    /// Flushes any buffered records.
     fn flush(&self);
 }
 
-#[enum_dispatch::enum_dispatch(Append)]
+#[derive(Debug)]
 pub enum AppendImpl {
-    Stdout(stdout::Stdout),
-    Stderr(stderr::Stderr),
+    Dispatch(DispatchAppend),
+    Stdout(StdoutAppend),
+    Stderr(StderrAppend),
 }
 
-impl log::Log for AppendImpl {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        Append::enabled(self, metadata)
-    }
+macro_rules! enum_dispatch_append {
+    ($($name:ident),+) => {
+        impl Append for AppendImpl {
+            fn enabled(&self, metadata: &Metadata) -> bool {
+                match self { $( AppendImpl::$name(append) => append.enabled(metadata), )+ }
+            }
 
-    fn log(&self, record: &Record) {
-        Append::log(self, record)
-    }
+            fn try_append(&self, record: &Record) -> anyhow::Result<()> {
+                match self { $( AppendImpl::$name(append) => append.try_append(record), )+ }
+            }
 
-    fn flush(&self) {
-        Append::flush(self)
-    }
+            fn flush(&self) {
+                match self { $( AppendImpl::$name(append) => append.flush(), )+ }
+            }
+        }
+
+        $(paste::paste! {
+            impl From<[<$name Append>]> for AppendImpl {
+                fn from(append: [<$name Append>]) -> Self { AppendImpl::$name(append) }
+            }
+        })+
+    };
 }
+
+enum_dispatch_append!(Dispatch, Stdout, Stderr);

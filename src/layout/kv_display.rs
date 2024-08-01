@@ -1,0 +1,46 @@
+// Copyright 2024 tison <wander4096@gmail.com>
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+pub struct KvDisplay<'kvs> {
+    kv: &'kvs dyn log::kv::Source,
+}
+
+impl<'kvs> KvDisplay<'kvs> {
+    pub fn new(kv: &'kvs dyn log::kv::Source) -> Self {
+        Self { kv }
+    }
+}
+
+impl std::fmt::Display for KvDisplay<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let mut visitor = KvWriter { writer: f };
+        self.kv.visit(&mut visitor).ok();
+        Ok(())
+    }
+}
+
+struct KvWriter<'a, 'kvs> {
+    writer: &'kvs mut std::fmt::Formatter<'a>,
+}
+
+impl<'a, 'kvs> log::kv::Visitor<'kvs> for KvWriter<'a, 'kvs> {
+    fn visit_pair(
+        &mut self,
+        key: log::kv::Key<'kvs>,
+        value: log::kv::Value<'kvs>,
+    ) -> Result<(), log::kv::Error> {
+        write!(self.writer, " {key}={value}")?;
+        Ok(())
+    }
+}
