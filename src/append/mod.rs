@@ -23,6 +23,8 @@ pub use stdio::StdoutAppend;
 mod dispatch;
 #[cfg(feature = "fastrace")]
 mod fastrace;
+#[cfg(feature = "file")]
+mod file;
 mod stdio;
 
 pub trait Append {
