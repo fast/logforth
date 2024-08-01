@@ -27,7 +27,7 @@ mod simple_json;
 mod simple_text;
 
 pub trait Layout {
-    fn format_record<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
+    fn format<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
     where
         F: Fn(&log::Record) -> anyhow::Result<()>;
 }
@@ -42,16 +42,16 @@ pub enum LayoutImpl {
 }
 
 impl Layout for LayoutImpl {
-    fn format_record<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
+    fn format<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
     where
         F: Fn(&log::Record) -> anyhow::Result<()>,
     {
         match self {
             // LayoutImpl::BoxDyn(layout) => layout.format_record(record),
-            LayoutImpl::Identical(layout) => layout.format_record(record, f),
-            LayoutImpl::SimpleText(layout) => layout.format_record(record, f),
+            LayoutImpl::Identical(layout) => layout.format(record, f),
+            LayoutImpl::SimpleText(layout) => layout.format(record, f),
             #[cfg(feature = "json")]
-            LayoutImpl::SimpleJson(layout) => layout.format_record(record),
+            LayoutImpl::SimpleJson(layout) => layout.format(record, f),
         }
     }
 }

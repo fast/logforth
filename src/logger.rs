@@ -33,6 +33,12 @@ pub struct Dispatch {
     preferred_layout: Option<LayoutImpl>,
 }
 
+impl Default for Dispatch {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Dispatch {
     pub fn new() -> Self {
         Self {
@@ -85,10 +91,10 @@ impl Dispatch {
 
         for append in &self.appends {
             match self.preferred_layout.as_ref() {
-                Some(layout) => layout.format_record(record, |record| append.try_append(record))?,
+                Some(layout) => layout.format(record, |record| append.try_append(record))?,
                 None => append
                     .default_layout()
-                    .format_record(record, |record| append.try_append(record))?,
+                    .format(record, |record| append.try_append(record))?,
             }
         }
         Ok(())

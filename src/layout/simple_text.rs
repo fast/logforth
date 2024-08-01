@@ -51,7 +51,7 @@ impl Default for ColoredLevel {
 }
 
 impl Layout for SimpleText {
-    fn format_record<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
+    fn format<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
     where
         F: Fn(&log::Record) -> anyhow::Result<()>,
     {

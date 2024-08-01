@@ -1,4 +1,3 @@
-use log::Record;
 
 use crate::layout::Layout;
 use crate::layout::LayoutImpl;
@@ -7,7 +6,7 @@ use crate::layout::LayoutImpl;
 pub struct Identical;
 
 impl Layout for Identical {
-    fn format_record<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
+    fn format<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
     where
         F: Fn(&log::Record) -> anyhow::Result<()>,
     {

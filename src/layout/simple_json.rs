@@ -46,25 +46,28 @@ impl<'a, 'kvs> log::kv::Visitor<'kvs> for KvCollector<'a> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct RecordLine<'a> {
-    timestamp: std::fmt::Arguments<'a>,
-    level: std::fmt::Arguments<'a>,
+    timestamp: String,
+    level: String,
     module_path: &'a str,
     file: &'a str,
     line: u32,
-    message: &'a std::fmt::Arguments<'a>,
+    message: String,
     kvs: Map<String, Value>,
 }
 
 impl Layout for SimpleJson {
-    fn format_record<'a>(&'_ self, record: &'a Record<'a>) -> anyhow::Result<Record<'a>> {
+    fn format<F>(&self, record: &Record, f: F) -> anyhow::Result<()>
+    where
+        F: Fn(&Record) -> anyhow::Result<()>,
+    {
         let mut kvs = Map::new();
         let mut visitor = KvCollector { kvs: &mut kvs };
         record.key_values().visit(&mut visitor)?;
 
         let timestamp = humantime::format_rfc3339_micros(SystemTime::now());
         let record_line = RecordLine {
-            timestamp: format_args!("{timestamp}"),
-            level: format_args!("{}", record.level()),
+            timestamp: format!("{timestamp}"),
+            level: record.level().to_string(),
             module_path: record.module_path().unwrap_or(""),
             file: record
                 .file()
@@ -72,12 +75,12 @@ impl Layout for SimpleJson {
                 .and_then(|name| name.to_str())
                 .unwrap_or_default(),
             line: record.line().unwrap_or(0),
-            message: record.args(),
+            message: record.args().to_string(),
             kvs,
         };
 
         let text = serde_json::to_string(&record_line)?;
-        Ok(record.to_builder().args(format_args!("{text}")).build())
+        f(&record.to_builder().args(format_args!("{text}",)).build())
     }
 }
 
