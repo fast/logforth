@@ -37,11 +37,15 @@ macro_rules! enum_dispatch_layout {
     ($($name:ident),+) => {
         impl Layout for LayoutImpl {
             fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
-                match self { $( LayoutImpl::$name(layout) => layout.format_bytes(record), )+ }
+                match self { $(
+                    // opt #[cfg(feature = "colored")]
+                   LayoutImpl::$name(layout) => layout.format_bytes(record),
+                )+ }
             }
         }
 
         $(paste::paste! {
+            // opt #[cfg(feature = "colored")]
             impl From<[<$name Layout>]> for LayoutImpl {
                 fn from(layout: [<$name Layout>]) -> Self { LayoutImpl::$name(layout) }
             }
