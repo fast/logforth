@@ -38,6 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: korandoru/hawkeye@v5
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@v2
         with:
