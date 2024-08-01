@@ -1,21 +1,20 @@
-use std::fmt::Arguments;
-
 use crate::layout::Layout;
+use crate::layout::LayoutImpl;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Identical;
 
-impl Identical {
-    pub fn format<F>(&self, record: &log::Record, f: &F) -> anyhow::Result<()>
+impl Layout for Identical {
+    fn format<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
     where
-        F: Fn(Arguments) -> anyhow::Result<()>,
+        F: Fn(&log::Record) -> anyhow::Result<()>,
     {
-        f(*record.args())
+        f(record)
     }
 }
 
-impl From<Identical> for Layout {
+impl From<Identical> for LayoutImpl {
     fn from(layout: Identical) -> Self {
-        Layout::Identical(layout)
+        LayoutImpl::Identical(layout)
     }
 }

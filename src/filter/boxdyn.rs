@@ -15,7 +15,6 @@
 use std::fmt::Debug;
 
 use log::Metadata;
-use log::Record;
 
 use crate::filter::Filter;
 use crate::filter::FilterImpl;
@@ -36,10 +35,6 @@ impl BoxDyn {
 }
 
 impl Filter for BoxDyn {
-    fn filter(&self, record: &Record) -> FilterResult {
-        (*self.0).filter(record)
-    }
-
     fn filter_metadata(&self, metadata: &Metadata) -> FilterResult {
         (*self.0).filter_metadata(metadata)
     }

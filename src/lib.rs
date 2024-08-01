@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod append;
+pub mod dynlog;
 pub mod filter;
 pub mod layout;
 pub mod logger;

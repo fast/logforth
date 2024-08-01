@@ -24,12 +24,13 @@ use crate::filter::Filter;
 use crate::filter::FilterImpl;
 use crate::filter::FilterResult;
 use crate::layout::Layout;
+use crate::layout::LayoutImpl;
 
 #[derive(Debug)]
 pub struct Dispatch {
     filters: Vec<FilterImpl>,
     appends: Vec<AppendImpl>,
-    layout: Option<Layout>,
+    preferred_layout: Option<LayoutImpl>,
 }
 
 impl Default for Dispatch {
@@ -43,7 +44,7 @@ impl Dispatch {
         Self {
             filters: vec![],
             appends: vec![],
-            layout: None,
+            preferred_layout: None,
         }
     }
 
@@ -57,8 +58,8 @@ impl Dispatch {
         self
     }
 
-    pub fn layout(mut self, layout: impl Into<Layout>) -> Self {
-        self.layout = Some(layout.into());
+    pub fn layout(mut self, layout: impl Into<LayoutImpl>) -> Self {
+        self.preferred_layout = Some(layout.into());
         self
     }
 
@@ -75,27 +76,43 @@ impl Dispatch {
     }
 
     fn try_append(&self, record: &Record) -> anyhow::Result<()> {
-        // TODO(tisonkun): perhaps too heavy to check filters twice.
         for filter in &self.filters {
             match filter.filter_metadata(record.metadata()) {
                 FilterResult::Reject => return Ok(()),
                 FilterResult::Accept => break,
-                FilterResult::Neutral => match filter.filter(record) {
-                    FilterResult::Reject => return Ok(()),
-                    FilterResult::Accept => break,
-                    FilterResult::Neutral => {}
-                },
+                FilterResult::Neutral => {}
             }
         }
 
-        for append in &self.appends {
-            match self.layout.as_ref() {
-                Some(layout) => layout.format(record, &|record| append.try_append(record))?,
+        fn do_append(
+            record: &Record,
+            append: &AppendImpl,
+            preferred_layout: Option<&LayoutImpl>,
+        ) -> anyhow::Result<()> {
+            if let Some(filters) = append.default_filters() {
+                for filter in filters {
+                    match filter.filter_metadata(record.metadata()) {
+                        FilterResult::Reject => return Ok(()),
+                        FilterResult::Accept => break,
+                        FilterResult::Neutral => {}
+                    }
+                }
+            }
+
+            match preferred_layout {
+                Some(layout) => layout.format(record, |record| append.try_append(record)),
                 None => append
                     .default_layout()
-                    .format(record, &|record| append.try_append(record))?,
+                    .format(record, |record| append.try_append(record)),
             }
         }
+
+        let preferred_layout = self.preferred_layout.as_ref();
+
+        for append in &self.appends {
+            do_append(record, append, preferred_layout)?
+        }
+
         Ok(())
     }
 

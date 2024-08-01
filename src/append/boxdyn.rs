@@ -14,11 +14,12 @@
 
 use std::fmt::Debug;
 
-use log::Metadata;
 use log::Record;
 
 use crate::append::Append;
 use crate::append::AppendImpl;
+use crate::filter::FilterImpl;
+use crate::layout::LayoutImpl;
 
 pub struct BoxDyn(Box<dyn Append + Send + Sync>);
 
@@ -35,16 +36,20 @@ impl Debug for BoxDyn {
 }
 
 impl Append for BoxDyn {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        (*self.0).enabled(metadata)
-    }
-
     fn try_append(&self, record: &Record) -> anyhow::Result<()> {
         (*self.0).try_append(record)
     }
 
     fn flush(&self) {
         (*self.0).flush()
+    }
+
+    fn default_layout(&self) -> LayoutImpl {
+        (*self.0).default_layout()
+    }
+
+    fn default_filters(&self) -> Option<Vec<FilterImpl>> {
+        (*self.0).default_filters()
     }
 }
 
