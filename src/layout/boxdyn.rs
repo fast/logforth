@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::fmt::Debug;
+
 use log::Record;
 
 use crate::Layout;
