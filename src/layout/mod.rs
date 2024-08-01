@@ -12,43 +12,46 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use boxdyn::BoxDynLayout;
+// pub use boxdyn::BoxDyn;
+pub use identical::Identical;
 pub use kv_display::KvDisplay;
 #[cfg(feature = "json")]
-pub use simple_json::SimpleJsonLayout;
-pub use simple_text::SimpleTextLayout;
+pub use simple_json::SimpleJson;
+pub use simple_text::SimpleText;
 
-mod boxdyn;
+// mod boxdyn;
+mod identical;
 mod kv_display;
 #[cfg(feature = "json")]
 mod simple_json;
 mod simple_text;
 
 pub trait Layout {
-    fn format_bytes(&self, record: &log::Record) -> anyhow::Result<Vec<u8>>;
+    fn format<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
+    where
+        F: Fn(&log::Record) -> anyhow::Result<()>;
 }
 
 #[derive(Debug)]
 pub enum LayoutImpl {
-    BoxDyn(BoxDynLayout),
-    SimpleText(SimpleTextLayout),
+    // BoxDyn(BoxDyn),
+    Identical(Identical),
+    SimpleText(SimpleText),
     #[cfg(feature = "json")]
-    SimpleJson(SimpleJsonLayout),
-}
-
-impl Default for LayoutImpl {
-    fn default() -> Self {
-        LayoutImpl::SimpleText(SimpleTextLayout::default())
-    }
+    SimpleJson(SimpleJson),
 }
 
 impl Layout for LayoutImpl {
-    fn format_bytes(&self, record: &log::Record) -> anyhow::Result<Vec<u8>> {
+    fn format<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
+    where
+        F: Fn(&log::Record) -> anyhow::Result<()>,
+    {
         match self {
-            LayoutImpl::BoxDyn(layout) => layout.format_bytes(record),
-            LayoutImpl::SimpleText(layout) => layout.format_bytes(record),
+            // LayoutImpl::BoxDyn(layout) => layout.format_record(record),
+            LayoutImpl::Identical(layout) => layout.format(record, f),
+            LayoutImpl::SimpleText(layout) => layout.format(record, f),
             #[cfg(feature = "json")]
-            LayoutImpl::SimpleJson(layout) => layout.format_bytes(record),
+            LayoutImpl::SimpleJson(layout) => layout.format(record, f),
         }
     }
 }

@@ -19,14 +19,13 @@ use colored::Color;
 use colored::ColoredString;
 use colored::Colorize;
 use log::Level;
-use log::Record;
 
 use crate::layout::kv_display::KvDisplay;
-use crate::Layout;
-use crate::LayoutImpl;
+use crate::layout::Layout;
+use crate::layout::LayoutImpl;
 
 #[derive(Default, Debug, Clone)]
-pub struct SimpleTextLayout {
+pub struct SimpleText {
     pub colors: ColoredLevel,
 }
 
@@ -51,8 +50,11 @@ impl Default for ColoredLevel {
     }
 }
 
-impl Layout for SimpleTextLayout {
-    fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
+impl Layout for SimpleText {
+    fn format<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
+    where
+        F: Fn(&log::Record) -> anyhow::Result<()>,
+    {
         let color = match record.level() {
             Level::Error => self.colors.error,
             Level::Warn => self.colors.warn,
@@ -60,29 +62,30 @@ impl Layout for SimpleTextLayout {
             Level::Debug => self.colors.debug,
             Level::Trace => self.colors.trace,
         };
-        let record_level = record.level().to_string();
-        let record_level = ColoredString::from(record_level).color(color);
 
-        let text = format!(
-            "{} {:>5} {}: {}:{} {}{}",
-            humantime::format_rfc3339_micros(SystemTime::now()),
-            record_level,
-            record.module_path().unwrap_or(""),
-            record
-                .file()
-                .and_then(|file| Path::new(file).file_name())
-                .and_then(|name| name.to_str())
-                .unwrap_or_default(),
-            record.line().unwrap_or(0),
-            record.args(),
-            KvDisplay::new(record.key_values()),
-        );
-        Ok(text.into_bytes())
+        let time = humantime::format_rfc3339_micros(SystemTime::now());
+        let level = ColoredString::from(record.level().to_string()).color(color);
+        let module = record.module_path().unwrap_or("");
+        let file = record
+            .file()
+            .and_then(|file| Path::new(file).file_name())
+            .and_then(|name| name.to_str())
+            .unwrap_or_default();
+        let line = record.line().unwrap_or(0);
+        let message = record.args();
+        let kvs = KvDisplay::new(record.key_values());
+
+        f(&record
+            .to_builder()
+            .args(format_args!(
+                "{time} {level:>5} {module}: {file}:{line} {message}{kvs}"
+            ))
+            .build())
     }
 }
 
-impl From<SimpleTextLayout> for LayoutImpl {
-    fn from(layout: SimpleTextLayout) -> Self {
+impl From<SimpleText> for LayoutImpl {
+    fn from(layout: SimpleText) -> Self {
         LayoutImpl::SimpleText(layout)
     }
 }

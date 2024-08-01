@@ -13,14 +13,14 @@
 // limitations under the License.
 
 use log::LevelFilter;
-use logforth::DispatchAppend;
-use logforth::LogLevelFilter;
-use logforth::Logger;
-use logforth::NonBlockingBuilder;
-use logforth::RollingFileAppend;
-use logforth::RollingFileWriter;
-use logforth::Rotation;
-use logforth::SimpleJsonLayout;
+use logforth::append;
+use logforth::append::NonBlockingBuilder;
+use logforth::append::RollingFileWriter;
+use logforth::append::Rotation;
+use logforth::filter;
+use logforth::layout;
+use logforth::logger::Dispatch;
+use logforth::logger::Logger;
 
 fn main() {
     let rolling = RollingFileWriter::builder()
@@ -32,9 +32,15 @@ fn main() {
         .unwrap();
     let (writer, _guard) = NonBlockingBuilder::default().finish(rolling);
 
-    let append = RollingFileAppend::new(writer).with_layout(SimpleJsonLayout);
-    let append = DispatchAppend::new(append).filter(LogLevelFilter::new(LevelFilter::Trace));
-    Logger::new().add_append(append).apply().unwrap();
+    Logger::new()
+        .dispatch(
+            Dispatch::new()
+                .filter(filter::LogLevel::new(LevelFilter::Trace))
+                .layout(layout::SimpleJson)
+                .append(append::RollingFile::new(writer)),
+        )
+        .apply()
+        .unwrap();
 
     let repeat = 1;
 

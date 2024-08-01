@@ -14,28 +14,16 @@
 
 use std::io::Write;
 
-use crate::Append;
-use crate::AppendImpl;
-use crate::Layout;
-use crate::LayoutImpl;
+use crate::append::Append;
+use crate::append::AppendImpl;
 
 #[derive(Default, Debug)]
-pub struct StdoutAppend {
-    layout: LayoutImpl,
-}
+pub struct Stdout;
 
-impl StdoutAppend {
-    pub fn with_layout(mut self, layout: impl Into<LayoutImpl>) -> Self {
-        self.layout = layout.into();
-        self
-    }
-}
-
-impl Append for StdoutAppend {
+impl Append for Stdout {
     fn try_append(&self, record: &log::Record) -> anyhow::Result<()> {
-        let bytes = self.layout.format_bytes(record)?;
+        let bytes = format!("{}\n", record.args()).into_bytes();
         std::io::stdout().write_all(&bytes)?;
-        std::io::stdout().write_all(b"\n")?;
         Ok(())
     }
 
@@ -44,29 +32,18 @@ impl Append for StdoutAppend {
     }
 }
 
-impl From<StdoutAppend> for AppendImpl {
-    fn from(append: StdoutAppend) -> Self {
+impl From<Stdout> for AppendImpl {
+    fn from(append: Stdout) -> Self {
         AppendImpl::Stdout(append)
     }
 }
 
 #[derive(Default, Debug)]
-pub struct StderrAppend {
-    layout: LayoutImpl,
-}
-
-impl StderrAppend {
-    pub fn with_layout(mut self, layout: impl Into<LayoutImpl>) -> Self {
-        self.layout = layout.into();
-        self
-    }
-}
-
-impl Append for StderrAppend {
+pub struct Stderr;
+impl Append for Stderr {
     fn try_append(&self, record: &log::Record) -> anyhow::Result<()> {
-        let bytes = self.layout.format_bytes(record)?;
+        let bytes = format!("{}\n", record.args()).into_bytes();
         std::io::stderr().write_all(&bytes)?;
-        std::io::stderr().write_all(b"\n")?;
         Ok(())
     }
 
@@ -75,8 +52,8 @@ impl Append for StderrAppend {
     }
 }
 
-impl From<StderrAppend> for AppendImpl {
-    fn from(append: StderrAppend) -> Self {
+impl From<Stderr> for AppendImpl {
+    fn from(append: Stderr) -> Self {
         AppendImpl::Stderr(append)
     }
 }

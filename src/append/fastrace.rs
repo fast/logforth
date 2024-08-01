@@ -16,35 +16,29 @@ use std::time::SystemTime;
 
 use log::Record;
 
-use crate::Append;
-use crate::AppendImpl;
-use crate::KvDisplay;
+use crate::append::Append;
+use crate::append::AppendImpl;
+use crate::layout::KvDisplay;
 
 #[derive(Default, Debug, Clone)]
-pub struct FastraceAppend;
+pub struct Fastrace;
 
-impl Append for FastraceAppend {
+impl Append for Fastrace {
     fn try_append(&self, record: &Record) -> anyhow::Result<()> {
-        let mut message = format!(
+        let message = format!(
             "{} {:>5} {}{}",
             humantime::format_rfc3339_micros(SystemTime::now()),
             record.level(),
             record.args(),
             KvDisplay::new(record.key_values()),
         );
-        if message.contains('\n') {
-            // Align multi-line log messages with the first line after `level``.
-            message = message.replace('\n', "\n                                  ");
-        }
         fastrace::Event::add_to_local_parent(message, || []);
         Ok(())
     }
-
-    fn flush(&self) {}
 }
 
-impl From<FastraceAppend> for AppendImpl {
-    fn from(append: FastraceAppend) -> Self {
+impl From<Fastrace> for AppendImpl {
+    fn from(append: Fastrace) -> Self {
         AppendImpl::Fastrace(append)
     }
 }

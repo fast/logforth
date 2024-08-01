@@ -20,10 +20,96 @@ use log::Record;
 
 use crate::append::Append;
 use crate::append::AppendImpl;
+use crate::filter::Filter;
+use crate::filter::FilterImpl;
+use crate::filter::FilterResult;
+use crate::layout::Layout;
+use crate::layout::LayoutImpl;
+
+#[derive(Debug)]
+pub struct Dispatch {
+    filters: Vec<FilterImpl>,
+    appends: Vec<AppendImpl>,
+    preferred_layout: Option<LayoutImpl>,
+}
+
+impl Default for Dispatch {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Dispatch {
+    pub fn new() -> Self {
+        Self {
+            filters: vec![],
+            appends: vec![],
+            preferred_layout: None,
+        }
+    }
+
+    pub fn filter(mut self, filter: impl Into<FilterImpl>) -> Self {
+        self.filters.push(filter.into());
+        self
+    }
+
+    pub fn append(mut self, append: impl Into<AppendImpl>) -> Self {
+        self.appends.push(append.into());
+        self
+    }
+
+    pub fn layout(mut self, layout: impl Into<LayoutImpl>) -> Self {
+        self.preferred_layout = Some(layout.into());
+        self
+    }
+
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        for filter in &self.filters {
+            match filter.filter_metadata(metadata) {
+                FilterResult::Reject => return false,
+                FilterResult::Accept => return true,
+                FilterResult::Neutral => {}
+            }
+        }
+
+        true
+    }
+
+    fn try_append(&self, record: &Record) -> anyhow::Result<()> {
+        // TODO(tisonkun): perhaps too heavy to check filters twice.
+        for filter in &self.filters {
+            match filter.filter_metadata(record.metadata()) {
+                FilterResult::Reject => return Ok(()),
+                FilterResult::Accept => break,
+                FilterResult::Neutral => match filter.filter(record) {
+                    FilterResult::Reject => return Ok(()),
+                    FilterResult::Accept => break,
+                    FilterResult::Neutral => {}
+                },
+            }
+        }
+
+        for append in &self.appends {
+            match self.preferred_layout.as_ref() {
+                Some(layout) => layout.format(record, |record| append.try_append(record))?,
+                None => append
+                    .default_layout()
+                    .format(record, |record| append.try_append(record))?,
+            }
+        }
+        Ok(())
+    }
+
+    fn flush(&self) {
+        for append in &self.appends {
+            append.flush();
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Logger {
-    appends: Vec<AppendImpl>,
+    dispatches: Vec<Dispatch>,
 }
 
 impl Default for Logger {
@@ -34,11 +120,11 @@ impl Default for Logger {
 
 impl Logger {
     pub fn new() -> Self {
-        Self { appends: vec![] }
+        Self { dispatches: vec![] }
     }
 
-    pub fn add_append(mut self, append: impl Into<AppendImpl>) -> Self {
-        self.appends.push(append.into());
+    pub fn dispatch(mut self, dispatch: Dispatch) -> Self {
+        self.dispatches.push(dispatch);
         self
     }
 
@@ -51,20 +137,22 @@ impl Logger {
 
 impl log::Log for Logger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        self.appends.iter().any(|append| append.enabled(metadata))
+        self.dispatches
+            .iter()
+            .any(|dispatch| dispatch.enabled(metadata))
     }
 
     fn log(&self, record: &Record) {
-        for append in &self.appends {
-            if let Err(err) = append.try_append(record) {
+        for dispatch in &self.dispatches {
+            if let Err(err) = dispatch.try_append(record) {
                 handle_error(record, err);
             }
         }
     }
 
     fn flush(&self) {
-        for append in &self.appends {
-            append.flush();
+        for dispatch in &self.dispatches {
+            dispatch.flush();
         }
     }
 }

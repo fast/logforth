@@ -21,11 +21,11 @@ use serde::Serialize;
 use serde_json::Map;
 use serde_json::Value;
 
-use crate::Layout;
-use crate::LayoutImpl;
+use crate::layout::Layout;
+use crate::layout::LayoutImpl;
 
 #[derive(Default, Debug, Clone)]
-pub struct SimpleJsonLayout;
+pub struct SimpleJson;
 
 struct KvCollector<'a> {
     kvs: &'a mut Map<String, Value>,
@@ -55,8 +55,11 @@ struct RecordLine<'a> {
     kvs: Map<String, Value>,
 }
 
-impl Layout for SimpleJsonLayout {
-    fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
+impl Layout for SimpleJson {
+    fn format<F>(&self, record: &Record, f: F) -> anyhow::Result<()>
+    where
+        F: Fn(&Record) -> anyhow::Result<()>,
+    {
         let mut kvs = Map::new();
         let mut visitor = KvCollector { kvs: &mut kvs };
         record.key_values().visit(&mut visitor)?;
@@ -64,7 +67,7 @@ impl Layout for SimpleJsonLayout {
         let timestamp = humantime::format_rfc3339_micros(SystemTime::now());
         let record_line = RecordLine {
             timestamp: format!("{timestamp}"),
-            level: format!("{}", record.level()),
+            level: record.level().to_string(),
             module_path: record.module_path().unwrap_or(""),
             file: record
                 .file()
@@ -72,17 +75,17 @@ impl Layout for SimpleJsonLayout {
                 .and_then(|name| name.to_str())
                 .unwrap_or_default(),
             line: record.line().unwrap_or(0),
-            message: format!("{}", record.args()),
+            message: record.args().to_string(),
             kvs,
         };
 
         let text = serde_json::to_string(&record_line)?;
-        Ok(text.into_bytes())
+        f(&record.to_builder().args(format_args!("{text}",)).build())
     }
 }
 
-impl From<SimpleJsonLayout> for LayoutImpl {
-    fn from(layout: SimpleJsonLayout) -> Self {
+impl From<SimpleJson> for LayoutImpl {
+    fn from(layout: SimpleJson) -> Self {
         LayoutImpl::SimpleJson(layout)
     }
 }

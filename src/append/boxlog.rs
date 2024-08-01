@@ -18,24 +18,24 @@ use log::Log;
 use log::Metadata;
 use log::Record;
 
-use crate::Append;
-use crate::AppendImpl;
+use crate::append::Append;
+use crate::append::AppendImpl;
 
-pub struct BoxLogAppend(Box<dyn Log>);
+pub struct BoxLog(Box<dyn Log>);
 
-impl Debug for BoxLogAppend {
+impl Debug for BoxLog {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "BoxLogAppend {{ ... }}")
     }
 }
 
-impl BoxLogAppend {
+impl BoxLog {
     pub fn new(log: impl Log + 'static) -> Self {
         Self(Box::new(log))
     }
 }
 
-impl Append for BoxLogAppend {
+impl Append for BoxLog {
     fn enabled(&self, metadata: &Metadata) -> bool {
         (*self.0).enabled(metadata)
     }
@@ -50,8 +50,8 @@ impl Append for BoxLogAppend {
     }
 }
 
-impl From<BoxLogAppend> for AppendImpl {
-    fn from(append: BoxLogAppend) -> Self {
+impl From<BoxLog> for AppendImpl {
+    fn from(append: BoxLog) -> Self {
         AppendImpl::BoxLog(append)
     }
 }

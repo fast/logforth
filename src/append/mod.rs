@@ -14,16 +14,17 @@
 
 pub use boxdyn::*;
 pub use boxlog::*;
-pub use dispatch::*;
 #[cfg(feature = "fastrace")]
 pub use fastrace::*;
 #[cfg(feature = "file")]
 pub use file::*;
 pub use stdio::*;
 
+use crate::layout;
+use crate::layout::LayoutImpl;
+
 mod boxdyn;
 mod boxlog;
-mod dispatch;
 #[cfg(feature = "fastrace")]
 mod fastrace;
 #[cfg(feature = "file")]
@@ -40,20 +41,25 @@ pub trait Append {
     fn try_append(&self, record: &log::Record) -> anyhow::Result<()>;
 
     /// Flushes any buffered records.
-    fn flush(&self);
+    fn flush(&self) {}
+
+    /// Default layout to use when [Dispatch][crate::logger::Dispatch] does not configure a
+    /// preferred layout.
+    fn default_layout(&self) -> LayoutImpl {
+        LayoutImpl::Identical(layout::Identical)
+    }
 }
 
 #[derive(Debug)]
 pub enum AppendImpl {
-    BoxDyn(BoxDynAppend),
-    BoxLog(BoxLogAppend),
-    Dispatch(DispatchAppend),
+    BoxDyn(BoxDyn),
+    BoxLog(BoxLog),
     #[cfg(feature = "fastrace")]
-    Fastrace(FastraceAppend),
+    Fastrace(Fastrace),
     #[cfg(feature = "file")]
-    RollingFile(RollingFileAppend),
-    Stdout(StdoutAppend),
-    Stderr(StderrAppend),
+    RollingFile(RollingFile),
+    Stdout(Stdout),
+    Stderr(Stderr),
 }
 
 impl Append for AppendImpl {
@@ -61,7 +67,6 @@ impl Append for AppendImpl {
         match self {
             AppendImpl::BoxDyn(append) => append.enabled(metadata),
             AppendImpl::BoxLog(append) => append.enabled(metadata),
-            AppendImpl::Dispatch(append) => append.enabled(metadata),
             #[cfg(feature = "fastrace")]
             AppendImpl::Fastrace(append) => append.enabled(metadata),
             #[cfg(feature = "file")]
@@ -75,7 +80,6 @@ impl Append for AppendImpl {
         match self {
             AppendImpl::BoxDyn(append) => append.try_append(record),
             AppendImpl::BoxLog(append) => append.try_append(record),
-            AppendImpl::Dispatch(append) => append.try_append(record),
             #[cfg(feature = "fastrace")]
             AppendImpl::Fastrace(append) => append.try_append(record),
             #[cfg(feature = "file")]
@@ -89,7 +93,6 @@ impl Append for AppendImpl {
         match self {
             AppendImpl::BoxDyn(append) => append.flush(),
             AppendImpl::BoxLog(append) => append.flush(),
-            AppendImpl::Dispatch(append) => append.flush(),
             #[cfg(feature = "fastrace")]
             AppendImpl::Fastrace(append) => append.flush(),
             #[cfg(feature = "file")]

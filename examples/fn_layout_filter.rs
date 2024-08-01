@@ -13,32 +13,33 @@
 // limitations under the License.
 
 use log::LevelFilter;
-use logforth::BoxDynFilter;
-use logforth::BoxDynLayout;
-use logforth::DispatchAppend;
-use logforth::FilterResult;
-use logforth::Logger;
-use logforth::StdoutAppend;
+use logforth::append;
+use logforth::filter;
+use logforth::filter::FilterResult;
+use logforth::logger::Dispatch;
+use logforth::logger::Logger;
 
 fn main() {
-    let layout = BoxDynLayout::new(|record: &log::Record| {
-        let message = format!("[box dyn] {}", record.args());
-        Ok(message.into_bytes())
-        // ...or
-        // anyhow::bail!("boom: {}", message)
-    });
-
-    let filter = BoxDynFilter::new(|metadata: &log::Metadata| {
-        if metadata.level() <= LevelFilter::Info {
-            FilterResult::Accept
-        } else {
-            FilterResult::Reject
-        }
-    });
-
-    let append = StdoutAppend::default().with_layout(layout);
-    let append = DispatchAppend::new(append).filter(filter);
-    Logger::new().add_append(append).apply().unwrap();
+    Logger::new()
+        .dispatch(
+            Dispatch::new()
+                .filter(filter::BoxDyn::new(|metadata: &log::Metadata| {
+                    if metadata.level() <= LevelFilter::Info {
+                        FilterResult::Accept
+                    } else {
+                        FilterResult::Reject
+                    }
+                }))
+                // .layout(layout::BoxDyn::new(|record: &log::Record| {
+                //     let args = format_args!("[box dyn] {}", record.args());
+                //     Ok(record.to_builder().args(args).build())
+                //     // ...or
+                //     // anyhow::bail!("boom: {}", message)
+                // }))
+                .append(append::Stdout),
+        )
+        .apply()
+        .unwrap();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");
