@@ -21,13 +21,13 @@ use crate::layout::kv_display::KvDisplay;
 use crate::Layout;
 use crate::LayoutImpl;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct SimpleTextLayout;
 
 impl Layout for SimpleTextLayout {
     fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
         let text = format!(
-            "{} {:>5} {}: {}:{} {}{}\n",
+            "{} {:>5} {}: {}:{} {}{}",
             humantime::format_rfc3339_micros(SystemTime::now()),
             record.level(),
             record.module_path().unwrap_or(""),

@@ -64,7 +64,7 @@ impl Layout for ColoredSimpleTextLayout {
         let record_level = ColoredString::from(record_level).color(color);
 
         let text = format!(
-            "{} {:>5} {}: {}:{} {}{}\n",
+            "{} {:>5} {}: {}:{} {}{}",
             humantime::format_rfc3339_micros(SystemTime::now()),
             record_level,
             record.module_path().unwrap_or(""),
