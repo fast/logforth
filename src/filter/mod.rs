@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use self::{custom::CustomFilter, min_level::MinLevel};
+pub use self::custom::CustomFilter;
+pub use self::min_level::MinLevel;
 
 mod custom;
 mod min_level;

@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::Level;
+use log::LevelFilter;
 use log::Metadata;
 
 use crate::filter::Filter;
 use crate::filter::FilterResult;
 
 #[derive(Debug, Clone)]
-pub struct MinLevel(pub Level);
+pub struct MinLevel(pub LevelFilter);
 
 impl MinLevel {
     pub(crate) fn filter(&self, metadata: &Metadata) -> FilterResult {
@@ -37,8 +37,8 @@ impl From<MinLevel> for Filter {
     }
 }
 
-impl From<Level> for Filter {
-    fn from(filter: Level) -> Self {
+impl From<LevelFilter> for Filter {
+    fn from(filter: LevelFilter) -> Self {
         Filter::MinLevel(MinLevel(filter))
     }
 }

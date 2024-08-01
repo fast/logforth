@@ -14,10 +14,9 @@
 
 use log::LevelFilter;
 use logforth::append;
-use logforth::filter;
 use logforth::layout;
-use logforth::logger::Dispatch;
-use logforth::logger::Logger;
+use logforth::Dispatch;
+use logforth::Logger;
 
 fn main() {
     Logger::new()

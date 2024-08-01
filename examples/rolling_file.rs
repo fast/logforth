@@ -13,14 +13,13 @@
 // limitations under the License.
 
 use log::LevelFilter;
-use logforth::append;
-use logforth::append::NonBlockingBuilder;
-use logforth::append::RollingFileWriter;
-use logforth::append::Rotation;
-use logforth::filter;
-use logforth::layout;
-use logforth::logger::Dispatch;
-use logforth::logger::Logger;
+use logforth::append::rolling_file::NonBlockingBuilder;
+use logforth::append::rolling_file::RollingFile;
+use logforth::append::rolling_file::RollingFileWriter;
+use logforth::append::rolling_file::Rotation;
+use logforth::layout::JsonLayout;
+use logforth::Dispatch;
+use logforth::Logger;
 
 fn main() {
     let rolling = RollingFileWriter::builder()
@@ -36,8 +35,8 @@ fn main() {
         .dispatch(
             Dispatch::new()
                 .filter(LevelFilter::Trace)
-                .layout(layout::JsonLayout)
-                .append(append::RollingFile::new(writer)),
+                .layout(JsonLayout)
+                .append(RollingFile::new(writer)),
         )
         .apply()
         .unwrap();

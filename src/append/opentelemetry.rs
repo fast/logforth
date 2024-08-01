@@ -17,8 +17,10 @@ use std::time::Duration;
 use std::time::SystemTime;
 
 use log::Record;
-use opentelemetry::logs::{AnyValue, LoggerProvider as ILoggerProvider};
-use opentelemetry::logs::{Logger, Severity};
+use opentelemetry::logs::AnyValue;
+use opentelemetry::logs::Logger;
+use opentelemetry::logs::LoggerProvider as ILoggerProvider;
+use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationLibrary;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::logs::LoggerProvider;

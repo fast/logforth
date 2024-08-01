@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt::{Arguments, Debug, Formatter};
+use std::fmt::Arguments;
+use std::fmt::Debug;
+use std::fmt::Formatter;
 
 use crate::layout::Layout;
 

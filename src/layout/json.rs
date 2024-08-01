@@ -86,6 +86,6 @@ impl JsonLayout {
 
 impl From<JsonLayout> for Layout {
     fn from(layout: JsonLayout) -> Self {
-        Layout::JsonLayout(layout)
+        Layout::Json(layout)
     }
 }

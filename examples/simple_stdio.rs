@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::Level;
-use logforth::{append, filter::MinLevel, layout::TextLayout, Dispatch, Logger};
+use log::LevelFilter;
+use logforth::append;
+use logforth::layout::TextLayout;
+use logforth::Dispatch;
+use logforth::Logger;
 
 fn main() {
     Logger::new()
         .dispatch(
             Dispatch::new()
-                .filter(MinLevel(Level::Trace))
+                .filter(LevelFilter::Trace)
                 .layout(TextLayout::default())
                 .append(append::Stdout),
         )

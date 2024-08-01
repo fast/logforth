@@ -13,12 +13,12 @@
 // limitations under the License.
 
 use log::LevelFilter;
-use logforth::{
-    append,
-    filter::{CustomFilter, FilterResult},
-    layout::CustomLayout,
-    Dispatch, Logger,
-};
+use logforth::append;
+use logforth::filter::CustomFilter;
+use logforth::filter::FilterResult;
+use logforth::layout::CustomLayout;
+use logforth::Dispatch;
+use logforth::Logger;
 
 fn main() {
     Logger::new()
