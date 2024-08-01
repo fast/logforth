@@ -25,6 +25,9 @@ use logforth::SimpleJsonLayout;
 fn main() {
     let rolling = RollingFileWriter::builder()
         .rotation(Rotation::Minutely)
+        .filename_prefix("example")
+        .filename_suffix("log")
+        .max_log_files(2)
         .build("logs")
         .unwrap();
     let (writer, _guard) = NonBlockingBuilder::default().finish(rolling);

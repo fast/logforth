@@ -20,7 +20,7 @@ use logforth::SimpleTextLayout;
 use logforth::StdoutAppend;
 
 fn main() {
-    let append = StdoutAppend::new().with_layout(SimpleTextLayout::default());
+    let append = StdoutAppend::default().with_layout(SimpleTextLayout::default());
     let append = DispatchAppend::new(append).filter(LogLevelFilter::new(LevelFilter::Trace));
     Logger::new().add_append(append).apply().unwrap();
 

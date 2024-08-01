@@ -20,7 +20,7 @@ use logforth::SimpleJsonLayout;
 use logforth::StdoutAppend;
 
 fn main() {
-    let append = StdoutAppend::new().with_layout(SimpleJsonLayout);
+    let append = StdoutAppend::default().with_layout(SimpleJsonLayout);
     let append = DispatchAppend::new(append).filter(LogLevelFilter::new(LevelFilter::Trace));
     Logger::new().add_append(append).apply().unwrap();
 

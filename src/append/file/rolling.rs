@@ -71,6 +71,12 @@ pub struct RollingFileWriterBuilder {
     max_files: Option<usize>,
 }
 
+impl Default for RollingFileWriterBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RollingFileWriterBuilder {
     #[must_use]
     pub const fn new() -> Self {
