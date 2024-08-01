@@ -23,7 +23,7 @@ use logforth::logger::Logger;
 fn main() {
     Logger::new()
         .dispatch(
-            Dispatch::new()
+            Dispatch::builder(append::Stdout)
                 .filter(filter::BoxDyn::new(|metadata: &log::Metadata| {
                     if metadata.level() > LevelFilter::Info {
                         FilterResult::Accept
@@ -33,8 +33,7 @@ fn main() {
                 }))
                 .layout(layout::CustomLayout::new(|record, f| {
                     f(format_args!("[system alert] {}", record.args()))
-                }))
-                .append(append::Stdout),
+                })),
         )
         .apply()
         .unwrap();

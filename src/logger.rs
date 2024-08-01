@@ -26,30 +26,15 @@ use crate::filter::FilterResult;
 use crate::layout::Layout;
 
 #[derive(Debug)]
-pub struct Dispatch {
-    filters: Vec<FilterImpl>,
+pub struct DispatchBuilder {
     appends: Vec<AppendImpl>,
-    preferred_layout: Option<Layout>,
 }
 
-impl Default for Dispatch {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Dispatch {
-    pub fn new() -> Self {
+impl DispatchBuilder {
+    pub fn new(append: impl Into<AppendImpl>) -> Self {
         Self {
-            filters: vec![],
-            appends: vec![],
-            preferred_layout: None,
+            appends: vec![append.into()],
         }
-    }
-
-    pub fn filter(mut self, filter: impl Into<FilterImpl>) -> Self {
-        self.filters.push(filter.into());
-        self
     }
 
     pub fn append(mut self, append: impl Into<AppendImpl>) -> Self {
@@ -57,9 +42,69 @@ impl Dispatch {
         self
     }
 
-    pub fn layout(mut self, layout: impl Into<Layout>) -> Self {
-        self.preferred_layout = Some(layout.into());
+    pub fn filter(self, filter: impl Into<FilterImpl>) -> DispatchFilterBuilder {
+        DispatchFilterBuilder {
+            appends: self.appends,
+            filters: vec![filter.into()],
+        }
+    }
+
+    pub fn layout(self, layout: impl Into<Layout>) -> Dispatch {
+        Dispatch {
+            filters: vec![],
+            appends: self.appends,
+            preferred_layout: Some(layout.into()),
+        }
+    }
+
+    pub fn finish(self) -> Dispatch {
+        Dispatch {
+            filters: vec![],
+            appends: self.appends,
+            preferred_layout: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct DispatchFilterBuilder {
+    appends: Vec<AppendImpl>,
+    filters: Vec<FilterImpl>,
+}
+
+impl DispatchFilterBuilder {
+    pub fn filter(mut self, filter: impl Into<FilterImpl>) -> Self {
+        self.filters.push(filter.into());
         self
+    }
+
+    pub fn layout(self, layout: impl Into<Layout>) -> Dispatch {
+        Dispatch {
+            filters: self.filters,
+            appends: self.appends,
+            preferred_layout: Some(layout.into()),
+        }
+    }
+
+    pub fn finish(self) -> Dispatch {
+        Dispatch {
+            filters: self.filters,
+            appends: self.appends,
+            preferred_layout: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Dispatch {
+    filters: Vec<FilterImpl>,
+    appends: Vec<AppendImpl>,
+    preferred_layout: Option<Layout>,
+}
+
+impl Dispatch {
+    pub fn builder(append: impl Into<AppendImpl>) -> DispatchBuilder {
+        DispatchBuilder::new(append)
     }
 
     fn enabled(&self, metadata: &Metadata) -> bool {

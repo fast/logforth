@@ -23,7 +23,7 @@ use opentelemetry::InstrumentationLibrary;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::logs::LoggerProvider;
 
-use crate::append::Append;
+use crate::append::{Append, AppendImpl};
 
 #[derive(Debug)]
 pub struct OpenTelemetryLog {
@@ -105,5 +105,11 @@ fn log_level_to_otel_severity(level: log::Level) -> Severity {
         log::Level::Info => Severity::Info,
         log::Level::Debug => Severity::Debug,
         log::Level::Trace => Severity::Trace,
+    }
+}
+
+impl From<OpenTelemetryLog> for AppendImpl {
+    fn from(append: OpenTelemetryLog) -> Self {
+        AppendImpl::OpenTelemetryLog(append)
     }
 }
