@@ -20,7 +20,6 @@ pub use fastrace::*;
 pub use opentelemetry::*;
 pub use stdio::*;
 
-use crate::filter::Filter;
 use crate::layout::IdenticalLayout;
 use crate::layout::Layout;
 
@@ -43,11 +42,5 @@ pub trait Append: fmt::Debug + Send + Sync + 'static {
     /// preferred layout.
     fn default_layout(&self) -> Layout {
         Layout::Identical(IdenticalLayout)
-    }
-
-    /// Default filters associated to this append. [log::Log] is mixed with
-    /// [Filter] and [Append].
-    fn default_filters(&self) -> Vec<Filter> {
-        vec![]
     }
 }
