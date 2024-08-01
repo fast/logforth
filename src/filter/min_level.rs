@@ -16,33 +16,29 @@ use log::LevelFilter;
 use log::Metadata;
 
 use crate::filter::Filter;
-use crate::filter::FilterImpl;
 use crate::filter::FilterResult;
 
 #[derive(Debug, Clone)]
-pub struct LogLevel {
-    max_level: LevelFilter,
-}
+pub struct MinLevel(pub LevelFilter);
 
-impl LogLevel {
-    pub fn new(level: LevelFilter) -> Self {
-        Self { max_level: level }
-    }
-}
-
-impl Filter for LogLevel {
-    fn filter_metadata(&self, metadata: &Metadata) -> FilterResult {
+impl MinLevel {
+    pub(crate) fn filter(&self, metadata: &Metadata) -> FilterResult {
         let level = metadata.level();
-        if level <= self.max_level {
+        if level <= self.0 {
             FilterResult::Neutral
         } else {
             FilterResult::Reject
         }
     }
 }
+impl From<MinLevel> for Filter {
+    fn from(filter: MinLevel) -> Self {
+        Filter::MinLevel(filter)
+    }
+}
 
-impl From<LogLevel> for FilterImpl {
-    fn from(filter: LogLevel) -> Self {
-        FilterImpl::LogLevel(filter)
+impl From<LevelFilter> for Filter {
+    fn from(filter: LevelFilter) -> Self {
+        Filter::MinLevel(MinLevel(filter))
     }
 }

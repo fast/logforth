@@ -13,31 +13,31 @@
 // limitations under the License.
 
 pub use custom::CustomLayout;
-pub use identical::Identical;
-pub use kv_display::KvDisplay;
+pub use identical::IdenticalLayout;
 #[cfg(feature = "json")]
-pub use simple_json::SimpleJson;
-pub use simple_text::ColoredLevel;
-pub use simple_text::SimpleText;
+pub use json::JsonLayout;
+pub use kv::KvDisplay;
+pub use text::LevelColor;
+pub use text::TextLayout;
 
 mod custom;
 mod identical;
-mod kv_display;
 #[cfg(feature = "json")]
-mod simple_json;
-mod simple_text;
+mod json;
+mod kv;
+mod text;
 
 #[derive(Debug)]
 pub enum Layout {
-    Identical(Identical),
-    SimpleText(SimpleText),
+    Identical(IdenticalLayout),
+    Text(TextLayout),
     #[cfg(feature = "json")]
-    SimpleJson(SimpleJson),
+    Json(JsonLayout),
     Custom(CustomLayout),
 }
 
 impl Layout {
-    pub fn format<F>(&self, record: &log::Record, f: &F) -> anyhow::Result<()>
+    pub(crate) fn format<F>(&self, record: &log::Record, f: &F) -> anyhow::Result<()>
     where
         F: Fn(&log::Record) -> anyhow::Result<()>,
     {
@@ -45,11 +45,11 @@ impl Layout {
             Layout::Identical(layout) => {
                 layout.format(record, &|args| f(&record.to_builder().args(args).build()))
             }
-            Layout::SimpleText(layout) => {
+            Layout::Text(layout) => {
                 layout.format(record, &|args| f(&record.to_builder().args(args).build()))
             }
             #[cfg(feature = "json")]
-            Layout::SimpleJson(layout) => {
+            Layout::Json(layout) => {
                 layout.format(record, &|args| f(&record.to_builder().args(args).build()))
             }
             Layout::Custom(layout) => {

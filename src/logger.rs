@@ -19,97 +19,77 @@ use log::Metadata;
 use log::Record;
 
 use crate::append::Append;
-use crate::append::AppendImpl;
 use crate::filter::Filter;
-use crate::filter::FilterImpl;
 use crate::filter::FilterResult;
 use crate::layout::Layout;
-
 #[derive(Debug)]
-pub struct DispatchBuilder {
-    appends: Vec<AppendImpl>,
+pub struct Dispatch<const LAYOUT: bool = true, const APPEND: bool = true> {
+    filters: Vec<Filter>,
+    appends: Vec<Box<dyn Append>>,
+    layout: Option<Layout>,
 }
 
-impl DispatchBuilder {
-    pub fn new(append: impl Into<AppendImpl>) -> Self {
+impl Default for Dispatch<false, false> {
+    fn default() -> Dispatch<false, false> {
+        Self::new()
+    }
+}
+
+impl Dispatch<false, false> {
+    pub fn new() -> Dispatch<false, false> {
         Self {
-            appends: vec![append.into()],
-        }
-    }
-
-    pub fn append(mut self, append: impl Into<AppendImpl>) -> Self {
-        self.appends.push(append.into());
-        self
-    }
-
-    pub fn filter(self, filter: impl Into<FilterImpl>) -> DispatchFilterBuilder {
-        DispatchFilterBuilder {
-            appends: self.appends,
-            filters: vec![filter.into()],
-        }
-    }
-
-    pub fn layout(self, layout: impl Into<Layout>) -> Dispatch {
-        Dispatch {
             filters: vec![],
-            appends: self.appends,
-            preferred_layout: Some(layout.into()),
+            appends: vec![],
+            layout: None,
         }
     }
 
-    pub fn finish(self) -> Dispatch {
-        Dispatch {
-            filters: vec![],
-            appends: self.appends,
-            preferred_layout: None,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct DispatchFilterBuilder {
-    appends: Vec<AppendImpl>,
-    filters: Vec<FilterImpl>,
-}
-
-impl DispatchFilterBuilder {
-    pub fn filter(mut self, filter: impl Into<FilterImpl>) -> Self {
+    pub fn filter(mut self, filter: impl Into<Filter>) -> Dispatch<false, false> {
         self.filters.push(filter.into());
         self
     }
 
-    pub fn layout(self, layout: impl Into<Layout>) -> Dispatch {
+    pub fn layout(self, layout: impl Into<Layout>) -> Dispatch<true, false> {
         Dispatch {
             filters: self.filters,
             appends: self.appends,
-            preferred_layout: Some(layout.into()),
+            layout: Some(layout.into()),
         }
     }
 
-    pub fn finish(self) -> Dispatch {
+    pub fn append(self, append: impl Append) -> Dispatch<true, true> {
         Dispatch {
             filters: self.filters,
-            appends: self.appends,
-            preferred_layout: None,
+            appends: vec![Box::new(append)],
+            layout: self.layout,
         }
     }
 }
 
-#[derive(Debug)]
-pub struct Dispatch {
-    filters: Vec<FilterImpl>,
-    appends: Vec<AppendImpl>,
-    preferred_layout: Option<Layout>,
+impl Dispatch<true, false> {
+    pub fn append(self, append: impl Append) -> Dispatch<true, true> {
+        Dispatch {
+            filters: self.filters,
+            appends: vec![Box::new(append)],
+            layout: self.layout,
+        }
+    }
+}
+
+impl Dispatch<true, true> {
+    pub fn append(self, append: impl Append) -> Dispatch<true, true> {
+        Dispatch {
+            filters: self.filters,
+            appends: vec![Box::new(append)],
+            layout: self.layout,
+        }
+    }
 }
 
 impl Dispatch {
-    pub fn builder(append: impl Into<AppendImpl>) -> DispatchBuilder {
-        DispatchBuilder::new(append)
-    }
-
     fn enabled(&self, metadata: &Metadata) -> bool {
         for filter in &self.filters {
-            match filter.filter_metadata(metadata) {
+            match filter.filter(metadata) {
                 FilterResult::Reject => return false,
                 FilterResult::Accept => return true,
                 FilterResult::Neutral => {}
@@ -119,42 +99,24 @@ impl Dispatch {
         true
     }
 
-    fn try_append(&self, record: &Record) -> anyhow::Result<()> {
-        for filter in &self.filters {
-            match filter.filter_metadata(record.metadata()) {
-                FilterResult::Reject => return Ok(()),
-                FilterResult::Accept => break,
-                FilterResult::Neutral => {}
-            }
-        }
+    fn do_append(&self, record: &Record) -> anyhow::Result<()> {
+        let layout = self.layout.as_ref();
 
-        fn do_append(
-            record: &Record,
-            append: &AppendImpl,
-            preferred_layout: Option<&Layout>,
-        ) -> anyhow::Result<()> {
-            if let Some(filters) = append.default_filters() {
-                for filter in filters {
-                    match filter.filter_metadata(record.metadata()) {
-                        FilterResult::Reject => return Ok(()),
-                        FilterResult::Accept => break,
-                        FilterResult::Neutral => {}
-                    }
+        for append in &self.appends {
+            for filter in append.default_filters() {
+                match filter.filter(record.metadata()) {
+                    FilterResult::Reject => return Ok(()),
+                    FilterResult::Accept => break,
+                    FilterResult::Neutral => {}
                 }
             }
 
-            match preferred_layout {
-                Some(layout) => layout.format(record, &|record| append.try_append(record)),
+            match layout {
+                Some(layout) => layout.format(record, &|record| append.append(record))?,
                 None => append
                     .default_layout()
-                    .format(record, &|record| append.try_append(record)),
+                    .format(record, &|record| append.append(record))?,
             }
-        }
-
-        let preferred_layout = self.preferred_layout.as_ref();
-
-        for append in &self.appends {
-            do_append(record, append, preferred_layout)?
         }
 
         Ok(())
@@ -196,16 +158,16 @@ impl Logger {
 }
 
 impl log::Log for Logger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        self.dispatches
-            .iter()
-            .any(|dispatch| dispatch.enabled(metadata))
+    fn enabled(&self, _: &Metadata) -> bool {
+        true
     }
 
     fn log(&self, record: &Record) {
         for dispatch in &self.dispatches {
-            if let Err(err) = dispatch.try_append(record) {
-                handle_error(record, err);
+            if dispatch.enabled(record.metadata()) {
+                if let Err(err) = dispatch.do_append(record) {
+                    handle_error(record, err);
+                }
             }
         }
     }

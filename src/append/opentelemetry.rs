@@ -17,23 +17,25 @@ use std::time::Duration;
 use std::time::SystemTime;
 
 use log::Record;
-use opentelemetry::logs::{AnyValue, LoggerProvider as ILoggerProvider};
-use opentelemetry::logs::{Logger, Severity};
+use opentelemetry::logs::AnyValue;
+use opentelemetry::logs::Logger;
+use opentelemetry::logs::LoggerProvider as ILoggerProvider;
+use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationLibrary;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::logs::LoggerProvider;
 
-use crate::append::{Append, AppendImpl};
+use crate::append::Append;
 
 #[derive(Debug)]
-pub struct OpenTelemetryLog {
+pub struct OpentelemetryLog {
     name: String,
     category: String,
     library: Arc<InstrumentationLibrary>,
     provider: LoggerProvider,
 }
 
-impl OpenTelemetryLog {
+impl OpentelemetryLog {
     pub fn new(
         name: impl Into<String>,
         category: impl Into<String>,
@@ -68,8 +70,8 @@ impl OpenTelemetryLog {
     }
 }
 
-impl Append for OpenTelemetryLog {
-    fn try_append(&self, log_record: &Record) -> anyhow::Result<()> {
+impl Append for OpentelemetryLog {
+    fn append(&self, log_record: &Record) -> anyhow::Result<()> {
         let provider = self.provider.clone();
         let logger = provider.library_logger(self.library.clone());
 
@@ -105,11 +107,5 @@ fn log_level_to_otel_severity(level: log::Level) -> Severity {
         log::Level::Info => Severity::Info,
         log::Level::Debug => Severity::Debug,
         log::Level::Trace => Severity::Trace,
-    }
-}
-
-impl From<OpenTelemetryLog> for AppendImpl {
-    fn from(append: OpenTelemetryLog) -> Self {
-        AppendImpl::OpenTelemetryLog(append)
     }
 }

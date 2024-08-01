@@ -17,14 +17,13 @@ use std::time::SystemTime;
 use log::Record;
 
 use crate::append::Append;
-use crate::append::AppendImpl;
 use crate::layout::KvDisplay;
 
 #[derive(Default, Debug, Clone)]
-pub struct Fastrace;
+pub struct FastraceEvent;
 
-impl Append for Fastrace {
-    fn try_append(&self, record: &Record) -> anyhow::Result<()> {
+impl Append for FastraceEvent {
+    fn append(&self, record: &Record) -> anyhow::Result<()> {
         let message = format!(
             "{} {:>5} {}{}",
             humantime::format_rfc3339_micros(SystemTime::now()),
@@ -35,10 +34,8 @@ impl Append for Fastrace {
         fastrace::Event::add_to_local_parent(message, || []);
         Ok(())
     }
-}
 
-impl From<Fastrace> for AppendImpl {
-    fn from(append: Fastrace) -> Self {
-        AppendImpl::Fastrace(append)
+    fn flush(&self) {
+        fastrace::flush();
     }
 }

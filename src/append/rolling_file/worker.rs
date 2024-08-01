@@ -19,7 +19,7 @@ use crossbeam_channel::Receiver;
 use crossbeam_channel::RecvError;
 use crossbeam_channel::TryRecvError;
 
-use crate::append::file::Message;
+use crate::append::rolling_file::Message;
 
 pub(super) struct Worker<T: Write + Send + 'static> {
     writer: T,

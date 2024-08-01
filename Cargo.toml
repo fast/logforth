@@ -31,7 +31,6 @@ rustdoc-args = ["--cfg", "docs"]
 
 [features]
 fastrace = ["dep:fastrace"]
-file = ["dep:crossbeam-channel", "dep:parking_lot", "dep:time"]
 json = ["dep:serde_json", "dep:serde"]
 no-color = ["colored/no-color"]
 opentelemetry = [
@@ -39,6 +38,7 @@ opentelemetry = [
   "dep:opentelemetry-otlp",
   "dep:opentelemetry_sdk",
 ]
+rolling_file = ["dep:crossbeam-channel", "dep:parking_lot", "dep:time"]
 
 [dependencies]
 anyhow = { version = "1.0" }
@@ -86,4 +86,4 @@ required-features = ["json"]
 [[example]]
 name = "rolling_file"
 path = "examples/rolling_file.rs"
-required-features = ["file", "json"]
+required-features = ["rolling_file", "json"]

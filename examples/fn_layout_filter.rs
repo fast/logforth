@@ -14,26 +14,27 @@
 
 use log::LevelFilter;
 use logforth::append;
-use logforth::filter;
+use logforth::filter::CustomFilter;
 use logforth::filter::FilterResult;
-use logforth::layout;
-use logforth::logger::Dispatch;
-use logforth::logger::Logger;
+use logforth::layout::CustomLayout;
+use logforth::Dispatch;
+use logforth::Logger;
 
 fn main() {
     Logger::new()
         .dispatch(
-            Dispatch::builder(append::Stdout)
-                .filter(filter::BoxDyn::new(|metadata: &log::Metadata| {
+            Dispatch::new()
+                .filter(CustomFilter::new(|metadata: &log::Metadata| {
                     if metadata.level() > LevelFilter::Info {
                         FilterResult::Accept
                     } else {
                         FilterResult::Reject
                     }
                 }))
-                .layout(layout::CustomLayout::new(|record, f| {
+                .layout(CustomLayout::new(|record, f| {
                     f(format_args!("[system alert] {}", record.args()))
-                })),
+                }))
+                .append(append::Stdout),
         )
         .apply()
         .unwrap();

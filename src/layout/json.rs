@@ -25,7 +25,7 @@ use serde_json::Value;
 use crate::layout::Layout;
 
 #[derive(Default, Debug, Clone)]
-pub struct SimpleJson;
+pub struct JsonLayout;
 
 struct KvCollector<'a> {
     kvs: &'a mut Map<String, Value>,
@@ -55,8 +55,8 @@ struct RecordLine<'a> {
     kvs: Map<String, Value>,
 }
 
-impl SimpleJson {
-    pub fn format<F>(&self, record: &Record, f: &F) -> anyhow::Result<()>
+impl JsonLayout {
+    pub(crate) fn format<F>(&self, record: &Record, f: &F) -> anyhow::Result<()>
     where
         F: Fn(Arguments) -> anyhow::Result<()>,
     {
@@ -84,8 +84,8 @@ impl SimpleJson {
     }
 }
 
-impl From<SimpleJson> for Layout {
-    fn from(layout: SimpleJson) -> Self {
-        Layout::SimpleJson(layout)
+impl From<JsonLayout> for Layout {
+    fn from(layout: JsonLayout) -> Self {
+        Layout::Json(layout)
     }
 }

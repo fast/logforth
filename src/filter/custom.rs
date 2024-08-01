@@ -17,37 +17,33 @@ use std::fmt::Debug;
 use log::Metadata;
 
 use crate::filter::Filter;
-use crate::filter::FilterImpl;
 use crate::filter::FilterResult;
 
-pub struct BoxDyn(Box<dyn Filter + Send + Sync>);
+pub struct CustomFilter {
+    #[allow(clippy::type_complexity)]
+    f: Box<dyn Fn(&log::Metadata) -> FilterResult + Send + Sync + 'static>,
+}
 
-impl Debug for BoxDyn {
+impl Debug for CustomFilter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "BoxDynFilter {{ ... }}")
+        write!(f, "CustomFilter {{ ... }}")
     }
 }
 
-impl BoxDyn {
-    pub fn new(filter: impl Filter + Send + Sync + 'static) -> Self {
-        Self(Box::new(filter))
+impl CustomFilter {
+    pub fn new(filter: impl Fn(&log::Metadata) -> FilterResult + Send + Sync + 'static) -> Self {
+        CustomFilter {
+            f: Box::new(filter),
+        }
+    }
+
+    pub(crate) fn filter(&self, metadata: &Metadata) -> FilterResult {
+        (self.f)(metadata)
     }
 }
 
-impl Filter for BoxDyn {
-    fn filter_metadata(&self, metadata: &Metadata) -> FilterResult {
-        (*self.0).filter_metadata(metadata)
-    }
-}
-
-impl From<BoxDyn> for FilterImpl {
-    fn from(filter: BoxDyn) -> Self {
-        FilterImpl::BoxDyn(filter)
-    }
-}
-
-impl<T: Fn(&Metadata) -> FilterResult> Filter for T {
-    fn filter_metadata(&self, metadata: &Metadata) -> FilterResult {
-        self(metadata)
+impl From<CustomFilter> for Filter {
+    fn from(filter: CustomFilter) -> Self {
+        Filter::Custom(filter)
     }
 }

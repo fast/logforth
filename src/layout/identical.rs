@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::layout::Layout;
 use std::fmt::Arguments;
 
-#[derive(Debug, Default, Clone, Copy)]
-pub struct Identical;
+use crate::layout::Layout;
 
-impl Identical {
-    pub fn format<F>(&self, record: &log::Record, f: &F) -> anyhow::Result<()>
+#[derive(Debug, Default, Clone, Copy)]
+pub struct IdenticalLayout;
+
+impl IdenticalLayout {
+    pub(crate) fn format<F>(&self, record: &log::Record, f: &F) -> anyhow::Result<()>
     where
         F: Fn(Arguments) -> anyhow::Result<()>,
     {
@@ -27,8 +28,8 @@ impl Identical {
     }
 }
 
-impl From<Identical> for Layout {
-    fn from(layout: Identical) -> Self {
+impl From<IdenticalLayout> for Layout {
+    fn from(layout: IdenticalLayout) -> Self {
         Layout::Identical(layout)
     }
 }

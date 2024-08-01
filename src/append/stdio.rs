@@ -15,13 +15,12 @@
 use std::io::Write;
 
 use crate::append::Append;
-use crate::append::AppendImpl;
 
 #[derive(Default, Debug)]
 pub struct Stdout;
 
 impl Append for Stdout {
-    fn try_append(&self, record: &log::Record) -> anyhow::Result<()> {
+    fn append(&self, record: &log::Record) -> anyhow::Result<()> {
         let bytes = format!("{}\n", record.args()).into_bytes();
         std::io::stdout().write_all(&bytes)?;
         Ok(())
@@ -32,16 +31,11 @@ impl Append for Stdout {
     }
 }
 
-impl From<Stdout> for AppendImpl {
-    fn from(append: Stdout) -> Self {
-        AppendImpl::Stdout(append)
-    }
-}
-
 #[derive(Default, Debug)]
 pub struct Stderr;
+
 impl Append for Stderr {
-    fn try_append(&self, record: &log::Record) -> anyhow::Result<()> {
+    fn append(&self, record: &log::Record) -> anyhow::Result<()> {
         let bytes = format!("{}\n", record.args()).into_bytes();
         std::io::stderr().write_all(&bytes)?;
         Ok(())
@@ -49,11 +43,5 @@ impl Append for Stderr {
 
     fn flush(&self) {
         let _ = std::io::stderr().flush();
-    }
-}
-
-impl From<Stderr> for AppendImpl {
-    fn from(append: Stderr) -> Self {
-        AppendImpl::Stderr(append)
     }
 }
