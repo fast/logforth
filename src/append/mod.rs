@@ -21,7 +21,7 @@ pub use file::*;
 pub use stdio::*;
 
 use crate::layout;
-use crate::layout::LayoutImpl;
+use crate::layout::Layout;
 
 mod boxdyn;
 mod boxlog;
@@ -45,8 +45,8 @@ pub trait Append {
 
     /// Default layout to use when [Dispatch][crate::logger::Dispatch] does not configure a
     /// preferred layout.
-    fn default_layout(&self) -> LayoutImpl {
-        LayoutImpl::Identical(layout::Identical)
+    fn default_layout(&self) -> Layout {
+        Layout::Identical(layout::Identical)
     }
 }
 

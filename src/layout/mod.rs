@@ -12,46 +12,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// pub use boxdyn::BoxDyn;
+pub use custom::CustomLayout;
 pub use identical::Identical;
 pub use kv_display::KvDisplay;
 #[cfg(feature = "json")]
 pub use simple_json::SimpleJson;
 pub use simple_text::SimpleText;
 
-// mod boxdyn;
+mod custom;
 mod identical;
 mod kv_display;
 #[cfg(feature = "json")]
 mod simple_json;
 mod simple_text;
 
-pub trait Layout {
-    fn format<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
-    where
-        F: Fn(&log::Record) -> anyhow::Result<()>;
-}
-
 #[derive(Debug)]
-pub enum LayoutImpl {
-    // BoxDyn(BoxDyn),
+pub enum Layout {
     Identical(Identical),
     SimpleText(SimpleText),
     #[cfg(feature = "json")]
     SimpleJson(SimpleJson),
+    Custom(CustomLayout),
 }
 
-impl Layout for LayoutImpl {
-    fn format<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
+impl Layout {
+    pub fn format<F>(&self, record: &log::Record, f: &F) -> anyhow::Result<()>
     where
         F: Fn(&log::Record) -> anyhow::Result<()>,
     {
         match self {
-            // LayoutImpl::BoxDyn(layout) => layout.format_record(record),
-            LayoutImpl::Identical(layout) => layout.format(record, f),
-            LayoutImpl::SimpleText(layout) => layout.format(record, f),
+            Layout::Identical(layout) => {
+                layout.format(record, &|args| f(&record.to_builder().args(args).build()))
+            }
+            Layout::SimpleText(layout) => {
+                layout.format(record, &|args| f(&record.to_builder().args(args).build()))
+            }
             #[cfg(feature = "json")]
-            LayoutImpl::SimpleJson(layout) => layout.format(record, f),
+            Layout::SimpleJson(layout) => {
+                layout.format(record, &|args| f(&record.to_builder().args(args).build()))
+            }
+            Layout::Custom(layout) => {
+                layout.format(record, &|args| f(&record.to_builder().args(args).build()))
+            }
         }
     }
 }
