@@ -13,26 +13,16 @@
 // limitations under the License.
 
 use std::io::Write;
+
 use crate::append::{Append, AppendImpl};
-use crate::layout::{Layout, LayoutImpl};
 
 #[derive(Default, Debug)]
-pub struct StdoutAppend {
-    layout: LayoutImpl,
-}
-
-impl StdoutAppend {
-    pub fn with_layout(mut self, layout: impl Into<LayoutImpl>) -> Self {
-        self.layout = layout.into();
-        self
-    }
-}
+pub struct StdoutAppend;
 
 impl Append for StdoutAppend {
     fn try_append(&self, record: &log::Record) -> anyhow::Result<()> {
-        let bytes = self.layout.format_bytes(record)?;
-        std::io::stdout().write_all(&format!("{}", record.args()).into_bytes())?;
-        std::io::stdout().write_all(b"\n")?;
+        let bytes = format!("{}\n", record.args()).into_bytes();
+        std::io::stdout().write_all(&bytes)?;
         Ok(())
     }
 
@@ -48,22 +38,11 @@ impl From<StdoutAppend> for AppendImpl {
 }
 
 #[derive(Default, Debug)]
-pub struct StderrAppend {
-    layout: LayoutImpl,
-}
-
-impl StderrAppend {
-    pub fn with_layout(mut self, layout: impl Into<LayoutImpl>) -> Self {
-        self.layout = layout.into();
-        self
-    }
-}
-
+pub struct StderrAppend;
 impl Append for StderrAppend {
     fn try_append(&self, record: &log::Record) -> anyhow::Result<()> {
-        let bytes = self.layout.format_bytes(record)?;
+        let bytes = format!("{}\n", record.args()).into_bytes();
         std::io::stderr().write_all(&bytes)?;
-        std::io::stderr().write_all(b"\n")?;
         Ok(())
     }
 

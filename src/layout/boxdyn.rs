@@ -15,6 +15,7 @@
 use std::fmt::Debug;
 
 use log::Record;
+
 use crate::layout::{Layout, LayoutImpl};
 
 pub struct BoxDynLayout(Box<dyn Layout + Send + Sync>);
@@ -32,8 +33,8 @@ impl BoxDynLayout {
 }
 
 impl Layout for BoxDynLayout {
-    fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
-        (*self.0).format_bytes(record)
+    fn format_record(&self, record: &Record) -> anyhow::Result<Record> {
+        (*self.0).format_record(record)
     }
 }
 
@@ -44,7 +45,7 @@ impl From<BoxDynLayout> for LayoutImpl {
 }
 
 impl<T: Fn(&Record) -> anyhow::Result<Vec<u8>>> Layout for T {
-    fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
+    fn format_record(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
         self(record)
     }
 }

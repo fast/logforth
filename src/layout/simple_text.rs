@@ -22,7 +22,7 @@ use log::Level;
 use log::Record;
 
 use crate::layout::kv_display::KvDisplay;
-use crate::layout::{Layout, LayoutImpl};
+use crate::layout::{make_record_with_args, Layout, LayoutImpl};
 
 #[derive(Default, Debug, Clone)]
 pub struct SimpleTextLayout {
@@ -51,7 +51,7 @@ impl Default for ColoredLevel {
 }
 
 impl Layout for SimpleTextLayout {
-    fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
+    fn format_record(&self, record: &Record) -> anyhow::Result<Record> {
         let color = match record.level() {
             Level::Error => self.colors.error,
             Level::Warn => self.colors.warn,
@@ -62,7 +62,7 @@ impl Layout for SimpleTextLayout {
         let record_level = record.level().to_string();
         let record_level = ColoredString::from(record_level).color(color);
 
-        let text = format!(
+        let args = format_args!(
             "{} {:>5} {}: {}:{} {}{}",
             humantime::format_rfc3339_micros(SystemTime::now()),
             record_level,
@@ -76,7 +76,8 @@ impl Layout for SimpleTextLayout {
             record.args(),
             KvDisplay::new(record.key_values()),
         );
-        Ok(text.into_bytes())
+
+        Ok(make_record_with_args(args, record))
     }
 }
 

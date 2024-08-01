@@ -14,7 +14,6 @@
 
 pub use boxdyn::*;
 pub use boxlog::*;
-pub use dispatch::*;
 #[cfg(feature = "fastrace")]
 pub use fastrace::*;
 #[cfg(feature = "file")]
@@ -23,7 +22,6 @@ pub use stdio::*;
 
 mod boxdyn;
 mod boxlog;
-mod dispatch;
 #[cfg(feature = "fastrace")]
 mod fastrace;
 #[cfg(feature = "file")]
@@ -47,7 +45,6 @@ pub trait Append {
 pub enum AppendImpl {
     BoxDyn(BoxDynAppend),
     BoxLog(BoxLogAppend),
-    Dispatch(DispatchAppend),
     #[cfg(feature = "fastrace")]
     Fastrace(FastraceAppend),
     #[cfg(feature = "file")]
@@ -61,7 +58,6 @@ impl Append for AppendImpl {
         match self {
             AppendImpl::BoxDyn(append) => append.enabled(metadata),
             AppendImpl::BoxLog(append) => append.enabled(metadata),
-            AppendImpl::Dispatch(append) => append.enabled(metadata),
             #[cfg(feature = "fastrace")]
             AppendImpl::Fastrace(append) => append.enabled(metadata),
             #[cfg(feature = "file")]
@@ -75,7 +71,6 @@ impl Append for AppendImpl {
         match self {
             AppendImpl::BoxDyn(append) => append.try_append(record),
             AppendImpl::BoxLog(append) => append.try_append(record),
-            AppendImpl::Dispatch(append) => append.try_append(record),
             #[cfg(feature = "fastrace")]
             AppendImpl::Fastrace(append) => append.try_append(record),
             #[cfg(feature = "file")]
@@ -89,7 +84,6 @@ impl Append for AppendImpl {
         match self {
             AppendImpl::BoxDyn(append) => append.flush(),
             AppendImpl::BoxLog(append) => append.flush(),
-            AppendImpl::Dispatch(append) => append.flush(),
             #[cfg(feature = "fastrace")]
             AppendImpl::Fastrace(append) => append.flush(),
             #[cfg(feature = "file")]

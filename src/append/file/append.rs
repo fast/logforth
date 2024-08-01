@@ -16,32 +16,21 @@ use log::Record;
 
 use crate::append::file::non_blocking::NonBlocking;
 use crate::append::{Append, AppendImpl};
-use crate::layout::{Layout, LayoutImpl};
 
 #[derive(Debug)]
 pub struct RollingFileAppend {
     writer: NonBlocking,
-    layout: LayoutImpl,
 }
 
 impl RollingFileAppend {
     pub fn new(writer: NonBlocking) -> Self {
-        Self {
-            writer,
-            layout: LayoutImpl::default(),
-        }
-    }
-
-    pub fn with_layout(mut self, layout: impl Into<LayoutImpl>) -> Self {
-        self.layout = layout.into();
-        self
+        Self { writer }
     }
 }
 
 impl Append for RollingFileAppend {
     fn try_append(&self, record: &Record) -> anyhow::Result<()> {
-        let mut bytes = self.layout.format_bytes(record)?;
-        bytes.push(b'\n');
+        let bytes = format!("{}\n", record.args()).into_bytes();
         self.writer.send(bytes)?;
         Ok(())
     }

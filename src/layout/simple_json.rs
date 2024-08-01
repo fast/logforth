@@ -20,7 +20,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Map;
 use serde_json::Value;
-use crate::layout::{Layout, LayoutImpl};
+
+use crate::layout::{make_record_with_args, Layout, LayoutImpl};
 
 #[derive(Default, Debug, Clone)]
 pub struct SimpleJsonLayout;
@@ -44,25 +45,25 @@ impl<'a, 'kvs> log::kv::Visitor<'kvs> for KvCollector<'a> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct RecordLine<'a> {
-    timestamp: String,
-    level: String,
+    timestamp: std::fmt::Arguments<'a>,
+    level: std::fmt::Arguments<'a>,
     module_path: &'a str,
     file: &'a str,
     line: u32,
-    message: String,
+    message: &'a std::fmt::Arguments<'a>,
     kvs: Map<String, Value>,
 }
 
 impl Layout for SimpleJsonLayout {
-    fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
+    fn format_record(&self, record: &Record) -> anyhow::Result<Record> {
         let mut kvs = Map::new();
         let mut visitor = KvCollector { kvs: &mut kvs };
         record.key_values().visit(&mut visitor)?;
 
         let timestamp = humantime::format_rfc3339_micros(SystemTime::now());
         let record_line = RecordLine {
-            timestamp: format!("{timestamp}"),
-            level: format!("{}", record.level()),
+            timestamp: format_args!("{timestamp}"),
+            level: format_args!("{}", record.level()),
             module_path: record.module_path().unwrap_or(""),
             file: record
                 .file()
@@ -70,12 +71,12 @@ impl Layout for SimpleJsonLayout {
                 .and_then(|name| name.to_str())
                 .unwrap_or_default(),
             line: record.line().unwrap_or(0),
-            message: format!("{}", record.args()),
+            message: record.args(),
             kvs,
         };
 
         let text = serde_json::to_string(&record_line)?;
-        Ok(text.into_bytes())
+        Ok(make_record_with_args(format_args!("{text}"), record))
     }
 }
 

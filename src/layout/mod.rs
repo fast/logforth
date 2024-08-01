@@ -14,18 +14,20 @@
 
 pub use boxdyn::BoxDynLayout;
 pub use kv_display::KvDisplay;
+pub use record_builder::make_record_with_args;
 #[cfg(feature = "json")]
 pub use simple_json::SimpleJsonLayout;
 pub use simple_text::SimpleTextLayout;
 
 mod boxdyn;
 mod kv_display;
+mod record_builder;
 #[cfg(feature = "json")]
 mod simple_json;
 mod simple_text;
 
 pub trait Layout {
-    fn format_bytes(&self, record: &log::Record) -> anyhow::Result<Vec<u8>>;
+    fn format_record(&self, record: &log::Record) -> anyhow::Result<log::Record>;
 }
 
 #[derive(Debug)]
@@ -43,12 +45,12 @@ impl Default for LayoutImpl {
 }
 
 impl Layout for LayoutImpl {
-    fn format_bytes(&self, record: &log::Record) -> anyhow::Result<Vec<u8>> {
+    fn format_record(&self, record: &log::Record) -> anyhow::Result<Vec<u8>> {
         match self {
-            LayoutImpl::BoxDyn(layout) => layout.format_bytes(record),
-            LayoutImpl::SimpleText(layout) => layout.format_bytes(record),
+            LayoutImpl::BoxDyn(layout) => layout.format_record(record),
+            LayoutImpl::SimpleText(layout) => layout.format_record(record),
             #[cfg(feature = "json")]
-            LayoutImpl::SimpleJson(layout) => layout.format_bytes(record),
+            LayoutImpl::SimpleJson(layout) => layout.format_record(record),
         }
     }
 }
