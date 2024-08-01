@@ -13,12 +13,16 @@
 // limitations under the License.
 
 pub use dispatch::DispatchAppend;
+#[cfg(feature = "fastrace")]
+pub use fastrace::FastraceAppend;
 use log::Metadata;
 use log::Record;
 pub use stdio::StderrAppend;
 pub use stdio::StdoutAppend;
 
 mod dispatch;
+#[cfg(feature = "fastrace")]
+mod fastrace;
 mod stdio;
 
 pub trait Append {
@@ -37,6 +41,8 @@ pub trait Append {
 #[derive(Debug)]
 pub enum AppendImpl {
     Dispatch(DispatchAppend),
+    #[cfg(feature = "fastrace")]
+    Fastrace(FastraceAppend),
     Stdout(StdoutAppend),
     Stderr(StderrAppend),
 }
@@ -45,6 +51,8 @@ impl Append for AppendImpl {
     fn enabled(&self, metadata: &Metadata) -> bool {
         match self {
             AppendImpl::Dispatch(append) => append.enabled(metadata),
+            #[cfg(feature = "fastrace")]
+            AppendImpl::Fastrace(append) => append.enabled(metadata),
             AppendImpl::Stdout(append) => append.enabled(metadata),
             AppendImpl::Stderr(append) => append.enabled(metadata),
         }
@@ -53,6 +61,8 @@ impl Append for AppendImpl {
     fn try_append(&self, record: &Record) -> anyhow::Result<()> {
         match self {
             AppendImpl::Dispatch(append) => append.try_append(record),
+            #[cfg(feature = "fastrace")]
+            AppendImpl::Fastrace(append) => append.try_append(record),
             AppendImpl::Stdout(append) => append.try_append(record),
             AppendImpl::Stderr(append) => append.try_append(record),
         }
@@ -61,6 +71,8 @@ impl Append for AppendImpl {
     fn flush(&self) {
         match self {
             AppendImpl::Dispatch(append) => append.flush(),
+            #[cfg(feature = "fastrace")]
+            AppendImpl::Fastrace(append) => append.flush(),
             AppendImpl::Stdout(append) => append.flush(),
             AppendImpl::Stderr(append) => append.flush(),
         }
