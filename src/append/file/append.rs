@@ -15,10 +15,8 @@
 use log::Record;
 
 use crate::append::file::non_blocking::NonBlocking;
-use crate::Append;
-use crate::AppendImpl;
-use crate::Layout;
-use crate::LayoutImpl;
+use crate::append::{Append, AppendImpl};
+use crate::layout::{Layout, LayoutImpl};
 
 #[derive(Debug)]
 pub struct RollingFileAppend {

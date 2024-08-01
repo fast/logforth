@@ -20,9 +20,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Map;
 use serde_json::Value;
-
-use crate::Layout;
-use crate::LayoutImpl;
+use crate::layout::{Layout, LayoutImpl};
 
 #[derive(Default, Debug, Clone)]
 pub struct SimpleJsonLayout;

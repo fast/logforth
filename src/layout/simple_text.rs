@@ -22,8 +22,7 @@ use log::Level;
 use log::Record;
 
 use crate::layout::kv_display::KvDisplay;
-use crate::Layout;
-use crate::LayoutImpl;
+use crate::layout::{Layout, LayoutImpl};
 
 #[derive(Default, Debug, Clone)]
 pub struct SimpleTextLayout {

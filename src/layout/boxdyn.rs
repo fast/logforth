@@ -15,9 +15,7 @@
 use std::fmt::Debug;
 
 use log::Record;
-
-use crate::Layout;
-use crate::LayoutImpl;
+use crate::layout::{Layout, LayoutImpl};
 
 pub struct BoxDynLayout(Box<dyn Layout + Send + Sync>);
 

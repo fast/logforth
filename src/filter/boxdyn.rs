@@ -16,10 +16,7 @@ use std::fmt::Debug;
 
 use log::Metadata;
 use log::Record;
-
-use crate::Filter;
-use crate::FilterImpl;
-use crate::FilterResult;
+use crate::filter::{Filter, FilterImpl, FilterResult};
 
 pub struct BoxDynFilter(Box<dyn Filter + Send + Sync>);
 
