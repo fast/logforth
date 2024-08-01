@@ -17,7 +17,7 @@ use std::time::SystemTime;
 use log::Record;
 
 use crate::append::{Append, AppendImpl};
-use crate::layout::{IdenticalLayout, KvDisplay, LayoutImpl};
+use crate::layout::KvDisplay;
 
 #[derive(Default, Debug, Clone)]
 pub struct FastraceAppend;
@@ -33,10 +33,6 @@ impl Append for FastraceAppend {
         );
         fastrace::Event::add_to_local_parent(message, || []);
         Ok(())
-    }
-
-    fn preferred_layout(&self) -> Option<LayoutImpl> {
-        Some(LayoutImpl::Identical(IdenticalLayout))
     }
 }
 

@@ -19,7 +19,7 @@ pub use fastrace::*;
 #[cfg(feature = "file")]
 pub use file::*;
 pub use stdio::*;
-use crate::layout::LayoutImpl;
+use crate::layout::{IdenticalLayout, LayoutImpl};
 
 mod boxdyn;
 mod boxlog;
@@ -41,9 +41,10 @@ pub trait Append {
     /// Flushes any buffered records.
     fn flush(&self) {}
 
-    /// Preferred layout for this append. If set, override the context layout.
-    fn preferred_layout(&self) -> Option<LayoutImpl> {
-        None
+    /// Default layout to use when [Dispatch][crate::logger::Dispatch] does not configure a
+    /// preferred layout.
+    fn default_layout(&self) -> LayoutImpl {
+        LayoutImpl::Identical(IdenticalLayout)
     }
 }
 

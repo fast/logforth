@@ -49,7 +49,7 @@ impl Layout for LayoutImpl {
     fn format_record(&self, record: &log::Record) -> anyhow::Result<log::Record> {
         match self {
             LayoutImpl::BoxDyn(layout) => layout.format_record(record),
-            LayoutImpl::Identical(layout) => record,
+            LayoutImpl::Identical(layout) => layout.format_record(record),
             LayoutImpl::SimpleText(layout) => layout.format_record(record),
             #[cfg(feature = "json")]
             LayoutImpl::SimpleJson(layout) => layout.format_record(record),
