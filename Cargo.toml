@@ -23,22 +23,29 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/tisonkun/logforth"
 rust-version = "1.71.0"
-version = "0.1.0"
+version = "0.2.0"
 
 [features]
 fastrace = ["dep:fastrace"]
+file = ["dep:crossbeam-channel", "dep:parking_lot", "dep:time"]
 json = ["dep:serde_json", "dep:serde"]
 no-color = ["colored/no-color"]
 
 [dependencies]
 anyhow = { version = "1.0" }
 colored = { version = "2.1" }
+crossbeam-channel = { version = "0.5", optional = true }
 fastrace = { version = "0.6", optional = true }
 humantime = { version = "2.1" }
 log = { version = "0.4", features = ["std", "kv_unstable"] }
+parking_lot = { version = "0.12", optional = true }
 paste = { version = "1.0" }
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
+time = { version = "0.3", features = [
+  "formatting",
+  "parsing",
+], optional = true }
 
 [[example]]
 name = "simple_stdio"
@@ -53,3 +60,8 @@ required-features = ["no-color"]
 name = "json_stdio"
 path = "examples/json_stdio.rs"
 required-features = ["json"]
+
+[[example]]
+name = "rolling_file"
+path = "examples/rolling_file.rs"
+required-features = ["file", "json"]

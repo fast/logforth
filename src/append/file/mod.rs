@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::LevelFilter;
-use logforth::DispatchAppend;
-use logforth::LogLevelFilter;
-use logforth::Logger;
-use logforth::SimpleJsonLayout;
-use logforth::StdoutAppend;
+pub use append::RollingFileAppend;
+pub use non_blocking::NonBlocking;
+pub use non_blocking::NonBlockingBuilder;
+pub use non_blocking::WorkerGuard;
+pub use rolling::RollingFileWriter;
+pub use rolling::RollingFileWriterBuilder;
+pub use rolling::Rotation;
 
-fn main() {
-    let append = StdoutAppend::default().with_layout(SimpleJsonLayout);
-    let append = DispatchAppend::new(append).filter(LogLevelFilter::new(LevelFilter::Trace));
-    Logger::new().add_append(append).apply().unwrap();
+mod append;
+mod non_blocking;
+mod rolling;
+mod worker;
 
-    log::error!("Hello error!");
-    log::warn!("Hello warn!");
-    log::info!("Hello info!");
-    log::debug!("Hello debug!");
-    log::trace!("Hello trace!");
+#[derive(Debug)]
+enum Message {
+    Record(Vec<u8>),
+    Shutdown,
 }

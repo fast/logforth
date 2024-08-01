@@ -16,17 +16,37 @@ use log::LevelFilter;
 use logforth::DispatchAppend;
 use logforth::LogLevelFilter;
 use logforth::Logger;
+use logforth::NonBlockingBuilder;
+use logforth::RollingFileAppend;
+use logforth::RollingFileWriter;
+use logforth::Rotation;
 use logforth::SimpleJsonLayout;
-use logforth::StdoutAppend;
 
 fn main() {
-    let append = StdoutAppend::default().with_layout(SimpleJsonLayout);
+    let rolling = RollingFileWriter::builder()
+        .rotation(Rotation::Minutely)
+        .filename_prefix("example")
+        .filename_suffix("log")
+        .max_log_files(2)
+        .build("logs")
+        .unwrap();
+    let (writer, _guard) = NonBlockingBuilder::default().finish(rolling);
+
+    let append = RollingFileAppend::new(writer).with_layout(SimpleJsonLayout);
     let append = DispatchAppend::new(append).filter(LogLevelFilter::new(LevelFilter::Trace));
     Logger::new().add_append(append).apply().unwrap();
 
-    log::error!("Hello error!");
-    log::warn!("Hello warn!");
-    log::info!("Hello info!");
-    log::debug!("Hello debug!");
-    log::trace!("Hello trace!");
+    let repeat = 1;
+
+    for i in 0..repeat {
+        log::error!("Hello error!");
+        log::warn!("Hello warn!");
+        log::info!("Hello info!");
+        log::debug!("Hello debug!");
+        log::trace!("Hello trace!");
+
+        if i + 1 < repeat {
+            std::thread::sleep(std::time::Duration::from_secs(10));
+        }
+    }
 }
