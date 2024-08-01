@@ -32,12 +32,15 @@ fn main() {
         .unwrap();
     let (writer, _guard) = NonBlockingBuilder::default().finish(rolling);
 
-    Logger::new().dispatch(
-        Dispatch::new()
-            .filter(filter::LogLevel::new(LevelFilter::Trace))
-            .layout(layout::SimpleJson)
-            .append(append::RollingFile::new(writer)),
-    );
+    Logger::new()
+        .dispatch(
+            Dispatch::new()
+                .filter(filter::LogLevel::new(LevelFilter::Trace))
+                .layout(layout::SimpleJson)
+                .append(append::RollingFile::new(writer)),
+        )
+        .apply()
+        .unwrap();
 
     let repeat = 1;
 

@@ -20,12 +20,15 @@ use logforth::logger::Dispatch;
 use logforth::logger::Logger;
 
 fn main() {
-    Logger::new().dispatch(
-        Dispatch::new()
-            .filter(filter::LogLevel::new(LevelFilter::Trace))
-            .layout(layout::SimpleJson)
-            .append(append::Stdout),
-    );
+    Logger::new()
+        .dispatch(
+            Dispatch::new()
+                .filter(filter::LogLevel::new(LevelFilter::Trace))
+                .layout(layout::SimpleJson)
+                .append(append::Stdout),
+        )
+        .apply()
+        .unwrap();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

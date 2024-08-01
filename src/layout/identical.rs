@@ -7,8 +7,8 @@ use crate::layout::LayoutImpl;
 pub struct Identical;
 
 impl Layout for Identical {
-    fn format_record(&self, record: Record) -> anyhow::Result<Record> {
-        Ok(record)
+    fn format_record<'a>(&'_ self, record: &'a Record<'a>) -> anyhow::Result<Record<'a>> {
+        Ok(record.clone())
     }
 }
 

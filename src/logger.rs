@@ -83,7 +83,6 @@ impl Dispatch {
             }
         }
 
-        let record = record.clone();
         for append in &self.appends {
             let record = match self.preferred_layout.as_ref() {
                 Some(layout) => layout.format_record(record)?,

@@ -21,23 +21,26 @@ use logforth::logger::Dispatch;
 use logforth::logger::Logger;
 
 fn main() {
-    Logger::new().dispatch(
-        Dispatch::new()
-            .filter(filter::BoxDyn::new(|metadata: &log::Metadata| {
-                if metadata.level() <= LevelFilter::Info {
-                    FilterResult::Accept
-                } else {
-                    FilterResult::Reject
-                }
-            }))
-            .layout(layout::BoxDyn::new(|record: &log::Record| {
-                let message = format!("[box dyn] {}", record.args());
-                Ok(message.into_bytes())
-                // ...or
-                // anyhow::bail!("boom: {}", message)
-            }))
-            .append(append::Stdout),
-    );
+    Logger::new()
+        .dispatch(
+            Dispatch::new()
+                .filter(filter::BoxDyn::new(|metadata: &log::Metadata| {
+                    if metadata.level() <= LevelFilter::Info {
+                        FilterResult::Accept
+                    } else {
+                        FilterResult::Reject
+                    }
+                }))
+                // .layout(layout::BoxDyn::new(|record: &log::Record| {
+                //     let args = format_args!("[box dyn] {}", record.args());
+                //     Ok(record.to_builder().args(args).build())
+                //     // ...or
+                //     // anyhow::bail!("boom: {}", message)
+                // }))
+                .append(append::Stdout),
+        )
+        .apply()
+        .unwrap();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

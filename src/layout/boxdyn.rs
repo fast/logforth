@@ -34,7 +34,7 @@ impl BoxDyn {
 }
 
 impl Layout for BoxDyn {
-    fn format_record(&self, record: Record) -> anyhow::Result<Record> {
+    fn format_record<'a>(&'_ self, record: &'a Record<'a>) -> anyhow::Result<Record<'a>> {
         (*self.0).format_record(record)
     }
 }
@@ -45,8 +45,8 @@ impl From<BoxDyn> for LayoutImpl {
     }
 }
 
-impl<T: for<'a> Fn(&'a Record<'a>) -> anyhow::Result<Record<'a>>> Layout for T {
-    fn format_record<'a>(&'a self, record: &'a Record) -> anyhow::Result<Record> {
+impl<T: for<'a> Fn(&Record<'a>) -> anyhow::Result<Record<'a>>> Layout for T {
+    fn format_record<'a>(&'_ self, record: &'a Record<'a>) -> anyhow::Result<Record<'a>> {
         self(record)
     }
 }

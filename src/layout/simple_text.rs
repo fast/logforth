@@ -52,7 +52,7 @@ impl Default for ColoredLevel {
 }
 
 impl Layout for SimpleText {
-    fn format_record(&self, record: Record) -> anyhow::Result<Record> {
+    fn format_record<'a>(&'_ self, record: &'a Record<'a>) -> anyhow::Result<Record<'a>> {
         let color = match record.level() {
             Level::Error => self.colors.error,
             Level::Warn => self.colors.warn,
@@ -60,13 +60,11 @@ impl Layout for SimpleText {
             Level::Debug => self.colors.debug,
             Level::Trace => self.colors.trace,
         };
-        let record_level = record.level().to_string();
-        let record_level = ColoredString::from(record_level).color(color);
 
         let args = format_args!(
             "{} {:>5} {}: {}:{} {}{}",
             humantime::format_rfc3339_micros(SystemTime::now()),
-            record_level,
+            ColoredString::from(record.level().to_string()).color(color),
             record.module_path().unwrap_or(""),
             record
                 .file()

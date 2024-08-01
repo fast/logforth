@@ -56,7 +56,7 @@ struct RecordLine<'a> {
 }
 
 impl Layout for SimpleJson {
-    fn format_record(&self, record: Record) -> anyhow::Result<Record> {
+    fn format_record<'a>(&'_ self, record: &'a Record<'a>) -> anyhow::Result<Record<'a>> {
         let mut kvs = Map::new();
         let mut visitor = KvCollector { kvs: &mut kvs };
         record.key_values().visit(&mut visitor)?;
