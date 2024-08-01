@@ -21,10 +21,11 @@ use serde::Serialize;
 use serde_json::Map;
 use serde_json::Value;
 
-use crate::layout::{Layout, LayoutImpl};
+use crate::layout::Layout;
+use crate::layout::LayoutImpl;
 
 #[derive(Default, Debug, Clone)]
-pub struct SimpleJsonLayout;
+pub struct SimpleJson;
 
 struct KvCollector<'a> {
     kvs: &'a mut Map<String, Value>,
@@ -54,8 +55,8 @@ struct RecordLine<'a> {
     kvs: Map<String, Value>,
 }
 
-impl Layout for SimpleJsonLayout {
-    fn format_record(&self, record: &Record) -> anyhow::Result<Record> {
+impl Layout for SimpleJson {
+    fn format_record(&self, record: Record) -> anyhow::Result<Record> {
         let mut kvs = Map::new();
         let mut visitor = KvCollector { kvs: &mut kvs };
         record.key_values().visit(&mut visitor)?;
@@ -80,8 +81,8 @@ impl Layout for SimpleJsonLayout {
     }
 }
 
-impl From<SimpleJsonLayout> for LayoutImpl {
-    fn from(layout: SimpleJsonLayout) -> Self {
+impl From<SimpleJson> for LayoutImpl {
+    fn from(layout: SimpleJson) -> Self {
         LayoutImpl::SimpleJson(layout)
     }
 }

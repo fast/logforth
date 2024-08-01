@@ -13,15 +13,19 @@
 // limitations under the License.
 
 use log::LevelFilter;
-use logforth::append::{DispatchAppend, StdoutAppend};
-use logforth::filter::LogLevelFilter;
-use logforth::layout::SimpleJsonLayout;
+use logforth::append;
+use logforth::filter;
+use logforth::layout;
+use logforth::logger::Dispatch;
 use logforth::logger::Logger;
 
 fn main() {
-    let append = StdoutAppend::default().with_layout(SimpleJsonLayout);
-    let append = DispatchAppend::new(append).filter(LogLevelFilter::new(LevelFilter::Trace));
-    Logger::new().add_append(append).apply().unwrap();
+    Logger::new().dispatch(
+        Dispatch::new()
+            .filter(filter::LogLevel::new(LevelFilter::Trace))
+            .layout(layout::SimpleJson)
+            .append(append::Stdout),
+    );
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

@@ -16,23 +16,25 @@ use std::fmt::Debug;
 
 use log::Metadata;
 use log::Record;
-use crate::append::{Append, AppendImpl};
 
-pub struct BoxDynAppend(Box<dyn Append + Send + Sync>);
+use crate::append::Append;
+use crate::append::AppendImpl;
 
-impl BoxDynAppend {
+pub struct BoxDyn(Box<dyn Append + Send + Sync>);
+
+impl BoxDyn {
     pub fn new(append: impl Append + Send + Sync + 'static) -> Self {
         Self(Box::new(append))
     }
 }
 
-impl Debug for BoxDynAppend {
+impl Debug for BoxDyn {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "BoxDynAppend {{ ... }}")
     }
 }
 
-impl Append for BoxDynAppend {
+impl Append for BoxDyn {
     fn enabled(&self, metadata: &Metadata) -> bool {
         (*self.0).enabled(metadata)
     }
@@ -46,8 +48,8 @@ impl Append for BoxDynAppend {
     }
 }
 
-impl From<BoxDynAppend> for AppendImpl {
-    fn from(append: BoxDynAppend) -> Self {
+impl From<BoxDyn> for AppendImpl {
+    fn from(append: BoxDyn) -> Self {
         AppendImpl::BoxDyn(append)
     }
 }

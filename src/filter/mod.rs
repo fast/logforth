@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use boxdyn::BoxDynFilter;
-pub use log_level::LogLevelFilter;
+pub use boxdyn::BoxDyn;
+pub use log_level::LogLevel;
 
 mod boxdyn;
 mod log_level;
@@ -38,8 +38,8 @@ pub trait Filter {
 
 #[derive(Debug)]
 pub enum FilterImpl {
-    BoxDyn(BoxDynFilter),
-    LogLevel(LogLevelFilter),
+    BoxDyn(BoxDyn),
+    LogLevel(LogLevel),
 }
 
 impl Filter for FilterImpl {

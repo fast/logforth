@@ -20,8 +20,11 @@ use log::Record;
 
 use crate::append::Append;
 use crate::append::AppendImpl;
-use crate::filter::{Filter, FilterImpl, FilterResult};
-use crate::layout::{Layout, LayoutImpl};
+use crate::filter::Filter;
+use crate::filter::FilterImpl;
+use crate::filter::FilterResult;
+use crate::layout::Layout;
+use crate::layout::LayoutImpl;
 
 #[derive(Debug)]
 pub struct Dispatch {
@@ -39,18 +42,18 @@ impl Dispatch {
         }
     }
 
-    pub fn filter(mut self, filter: FilterImpl) -> Self {
-        self.filters.push(filter);
+    pub fn filter(mut self, filter: impl Into<FilterImpl>) -> Self {
+        self.filters.push(filter.into());
         self
     }
 
-    pub fn append(mut self, append: AppendImpl) -> Self {
-        self.appends.push(append);
+    pub fn append(mut self, append: impl Into<AppendImpl>) -> Self {
+        self.appends.push(append.into());
         self
     }
 
-    pub fn layout(mut self, layout: LayoutImpl) -> Self {
-        self.preferred_layout = Some(layout);
+    pub fn layout(mut self, layout: impl Into<LayoutImpl>) -> Self {
+        self.preferred_layout = Some(layout.into());
         self
     }
 
@@ -80,15 +83,13 @@ impl Dispatch {
             }
         }
 
+        let record = record.clone();
         for append in &self.appends {
-            let layout = self
-                .preferred_layout
-                .as_ref()
-                .unwrap_or(&append.default_layout());
-
-            layout
-                .format_record(record)
-                .and_then(|formatted| append.try_append(&formatted))?;
+            let record = match self.preferred_layout.as_ref() {
+                Some(layout) => layout.format_record(record)?,
+                None => append.default_layout().format_record(record)?,
+            };
+            append.try_append(&record)?;
         }
         Ok(())
     }

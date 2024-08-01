@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use boxdyn::BoxDynLayout;
+pub use boxdyn::BoxDyn;
+pub use identical::Identical;
 pub use kv_display::KvDisplay;
 #[cfg(feature = "json")]
-pub use simple_json::SimpleJsonLayout;
-pub use simple_text::SimpleTextLayout;
-pub use identical::IdenticalLayout;
+pub use simple_json::SimpleJson;
+pub use simple_text::SimpleText;
 
 mod boxdyn;
 mod identical;
@@ -27,26 +27,20 @@ mod simple_json;
 mod simple_text;
 
 pub trait Layout {
-    fn format_record(&self, record: &log::Record) -> anyhow::Result<log::Record>;
+    fn format_record(&self, record: log::Record) -> anyhow::Result<log::Record>;
 }
 
 #[derive(Debug)]
 pub enum LayoutImpl {
-    BoxDyn(BoxDynLayout),
-    Identical(IdenticalLayout),
-    SimpleText(SimpleTextLayout),
+    BoxDyn(BoxDyn),
+    Identical(Identical),
+    SimpleText(SimpleText),
     #[cfg(feature = "json")]
-    SimpleJson(SimpleJsonLayout),
-}
-
-impl Default for LayoutImpl {
-    fn default() -> Self {
-        LayoutImpl::SimpleText(SimpleTextLayout::default())
-    }
+    SimpleJson(SimpleJson),
 }
 
 impl Layout for LayoutImpl {
-    fn format_record(&self, record: &log::Record) -> anyhow::Result<log::Record> {
+    fn format_record(&self, record: log::Record) -> anyhow::Result<log::Record> {
         match self {
             LayoutImpl::BoxDyn(layout) => layout.format_record(record),
             LayoutImpl::Identical(layout) => layout.format_record(record),

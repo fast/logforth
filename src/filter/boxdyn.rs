@@ -16,23 +16,26 @@ use std::fmt::Debug;
 
 use log::Metadata;
 use log::Record;
-use crate::filter::{Filter, FilterImpl, FilterResult};
 
-pub struct BoxDynFilter(Box<dyn Filter + Send + Sync>);
+use crate::filter::Filter;
+use crate::filter::FilterImpl;
+use crate::filter::FilterResult;
 
-impl Debug for BoxDynFilter {
+pub struct BoxDyn(Box<dyn Filter + Send + Sync>);
+
+impl Debug for BoxDyn {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "BoxDynFilter {{ ... }}")
     }
 }
 
-impl BoxDynFilter {
+impl BoxDyn {
     pub fn new(filter: impl Filter + Send + Sync + 'static) -> Self {
         Self(Box::new(filter))
     }
 }
 
-impl Filter for BoxDynFilter {
+impl Filter for BoxDyn {
     fn filter(&self, record: &Record) -> FilterResult {
         (*self.0).filter(record)
     }
@@ -42,8 +45,8 @@ impl Filter for BoxDynFilter {
     }
 }
 
-impl From<BoxDynFilter> for FilterImpl {
-    fn from(filter: BoxDynFilter) -> Self {
+impl From<BoxDyn> for FilterImpl {
+    fn from(filter: BoxDyn) -> Self {
         FilterImpl::BoxDyn(filter)
     }
 }

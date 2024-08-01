@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use append::RollingFileAppend;
+pub use append::RollingFile;
 pub use non_blocking::NonBlocking;
 pub use non_blocking::NonBlockingBuilder;
 pub use non_blocking::WorkerGuard;

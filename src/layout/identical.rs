@@ -1,16 +1,19 @@
-use crate::layout::{Layout, LayoutImpl};
+use log::Record;
+
+use crate::layout::Layout;
+use crate::layout::LayoutImpl;
 
 #[derive(Debug, Default, Clone, Copy)]
-pub struct IdenticalLayout;
+pub struct Identical;
 
-impl Layout for IdenticalLayout {
-    fn format_record(&self, record: &log::Record) -> anyhow::Result<log::Record> {
-        Ok(record.clone())
+impl Layout for Identical {
+    fn format_record(&self, record: Record) -> anyhow::Result<Record> {
+        Ok(record)
     }
 }
 
-impl From<IdenticalLayout> for LayoutImpl {
-    fn from(layout: IdenticalLayout) -> Self {
+impl From<Identical> for LayoutImpl {
+    fn from(layout: Identical) -> Self {
         LayoutImpl::Identical(layout)
     }
 }

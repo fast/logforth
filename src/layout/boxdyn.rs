@@ -16,36 +16,37 @@ use std::fmt::Debug;
 
 use log::Record;
 
-use crate::layout::{Layout, LayoutImpl};
+use crate::layout::Layout;
+use crate::layout::LayoutImpl;
 
-pub struct BoxDynLayout(Box<dyn Layout + Send + Sync>);
+pub struct BoxDyn(Box<dyn Layout + Send + Sync>);
 
-impl Debug for BoxDynLayout {
+impl Debug for BoxDyn {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "BoxDynLayout {{ ... }}")
     }
 }
 
-impl BoxDynLayout {
+impl BoxDyn {
     pub fn new(layout: impl Layout + Send + Sync + 'static) -> Self {
         Self(Box::new(layout))
     }
 }
 
-impl Layout for BoxDynLayout {
-    fn format_record(&self, record: &Record) -> anyhow::Result<Record> {
+impl Layout for BoxDyn {
+    fn format_record(&self, record: Record) -> anyhow::Result<Record> {
         (*self.0).format_record(record)
     }
 }
 
-impl From<BoxDynLayout> for LayoutImpl {
-    fn from(layout: BoxDynLayout) -> Self {
+impl From<BoxDyn> for LayoutImpl {
+    fn from(layout: BoxDyn) -> Self {
         LayoutImpl::BoxDyn(layout)
     }
 }
 
-impl<T: Fn(&Record) -> anyhow::Result<Vec<u8>>> Layout for T {
-    fn format_record(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
+impl<T: for<'a> Fn(&'a Record<'a>) -> anyhow::Result<Record<'a>>> Layout for T {
+    fn format_record<'a>(&'a self, record: &'a Record) -> anyhow::Result<Record> {
         self(record)
     }
 }

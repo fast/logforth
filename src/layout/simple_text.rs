@@ -21,11 +21,12 @@ use colored::Colorize;
 use log::Level;
 use log::Record;
 
-use crate::layout::{Layout, LayoutImpl};
 use crate::layout::kv_display::KvDisplay;
+use crate::layout::Layout;
+use crate::layout::LayoutImpl;
 
 #[derive(Default, Debug, Clone)]
-pub struct SimpleTextLayout {
+pub struct SimpleText {
     pub colors: ColoredLevel,
 }
 
@@ -50,8 +51,8 @@ impl Default for ColoredLevel {
     }
 }
 
-impl Layout for SimpleTextLayout {
-    fn format_record(&self, record: &Record) -> anyhow::Result<Record> {
+impl Layout for SimpleText {
+    fn format_record(&self, record: Record) -> anyhow::Result<Record> {
         let color = match record.level() {
             Level::Error => self.colors.error,
             Level::Warn => self.colors.warn,
@@ -81,8 +82,8 @@ impl Layout for SimpleTextLayout {
     }
 }
 
-impl From<SimpleTextLayout> for LayoutImpl {
-    fn from(layout: SimpleTextLayout) -> Self {
+impl From<SimpleText> for LayoutImpl {
+    fn from(layout: SimpleText) -> Self {
         LayoutImpl::SimpleText(layout)
     }
 }
