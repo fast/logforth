@@ -17,6 +17,7 @@ pub use identical::Identical;
 pub use kv_display::KvDisplay;
 #[cfg(feature = "json")]
 pub use simple_json::SimpleJson;
+pub use simple_text::ColoredLevel;
 pub use simple_text::SimpleText;
 
 mod custom;
