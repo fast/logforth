@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(feature = "colored")]
 pub use colored_simple_text::ColoredSimpleTextLayout;
 use log::Record;
 pub use simple_text::SimpleTextLayout;
 
+#[cfg(feature = "colored")]
 mod colored_simple_text;
 mod kv_display;
 mod simple_text;
@@ -27,6 +29,7 @@ pub trait Layout {
 #[derive(Debug)]
 pub enum LayoutImpl {
     SimpleText(SimpleTextLayout),
+    #[cfg(feature = "colored")]
     ColoredSimpleText(ColoredSimpleTextLayout),
 }
 
