@@ -29,7 +29,7 @@ use crate::layout::Layout;
 pub struct Dispatch {
     filters: Vec<FilterImpl>,
     appends: Vec<AppendImpl>,
-    preferred_layout: Option<Layout>,
+    layout: Option<Layout>,
 }
 
 impl Default for Dispatch {
@@ -43,7 +43,7 @@ impl Dispatch {
         Self {
             filters: vec![],
             appends: vec![],
-            preferred_layout: None,
+            layout: None,
         }
     }
 
@@ -58,7 +58,7 @@ impl Dispatch {
     }
 
     pub fn layout(mut self, layout: impl Into<Layout>) -> Self {
-        self.preferred_layout = Some(layout.into());
+        self.layout = Some(layout.into());
         self
     }
 
@@ -89,7 +89,7 @@ impl Dispatch {
         }
 
         for append in &self.appends {
-            match self.preferred_layout.as_ref() {
+            match self.layout.as_ref() {
                 Some(layout) => layout.format(record, &|record| append.try_append(record))?,
                 None => append
                     .default_layout()
