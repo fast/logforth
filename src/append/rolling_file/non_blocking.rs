@@ -22,8 +22,8 @@ use crossbeam_channel::unbounded;
 use crossbeam_channel::SendTimeoutError;
 use crossbeam_channel::Sender;
 
-use crate::append::file::worker::Worker;
-use crate::append::file::Message;
+use crate::append::rolling_file::worker::Worker;
+use crate::append::rolling_file::Message;
 
 #[derive(Debug)]
 pub struct WorkerGuard {

@@ -44,7 +44,7 @@ impl CustomLayout {
         }
     }
 
-    pub fn format<F>(&self, record: &log::Record, f: &F) -> anyhow::Result<()>
+    pub(crate) fn format<F>(&self, record: &log::Record, f: &F) -> anyhow::Result<()>
     where
         F: Fn(Arguments) -> anyhow::Result<()>,
     {

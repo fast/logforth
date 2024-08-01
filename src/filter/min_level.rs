@@ -12,37 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::LevelFilter;
+use log::Level;
 use log::Metadata;
 
 use crate::filter::Filter;
-use crate::filter::FilterImpl;
 use crate::filter::FilterResult;
 
 #[derive(Debug, Clone)]
-pub struct LogLevel {
-    max_level: LevelFilter,
-}
+pub struct MinLevel(pub Level);
 
-impl LogLevel {
-    pub fn new(level: LevelFilter) -> Self {
-        Self { max_level: level }
-    }
-}
-
-impl Filter for LogLevel {
-    fn filter_metadata(&self, metadata: &Metadata) -> FilterResult {
+impl MinLevel {
+    pub(crate) fn filter(&self, metadata: &Metadata) -> FilterResult {
         let level = metadata.level();
-        if level <= self.max_level {
+        if level <= self.0 {
             FilterResult::Neutral
         } else {
             FilterResult::Reject
         }
     }
 }
+impl From<MinLevel> for Filter {
+    fn from(filter: MinLevel) -> Self {
+        Filter::MinLevel(filter)
+    }
+}
 
-impl From<LogLevel> for FilterImpl {
-    fn from(filter: LogLevel) -> Self {
-        FilterImpl::LogLevel(filter)
+impl From<Level> for Filter {
+    fn from(filter: Level) -> Self {
+        Filter::MinLevel(MinLevel(filter))
     }
 }

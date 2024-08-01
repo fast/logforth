@@ -13,27 +13,28 @@
 // limitations under the License.
 
 use log::LevelFilter;
-use logforth::append;
-use logforth::filter;
-use logforth::filter::FilterResult;
-use logforth::layout;
-use logforth::logger::Dispatch;
-use logforth::logger::Logger;
+use logforth::{
+    append,
+    filter::{CustomFilter, FilterResult},
+    layout::CustomLayout,
+    Dispatch, Logger,
+};
 
 fn main() {
     Logger::new()
         .dispatch(
-            Dispatch::builder(append::Stdout)
-                .filter(filter::BoxDyn::new(|metadata: &log::Metadata| {
+            Dispatch::new()
+                .filter(CustomFilter::new(|metadata: &log::Metadata| {
                     if metadata.level() > LevelFilter::Info {
                         FilterResult::Accept
                     } else {
                         FilterResult::Reject
                     }
                 }))
-                .layout(layout::CustomLayout::new(|record, f| {
+                .layout(CustomLayout::new(|record, f| {
                     f(format_args!("[system alert] {}", record.args()))
-                })),
+                }))
+                .append(append::Stdout),
         )
         .apply()
         .unwrap();

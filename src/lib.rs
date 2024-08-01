@@ -13,7 +13,12 @@
 // limitations under the License.
 
 pub mod append;
-pub mod dynlog;
 pub mod filter;
 pub mod layout;
-pub mod logger;
+mod logger;
+
+pub use append::Append;
+pub use filter::Filter;
+pub use layout::Layout;
+pub use logger::Dispatch;
+pub use logger::Logger;

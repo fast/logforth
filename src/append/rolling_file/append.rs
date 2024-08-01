@@ -14,9 +14,8 @@
 
 use log::Record;
 
-use crate::append::file::non_blocking::NonBlocking;
+use crate::append::rolling_file::non_blocking::NonBlocking;
 use crate::append::Append;
-use crate::append::AppendImpl;
 
 #[derive(Debug)]
 pub struct RollingFile {
@@ -30,15 +29,9 @@ impl RollingFile {
 }
 
 impl Append for RollingFile {
-    fn try_append(&self, record: &Record) -> anyhow::Result<()> {
+    fn append(&self, record: &Record) -> anyhow::Result<()> {
         let bytes = format!("{}\n", record.args()).into_bytes();
         self.writer.send(bytes)?;
         Ok(())
-    }
-}
-
-impl From<RollingFile> for AppendImpl {
-    fn from(append: RollingFile) -> Self {
-        AppendImpl::RollingFile(append)
     }
 }

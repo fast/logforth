@@ -16,10 +16,10 @@ use crate::layout::Layout;
 use std::fmt::Arguments;
 
 #[derive(Debug, Default, Clone, Copy)]
-pub struct Identical;
+pub struct IdenticalLayout;
 
-impl Identical {
-    pub fn format<F>(&self, record: &log::Record, f: &F) -> anyhow::Result<()>
+impl IdenticalLayout {
+    pub(crate) fn format<F>(&self, record: &log::Record, f: &F) -> anyhow::Result<()>
     where
         F: Fn(Arguments) -> anyhow::Result<()>,
     {
@@ -27,8 +27,8 @@ impl Identical {
     }
 }
 
-impl From<Identical> for Layout {
-    fn from(layout: Identical) -> Self {
+impl From<IdenticalLayout> for Layout {
+    fn from(layout: IdenticalLayout) -> Self {
         Layout::Identical(layout)
     }
 }

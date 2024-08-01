@@ -34,9 +34,10 @@ fn main() {
 
     Logger::new()
         .dispatch(
-            Dispatch::builder(append::RollingFile::new(writer))
-                .filter(filter::LogLevel::new(LevelFilter::Trace))
-                .layout(layout::SimpleJson),
+            Dispatch::new()
+                .filter(LevelFilter::Trace)
+                .layout(layout::JsonLayout)
+                .append(append::RollingFile::new(writer)),
         )
         .apply()
         .unwrap();
