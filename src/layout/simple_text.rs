@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt::Arguments;
 use std::path::Path;
 use std::time::SystemTime;
 
@@ -22,7 +23,6 @@ use log::Level;
 
 use crate::layout::kv_display::KvDisplay;
 use crate::layout::Layout;
-use crate::layout::LayoutImpl;
 
 #[derive(Default, Debug, Clone)]
 pub struct SimpleText {
@@ -50,10 +50,10 @@ impl Default for ColoredLevel {
     }
 }
 
-impl Layout for SimpleText {
-    fn format<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
+impl SimpleText {
+    pub fn format<F>(&self, record: &log::Record, f: &F) -> anyhow::Result<()>
     where
-        F: Fn(&log::Record) -> anyhow::Result<()>,
+        F: Fn(Arguments) -> anyhow::Result<()>,
     {
         let color = match record.level() {
             Level::Error => self.colors.error,
@@ -75,17 +75,14 @@ impl Layout for SimpleText {
         let message = record.args();
         let kvs = KvDisplay::new(record.key_values());
 
-        f(&record
-            .to_builder()
-            .args(format_args!(
-                "{time} {level:>5} {module}: {file}:{line} {message}{kvs}"
-            ))
-            .build())
+        f(format_args!(
+            "{time} {level:>5} {module}: {file}:{line} {message}{kvs}"
+        ))
     }
 }
 
-impl From<SimpleText> for LayoutImpl {
+impl From<SimpleText> for Layout {
     fn from(layout: SimpleText) -> Self {
-        LayoutImpl::SimpleText(layout)
+        Layout::SimpleText(layout)
     }
 }

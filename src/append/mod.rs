@@ -15,7 +15,7 @@
 use crate::dynlog::DynLog;
 use crate::filter::FilterImpl;
 use crate::layout;
-use crate::layout::LayoutImpl;
+use crate::layout::Layout;
 pub use boxdyn::*;
 #[cfg(feature = "fastrace")]
 pub use fastrace::*;
@@ -39,8 +39,8 @@ pub trait Append {
 
     /// Default layout to use when [Dispatch][crate::logger::Dispatch] does not configure a
     /// preferred layout.
-    fn default_layout(&self) -> LayoutImpl {
-        LayoutImpl::Identical(layout::Identical)
+    fn default_layout(&self) -> Layout {
+        Layout::Identical(layout::Identical)
     }
 
     /// Default filters associated to this append. [log::Log] is mixed with
@@ -89,7 +89,7 @@ impl Append for AppendImpl {
         }
     }
 
-    fn default_layout(&self) -> LayoutImpl {
+    fn default_layout(&self) -> Layout {
         match self {
             AppendImpl::BoxDyn(append) => append.default_layout(),
             AppendImpl::DynLog(append) => append.default_layout(),

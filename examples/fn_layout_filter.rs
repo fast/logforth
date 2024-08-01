@@ -16,6 +16,7 @@ use log::LevelFilter;
 use logforth::append;
 use logforth::filter;
 use logforth::filter::FilterResult;
+use logforth::layout;
 use logforth::logger::Dispatch;
 use logforth::logger::Logger;
 
@@ -24,18 +25,15 @@ fn main() {
         .dispatch(
             Dispatch::new()
                 .filter(filter::BoxDyn::new(|metadata: &log::Metadata| {
-                    if metadata.level() <= LevelFilter::Info {
+                    if metadata.level() > LevelFilter::Info {
                         FilterResult::Accept
                     } else {
                         FilterResult::Reject
                     }
                 }))
-                // .layout(layout::BoxDyn::new(|record: &log::Record| {
-                //     let args = format_args!("[box dyn] {}", record.args());
-                //     Ok(record.to_builder().args(args).build())
-                //     // ...or
-                //     // anyhow::bail!("boom: {}", message)
-                // }))
+                .layout(layout::CustomLayout::new(|record, f| {
+                    f(format_args!("[system alert] {}", record.args()))
+                }))
                 .append(append::Stdout),
         )
         .apply()

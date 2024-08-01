@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt::Arguments;
 use std::path::Path;
 use std::time::SystemTime;
 
@@ -22,7 +23,6 @@ use serde_json::Map;
 use serde_json::Value;
 
 use crate::layout::Layout;
-use crate::layout::LayoutImpl;
 
 #[derive(Default, Debug, Clone)]
 pub struct SimpleJson;
@@ -55,10 +55,10 @@ struct RecordLine<'a> {
     kvs: Map<String, Value>,
 }
 
-impl Layout for SimpleJson {
-    fn format<F>(&self, record: &Record, f: F) -> anyhow::Result<()>
+impl SimpleJson {
+    pub fn format<F>(&self, record: &Record, f: &F) -> anyhow::Result<()>
     where
-        F: Fn(&Record) -> anyhow::Result<()>,
+        F: Fn(Arguments) -> anyhow::Result<()>,
     {
         let mut kvs = Map::new();
         let mut visitor = KvCollector { kvs: &mut kvs };
@@ -80,12 +80,12 @@ impl Layout for SimpleJson {
         };
 
         let text = serde_json::to_string(&record_line)?;
-        f(&record.to_builder().args(format_args!("{text}",)).build())
+        f(format_args!("{text}"))
     }
 }
 
-impl From<SimpleJson> for LayoutImpl {
+impl From<SimpleJson> for Layout {
     fn from(layout: SimpleJson) -> Self {
-        LayoutImpl::SimpleJson(layout)
+        Layout::SimpleJson(layout)
     }
 }
