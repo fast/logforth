@@ -34,7 +34,7 @@ impl Default for StdoutAppend {
 impl StdoutAppend {
     pub fn new() -> Self {
         Self {
-            layout: LayoutImpl::SimpleText(SimpleTextLayout),
+            layout: LayoutImpl::SimpleText(SimpleTextLayout::default()),
         }
     }
 
@@ -77,7 +77,7 @@ impl Default for StderrAppend {
 impl StderrAppend {
     pub fn new() -> Self {
         Self {
-            layout: LayoutImpl::SimpleText(SimpleTextLayout),
+            layout: LayoutImpl::SimpleText(SimpleTextLayout::default()),
         }
     }
 
