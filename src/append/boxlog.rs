@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt::Debug;
+
 use log::Log;
 use log::Metadata;
 use log::Record;
@@ -19,8 +21,13 @@ use log::Record;
 use crate::Append;
 use crate::AppendImpl;
 
-#[derive(Debug)]
 pub struct BoxLogAppend(Box<dyn Log>);
+
+impl Debug for BoxLogAppend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "BoxLogAppend {{ ... }}")
+    }
+}
 
 impl BoxLogAppend {
     pub fn new(log: impl Log + 'static) -> Self {
@@ -34,7 +41,8 @@ impl Append for BoxLogAppend {
     }
 
     fn try_append(&self, record: &Record) -> anyhow::Result<()> {
-        Ok((*self.0).log(record))
+        (*self.0).log(record);
+        Ok(())
     }
 
     fn flush(&self) {

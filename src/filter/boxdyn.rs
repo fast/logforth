@@ -12,31 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt::Debug;
+
 use log::Metadata;
 use log::Record;
-use log::RecordBuilder;
 
 use crate::Filter;
 use crate::FilterImpl;
 use crate::FilterResult;
-use crate::Layout;
 
-#[derive(Debug)]
-pub struct BoxDynFilter(Box<dyn Filter>);
+pub struct BoxDynFilter(Box<dyn Filter + Send + Sync>);
+
+impl Debug for BoxDynFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "BoxDynFilter {{ ... }}")
+    }
+}
 
 impl BoxDynFilter {
-    pub fn new(layout: impl Layout + 'static) -> Self {
-        Self(Box::new(layout))
+    pub fn new(filter: impl Filter + Send + Sync + 'static) -> Self {
+        Self(Box::new(filter))
     }
 }
 
 impl Filter for BoxDynFilter {
     fn filter(&self, record: &Record) -> FilterResult {
-        (**self.0).filter(record)
+        (*self.0).filter(record)
     }
 
     fn filter_metadata(&self, metadata: &Metadata) -> FilterResult {
-        (**self.0).filter_metadata(metadata)
+        (*self.0).filter_metadata(metadata)
     }
 }
 
@@ -49,16 +54,5 @@ impl From<BoxDynFilter> for FilterImpl {
 impl<T: Fn(&Metadata) -> FilterResult> Filter for T {
     fn filter_metadata(&self, metadata: &Metadata) -> FilterResult {
         self(metadata)
-    }
-}
-
-impl<T: Fn(&Record) -> FilterResult> Filter for T {
-    fn filter(&self, record: &Record) -> FilterResult {
-        self(record)
-    }
-
-    fn filter_metadata(&self, metadata: &Metadata) -> FilterResult {
-        let record = RecordBuilder::new().metadata(metadata.clone()).build();
-        self(&record)
     }
 }

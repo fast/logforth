@@ -12,23 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt::Debug;
 use log::Record;
 
 use crate::Layout;
 use crate::LayoutImpl;
 
-#[derive(Debug)]
-pub struct BoxDynLayout(Box<dyn Layout>);
+pub struct BoxDynLayout(Box<dyn Layout + Send + Sync>);
+
+impl Debug for BoxDynLayout {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "BoxDynLayout {{ ... }}")
+    }
+}
 
 impl BoxDynLayout {
-    pub fn new(layout: impl Layout + 'static) -> Self {
+    pub fn new(layout: impl Layout + Send + Sync + 'static) -> Self {
         Self(Box::new(layout))
     }
 }
 
 impl Layout for BoxDynLayout {
     fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
-        self.0.format_bytes(record)
+        (*self.0).format_bytes(record)
     }
 }
 
@@ -41,11 +47,5 @@ impl From<BoxDynLayout> for LayoutImpl {
 impl<T: Fn(&Record) -> anyhow::Result<Vec<u8>>> Layout for T {
     fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
         self(record)
-    }
-}
-
-impl<T: Fn(&Record) -> Vec<u8>> Layout for T {
-    fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
-        Ok(self(record))
     }
 }

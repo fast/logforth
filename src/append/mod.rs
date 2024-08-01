@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt::Debug;
+
 pub use boxdyn::*;
 pub use boxlog::*;
 pub use dispatch::*;
