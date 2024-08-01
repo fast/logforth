@@ -38,4 +38,8 @@ paste = { version = "1.0" }
 [[example]]
 name = "simple_stdio"
 path = "examples/simple_stdio.rs"
+
+[[example]]
+name = "colored_stdio"
+path = "examples/colored_stdio.rs"
 required-features = ["colored"]
