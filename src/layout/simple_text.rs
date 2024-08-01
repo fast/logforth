@@ -19,7 +19,6 @@ use colored::Color;
 use colored::ColoredString;
 use colored::Colorize;
 use log::Level;
-use log::Record;
 
 use crate::layout::kv_display::KvDisplay;
 use crate::layout::Layout;
@@ -52,7 +51,10 @@ impl Default for ColoredLevel {
 }
 
 impl Layout for SimpleText {
-    fn format_record<'a>(&'_ self, record: &'a Record<'a>) -> anyhow::Result<Record<'a>> {
+    fn format_record<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
+    where
+        F: Fn(&log::Record) -> anyhow::Result<()>,
+    {
         let color = match record.level() {
             Level::Error => self.colors.error,
             Level::Warn => self.colors.warn,
@@ -61,22 +63,24 @@ impl Layout for SimpleText {
             Level::Trace => self.colors.trace,
         };
 
-        let args = format_args!(
-            "{} {:>5} {}: {}:{} {}{}",
-            humantime::format_rfc3339_micros(SystemTime::now()),
-            ColoredString::from(record.level().to_string()).color(color),
-            record.module_path().unwrap_or(""),
-            record
-                .file()
-                .and_then(|file| Path::new(file).file_name())
-                .and_then(|name| name.to_str())
-                .unwrap_or_default(),
-            record.line().unwrap_or(0),
-            record.args(),
-            KvDisplay::new(record.key_values()),
-        );
+        let time = humantime::format_rfc3339_micros(SystemTime::now());
+        let level = ColoredString::from(record.level().to_string()).color(color);
+        let module = record.module_path().unwrap_or("");
+        let file = record
+            .file()
+            .and_then(|file| Path::new(file).file_name())
+            .and_then(|name| name.to_str())
+            .unwrap_or_default();
+        let line = record.line().unwrap_or(0);
+        let message = record.args();
+        let kvs = KvDisplay::new(record.key_values());
 
-        Ok(record.to_builder().args(args).build())
+        f(&record
+            .to_builder()
+            .args(format_args!(
+                "{time} {level:>5} {module}: {file}:{line} {message}{kvs}"
+            ))
+            .build())
     }
 }
 

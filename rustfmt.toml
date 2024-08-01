@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-comment_width = 120
-format_code_in_doc_comments = true
-group_imports = "StdExternalCrate"
-imports_granularity = "Item"
-wrap_comments = true
+# comment_width = 120
+# format_code_in_doc_comments = true
+# group_imports = "StdExternalCrate"
+# imports_granularity = "Item"
+# wrap_comments = true

@@ -7,8 +7,11 @@ use crate::layout::LayoutImpl;
 pub struct Identical;
 
 impl Layout for Identical {
-    fn format_record<'a>(&'_ self, record: &'a Record<'a>) -> anyhow::Result<Record<'a>> {
-        Ok(record.clone())
+    fn format_record<F>(&self, record: &log::Record, f: F) -> anyhow::Result<()>
+    where
+        F: Fn(&log::Record) -> anyhow::Result<()>,
+    {
+        f(record)
     }
 }
 

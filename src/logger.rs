@@ -84,11 +84,12 @@ impl Dispatch {
         }
 
         for append in &self.appends {
-            let record = match self.preferred_layout.as_ref() {
-                Some(layout) => layout.format_record(record)?,
-                None => append.default_layout().format_record(record)?,
-            };
-            append.try_append(&record)?;
+            match self.preferred_layout.as_ref() {
+                Some(layout) => layout.format_record(record, |record| append.try_append(record))?,
+                None => append
+                    .default_layout()
+                    .format_record(record, |record| append.try_append(record))?,
+            }
         }
         Ok(())
     }
