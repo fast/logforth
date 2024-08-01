@@ -1,4 +1,4 @@
-# LogForth Project
+# Logforth Project
 
 A versatile and extensible logging implementation.
 

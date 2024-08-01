@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::Metadata;
-use log::Record;
+pub use boxdyn::BoxDynFilter;
 pub use log_level::LogLevelFilter;
 
+mod boxdyn;
 mod log_level;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,27 +29,30 @@ pub enum FilterResult {
 }
 
 pub trait Filter {
-    fn filter(&self, _record: &Record) -> FilterResult {
+    fn filter(&self, _record: &log::Record) -> FilterResult {
         FilterResult::Neutral
     }
 
-    fn filter_metadata(&self, metadata: &Metadata) -> FilterResult;
+    fn filter_metadata(&self, metadata: &log::Metadata) -> FilterResult;
 }
 
 #[derive(Debug)]
 pub enum FilterImpl {
+    BoxDyn(BoxDynFilter),
     LogLevel(LogLevelFilter),
 }
 
 impl Filter for FilterImpl {
-    fn filter(&self, record: &Record) -> FilterResult {
+    fn filter(&self, record: &log::Record) -> FilterResult {
         match self {
+            FilterImpl::BoxDyn(filter) => filter.filter(record),
             FilterImpl::LogLevel(filter) => filter.filter(record),
         }
     }
 
-    fn filter_metadata(&self, metadata: &Metadata) -> FilterResult {
+    fn filter_metadata(&self, metadata: &log::Metadata) -> FilterResult {
         match self {
+            FilterImpl::BoxDyn(filter) => filter.filter_metadata(metadata),
             FilterImpl::LogLevel(filter) => filter.filter_metadata(metadata),
         }
     }
