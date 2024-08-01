@@ -62,7 +62,7 @@ jobs:
       - name: Run examples
         run: |
           cargo run --example simple_stdio
-          cargo run --features="colored" --example colored_stdio
+          cargo run --features="no-color" --example no_color_stdio
           cargo run --features="json" --example json_stdio
 
   required:

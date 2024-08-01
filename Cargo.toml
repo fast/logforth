@@ -26,12 +26,12 @@ rust-version = "1.71.0"
 version = "0.1.0"
 
 [features]
-colored = ["dep:colored"]
 json = ["dep:serde_json", "dep:serde"]
+no-color = ["colored/no-color"]
 
 [dependencies]
 anyhow = { version = "1.0" }
-colored = { version = "2.1", optional = true }
+colored = { version = "2.1" }
 humantime = { version = "2.1" }
 log = { version = "0.4", features = ["std", "kv_unstable"] }
 paste = { version = "1.0" }
@@ -43,9 +43,9 @@ name = "simple_stdio"
 path = "examples/simple_stdio.rs"
 
 [[example]]
-name = "colored_stdio"
-path = "examples/colored_stdio.rs"
-required-features = ["colored"]
+name = "no_color_stdio"
+path = "examples/no_color_stdio.rs"
+required-features = ["no-color"]
 
 [[example]]
 name = "json_stdio"

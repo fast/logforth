@@ -13,13 +13,14 @@
 // limitations under the License.
 
 use log::LevelFilter;
+use logforth::SimpleTextLayout;
 use logforth::DispatchAppend;
 use logforth::LogLevelFilter;
 use logforth::Logger;
 use logforth::StdoutAppend;
 
 fn main() {
-    let append = StdoutAppend::new();
+    let append = StdoutAppend::new().with_layout(SimpleTextLayout::default());
     let append = DispatchAppend::new(append).filter(LogLevelFilter::new(LevelFilter::Trace));
     Logger::new().add_append(append).apply().unwrap();
 
