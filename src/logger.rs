@@ -22,6 +22,15 @@ use crate::append::Append;
 use crate::filter::Filter;
 use crate::filter::FilterResult;
 use crate::layout::Layout;
+
+/// A grouped set of appenders, filters, and optional layout.
+///
+/// The [Logger] facade dispatches log records to one or more [Dispatch] instances.
+/// Each [Dispatch] instance contains a set of filters, appenders, and an optional layout.
+///
+/// `filters` are used to determine whether a log record should be passed to the appenders.
+/// `appends` are used to write log records to a destination. Each appender has its own
+/// default layout. If the [Dispatch] has a layout, it will be used instead of the default layout.
 #[derive(Debug)]
 pub struct Dispatch<const LAYOUT: bool = true, const APPEND: bool = true> {
     filters: Vec<Filter>,
@@ -36,6 +45,9 @@ impl Default for Dispatch<false, false> {
 }
 
 impl Dispatch<false, false> {
+    /// Create a new incomplete [Dispatch] instance.
+    ///
+    /// At least one append must be added to the [Dispatch] before it can be used.
     pub fn new() -> Dispatch<false, false> {
         Self {
             filters: vec![],
@@ -44,11 +56,14 @@ impl Dispatch<false, false> {
         }
     }
 
+    /// Add a [Filter] to the [Dispatch].
     pub fn filter(mut self, filter: impl Into<Filter>) -> Dispatch<false, false> {
         self.filters.push(filter.into());
         self
     }
 
+    /// Add the preferred [Layout] to the [Dispatch]. At most one layout can be added to a
+    /// [Dispatch].
     pub fn layout(self, layout: impl Into<Layout>) -> Dispatch<true, false> {
         Dispatch {
             filters: self.filters,
@@ -59,10 +74,13 @@ impl Dispatch<false, false> {
 }
 
 impl<const LAYOUT: bool, const APPEND: bool> Dispatch<LAYOUT, APPEND> {
-    pub fn append(self, append: impl Append) -> Dispatch<true, true> {
+    /// Add an [Append] to the [Dispatch].
+    pub fn append(mut self, append: impl Append) -> Dispatch<true, true> {
+        self.appends.push(Box::new(append));
+
         Dispatch {
             filters: self.filters,
-            appends: vec![Box::new(append)],
+            appends: self.appends,
             layout: self.layout,
         }
     }
@@ -83,7 +101,6 @@ impl Dispatch {
 
     fn log(&self, record: &Record) -> anyhow::Result<()> {
         let layout = self.layout.as_ref();
-
         for append in &self.appends {
             match layout {
                 Some(layout) => layout.format(record, &|record| append.append(record))?,
@@ -92,7 +109,6 @@ impl Dispatch {
                     .format(record, &|record| append.append(record))?,
             }
         }
-
         Ok(())
     }
 
@@ -103,27 +119,36 @@ impl Dispatch {
     }
 }
 
+/// A logger facade that dispatches log records to one or more [Dispatch] instances.
+///
+/// This struct implements [log::Log] to bridge Logforth's logging implementations
+/// with the [log] crate.
 #[derive(Debug)]
-pub struct Logger {
+pub struct Logger<const APPEND: bool = true> {
     dispatches: Vec<Dispatch>,
 }
 
-impl Default for Logger {
+impl Default for Logger<false> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Logger {
-    pub fn new() -> Self {
+impl Logger<false> {
+    /// Create a new [Logger] instance.
+    ///
+    /// The [Logger] instance is incomplete and must have at least one [Dispatch] added to it.
+    pub fn new() -> Logger<false> {
         Self { dispatches: vec![] }
     }
+}
 
-    pub fn dispatch(mut self, dispatch: Dispatch) -> Self {
-        self.dispatches.push(dispatch);
-        self
-    }
-
+impl Logger<true> {
+    /// Set up the global logger with the [Logger] instance.
+    ///
+    /// # Errors
+    ///
+    /// An error is returned if the global logger has already been set.
     pub fn apply(self) -> Result<(), log::SetLoggerError> {
         log::set_boxed_logger(Box::new(self))?;
         log::set_max_level(LevelFilter::Trace);
@@ -131,9 +156,21 @@ impl Logger {
     }
 }
 
+impl<const APPEND: bool> Logger<APPEND> {
+    /// Add a [Dispatch] to the [Logger].
+    pub fn dispatch(mut self, dispatch: Dispatch) -> Logger<true> {
+        self.dispatches.push(dispatch);
+        Logger {
+            dispatches: self.dispatches,
+        }
+    }
+}
+
 impl log::Log for Logger {
-    fn enabled(&self, _: &Metadata) -> bool {
-        true
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        self.dispatches
+            .iter()
+            .any(|dispatch| dispatch.enabled(metadata))
     }
 
     fn log(&self, record: &Record) {
@@ -153,6 +190,7 @@ impl log::Log for Logger {
     }
 }
 
+// TODO(tisonkun): logback and log4j2 support custom error handling (status listener).
 fn handle_error(record: &Record, error: anyhow::Error) {
     let Err(fallback_error) = write!(
         std::io::stderr(),
