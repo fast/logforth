@@ -48,6 +48,7 @@ impl Append for StdoutAppend {
     fn try_append(&self, record: &log::Record) -> anyhow::Result<()> {
         let bytes = self.layout.format_bytes(record)?;
         std::io::stdout().write_all(&bytes)?;
+        std::io::stdout().write_all(b"\n")?;
         Ok(())
     }
 
@@ -90,6 +91,7 @@ impl Append for StderrAppend {
     fn try_append(&self, record: &log::Record) -> anyhow::Result<()> {
         let bytes = self.layout.format_bytes(record)?;
         std::io::stderr().write_all(&bytes)?;
+        std::io::stderr().write_all(b"\n")?;
         Ok(())
     }
 

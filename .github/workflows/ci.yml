@@ -52,13 +52,18 @@ jobs:
         run: typos
 
   test:
-    name: Build and test
+    name: Run tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build --locked
-      - run: cargo test -- --nocapture
+      - name: Run unit tests
+        run: cargo test -- --nocapture
+      - name: Run examples
+        run: |
+          cargo run --example simple_stdio
+          cargo run --features="colored" --example colored_stdio
+          cargo run --features="json" --example json_stdio
 
   required:
     name: Required
