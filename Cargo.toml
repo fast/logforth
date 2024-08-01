@@ -25,6 +25,10 @@ repository = "https://github.com/tisonkun/logforth"
 rust-version = "1.71.0"
 version = "0.3.0"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docs"]
+
 [features]
 fastrace = ["dep:fastrace"]
 file = ["dep:crossbeam-channel", "dep:parking_lot", "dep:time"]
