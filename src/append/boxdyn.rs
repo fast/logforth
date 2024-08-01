@@ -19,7 +19,7 @@ use log::Record;
 use crate::append::Append;
 use crate::append::AppendImpl;
 use crate::filter::FilterImpl;
-use crate::layout::LayoutImpl;
+use crate::layout::Layout;
 
 pub struct BoxDyn(Box<dyn Append + Send + Sync>);
 
@@ -44,7 +44,7 @@ impl Append for BoxDyn {
         (*self.0).flush()
     }
 
-    fn default_layout(&self) -> LayoutImpl {
+    fn default_layout(&self) -> Layout {
         (*self.0).default_layout()
     }
 

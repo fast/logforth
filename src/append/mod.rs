@@ -15,7 +15,7 @@
 use crate::dynlog::DynLog;
 use crate::filter::FilterImpl;
 use crate::layout;
-use crate::layout::{Layout, LayoutImpl};
+use crate::layout::Layout;
 pub use boxdyn::*;
 #[cfg(feature = "fastrace")]
 pub use fastrace::*;
