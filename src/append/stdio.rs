@@ -18,26 +18,13 @@ use crate::Append;
 use crate::AppendImpl;
 use crate::Layout;
 use crate::LayoutImpl;
-use crate::SimpleTextLayout;
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct StdoutAppend {
     layout: LayoutImpl,
 }
 
-impl Default for StdoutAppend {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl StdoutAppend {
-    pub fn new() -> Self {
-        Self {
-            layout: LayoutImpl::SimpleText(SimpleTextLayout::default()),
-        }
-    }
-
     pub fn with_layout(mut self, layout: impl Into<LayoutImpl>) -> Self {
         self.layout = layout.into();
         self
@@ -63,24 +50,12 @@ impl From<StdoutAppend> for AppendImpl {
     }
 }
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct StderrAppend {
     layout: LayoutImpl,
 }
 
-impl Default for StderrAppend {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl StderrAppend {
-    pub fn new() -> Self {
-        Self {
-            layout: LayoutImpl::SimpleText(SimpleTextLayout::default()),
-        }
-    }
-
     pub fn with_layout(mut self, layout: impl Into<LayoutImpl>) -> Self {
         self.layout = layout.into();
         self

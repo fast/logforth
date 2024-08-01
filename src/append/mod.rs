@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use dispatch::DispatchAppend;
+pub use dispatch::*;
 #[cfg(feature = "fastrace")]
-pub use fastrace::FastraceAppend;
-use log::Metadata;
-use log::Record;
-pub use stdio::StderrAppend;
-pub use stdio::StdoutAppend;
+pub use fastrace::*;
+#[cfg(feature = "file")]
+pub use file::*;
+pub use stdio::*;
 
 mod dispatch;
 #[cfg(feature = "fastrace")]
@@ -29,12 +28,12 @@ mod stdio;
 
 pub trait Append {
     /// Whether this append is enabled; default to `true`.
-    fn enabled(&self, _metadata: &Metadata) -> bool {
+    fn enabled(&self, _metadata: &log::Metadata) -> bool {
         true
     }
 
     /// Dispatches a log record to the append target.
-    fn try_append(&self, record: &Record) -> anyhow::Result<()>;
+    fn try_append(&self, record: &log::Record) -> anyhow::Result<()>;
 
     /// Flushes any buffered records.
     fn flush(&self);
@@ -45,26 +44,32 @@ pub enum AppendImpl {
     Dispatch(DispatchAppend),
     #[cfg(feature = "fastrace")]
     Fastrace(FastraceAppend),
+    #[cfg(feature = "file")]
+    RollingFile(RollingFileAppend),
     Stdout(StdoutAppend),
     Stderr(StderrAppend),
 }
 
 impl Append for AppendImpl {
-    fn enabled(&self, metadata: &Metadata) -> bool {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
         match self {
             AppendImpl::Dispatch(append) => append.enabled(metadata),
             #[cfg(feature = "fastrace")]
             AppendImpl::Fastrace(append) => append.enabled(metadata),
+            #[cfg(feature = "file")]
+            AppendImpl::RollingFile(append) => append.enabled(metadata),
             AppendImpl::Stdout(append) => append.enabled(metadata),
             AppendImpl::Stderr(append) => append.enabled(metadata),
         }
     }
 
-    fn try_append(&self, record: &Record) -> anyhow::Result<()> {
+    fn try_append(&self, record: &log::Record) -> anyhow::Result<()> {
         match self {
             AppendImpl::Dispatch(append) => append.try_append(record),
             #[cfg(feature = "fastrace")]
             AppendImpl::Fastrace(append) => append.try_append(record),
+            #[cfg(feature = "file")]
+            AppendImpl::RollingFile(append) => append.try_append(record),
             AppendImpl::Stdout(append) => append.try_append(record),
             AppendImpl::Stderr(append) => append.try_append(record),
         }
@@ -75,6 +80,8 @@ impl Append for AppendImpl {
             AppendImpl::Dispatch(append) => append.flush(),
             #[cfg(feature = "fastrace")]
             AppendImpl::Fastrace(append) => append.flush(),
+            #[cfg(feature = "file")]
+            AppendImpl::RollingFile(append) => append.flush(),
             AppendImpl::Stdout(append) => append.flush(),
             AppendImpl::Stderr(append) => append.flush(),
         }

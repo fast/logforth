@@ -1,9 +1,26 @@
+// Copyright 2024 tison <wander4096@gmail.com>
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use std::io::Write;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
 use anyhow::Context;
-use crossbeam_channel::{bounded, unbounded, SendTimeoutError, Sender};
+use crossbeam_channel::bounded;
+use crossbeam_channel::unbounded;
+use crossbeam_channel::SendTimeoutError;
+use crossbeam_channel::Sender;
 
 use crate::append::file::worker::Worker;
 use crate::append::file::Message;

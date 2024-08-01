@@ -34,6 +34,12 @@ pub enum LayoutImpl {
     SimpleJson(SimpleJsonLayout),
 }
 
+impl Default for LayoutImpl {
+    fn default() -> Self {
+        LayoutImpl::SimpleText(SimpleTextLayout::default())
+    }
+}
+
 impl Layout for LayoutImpl {
     fn format_bytes(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
         match self {

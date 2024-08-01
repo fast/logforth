@@ -57,3 +57,8 @@ required-features = ["no-color"]
 name = "json_stdio"
 path = "examples/json_stdio.rs"
 required-features = ["json"]
+
+[[example]]
+name = "rolling_file"
+path = "examples/rolling_file.rs"
+required-features = ["file", "json"]
