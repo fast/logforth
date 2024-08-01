@@ -56,27 +56,9 @@ impl Dispatch<false, false> {
             layout: Some(layout.into()),
         }
     }
-
-    pub fn append(self, append: impl Append) -> Dispatch<true, true> {
-        Dispatch {
-            filters: self.filters,
-            appends: vec![Box::new(append)],
-            layout: self.layout,
-        }
-    }
 }
 
-impl Dispatch<true, false> {
-    pub fn append(self, append: impl Append) -> Dispatch<true, true> {
-        Dispatch {
-            filters: self.filters,
-            appends: vec![Box::new(append)],
-            layout: self.layout,
-        }
-    }
-}
-
-impl Dispatch<true, true> {
+impl<const LAYOUT: bool, const APPEND: bool> Dispatch<LAYOUT, APPEND> {
     pub fn append(self, append: impl Append) -> Dispatch<true, true> {
         Dispatch {
             filters: self.filters,
@@ -99,18 +81,10 @@ impl Dispatch {
         true
     }
 
-    fn do_append(&self, record: &Record) -> anyhow::Result<()> {
+    fn log(&self, record: &Record) -> anyhow::Result<()> {
         let layout = self.layout.as_ref();
 
         for append in &self.appends {
-            for filter in append.default_filters() {
-                match filter.filter(record.metadata()) {
-                    FilterResult::Reject => return Ok(()),
-                    FilterResult::Accept => break,
-                    FilterResult::Neutral => {}
-                }
-            }
-
             match layout {
                 Some(layout) => layout.format(record, &|record| append.append(record))?,
                 None => append
@@ -165,7 +139,7 @@ impl log::Log for Logger {
     fn log(&self, record: &Record) {
         for dispatch in &self.dispatches {
             if dispatch.enabled(record.metadata()) {
-                if let Err(err) = dispatch.do_append(record) {
+                if let Err(err) = dispatch.log(record) {
                     handle_error(record, err);
                 }
             }
