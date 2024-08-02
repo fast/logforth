@@ -16,27 +16,30 @@ use std::fmt::Arguments;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 
+use log::Record;
+
 use crate::layout::Layout;
 
+// TODO(tisonkun): use trait alias when it's stable - https://github.com/rust-lang/rust/issues/41517
+//  then we can use the alias for both `dyn` and `impl`.
+type FormatFunction = dyn Fn(&Record, &dyn Fn(Arguments) -> anyhow::Result<()>) -> anyhow::Result<()>
+    + Send
+    + Sync
+    + 'static;
+
 pub struct CustomLayout {
-    #[allow(clippy::type_complexity)]
-    f: Box<
-        dyn Fn(&log::Record, &dyn Fn(Arguments) -> anyhow::Result<()>) -> anyhow::Result<()>
-            + Send
-            + Sync
-            + 'static,
-    >,
+    f: Box<FormatFunction>,
 }
 
 impl Debug for CustomLayout {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "CustomLayout {{ ... }}")
     }
 }
 
 impl CustomLayout {
     pub fn new(
-        layout: impl Fn(&log::Record, &dyn Fn(Arguments) -> anyhow::Result<()>) -> anyhow::Result<()>
+        layout: impl Fn(&Record, &dyn Fn(Arguments) -> anyhow::Result<()>) -> anyhow::Result<()>
             + Send
             + Sync
             + 'static,
@@ -46,7 +49,7 @@ impl CustomLayout {
         }
     }
 
-    pub(crate) fn format<F>(&self, record: &log::Record, f: &F) -> anyhow::Result<()>
+    pub(crate) fn format<F>(&self, record: &Record, f: &F) -> anyhow::Result<()>
     where
         F: Fn(Arguments) -> anyhow::Result<()>,
     {

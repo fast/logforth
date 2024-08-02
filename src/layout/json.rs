@@ -13,11 +13,10 @@
 // limitations under the License.
 
 use std::fmt::Arguments;
-use std::path::Path;
 use std::time::SystemTime;
 
+use humantime::Rfc3339Timestamp;
 use log::Record;
-use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Map;
 use serde_json::Value;
@@ -44,15 +43,31 @@ impl<'a, 'kvs> log::kv::Visitor<'kvs> for KvCollector<'a> {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 struct RecordLine<'a> {
-    timestamp: String,
-    level: String,
+    #[serde(serialize_with = "serialize_timestamp")]
+    timestamp: Rfc3339Timestamp,
+    level: &'a str,
     module_path: &'a str,
     file: &'a str,
     line: u32,
-    message: String,
+    #[serde(serialize_with = "serialize_args")]
+    message: &'a Arguments<'a>,
     kvs: Map<String, Value>,
+}
+
+fn serialize_args<S>(args: &Arguments, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.collect_str(args)
+}
+
+fn serialize_timestamp<S>(timestamp: &Rfc3339Timestamp, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.collect_str(&format_args!("{timestamp}"))
 }
 
 impl JsonLayout {
@@ -64,18 +79,13 @@ impl JsonLayout {
         let mut visitor = KvCollector { kvs: &mut kvs };
         record.key_values().visit(&mut visitor)?;
 
-        let timestamp = humantime::format_rfc3339_micros(SystemTime::now());
         let record_line = RecordLine {
-            timestamp: format!("{timestamp}"),
-            level: record.level().to_string(),
-            module_path: record.module_path().unwrap_or(""),
-            file: record
-                .file()
-                .and_then(|file| Path::new(file).file_name())
-                .and_then(|name| name.to_str())
-                .unwrap_or_default(),
+            timestamp: humantime::format_rfc3339_micros(SystemTime::now()),
+            level: record.level().as_str(),
+            module_path: record.module_path().unwrap_or_default(),
+            file: record.file().unwrap_or_default(),
             line: record.line().unwrap_or(0),
-            message: record.args().to_string(),
+            message: record.args(),
             kvs,
         };
 

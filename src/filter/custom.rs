@@ -20,8 +20,7 @@ use crate::filter::Filter;
 use crate::filter::FilterResult;
 
 pub struct CustomFilter {
-    #[allow(clippy::type_complexity)]
-    f: Box<dyn Fn(&log::Metadata) -> FilterResult + Send + Sync + 'static>,
+    f: Box<dyn Fn(&Metadata) -> FilterResult + Send + Sync + 'static>,
 }
 
 impl Debug for CustomFilter {
@@ -31,7 +30,7 @@ impl Debug for CustomFilter {
 }
 
 impl CustomFilter {
-    pub fn new(filter: impl Fn(&log::Metadata) -> FilterResult + Send + Sync + 'static) -> Self {
+    pub fn new(filter: impl Fn(&Metadata) -> FilterResult + Send + Sync + 'static) -> Self {
         CustomFilter {
             f: Box::new(filter),
         }

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::fmt::Arguments;
-use std::path::Path;
 use std::time::SystemTime;
 
 use colored::Color;
@@ -65,12 +64,8 @@ impl TextLayout {
 
         let time = humantime::format_rfc3339_micros(SystemTime::now());
         let level = ColoredString::from(record.level().to_string()).color(color);
-        let module = record.module_path().unwrap_or("");
-        let file = record
-            .file()
-            .and_then(|file| Path::new(file).file_name())
-            .and_then(|name| name.to_str())
-            .unwrap_or_default();
+        let module = record.module_path().unwrap_or_default();
+        let file = record.file().unwrap_or_default();
         let line = record.line().unwrap_or(0);
         let message = record.args();
         let kvs = KvDisplay::new(record.key_values());
