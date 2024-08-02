@@ -28,6 +28,14 @@ use opentelemetry_sdk::logs::LoggerProvider;
 
 use crate::append::Append;
 
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OpentelemetryWireProtocol {
+    Grpc,
+    HttpBinary,
+    HttpJson,
+}
+
 #[derive(Debug)]
 pub struct OpentelemetryLog {
     name: String,
@@ -41,14 +49,14 @@ impl OpentelemetryLog {
         name: impl Into<String>,
         category: impl Into<String>,
         otlp_endpoint: impl Into<String>,
-        protocol: Protocol,
+        protocol: OpentelemetryWireProtocol,
     ) -> Result<Self, opentelemetry::logs::LogError> {
         let name = name.into();
         let category = category.into();
         let otlp_endpoint = otlp_endpoint.into();
 
         let exporter = match protocol {
-            Protocol::Grpc => opentelemetry_otlp::new_exporter()
+            OpentelemetryWireProtocol::Grpc => opentelemetry_otlp::new_exporter()
                 .tonic()
                 .with_endpoint(otlp_endpoint)
                 .with_protocol(Protocol::Grpc)
@@ -56,7 +64,7 @@ impl OpentelemetryLog {
                     opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
                 ))
                 .build_log_exporter(),
-            Protocol::HttpBinary => opentelemetry_otlp::new_exporter()
+            OpentelemetryWireProtocol::HttpBinary => opentelemetry_otlp::new_exporter()
                 .http()
                 .with_endpoint(otlp_endpoint)
                 .with_protocol(Protocol::HttpBinary)
@@ -64,7 +72,7 @@ impl OpentelemetryLog {
                     opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
                 ))
                 .build_log_exporter(),
-            Protocol::HttpJson => opentelemetry_otlp::new_exporter()
+            OpentelemetryWireProtocol::HttpJson => opentelemetry_otlp::new_exporter()
                 .http()
                 .with_endpoint(otlp_endpoint)
                 .with_protocol(Protocol::HttpJson)

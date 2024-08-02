@@ -29,7 +29,7 @@ use crate::layout::Layout;
 #[cfg(feature = "fastrace")]
 mod fastrace;
 #[cfg(feature = "opentelemetry")]
-mod opentelemetry;
+pub mod opentelemetry;
 #[cfg(feature = "rolling_file")]
 pub mod rolling_file;
 mod stdio;
