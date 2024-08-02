@@ -18,10 +18,23 @@ use log::Metadata;
 use crate::filter::Filter;
 use crate::filter::FilterResult;
 
+/// A filter that checks if the log level is at most the specified level.
+///
+/// From least to most verbose, the levels are:
+///
+/// - `Error`
+/// - `Warn`
+/// - `Info`
+/// - `Debug`
+/// - `Trace`
+///
+/// If MaxLevel is set to `Info`, it will allow `Error`, `Warn`, and `Info` logs.
+///
+/// If MaxLevel is set to `Off`, it will reject all logs.
 #[derive(Debug, Clone)]
-pub struct MinLevel(pub LevelFilter);
+pub struct MaxLevel(pub LevelFilter);
 
-impl MinLevel {
+impl MaxLevel {
     pub(crate) fn filter(&self, metadata: &Metadata) -> FilterResult {
         let level = metadata.level();
         if level <= self.0 {
@@ -31,14 +44,14 @@ impl MinLevel {
         }
     }
 }
-impl From<MinLevel> for Filter {
-    fn from(filter: MinLevel) -> Self {
-        Filter::MinLevel(filter)
+impl From<MaxLevel> for Filter {
+    fn from(filter: MaxLevel) -> Self {
+        Filter::MaxLevel(filter)
     }
 }
 
 impl From<LevelFilter> for Filter {
     fn from(filter: LevelFilter) -> Self {
-        Filter::MinLevel(MinLevel(filter))
+        Filter::MaxLevel(MaxLevel(filter))
     }
 }

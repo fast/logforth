@@ -13,7 +13,7 @@
 // limitations under the License.
 
 pub use self::custom::CustomFilter;
-pub use self::min_level::MinLevel;
+pub use self::min_level::MaxLevel;
 
 mod custom;
 mod min_level;
@@ -30,14 +30,14 @@ pub enum FilterResult {
 
 #[derive(Debug)]
 pub enum Filter {
-    MinLevel(MinLevel),
+    MaxLevel(MaxLevel),
     Custom(CustomFilter),
 }
 
 impl Filter {
     pub(crate) fn filter(&self, metadata: &log::Metadata) -> FilterResult {
         match self {
-            Filter::MinLevel(filter) => filter.filter(metadata),
+            Filter::MaxLevel(filter) => filter.filter(metadata),
             Filter::Custom(filter) => filter.filter(metadata),
         }
     }
