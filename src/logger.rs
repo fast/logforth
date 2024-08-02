@@ -124,26 +124,30 @@ impl Dispatch {
 /// This struct implements [log::Log] to bridge Logforth's logging implementations
 /// with the [log] crate.
 #[derive(Debug)]
-pub struct Logger<const APPEND: bool = true> {
+pub struct Logger {
     dispatches: Vec<Dispatch>,
 }
 
-impl Default for Logger<false> {
+impl Default for Logger {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Logger<false> {
+impl Logger {
     /// Create a new [Logger] instance.
-    ///
-    /// The [Logger] instance is incomplete and must have at least one [Dispatch] added to it.
-    pub fn new() -> Logger<false> {
+    pub fn new() -> Logger {
         Self { dispatches: vec![] }
     }
 }
 
-impl Logger<true> {
+impl Logger {
+    /// Add a [Dispatch] to the [Logger].
+    pub fn dispatch(mut self, dispatch: Dispatch) -> Logger {
+        self.dispatches.push(dispatch);
+        self
+    }
+
     /// Set up the global logger with the [Logger] instance.
     ///
     /// # Errors
@@ -153,16 +157,6 @@ impl Logger<true> {
         log::set_boxed_logger(Box::new(self))?;
         log::set_max_level(LevelFilter::Trace);
         Ok(())
-    }
-}
-
-impl<const APPEND: bool> Logger<APPEND> {
-    /// Add a [Dispatch] to the [Logger].
-    pub fn dispatch(mut self, dispatch: Dispatch) -> Logger<true> {
-        self.dispatches.push(dispatch);
-        Logger {
-            dispatches: self.dispatches,
-        }
     }
 }
 
