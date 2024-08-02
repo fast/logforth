@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Describe how to format a log record.
+
 pub use custom::CustomLayout;
 pub use identical::IdenticalLayout;
 #[cfg(feature = "json")]
@@ -27,6 +29,7 @@ mod json;
 mod kv;
 mod text;
 
+/// A layout describes how to format a log record.
 #[derive(Debug)]
 pub enum Layout {
     Identical(IdenticalLayout),

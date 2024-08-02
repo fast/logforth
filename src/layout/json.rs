@@ -23,6 +23,17 @@ use serde_json::Value;
 
 use crate::layout::Layout;
 
+/// A layout that formats log record as JSON lines.
+///
+/// Output format:
+///
+/// ```json
+/// {"timestamp":"2024-08-01T13:57:05.099261Z","level":"ERROR","module_path":"rolling_file","file":"rolling_file.rs","line":48,"message":"Hello error!","kvs":{}}
+/// {"timestamp":"2024-08-01T13:57:05.099313Z","level":"WARN","module_path":"rolling_file","file":"rolling_file.rs","line":49,"message":"Hello warn!","kvs":{}}
+/// {"timestamp":"2024-08-01T13:57:05.099338Z","level":"INFO","module_path":"rolling_file","file":"rolling_file.rs","line":50,"message":"Hello info!","kvs":{}}
+/// {"timestamp":"2024-08-01T13:57:05.099362Z","level":"DEBUG","module_path":"rolling_file","file":"rolling_file.rs","line":51,"message":"Hello debug!","kvs":{}}
+/// {"timestamp":"2024-08-01T13:57:05.099386Z","level":"TRACE","module_path":"rolling_file","file":"rolling_file.rs","line":52,"message":"Hello trace!","kvs":{}}
+/// ```
 #[derive(Default, Debug, Clone)]
 pub struct JsonLayout;
 

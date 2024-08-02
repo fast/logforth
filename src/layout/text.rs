@@ -23,11 +23,29 @@ use log::Level;
 use crate::layout::KvDisplay;
 use crate::layout::Layout;
 
+/// A layout that formats log record as text.
+///
+/// Output format:
+///
+/// ```text
+/// 2024-08-02T12:49:03.102343Z ERROR simple_stdio: examples/simple_stdio.rs:32 Hello error!
+/// 2024-08-02T12:49:03.102442Z  WARN simple_stdio: examples/simple_stdio.rs:33 Hello warn!
+/// 2024-08-02T12:49:03.102447Z  INFO simple_stdio: examples/simple_stdio.rs:34 Hello info!
+/// 2024-08-02T12:49:03.102450Z DEBUG simple_stdio: examples/simple_stdio.rs:35 Hello debug!
+/// 2024-08-02T12:49:03.102453Z TRACE simple_stdio: examples/simple_stdio.rs:36 Hello trace!
+/// ```
+///
+/// By default, log levels are colored. You can turn on the `no-color` feature flag to disable this
+/// feature.
+///
+/// You can also customize the color of each log level by setting the `colors` field with a
+/// [`LevelColor`] instance.
 #[derive(Default, Debug, Clone)]
 pub struct TextLayout {
     pub colors: LevelColor,
 }
 
+/// Customize the color of each log level.
 #[derive(Debug, Clone)]
 pub struct LevelColor {
     pub error: Color,

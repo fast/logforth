@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Determinate whether a log record should be processed.
+
 pub use self::custom::CustomFilter;
 pub use self::level::LevelFilter;
 
 mod custom;
 mod level;
 
+/// The result of a filter may return.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FilterResult {
     /// The record will be processed without further filtering.

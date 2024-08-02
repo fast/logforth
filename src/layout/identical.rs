@@ -16,6 +16,10 @@ use std::fmt::Arguments;
 
 use crate::layout::Layout;
 
+/// A layout that returns log record as is.
+///
+/// This is mainly used as the default implementation for
+/// [`Append::default_layout`][crate::append::Append::default_layout].
 #[derive(Debug, Default, Clone, Copy)]
 pub struct IdenticalLayout;
 

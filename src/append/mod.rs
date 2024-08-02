@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Dispatch log records to the appropriate target.
+
 use std::fmt;
 
 #[cfg(feature = "fastrace")]
@@ -41,7 +43,7 @@ pub trait Append: fmt::Debug + Send + Sync + 'static {
     /// Flushes any buffered records.
     fn flush(&self) {}
 
-    /// Default layout to use when [Dispatch][crate::logger::Dispatch] does not configure a
+    /// Default layout to use when [`Dispatch`][crate::logger::Dispatch] does not configure a
     /// preferred layout.
     fn default_layout(&self) -> Layout {
         Layout::Identical(IdenticalLayout)

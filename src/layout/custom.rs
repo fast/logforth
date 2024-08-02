@@ -27,6 +27,23 @@ type FormatFunction = dyn Fn(&Record, &dyn Fn(Arguments) -> anyhow::Result<()>) 
     + Sync
     + 'static;
 
+/// A layout that you can pass the custom layout function.
+///
+/// The custom layout function accepts [`&log::Record`][Record], formats it into [Arguments], and
+/// then passes to the closure. For example:
+///
+/// ```rust
+/// use std::fmt::Arguments;
+///
+/// use log::Record;
+/// use logforth::layout::CustomLayout;
+///
+/// let layout = CustomLayout::new(
+///     |record: &Record, f: &dyn Fn(Arguments) -> anyhow::Result<()>| {
+///         f(format_args!("{} - {}", record.level(), record.args()))
+///     },
+/// );
+/// ```
 pub struct CustomLayout {
     f: Box<FormatFunction>,
 }

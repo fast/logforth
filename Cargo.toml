@@ -23,7 +23,7 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/tisonkun/logforth"
 rust-version = "1.71.0"
-version = "0.7.1"
+version = "0.7.2"
 
 [package.metadata.docs.rs]
 all-features = true

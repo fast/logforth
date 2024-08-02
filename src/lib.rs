@@ -12,6 +12,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! # A versatile and extensible logging implementation
+//!
+//! ## Usage
+//!
+//! Add the dependencies to your `Cargo.toml` with:
+//!
+//! ```shell
+//! cargo add log
+//! cargo add logforth
+//! ```
+//!
+//! Here, [`log`] is the logging facade and `logforth` is the logging implementation.
+//!
+//! Then, you can use the logger with:
+//!
+//! ```rust
+//! use log::LevelFilter;
+//! use logforth::append;
+//! use logforth::layout::TextLayout;
+//! use logforth::Dispatch;
+//! use logforth::Logger;
+//!
+//! Logger::new()
+//!     .dispatch(
+//!         Dispatch::new()
+//!             .filter(LevelFilter::Trace)
+//!             .layout(TextLayout::default())
+//!             .append(append::Stdout),
+//!     )
+//!     .apply()
+//!     .unwrap();
+//!
+//! log::error!("Hello error!");
+//! log::warn!("Hello warn!");
+//! log::info!("Hello info!");
+//! log::debug!("Hello debug!");
+//! log::trace!("Hello trace!");
+//! ```
+//!
+//! Read more demos under the [examples](https://github.com/tisonkun/logforth/tree/main/examples) directory.
+
 pub mod append;
 pub mod filter;
 pub mod layout;
