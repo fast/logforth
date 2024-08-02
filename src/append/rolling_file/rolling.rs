@@ -30,6 +30,7 @@ use time::Duration;
 use time::OffsetDateTime;
 use time::Time;
 
+/// A file writer with the ability to rotate log files at a fixed schedule.
 #[derive(Debug)]
 pub struct RollingFileWriter {
     state: State,
@@ -63,6 +64,7 @@ impl Write for RollingFileWriter {
     }
 }
 
+/// A builder for [`RollingFileWriter`].
 #[derive(Debug)]
 pub struct RollingFileWriterBuilder {
     rotation: Rotation,
@@ -313,12 +315,18 @@ fn open_file(dir: &Path, filename: &str) -> anyhow::Result<File> {
         .context("failed to create log file")
 }
 
+/// Defines a fixed period for rolling of a log file.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Rotation {
+    /// Minutely Rotation
     Minutely,
+    /// Hourly Rotation
     Hourly,
+    /// Daily Rotation
     Daily,
+    /// No Rotation
     Never,
+    // TODO(tisonkun): consider support rotating on file size exceeding a threshold.
 }
 
 impl Rotation {

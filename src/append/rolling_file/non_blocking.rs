@@ -25,6 +25,19 @@ use crossbeam_channel::Sender;
 use crate::append::rolling_file::worker::Worker;
 use crate::append::rolling_file::Message;
 
+/// A guard that flushes log records associated to a [`NonBlocking`] on a drop.
+///
+/// Writing to a [`NonBlocking`] writer will **not** immediately write the log record to the
+/// underlying output. Instead, the log record will be written by a dedicated logging thread at
+/// some later point. To increase throughput, the non-blocking writer will flush to the underlying
+/// output on a periodic basis rather than every time a log record is written. This means that if
+/// the program terminates abruptly (such as through an uncaught `panic` or a `std::process::exit`),
+/// some log records may not be written.
+///
+/// Since logs near a crash are often necessary for diagnosing the failure, `WorkerGuard` provides a
+/// mechanism to ensure that _all_ buffered logs are flushed to their output. `WorkerGuard` should
+/// be assigned in the `main` function or whatever the entrypoint of the program is. This will
+/// ensure that the guard will be dropped during an unwinding or when `main` exits successfully.
 #[derive(Debug)]
 pub struct WorkerGuard {
     _guard: Option<JoinHandle<()>>,
@@ -72,6 +85,7 @@ impl Drop for WorkerGuard {
     }
 }
 
+/// A non-blocking, off-thread writer.
 #[derive(Clone, Debug)]
 pub struct NonBlocking {
     sender: Sender<Message>,
@@ -110,6 +124,7 @@ impl NonBlocking {
     }
 }
 
+/// A builder for [`NonBlocking`].
 #[derive(Debug)]
 pub struct NonBlockingBuilder {
     thread_name: String,
