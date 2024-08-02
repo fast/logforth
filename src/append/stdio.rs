@@ -16,6 +16,7 @@ use std::io::Write;
 
 use crate::append::Append;
 
+/// An appender that prints log records to stdout.
 #[derive(Default, Debug)]
 pub struct Stdout;
 
@@ -31,6 +32,7 @@ impl Append for Stdout {
     }
 }
 
+/// An appender that prints log records to stderr.
 #[derive(Default, Debug)]
 pub struct Stderr;
 

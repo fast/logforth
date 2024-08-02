@@ -17,6 +17,8 @@ use log::Record;
 use crate::append::rolling_file::non_blocking::NonBlocking;
 use crate::append::Append;
 
+/// An appender that writes log records to a file that rolls over when it reaches a certain date
+/// time.
 #[derive(Debug)]
 pub struct RollingFile {
     writer: NonBlocking,

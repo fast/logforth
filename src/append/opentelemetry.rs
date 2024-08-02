@@ -28,6 +28,10 @@ use opentelemetry_sdk::logs::LoggerProvider;
 
 use crate::append::Append;
 
+/// The communication protocol to opentelemetry that used when exporting data.
+///
+/// This is a logical re-exported [`opentelemetry_otlp::Protocol`] to avoid version lock-in to
+/// `opentelemetry_otlp`.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OpentelemetryWireProtocol {
@@ -36,6 +40,7 @@ pub enum OpentelemetryWireProtocol {
     HttpJson,
 }
 
+/// An appender that sends log records to opentelemetry.
 #[derive(Debug)]
 pub struct OpentelemetryLog {
     name: String,

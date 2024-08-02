@@ -25,12 +25,12 @@ use crate::layout::Layout;
 
 /// A grouped set of appenders, filters, and optional layout.
 ///
-/// The [Logger] facade dispatches log records to one or more [Dispatch] instances.
-/// Each [Dispatch] instance contains a set of filters, appenders, and an optional layout.
+/// The [`Logger`] facade dispatches log records to one or more [`Dispatch`] instances.
+/// Each [`Dispatch`] instance contains a set of filters, appenders, and an optional layout.
 ///
 /// `filters` are used to determine whether a log record should be passed to the appenders.
 /// `appends` are used to write log records to a destination. Each appender has its own
-/// default layout. If the [Dispatch] has a layout, it will be used instead of the default layout.
+/// default layout. If the [`Dispatch`] has a layout, it will be used instead of the default layout.
 #[derive(Debug)]
 pub struct Dispatch<const LAYOUT: bool = true, const APPEND: bool = true> {
     filters: Vec<Filter>,
@@ -45,9 +45,9 @@ impl Default for Dispatch<false, false> {
 }
 
 impl Dispatch<false, false> {
-    /// Create a new incomplete [Dispatch] instance.
+    /// Create a new incomplete [`Dispatch`] instance.
     ///
-    /// At least one append must be added to the [Dispatch] before it can be used.
+    /// At least one append must be added to the [`Dispatch`] before it can be used.
     pub fn new() -> Dispatch<false, false> {
         Self {
             filters: vec![],
@@ -56,14 +56,14 @@ impl Dispatch<false, false> {
         }
     }
 
-    /// Add a [Filter] to the [Dispatch].
+    /// Add a [`Filter`] to the [`Dispatch`].
     pub fn filter(mut self, filter: impl Into<Filter>) -> Dispatch<false, false> {
         self.filters.push(filter.into());
         self
     }
 
-    /// Add the preferred [Layout] to the [Dispatch]. At most one layout can be added to a
-    /// [Dispatch].
+    /// Add the preferred [`Layout`] to the [`Dispatch`]. At most one layout can be added to a
+    /// [`Dispatch`].
     pub fn layout(self, layout: impl Into<Layout>) -> Dispatch<true, false> {
         Dispatch {
             filters: self.filters,
@@ -74,7 +74,7 @@ impl Dispatch<false, false> {
 }
 
 impl<const LAYOUT: bool, const APPEND: bool> Dispatch<LAYOUT, APPEND> {
-    /// Add an [Append] to the [Dispatch].
+    /// Add an [`Append`] to the [`Dispatch`].
     pub fn append(mut self, append: impl Append) -> Dispatch<true, true> {
         self.appends.push(Box::new(append));
 
@@ -119,10 +119,10 @@ impl Dispatch {
     }
 }
 
-/// A logger facade that dispatches log records to one or more [Dispatch] instances.
+/// A logger facade that dispatches log records to one or more [`Dispatch`] instances.
 ///
-/// This struct implements [log::Log] to bridge Logforth's logging implementations
-/// with the [log] crate.
+/// This struct implements [`log::Log`] to bridge Logforth's logging implementations
+/// with the [`log`] crate.
 #[derive(Debug)]
 pub struct Logger {
     dispatches: Vec<Dispatch>,
@@ -135,20 +135,20 @@ impl Default for Logger {
 }
 
 impl Logger {
-    /// Create a new [Logger] instance.
+    /// Create a new [`Logger`] instance.
     pub fn new() -> Logger {
         Self { dispatches: vec![] }
     }
 }
 
 impl Logger {
-    /// Add a [Dispatch] to the [Logger].
+    /// Add a [`Dispatch`] to the [`Logger`].
     pub fn dispatch(mut self, dispatch: Dispatch) -> Logger {
         self.dispatches.push(dispatch);
         self
     }
 
-    /// Set up the global logger with the [Logger] instance.
+    /// Set up the global logger with the [`Logger`] instance.
     ///
     /// # Errors
     ///

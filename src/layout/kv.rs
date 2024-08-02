@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// A helper struct to format log's key-value pairs.
 pub struct KvDisplay<'kvs> {
     kv: &'kvs dyn log::kv::Source,
 }

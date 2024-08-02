@@ -19,6 +19,7 @@ use log::Record;
 use crate::append::Append;
 use crate::layout::KvDisplay;
 
+/// An appender that adds log records to fastrace as an event associated to the current span.
 #[derive(Default, Debug, Clone)]
 pub struct FastraceEvent;
 

@@ -19,6 +19,24 @@ use log::Metadata;
 use crate::filter::Filter;
 use crate::filter::FilterResult;
 
+/// A filter that you can pass the custom filter function.
+///
+/// The custom filter function accepts [`&log::Metadata`][Metadata] and returns the
+/// [`FilterResult`]. For example:
+///
+/// ```rust
+/// use log::Metadata;
+/// use logforth::filter::CustomFilter;
+/// use logforth::filter::FilterResult;
+///
+/// let filter = CustomFilter::new(|metadata: &Metadata| {
+///     if metadata.target() == "my_crate" {
+///         FilterResult::Accept
+///     } else {
+///         FilterResult::Neutral
+///     }
+/// });
+/// ```
 pub struct CustomFilter {
     f: Box<dyn Fn(&Metadata) -> FilterResult + Send + Sync + 'static>,
 }
