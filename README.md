@@ -20,11 +20,14 @@ A versatile and extensible logging implementation.
 
 ## Usage
 
-Add the dependency to your `Cargo.toml` with:
+Add the dependencies to your `Cargo.toml` with:
 
 ```shell
+cargo add log
 cargo add logforth
 ```
+
+... where [log](https://crates.io/crates/log) is the logging facade and [logforth](https://crates.io/crates/logforth) is the logging implementation.
 
 Then, you can use the logger with:
 

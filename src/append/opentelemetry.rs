@@ -22,6 +22,7 @@ use opentelemetry::logs::Logger;
 use opentelemetry::logs::LoggerProvider as ILoggerProvider;
 use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationLibrary;
+use opentelemetry_otlp::Protocol;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::logs::LoggerProvider;
 
@@ -40,20 +41,38 @@ impl OpentelemetryLog {
         name: impl Into<String>,
         category: impl Into<String>,
         otlp_endpoint: impl Into<String>,
-    ) -> Self {
+        protocol: Protocol,
+    ) -> Result<Self, opentelemetry::logs::LogError> {
         let name = name.into();
         let category = category.into();
         let otlp_endpoint = otlp_endpoint.into();
 
-        let exporter = opentelemetry_otlp::new_exporter()
-            .tonic()
-            .with_endpoint(otlp_endpoint)
-            .with_protocol(opentelemetry_otlp::Protocol::Grpc)
-            .with_timeout(Duration::from_secs(
-                opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
-            ))
-            .build_log_exporter()
-            .expect("failed to initialize oltp exporter");
+        let exporter = match protocol {
+            Protocol::Grpc => opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint(otlp_endpoint)
+                .with_protocol(Protocol::Grpc)
+                .with_timeout(Duration::from_secs(
+                    opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
+                ))
+                .build_log_exporter(),
+            Protocol::HttpBinary => opentelemetry_otlp::new_exporter()
+                .http()
+                .with_endpoint(otlp_endpoint)
+                .with_protocol(Protocol::HttpBinary)
+                .with_timeout(Duration::from_secs(
+                    opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
+                ))
+                .build_log_exporter(),
+            Protocol::HttpJson => opentelemetry_otlp::new_exporter()
+                .http()
+                .with_endpoint(otlp_endpoint)
+                .with_protocol(Protocol::HttpJson)
+                .with_timeout(Duration::from_secs(
+                    opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
+                ))
+                .build_log_exporter(),
+        }?;
 
         let provider = LoggerProvider::builder()
             .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
@@ -61,12 +80,12 @@ impl OpentelemetryLog {
 
         let library = Arc::new(InstrumentationLibrary::builder(name.clone()).build());
 
-        Self {
+        Ok(Self {
             name,
             category,
             library,
             provider,
-        }
+        })
     }
 }
 

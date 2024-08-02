@@ -84,7 +84,7 @@ impl JsonLayout {
             level: record.level().as_str(),
             module_path: record.module_path().unwrap_or_default(),
             file: record.file().unwrap_or_default(),
-            line: record.line().unwrap_or(0),
+            line: record.line().unwrap_or_default(),
             message: record.args(),
             kvs,
         };

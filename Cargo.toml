@@ -23,7 +23,7 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/tisonkun/logforth"
 rust-version = "1.71.0"
-version = "0.6.0"
+version = "0.7.0"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -44,18 +44,8 @@ rolling_file = ["dep:crossbeam-channel", "dep:parking_lot", "dep:time"]
 anyhow = { version = "1.0" }
 colored = { version = "2.1" }
 crossbeam-channel = { version = "0.5", optional = true }
-fastrace = { version = "0.6", optional = true }
 humantime = { version = "2.1" }
 log = { version = "0.4", features = ["std", "kv_unstable"] }
-opentelemetry = { version = "0.24", features = ["logs"], optional = true }
-opentelemetry-otlp = { version = "0.17", features = [
-  "logs",
-  "grpc-tonic",
-], optional = true }
-opentelemetry_sdk = { version = "0.24", features = [
-  "logs",
-  "rt-tokio",
-], optional = true }
 parking_lot = { version = "0.12", optional = true }
 paste = { version = "1.0" }
 serde = { version = "1.0", features = ["derive"], optional = true }
@@ -65,6 +55,28 @@ time = { version = "0.3", features = [
   "parsing",
 ], optional = true }
 
+## Fastrace dependencies
+[dependencies.fastrace]
+optional = true
+version = "0.6"
+
+## Opentelemetry dependencies
+[dependencies.opentelemetry]
+features = ["logs"]
+optional = true
+version = "0.24"
+
+[dependencies.opentelemetry-otlp]
+features = ["logs", "grpc-tonic", "http-json", "http-proto"]
+optional = true
+version = "0.17"
+
+[dependencies.opentelemetry_sdk]
+features = ["logs", "rt-tokio"]
+optional = true
+version = "0.24"
+
+## Examples
 [[example]]
 name = "fn_layout_filter"
 path = "examples/fn_layout_filter.rs"

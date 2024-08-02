@@ -66,7 +66,7 @@ impl TextLayout {
         let level = ColoredString::from(record.level().to_string()).color(color);
         let module = record.module_path().unwrap_or_default();
         let file = record.file().unwrap_or_default();
-        let line = record.line().unwrap_or(0);
+        let line = record.line().unwrap_or_default();
         let message = record.args();
         let kvs = KvDisplay::new(record.key_values());
 
