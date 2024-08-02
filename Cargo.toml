@@ -25,9 +25,7 @@ repository = "https://github.com/tisonkun/logforth"
 rust-version = "1.71.0"
 version = "0.7.2"
 
-categories = [
-  "development-tools::debugging",
-]
+categories = ["development-tools::debugging"]
 keywords = ["logging", "log", "opentelemetry", "fastrace"]
 
 [package.metadata.docs.rs]
