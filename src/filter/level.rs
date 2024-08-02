@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::LevelFilter;
 use log::Metadata;
 
 use crate::filter::Filter;
@@ -28,13 +27,13 @@ use crate::filter::FilterResult;
 /// - `Debug`
 /// - `Trace`
 ///
-/// If MaxLevel is set to `Info`, it will allow `Error`, `Warn`, and `Info` logs.
+/// If LevelFilter is set to `Info`, it will allow `Error`, `Warn`, and `Info` logs.
 ///
-/// If MaxLevel is set to `Off`, it will reject all logs.
+/// If LevelFilter is set to `Off`, it will reject all logs.
 #[derive(Debug, Clone)]
-pub struct MaxLevel(pub LevelFilter);
+pub struct LevelFilter(pub log::LevelFilter);
 
-impl MaxLevel {
+impl LevelFilter {
     pub(crate) fn filter(&self, metadata: &Metadata) -> FilterResult {
         let level = metadata.level();
         if level <= self.0 {
@@ -44,14 +43,15 @@ impl MaxLevel {
         }
     }
 }
-impl From<MaxLevel> for Filter {
-    fn from(filter: MaxLevel) -> Self {
-        Filter::MaxLevel(filter)
-    }
-}
 
 impl From<LevelFilter> for Filter {
     fn from(filter: LevelFilter) -> Self {
-        Filter::MaxLevel(MaxLevel(filter))
+        Filter::Level(filter)
+    }
+}
+
+impl From<log::LevelFilter> for Filter {
+    fn from(filter: log::LevelFilter) -> Self {
+        Filter::Level(LevelFilter(filter))
     }
 }
