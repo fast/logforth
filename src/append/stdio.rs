@@ -21,7 +21,8 @@ pub struct Stdout;
 
 impl Append for Stdout {
     fn append(&self, record: &log::Record) -> anyhow::Result<()> {
-        writeln!(std::io::stdout(), "{}", record.args())?;
+        let bytes = format!("{}\n", record.args()).into_bytes();
+        std::io::stdout().write_all(&bytes)?;
         Ok(())
     }
 
@@ -35,7 +36,8 @@ pub struct Stderr;
 
 impl Append for Stderr {
     fn append(&self, record: &log::Record) -> anyhow::Result<()> {
-        writeln!(std::io::stderr(), "{}", record.args())?;
+        let bytes = format!("{}\n", record.args()).into_bytes();
+        std::io::stderr().write_all(&bytes)?;
         Ok(())
     }
 
