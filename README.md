@@ -58,9 +58,17 @@ fn main() {
 
 Read more demos under the [examples](examples) directory.
 
+## Documentation
+
+Read the online documents at https://docs.rs/logforth.
+
 ## Supported Rust Versions (MSRV 1.71)
 
 Logforth is built against the latest stable release. The minimum supported version is 1.71. The current Logforth version is not guaranteed to build on Rust versions earlier than the minimum supported version.
+
+## When to release a 1.0 version
+
+After one year of practicing the interfaces, if there are no further blockers, I'll release a 1.0 version. So consequently, it can be as early as 2025-08.
 
 ## License and Origin
 
