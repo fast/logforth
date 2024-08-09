@@ -18,13 +18,14 @@ use std::time::SystemTime;
 
 use log::Record;
 use opentelemetry::logs::AnyValue;
-use opentelemetry::logs::LogRecord;
+use opentelemetry::logs::LogRecord as _;
 use opentelemetry::logs::Logger;
 use opentelemetry::logs::LoggerProvider as ILoggerProvider;
 use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationLibrary;
 use opentelemetry_otlp::Protocol;
 use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::logs::LogRecord;
 use opentelemetry_sdk::logs::LoggerProvider;
 
 use crate::append::Append;
@@ -125,17 +126,18 @@ impl Append for OpentelemetryLog {
             record.add_attribute("line", line);
         }
 
-        struct KvExtractor<'a, 'kvs> {
+        struct KvExtractor<'a> {
             record: &'a mut LogRecord,
         }
 
-        impl<'a, 'kvs> log::kv::Visitor<'kvs> for KvExtractor<'a, 'kvs> {
+        impl<'a, 'kvs> log::kv::Visitor<'kvs> for KvExtractor<'a> {
             fn visit_pair(
                 &mut self,
                 key: log::kv::Key<'kvs>,
                 value: log::kv::Value<'kvs>,
             ) -> Result<(), log::kv::Error> {
-                self.record.add_attribute(key, value);
+                self.record
+                    .add_attribute(key.to_string(), value.to_string());
                 Ok(())
             }
         }
