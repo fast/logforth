@@ -18,6 +18,7 @@ use std::time::SystemTime;
 
 use log::Record;
 use opentelemetry::logs::AnyValue;
+use opentelemetry::logs::LogRecord;
 use opentelemetry::logs::Logger;
 use opentelemetry::logs::LoggerProvider as ILoggerProvider;
 use opentelemetry::logs::Severity;
@@ -111,7 +112,38 @@ impl Append for OpentelemetryLog {
         record.observed_timestamp = Some(SystemTime::now());
         record.severity_number = Some(log_level_to_otel_severity(log_record.level()));
         record.severity_text = Some(log_record.level().as_str().into());
+        record.target = Some(log_record.target().to_string().into());
         record.body = Some(AnyValue::from(log_record.args().to_string()));
+
+        if let Some(module_path) = log_record.module_path() {
+            record.add_attribute("module_path", module_path.to_string());
+        }
+        if let Some(file) = log_record.file() {
+            record.add_attribute("file", file.to_string());
+        }
+        if let Some(line) = log_record.line() {
+            record.add_attribute("line", line);
+        }
+
+        struct KvExtractor<'a, 'kvs> {
+            record: &'a mut LogRecord,
+        }
+
+        impl<'a, 'kvs> log::kv::Visitor<'kvs> for KvExtractor<'a, 'kvs> {
+            fn visit_pair(
+                &mut self,
+                key: log::kv::Key<'kvs>,
+                value: log::kv::Value<'kvs>,
+            ) -> Result<(), log::kv::Error> {
+                self.record.add_attribute(key, value);
+                Ok(())
+            }
+        }
+
+        let mut extractor = KvExtractor {
+            record: &mut record,
+        };
+        log_record.key_values().visit(&mut extractor).ok();
 
         logger.emit(record);
         Ok(())
