@@ -18,7 +18,8 @@ use logforth::append::rolling_file::RollingFile;
 use logforth::append::rolling_file::RollingFileWriter;
 use logforth::append::rolling_file::Rotation;
 use logforth::append::Stdout;
-use logforth::layout::{JsonLayout, TextLayout};
+use logforth::layout::JsonLayout;
+use logforth::layout::TextLayout;
 use logforth::Dispatch;
 use logforth::Logger;
 
