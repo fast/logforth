@@ -81,17 +81,8 @@ version = "0.24"
 
 ## Examples
 [[example]]
-name = "fn_layout_filter"
-path = "examples/fn_layout_filter.rs"
-
-[[example]]
 name = "simple_stdio"
 path = "examples/simple_stdio.rs"
-
-[[example]]
-name = "no_color_stdio"
-path = "examples/no_color_stdio.rs"
-required-features = ["no-color"]
 
 [[example]]
 name = "json_stdio"
@@ -102,3 +93,7 @@ required-features = ["json"]
 name = "rolling_file"
 path = "examples/rolling_file.rs"
 required-features = ["rolling_file", "json"]
+
+[[example]]
+name = "fn_layout_filter"
+path = "examples/fn_layout_filter.rs"

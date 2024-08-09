@@ -17,7 +17,8 @@ use logforth::append::rolling_file::NonBlockingBuilder;
 use logforth::append::rolling_file::RollingFile;
 use logforth::append::rolling_file::RollingFileWriter;
 use logforth::append::rolling_file::Rotation;
-use logforth::layout::JsonLayout;
+use logforth::append::Stdout;
+use logforth::layout::{JsonLayout, TextLayout};
 use logforth::Dispatch;
 use logforth::Logger;
 
@@ -26,7 +27,8 @@ fn main() {
         .rotation(Rotation::Minutely)
         .filename_prefix("example")
         .filename_suffix("log")
-        .max_log_files(2)
+        .max_log_files(10)
+        .max_file_size(1024 * 1024)
         .build("logs")
         .unwrap();
     let (writer, _guard) = NonBlockingBuilder::default().finish(rolling);
@@ -38,6 +40,7 @@ fn main() {
                 .layout(JsonLayout)
                 .append(RollingFile::new(writer)),
         )
+        .dispatch(Dispatch::new().layout(TextLayout::default()).append(Stdout))
         .apply()
         .unwrap();
 
