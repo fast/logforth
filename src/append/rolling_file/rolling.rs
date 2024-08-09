@@ -19,8 +19,6 @@ use std::io;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
 
 use anyhow::Context;
 use parking_lot::RwLock;
@@ -52,11 +50,19 @@ impl Write for RollingFileWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let now = self.now();
         let writer = self.writer.get_mut();
-        if let Some(current_time) = self.state.should_rollover(now) {
-            self.state.advance_date(now, current_time);
-            self.state.refresh_writer(now, writer);
+        if self.state.should_rollover_on_date(now) {
+            self.state.advance_date(now);
+            self.state.refresh_writer(now, 0, writer);
         }
-        writer.write(buf)
+        if self.state.should_rollover_on_size() {
+            let cnt = self.state.advance_cnt();
+            self.state.refresh_writer(now, cnt, writer);
+        }
+
+        writer.write(buf).map(|n| {
+            self.state.current_filesize += n;
+            n
+        })
     }
 
     fn flush(&mut self) -> io::Result<()> {
@@ -70,6 +76,7 @@ pub struct RollingFileWriterBuilder {
     rotation: Rotation,
     prefix: Option<String>,
     suffix: Option<String>,
+    max_size: usize,
     max_files: Option<usize>,
 }
 
@@ -86,6 +93,7 @@ impl RollingFileWriterBuilder {
             rotation: Rotation::Never,
             prefix: None,
             suffix: None,
+            max_size: usize::MAX,
             max_files: None,
         }
     }
@@ -124,16 +132,26 @@ impl RollingFileWriterBuilder {
         self
     }
 
+    /// Sets the maximum size of a log file in bytes.
+    #[must_use]
+    pub fn max_file_size(mut self, n: usize) -> Self {
+        self.max_size = n;
+        self
+    }
+
     pub fn build(self, dir: impl AsRef<Path>) -> anyhow::Result<RollingFileWriter> {
         let Self {
             rotation,
             prefix,
             suffix,
+            max_size,
             max_files,
         } = self;
         let directory = dir.as_ref().to_path_buf();
         let now = OffsetDateTime::now_utc();
-        let (state, writer) = State::new(now, rotation, directory, prefix, suffix, max_files)?;
+        let (state, writer) = State::new(
+            now, rotation, directory, prefix, suffix, max_size, max_files,
+        )?;
         Ok(RollingFileWriter { state, writer })
     }
 }
@@ -145,7 +163,11 @@ struct State {
     log_filename_suffix: Option<String>,
     date_format: Vec<format_description::FormatItem<'static>>,
     rotation: Rotation,
-    next_date: AtomicUsize,
+    current_date: OffsetDateTime,
+    current_count: usize,
+    current_filesize: usize,
+    next_date: usize,
+    max_size: usize,
     max_files: Option<usize>,
 }
 
@@ -156,6 +178,7 @@ impl State {
         dir: impl AsRef<Path>,
         log_filename_prefix: Option<String>,
         log_filename_suffix: Option<String>,
+        max_size: usize,
         max_files: Option<usize>,
     ) -> anyhow::Result<(Self, RwLock<File>)> {
         let log_dir = dir.as_ref().to_path_buf();
@@ -163,26 +186,32 @@ impl State {
         let next_date = rotation
             .next_date(&now)
             .map(|date| date.unix_timestamp() as usize)
-            .map(AtomicUsize::new)
-            .unwrap_or(AtomicUsize::new(0));
+            .unwrap_or(0);
+
+        let current_date = now;
+        let current_count = 0;
+        let current_filesize = 0;
 
         let state = State {
             log_dir,
             log_filename_prefix,
             log_filename_suffix,
             date_format,
+            current_date,
+            current_count,
+            current_filesize,
             next_date,
             rotation,
+            max_size,
             max_files,
         };
 
-        let filename = state.join_date(&now);
-        let file = open_file(state.log_dir.as_ref(), &filename)?;
+        let file = state.create_log_writer(now, 0)?;
         let writer = RwLock::new(file);
         Ok((state, writer))
     }
 
-    fn join_date(&self, date: &OffsetDateTime) -> String {
+    fn join_date(&self, date: &OffsetDateTime, cnt: usize) -> String {
         let date = date.format(&self.date_format).expect(
             "failed to format OffsetDateTime; this is a bug in logforth rolling file appender",
         );
@@ -192,14 +221,31 @@ impl State {
             &self.log_filename_prefix,
             &self.log_filename_suffix,
         ) {
-            (&Rotation::Never, Some(filename), None) => filename.to_string(),
-            (&Rotation::Never, Some(filename), Some(suffix)) => format!("{}.{}", filename, suffix),
-            (&Rotation::Never, None, Some(suffix)) => suffix.to_string(),
-            (_, Some(filename), Some(suffix)) => format!("{}.{}.{}", filename, date, suffix),
-            (_, Some(filename), None) => format!("{}.{}", filename, date),
-            (_, None, Some(suffix)) => format!("{}.{}", date, suffix),
-            (_, None, None) => date,
+            (&Rotation::Never, Some(filename), None) => format!("{filename}.{cnt}"),
+            (&Rotation::Never, Some(filename), Some(suffix)) => {
+                format!("{filename}.{cnt}.{suffix}")
+            }
+            (&Rotation::Never, None, Some(suffix)) => format!("{cnt}.{suffix}"),
+            (_, Some(filename), Some(suffix)) => format!("{filename}.{date}.{cnt}.{suffix}"),
+            (_, Some(filename), None) => format!("{filename}.{date}.{cnt}"),
+            (_, None, Some(suffix)) => format!("{date}.{cnt}.{suffix}"),
+            (_, None, None) => format!("{date}.{cnt}"),
         }
+    }
+
+    fn create_log_writer(&self, now: OffsetDateTime, cnt: usize) -> anyhow::Result<File> {
+        fs::create_dir_all(&self.log_dir).context("failed to create log directory")?;
+        let filename = self.join_date(&now, cnt);
+        if let Some(max_files) = self.max_files {
+            if let Err(err) = self.delete_oldest_logs(max_files) {
+                eprintln!("failed to delete oldest logs: {err}");
+            }
+        }
+        OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(self.log_dir.join(filename))
+            .context("failed to create log file")
     }
 
     fn delete_oldest_logs(&self, max_files: usize) -> anyhow::Result<()> {
@@ -261,16 +307,8 @@ impl State {
         Ok(())
     }
 
-    fn refresh_writer(&self, now: OffsetDateTime, file: &mut File) {
-        let filename = self.join_date(&now);
-
-        if let Some(max_files) = self.max_files {
-            if let Err(err) = self.delete_oldest_logs(max_files) {
-                eprintln!("failed to delete oldest logs: {err}");
-            }
-        }
-
-        match open_file(&self.log_dir, &filename) {
+    fn refresh_writer(&self, now: OffsetDateTime, cnt: usize, file: &mut File) {
+        match self.create_log_writer(now, cnt) {
             Ok(new_file) => {
                 if let Err(err) = file.flush() {
                     eprintln!("failed to flush previous writer: {err}");
@@ -281,38 +319,35 @@ impl State {
         }
     }
 
-    fn should_rollover(&self, date: OffsetDateTime) -> Option<usize> {
-        let next_date = self.next_date.load(Ordering::Acquire);
-
+    fn should_rollover_on_date(&self, date: OffsetDateTime) -> bool {
+        let next_date = self.next_date;
         if next_date == 0 {
-            None
-        } else if date.unix_timestamp() as usize >= next_date {
-            Some(next_date)
+            false
         } else {
-            None
+            date.unix_timestamp() as usize >= next_date
         }
     }
 
-    fn advance_date(&self, now: OffsetDateTime, current: usize) -> bool {
-        let next_date = self
+    fn should_rollover_on_size(&self) -> bool {
+        self.current_filesize >= self.max_size
+    }
+
+    fn advance_cnt(&mut self) -> usize {
+        self.current_count += 1;
+        self.current_filesize = 0;
+        self.current_count
+    }
+
+    fn advance_date(&mut self, now: OffsetDateTime) {
+        self.current_date = now;
+        self.current_count = 0;
+        self.current_filesize = 0;
+        self.next_date = self
             .rotation
             .next_date(&now)
             .map(|date| date.unix_timestamp() as usize)
             .unwrap_or(0);
-        self.next_date
-            .compare_exchange(current, next_date, Ordering::AcqRel, Ordering::Acquire)
-            .is_ok()
     }
-}
-
-fn open_file(dir: &Path, filename: &str) -> anyhow::Result<File> {
-    fs::create_dir_all(dir).context("failed to create log directory")?;
-
-    let mut open_options = OpenOptions::new();
-    open_options.append(true).create(true);
-    open_options
-        .open(dir.join(filename))
-        .context("failed to create log file")
 }
 
 /// Defines a fixed period for rolling of a log file.
@@ -326,7 +361,6 @@ pub enum Rotation {
     Daily,
     /// No Rotation
     Never,
-    // TODO(tisonkun): consider support rotating on file size exceeding a threshold.
 }
 
 impl Rotation {
