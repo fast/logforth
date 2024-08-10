@@ -318,8 +318,7 @@ impl State {
 
     fn should_rollover_on_date(&self, date: OffsetDateTime) -> bool {
         self.next_date_timestamp
-            .map(|ts| date.unix_timestamp() as usize >= ts)
-            .unwrap_or(false)
+            .is_some_and(|ts| date.unix_timestamp() as usize >= ts)
     }
 
     fn should_rollover_on_size(&self) -> bool {
