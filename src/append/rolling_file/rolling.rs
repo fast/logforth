@@ -166,7 +166,7 @@ struct State {
     current_date: OffsetDateTime,
     current_count: usize,
     current_filesize: usize,
-    next_date: usize,
+    next_date_timestamp: Option<usize>,
     max_size: usize,
     max_files: Option<usize>,
 }
@@ -183,10 +183,7 @@ impl State {
     ) -> anyhow::Result<(Self, RwLock<File>)> {
         let log_dir = dir.as_ref().to_path_buf();
         let date_format = rotation.date_format();
-        let next_date = rotation
-            .next_date(&now)
-            .map(|date| date.unix_timestamp() as usize)
-            .unwrap_or(0);
+        let next_date_timestamp = rotation.next_date_timestamp(&now);
 
         let current_date = now;
         let current_count = 0;
@@ -200,7 +197,7 @@ impl State {
             current_date,
             current_count,
             current_filesize,
-            next_date,
+            next_date_timestamp,
             rotation,
             max_size,
             max_files,
@@ -320,12 +317,8 @@ impl State {
     }
 
     fn should_rollover_on_date(&self, date: OffsetDateTime) -> bool {
-        let next_date = self.next_date;
-        if next_date == 0 {
-            false
-        } else {
-            date.unix_timestamp() as usize >= next_date
-        }
+        self.next_date_timestamp
+            .is_some_and(|ts| date.unix_timestamp() as usize >= ts)
     }
 
     fn should_rollover_on_size(&self) -> bool {
@@ -342,11 +335,7 @@ impl State {
         self.current_date = now;
         self.current_count = 0;
         self.current_filesize = 0;
-        self.next_date = self
-            .rotation
-            .next_date(&now)
-            .map(|date| date.unix_timestamp() as usize)
-            .unwrap_or(0);
+        self.next_date_timestamp = self.rotation.next_date_timestamp(&now);
     }
 }
 
@@ -364,7 +353,7 @@ pub enum Rotation {
 }
 
 impl Rotation {
-    fn next_date(&self, current_date: &OffsetDateTime) -> Option<OffsetDateTime> {
+    fn next_date_timestamp(&self, current_date: &OffsetDateTime) -> Option<usize> {
         let next_date = match *self {
             Rotation::Minutely => *current_date + Duration::minutes(1),
             Rotation::Hourly => *current_date + Duration::hours(1),
@@ -372,7 +361,7 @@ impl Rotation {
             Rotation::Never => return None,
         };
 
-        Some(self.round_date(&next_date))
+        Some(self.round_date(&next_date).unix_timestamp() as usize)
     }
 
     fn round_date(&self, date: &OffsetDateTime) -> OffsetDateTime {
