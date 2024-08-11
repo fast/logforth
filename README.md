@@ -2,12 +2,14 @@
 
 [![Crates.io][crates-badge]][crates-url]
 [![Documentation][docs-badge]][docs-url]
+[![MSRV 1.71][msrv-badge]](https://www.whatrustisit.com)
 [![Apache 2.0 licensed][license-badge]][license-url]
 [![Build Status][actions-badge]][actions-url]
 
 [crates-badge]: https://img.shields.io/crates/v/logforth.svg
 [crates-url]: https://crates.io/crates/logforth
 [docs-badge]: https://docs.rs/logforth/badge.svg
+[msrv-badge]: https://img.shields.io/badge/MSRV-1.71-green?logo=rust
 [docs-url]: https://docs.rs/logforth
 [license-badge]: https://img.shields.io/crates/l/logforth
 [license-url]: LICENSE
