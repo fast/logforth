@@ -17,13 +17,13 @@
 use std::fmt;
 
 #[cfg(feature = "fastrace")]
-pub use fastrace::FastraceEvent;
+pub use self::fastrace::FastraceEvent;
 #[cfg(feature = "opentelemetry")]
-pub use opentelemetry::OpentelemetryLog;
+pub use self::opentelemetry::OpentelemetryLog;
 #[cfg(feature = "rolling_file")]
-pub use rolling_file::RollingFile;
-pub use stdio::Stderr;
-pub use stdio::Stdout;
+pub use self::rolling_file::RollingFile;
+pub use self::stdio::Stderr;
+pub use self::stdio::Stdout;
 
 use crate::layout::IdenticalLayout;
 use crate::layout::Layout;
