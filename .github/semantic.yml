@@ -1,4 +1,4 @@
-# Copyright 2024 tison <wander4096@gmail.com>
+# Copyright 2024 CratesLand Developers
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,4 +39,4 @@ types:
   - chore
   - revert
 
-targetUrl: https://github.com/tisonkun/logforth/blob/main/.github/semantic.yml
+targetUrl: https://github.com/cratesland/logforth/blob/main/.github/semantic.yml
