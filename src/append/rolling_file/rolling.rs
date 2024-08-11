@@ -444,7 +444,6 @@ mod tests {
                 let rand_str = generate_random_string();
                 expected_file_size += rand_str.len();
 
-                println!("i: {i}, cur_time: {cur_time}, end_time: {end_time}, expected_file_size: {expected_file_size}");
                 assert_eq!(writer.write(rand_str.as_bytes()).unwrap(), rand_str.len());
                 assert_eq!(writer.state.current_filesize, expected_file_size);
 

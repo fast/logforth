@@ -23,7 +23,7 @@ fn main() {
         .dispatch(
             Dispatch::new()
                 .filter(LevelFilter::Trace)
-                .layout(JsonLayout)
+                .layout(JsonLayout::default())
                 .append(append::Stdout),
         )
         .apply()
