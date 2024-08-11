@@ -24,9 +24,10 @@ use anyhow::Context;
 use parking_lot::RwLock;
 use time::format_description;
 use time::Date;
-use time::Duration;
 use time::OffsetDateTime;
-use time::Time;
+
+use crate::append::rolling_file::clock::Clock;
+use crate::append::rolling_file::Rotation;
 
 /// A file writer with the ability to rotate log files at a fixed schedule.
 #[derive(Debug)]
@@ -40,15 +41,11 @@ impl RollingFileWriter {
     pub fn builder() -> RollingFileWriterBuilder {
         RollingFileWriterBuilder::new()
     }
-
-    fn now(&self) -> OffsetDateTime {
-        OffsetDateTime::now_utc()
-    }
 }
 
 impl Write for RollingFileWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let now = self.now();
+        let now = self.state.clock.now();
         let writer = self.writer.get_mut();
         if self.state.should_rollover_on_date(now) {
             self.state.advance_date(now);
@@ -78,6 +75,7 @@ pub struct RollingFileWriterBuilder {
     suffix: Option<String>,
     max_size: usize,
     max_files: Option<usize>,
+    clock: Clock,
 }
 
 impl Default for RollingFileWriterBuilder {
@@ -95,6 +93,7 @@ impl RollingFileWriterBuilder {
             suffix: None,
             max_size: usize::MAX,
             max_files: None,
+            clock: Clock::DefaultClock,
         }
     }
 
@@ -139,6 +138,12 @@ impl RollingFileWriterBuilder {
         self
     }
 
+    #[cfg(test)]
+    fn clock(mut self, clock: Clock) -> Self {
+        self.clock = clock;
+        self
+    }
+
     pub fn build(self, dir: impl AsRef<Path>) -> anyhow::Result<RollingFileWriter> {
         let Self {
             rotation,
@@ -146,11 +151,11 @@ impl RollingFileWriterBuilder {
             suffix,
             max_size,
             max_files,
+            clock,
         } = self;
         let directory = dir.as_ref().to_path_buf();
-        let now = OffsetDateTime::now_utc();
         let (state, writer) = State::new(
-            now, rotation, directory, prefix, suffix, max_size, max_files,
+            rotation, directory, prefix, suffix, max_size, max_files, clock,
         )?;
         Ok(RollingFileWriter { state, writer })
     }
@@ -163,29 +168,29 @@ struct State {
     log_filename_suffix: Option<String>,
     date_format: Vec<format_description::FormatItem<'static>>,
     rotation: Rotation,
-    current_date: OffsetDateTime,
     current_count: usize,
     current_filesize: usize,
     next_date_timestamp: Option<usize>,
     max_size: usize,
     max_files: Option<usize>,
+    clock: Clock,
 }
 
 impl State {
     fn new(
-        now: OffsetDateTime,
         rotation: Rotation,
         dir: impl AsRef<Path>,
         log_filename_prefix: Option<String>,
         log_filename_suffix: Option<String>,
         max_size: usize,
         max_files: Option<usize>,
+        clock: Clock,
     ) -> anyhow::Result<(Self, RwLock<File>)> {
         let log_dir = dir.as_ref().to_path_buf();
         let date_format = rotation.date_format();
+        let now = clock.now();
         let next_date_timestamp = rotation.next_date_timestamp(&now);
 
-        let current_date = now;
         let current_count = 0;
         let current_filesize = 0;
 
@@ -194,13 +199,13 @@ impl State {
             log_filename_prefix,
             log_filename_suffix,
             date_format,
-            current_date,
             current_count,
             current_filesize,
             next_date_timestamp,
             rotation,
             max_size,
             max_files,
+            clock,
         };
 
         let file = state.create_log_writer(now, 0)?;
@@ -332,66 +337,220 @@ impl State {
     }
 
     fn advance_date(&mut self, now: OffsetDateTime) {
-        self.current_date = now;
         self.current_count = 0;
         self.current_filesize = 0;
         self.next_date_timestamp = self.rotation.next_date_timestamp(&now);
     }
 }
+#[cfg(test)]
+mod tests {
+    use std::cmp::min;
+    use std::fs;
+    use std::io::Write;
+    use std::ops::Add;
 
-/// Defines a fixed period for rolling of a log file.
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Rotation {
-    /// Minutely Rotation
-    Minutely,
-    /// Hourly Rotation
-    Hourly,
-    /// Daily Rotation
-    Daily,
-    /// No Rotation
-    Never,
-}
+    use rand::distributions::Alphanumeric;
+    use rand::Rng;
+    use tempfile::TempDir;
+    use time::macros::datetime;
+    use time::Duration;
 
-impl Rotation {
-    fn next_date_timestamp(&self, current_date: &OffsetDateTime) -> Option<usize> {
-        let next_date = match *self {
-            Rotation::Minutely => *current_date + Duration::minutes(1),
-            Rotation::Hourly => *current_date + Duration::hours(1),
-            Rotation::Daily => *current_date + Duration::days(1),
-            Rotation::Never => return None,
-        };
+    use crate::append::rolling_file::clock::Clock;
+    use crate::append::rolling_file::clock::ManualClock;
+    use crate::append::rolling_file::RollingFileWriterBuilder;
+    use crate::append::rolling_file::Rotation;
 
-        Some(self.round_date(&next_date).unix_timestamp() as usize)
+    #[test]
+    fn test_file_rolling_via_file_size() {
+        test_file_rolling_for_specific_file_size(3, 1000);
+        test_file_rolling_for_specific_file_size(3, 10000);
+        test_file_rolling_for_specific_file_size(10, 8888);
+        test_file_rolling_for_specific_file_size(10, 10000);
+        test_file_rolling_for_specific_file_size(20, 6666);
+        test_file_rolling_for_specific_file_size(20, 10000);
     }
+    fn test_file_rolling_for_specific_file_size(max_files: usize, max_size: usize) {
+        let temp_dir = TempDir::new().expect("failed to create a temporary directory");
 
-    fn round_date(&self, date: &OffsetDateTime) -> OffsetDateTime {
-        match *self {
-            Rotation::Minutely => {
-                let time = Time::from_hms(date.hour(), date.minute(), 0)
-                    .expect("invalid time; this is a bug in logforth rolling file appender");
-                date.replace_time(time)
+        let mut writer = RollingFileWriterBuilder::new()
+            .rotation(Rotation::Never)
+            .filename_prefix("test_prefix")
+            .filename_suffix("log")
+            .max_log_files(max_files)
+            .max_file_size(max_size)
+            .build(&temp_dir)
+            .unwrap();
+
+        for i in 1..=(max_files * 2) {
+            let mut expected_file_size = 0;
+            while expected_file_size < max_size {
+                let rand_str = generate_random_string();
+                expected_file_size += rand_str.len();
+                assert_eq!(writer.write(rand_str.as_bytes()).unwrap(), rand_str.len());
+                assert_eq!(writer.state.current_filesize, expected_file_size);
             }
-            Rotation::Hourly => {
-                let time = Time::from_hms(date.hour(), 0, 0)
-                    .expect("invalid time; this is a bug in logforth rolling file appender");
-                date.replace_time(time)
-            }
-            Rotation::Daily => {
-                let time = Time::from_hms(0, 0, 0)
-                    .expect("invalid time; this is a bug in logforth rolling file appender");
-                date.replace_time(time)
-            }
-            Rotation::Never => unreachable!("Rotation::Never is impossible to round."),
+
+            writer.flush().unwrap();
+            assert_eq!(
+                fs::read_dir(&writer.state.log_dir).unwrap().count(),
+                min(i, max_files)
+            );
         }
     }
 
-    fn date_format(&self) -> Vec<format_description::FormatItem<'static>> {
-        match *self {
-            Rotation::Minutely => format_description::parse("[year]-[month]-[day]-[hour]-[minute]"),
-            Rotation::Hourly => format_description::parse("[year]-[month]-[day]-[hour]"),
-            Rotation::Daily => format_description::parse("[year]-[month]-[day]"),
-            Rotation::Never => format_description::parse("[year]-[month]-[day]"),
+    #[test]
+    fn test_file_rolling_via_time_rotation() {
+        test_file_rolling_for_specific_time_rotation(
+            Rotation::Minutely,
+            Duration::minutes(1),
+            Duration::seconds(1),
+        );
+        test_file_rolling_for_specific_time_rotation(
+            Rotation::Hourly,
+            Duration::hours(1),
+            Duration::minutes(1),
+        );
+        test_file_rolling_for_specific_time_rotation(
+            Rotation::Daily,
+            Duration::days(1),
+            Duration::hours(1),
+        );
+    }
+
+    fn test_file_rolling_for_specific_time_rotation(
+        rotation: Rotation,
+        rotation_duration: Duration,
+        write_interval: Duration,
+    ) {
+        let temp_dir = TempDir::new().expect("failed to create a temporary directory");
+        let max_files = 10;
+
+        let start_time = datetime!(2024-08-10 00:00:00 +0);
+        let mut writer = RollingFileWriterBuilder::new()
+            .rotation(rotation)
+            .filename_prefix("test_prefix")
+            .filename_suffix("log")
+            .max_log_files(max_files)
+            .max_file_size(usize::MAX)
+            .clock(Clock::ManualClock(ManualClock::new(start_time)))
+            .build(&temp_dir)
+            .unwrap();
+
+        let mut cur_time = start_time;
+
+        for i in 1..=(max_files * 2) {
+            let mut expected_file_size = 0;
+            let end_time = cur_time.add(rotation_duration);
+            while cur_time < end_time {
+                writer.state.clock.set_now(cur_time);
+
+                let rand_str = generate_random_string();
+                expected_file_size += rand_str.len();
+
+                assert_eq!(writer.write(rand_str.as_bytes()).unwrap(), rand_str.len());
+                assert_eq!(writer.state.current_filesize, expected_file_size);
+
+                cur_time = cur_time.add(write_interval);
+            }
+
+            writer.flush().unwrap();
+            assert_eq!(
+                fs::read_dir(&writer.state.log_dir).unwrap().count(),
+                min(i, max_files)
+            );
         }
-        .expect("failed to create a formatter; this is a bug in logforth rolling file appender")
+    }
+
+    #[test]
+    fn test_file_rolling_via_file_size_and_time_rotation() {
+        test_file_size_and_time_rotation_for_specific_time_rotation(
+            Rotation::Minutely,
+            Duration::minutes(1),
+            Duration::seconds(1),
+        );
+        test_file_size_and_time_rotation_for_specific_time_rotation(
+            Rotation::Hourly,
+            Duration::hours(1),
+            Duration::minutes(1),
+        );
+        test_file_size_and_time_rotation_for_specific_time_rotation(
+            Rotation::Daily,
+            Duration::days(1),
+            Duration::hours(1),
+        );
+    }
+
+    fn test_file_size_and_time_rotation_for_specific_time_rotation(
+        rotation: Rotation,
+        rotation_duration: Duration,
+        write_interval: Duration,
+    ) {
+        let temp_dir = TempDir::new().expect("failed to create a temporary directory");
+        let max_files = 10;
+        // Small file size and too many files to ensure both of file size and time rotation can be
+        // triggered.
+        let total_files = 100;
+        let file_size = 500;
+
+        let start_time = datetime!(2024-08-10 00:00:00 +0);
+        let mut writer = RollingFileWriterBuilder::new()
+            .rotation(rotation)
+            .filename_prefix("test_prefix")
+            .filename_suffix("log")
+            .max_log_files(max_files)
+            .max_file_size(file_size)
+            .clock(Clock::ManualClock(ManualClock::new(start_time)))
+            .build(&temp_dir)
+            .unwrap();
+
+        let mut cur_time = start_time;
+        let mut end_time = cur_time.add(rotation_duration);
+        let mut time_rotation_trigger = false;
+        let mut file_size_rotation_trigger = false;
+
+        for i in 1..=total_files {
+            let mut expected_file_size = 0;
+            loop {
+                writer.state.clock.set_now(cur_time);
+
+                let rand_str = generate_random_string();
+                expected_file_size += rand_str.len();
+
+                assert_eq!(writer.write(rand_str.as_bytes()).unwrap(), rand_str.len());
+                assert_eq!(writer.state.current_filesize, expected_file_size);
+
+                cur_time = cur_time.add(write_interval);
+
+                if cur_time >= end_time {
+                    end_time = end_time.add(rotation_duration);
+                    time_rotation_trigger = true;
+                    break;
+                }
+                if expected_file_size >= file_size {
+                    file_size_rotation_trigger = true;
+                    break;
+                }
+            }
+
+            writer.flush().unwrap();
+            assert_eq!(
+                fs::read_dir(&writer.state.log_dir).unwrap().count(),
+                min(i, max_files)
+            );
+        }
+        assert!(file_size_rotation_trigger);
+        assert!(time_rotation_trigger);
+    }
+
+    fn generate_random_string() -> String {
+        let mut rng = rand::thread_rng();
+        let len = rng.gen_range(50..=100);
+        let random_string: String = std::iter::repeat(())
+            .map(|()| rng.sample(Alphanumeric))
+            .map(char::from)
+            .take(len)
+            .collect();
+
+        random_string
     }
 }

@@ -59,7 +59,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - name: Run unit tests
-        run: cargo test -- --nocapture
+        run: cargo test --all-features -- --nocapture
       - name: Run examples
         run: |
           cargo run --example simple_stdio

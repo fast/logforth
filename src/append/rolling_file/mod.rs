@@ -18,11 +18,13 @@ pub use non_blocking::NonBlockingBuilder;
 pub use non_blocking::WorkerGuard;
 pub use rolling::RollingFileWriter;
 pub use rolling::RollingFileWriterBuilder;
-pub use rolling::Rotation;
+pub use rotation::Rotation;
 
 mod append;
+mod clock;
 mod non_blocking;
 mod rolling;
+mod rotation;
 mod worker;
 
 #[derive(Debug)]
