@@ -277,7 +277,11 @@ impl State {
 
                 if self.log_filename_prefix.is_none()
                     && self.log_filename_suffix.is_none()
-                    && Zoned::strptime(self.date_format, filename).is_err()
+                    && Zoned::strptime(
+                        format!("{} %:z", self.date_format),
+                        format!("{filename} +00:00"),
+                    )
+                    .is_err()
                 {
                     return None;
                 }
