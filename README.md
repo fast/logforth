@@ -11,8 +11,8 @@
 [docs-url]: https://docs.rs/logforth
 [license-badge]: https://img.shields.io/crates/l/logforth
 [license-url]: LICENSE
-[actions-badge]: https://github.com/tisonkun/logforth/workflows/CI/badge.svg
-[actions-url]:https://github.com/tisonkun/logforth/actions?query=workflow%3ACI
+[actions-badge]: https://github.com/cratesland/logforth/workflows/CI/badge.svg
+[actions-url]:https://github.com/cratesland/logforth/actions?query=workflow%3ACI
 
 ## Overview
 
