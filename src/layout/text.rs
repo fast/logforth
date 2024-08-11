@@ -80,7 +80,7 @@ impl TextLayout {
             Level::Trace => self.colors.trace,
         };
 
-        let time = humantime::format_rfc3339_micros(SystemTime::now());
+        let time = jiff::Zoned::now();
         let level = ColoredString::from(record.level().to_string()).color(color);
         let module = record.module_path().unwrap_or_default();
         let file = record.file().unwrap_or_default();

@@ -13,9 +13,7 @@
 // limitations under the License.
 
 use std::fmt::Arguments;
-use std::time::SystemTime;
 
-use humantime::Rfc3339Timestamp;
 use log::Record;
 use serde::Serialize;
 use serde_json::Map;
@@ -56,8 +54,7 @@ impl<'a, 'kvs> log::kv::Visitor<'kvs> for KvCollector<'a> {
 
 #[derive(Debug, Clone, Serialize)]
 struct RecordLine<'a> {
-    #[serde(serialize_with = "serialize_timestamp")]
-    timestamp: Rfc3339Timestamp,
+    timestamp: jiff::Zoned,
     level: &'a str,
     module_path: &'a str,
     file: &'a str,
@@ -74,13 +71,6 @@ where
     serializer.collect_str(args)
 }
 
-fn serialize_timestamp<S>(timestamp: &Rfc3339Timestamp, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serializer.collect_str(&format_args!("{timestamp}"))
-}
-
 impl JsonLayout {
     pub(crate) fn format<F>(&self, record: &Record, f: &F) -> anyhow::Result<()>
     where
@@ -91,7 +81,7 @@ impl JsonLayout {
         record.key_values().visit(&mut visitor)?;
 
         let record_line = RecordLine {
-            timestamp: humantime::format_rfc3339_micros(SystemTime::now()),
+            timestamp: jiff::Zoned::now(),
             level: record.level().as_str(),
             module_path: record.module_path().unwrap_or_default(),
             file: record.file().unwrap_or_default(),
