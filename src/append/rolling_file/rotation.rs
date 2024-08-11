@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jiff::{RoundMode, ToSpan};
+use jiff::RoundMode;
+use jiff::ToSpan;
 use jiff::Unit;
 use jiff::Zoned;
 use jiff::ZonedRound;
@@ -36,8 +37,12 @@ impl Rotation {
 
         let next_date = match *self {
             Rotation::Never => return None,
-            Rotation::Minutely => (current_date + 1.minute()).round(timestamp_round.smallest(Unit::Minute)),
-            Rotation::Hourly => (current_date + 1.hour()).round(timestamp_round.smallest(Unit::Hour)),
+            Rotation::Minutely => {
+                (current_date + 1.minute()).round(timestamp_round.smallest(Unit::Minute))
+            }
+            Rotation::Hourly => {
+                (current_date + 1.hour()).round(timestamp_round.smallest(Unit::Hour))
+            }
             Rotation::Daily => (current_date + 1.day()).round(timestamp_round.smallest(Unit::Day)),
         };
         let next_date =

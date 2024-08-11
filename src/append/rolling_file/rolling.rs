@@ -275,8 +275,9 @@ impl State {
                     }
                 }
 
-                if self.log_filename_prefix.is_none() && self.log_filename_suffix.is_none()
-                // && Date::parse(filename, &self.date_format).is_err()
+                if self.log_filename_prefix.is_none()
+                    && self.log_filename_suffix.is_none()
+                    && Zoned::strptime(self.date_format, filename).is_err()
                 {
                     return None;
                 }

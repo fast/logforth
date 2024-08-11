@@ -17,6 +17,8 @@ use std::fmt::Arguments;
 use colored::Color;
 use colored::ColoredString;
 use colored::Colorize;
+use jiff::tz::TimeZone;
+use jiff::Zoned;
 use log::Level;
 
 use crate::layout::KvDisplay;
@@ -27,11 +29,11 @@ use crate::layout::Layout;
 /// Output format:
 ///
 /// ```text
-/// 2024-08-02T12:49:03.102343Z ERROR simple_stdio: examples/simple_stdio.rs:32 Hello error!
-/// 2024-08-02T12:49:03.102442Z  WARN simple_stdio: examples/simple_stdio.rs:33 Hello warn!
-/// 2024-08-02T12:49:03.102447Z  INFO simple_stdio: examples/simple_stdio.rs:34 Hello info!
-/// 2024-08-02T12:49:03.102450Z DEBUG simple_stdio: examples/simple_stdio.rs:35 Hello debug!
-/// 2024-08-02T12:49:03.102453Z TRACE simple_stdio: examples/simple_stdio.rs:36 Hello trace!
+/// 2024-08-11T22:44:57.172105+08:00 ERROR rolling_file: examples/rolling_file.rs:51 Hello error!
+/// 2024-08-11T22:44:57.172219+08:00  WARN rolling_file: examples/rolling_file.rs:52 Hello warn!
+/// 2024-08-11T22:44:57.172276+08:00  INFO rolling_file: examples/rolling_file.rs:53 Hello info!
+/// 2024-08-11T22:44:57.172329+08:00 DEBUG rolling_file: examples/rolling_file.rs:54 Hello debug!
+/// 2024-08-11T22:44:57.172382+08:00 TRACE rolling_file: examples/rolling_file.rs:55 Hello trace!
 /// ```
 ///
 /// By default, log levels are colored. You can turn on the `no-color` feature flag to disable this
@@ -39,9 +41,13 @@ use crate::layout::Layout;
 ///
 /// You can also customize the color of each log level by setting the `colors` field with a
 /// [`LevelColor`] instance.
+///
+/// You can customize the timezone of the timestamp by setting the `tz` field with a [`TimeZone`]
+/// instance. Otherwise, the system timezone is used.
 #[derive(Default, Debug, Clone)]
 pub struct TextLayout {
     pub colors: LevelColor,
+    pub tz: Option<TimeZone>,
 }
 
 /// Customize the color of each log level.
@@ -79,7 +85,11 @@ impl TextLayout {
             Level::Trace => self.colors.trace,
         };
 
-        let time = jiff::Zoned::now();
+        let time = match self.tz.clone() {
+            Some(tz) => Zoned::now().with_time_zone(tz),
+            None => Zoned::now(),
+        }
+        .strftime("%Y-%m-%dT%H:%M:%S.%6f%:z");
         let level = ColoredString::from(record.level().to_string()).color(color);
         let module = record.module_path().unwrap_or_default();
         let file = record.file().unwrap_or_default();

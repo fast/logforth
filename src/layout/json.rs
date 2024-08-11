@@ -14,6 +14,8 @@
 
 use std::fmt::Arguments;
 
+use jiff::tz::TimeZone;
+use jiff::Zoned;
 use log::Record;
 use serde::Serialize;
 use serde_json::Map;
@@ -26,14 +28,19 @@ use crate::layout::Layout;
 /// Output format:
 ///
 /// ```json
-/// {"timestamp":"2024-08-01T13:57:05.099261Z","level":"ERROR","module_path":"rolling_file","file":"rolling_file.rs","line":48,"message":"Hello error!","kvs":{}}
-/// {"timestamp":"2024-08-01T13:57:05.099313Z","level":"WARN","module_path":"rolling_file","file":"rolling_file.rs","line":49,"message":"Hello warn!","kvs":{}}
-/// {"timestamp":"2024-08-01T13:57:05.099338Z","level":"INFO","module_path":"rolling_file","file":"rolling_file.rs","line":50,"message":"Hello info!","kvs":{}}
-/// {"timestamp":"2024-08-01T13:57:05.099362Z","level":"DEBUG","module_path":"rolling_file","file":"rolling_file.rs","line":51,"message":"Hello debug!","kvs":{}}
-/// {"timestamp":"2024-08-01T13:57:05.099386Z","level":"TRACE","module_path":"rolling_file","file":"rolling_file.rs","line":52,"message":"Hello trace!","kvs":{}}
+/// {"timestamp":"2024-08-11T22:44:57.172051+08:00","level":"ERROR","module_path":"rolling_file","file":"examples/rolling_file.rs","line":51,"message":"Hello error!","kvs":{}}
+/// {"timestamp":"2024-08-11T22:44:57.172187+08:00","level":"WARN","module_path":"rolling_file","file":"examples/rolling_file.rs","line":52,"message":"Hello warn!","kvs":{}}
+/// {"timestamp":"2024-08-11T22:44:57.172246+08:00","level":"INFO","module_path":"rolling_file","file":"examples/rolling_file.rs","line":53,"message":"Hello info!","kvs":{}}
+/// {"timestamp":"2024-08-11T22:44:57.172300+08:00","level":"DEBUG","module_path":"rolling_file","file":"examples/rolling_file.rs","line":54,"message":"Hello debug!","kvs":{}}
+/// {"timestamp":"2024-08-11T22:44:57.172353+08:00","level":"TRACE","module_path":"rolling_file","file":"examples/rolling_file.rs","line":55,"message":"Hello trace!","kvs":{}}
 /// ```
+///
+/// You can customize the timezone of the timestamp by setting the `tz` field with a [`TimeZone`]
+/// instance. Otherwise, the system timezone is used.
 #[derive(Default, Debug, Clone)]
-pub struct JsonLayout;
+pub struct JsonLayout {
+    pub tz: Option<TimeZone>,
+}
 
 struct KvCollector<'a> {
     kvs: &'a mut Map<String, Value>,
@@ -54,7 +61,8 @@ impl<'a, 'kvs> log::kv::Visitor<'kvs> for KvCollector<'a> {
 
 #[derive(Debug, Clone, Serialize)]
 struct RecordLine<'a> {
-    timestamp: jiff::Zoned,
+    #[serde(serialize_with = "serialize_time_zone")]
+    timestamp: Zoned,
     level: &'a str,
     module_path: &'a str,
     file: &'a str,
@@ -62,6 +70,13 @@ struct RecordLine<'a> {
     #[serde(serialize_with = "serialize_args")]
     message: &'a Arguments<'a>,
     kvs: Map<String, Value>,
+}
+
+fn serialize_time_zone<S>(timestamp: &Zoned, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.collect_str(&timestamp.strftime("%Y-%m-%dT%H:%M:%S.%6f%:z"))
 }
 
 fn serialize_args<S>(args: &Arguments, serializer: S) -> Result<S::Ok, S::Error>
@@ -81,7 +96,10 @@ impl JsonLayout {
         record.key_values().visit(&mut visitor)?;
 
         let record_line = RecordLine {
-            timestamp: jiff::Zoned::now(),
+            timestamp: match self.tz.clone() {
+                Some(tz) => Zoned::now().with_time_zone(tz),
+                None => Zoned::now(),
+            },
             level: record.level().as_str(),
             module_path: record.module_path().unwrap_or_default(),
             file: record.file().unwrap_or_default(),
