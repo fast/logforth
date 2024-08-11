@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jiff::Timestamp;
+use jiff::Zoned;
 
 #[derive(Debug)]
 pub enum Clock {
@@ -22,18 +22,18 @@ pub enum Clock {
 }
 
 impl Clock {
-    pub fn now(&self) -> Timestamp {
+    pub fn now(&self) -> Zoned {
         match self {
-            Clock::DefaultClock => Timestamp::now(),
+            Clock::DefaultClock => Zoned::now(),
             #[cfg(test)]
             Clock::ManualClock(clock) => clock.now(),
         }
     }
 
     #[cfg(test)]
-    pub fn set_now(&mut self, new_time: Timestamp) {
+    pub fn set_now(&mut self, now: Zoned) {
         if let Clock::ManualClock(clock) = self {
-            clock.set_now(new_time);
+            clock.set_now(now);
         }
     }
 }
@@ -42,20 +42,20 @@ impl Clock {
 #[derive(Debug)]
 #[cfg(test)]
 pub struct ManualClock {
-    now: Timestamp,
+    now: Zoned,
 }
 
 #[cfg(test)]
 impl ManualClock {
-    pub fn new(now: Timestamp) -> ManualClock {
+    pub fn new(now: Zoned) -> ManualClock {
         ManualClock { now }
     }
 
-    fn now(&self) -> Timestamp {
-        self.now
+    fn now(&self) -> Zoned {
+        self.now.clone()
     }
 
-    pub fn set_now(&mut self, now: Timestamp) {
+    pub fn set_now(&mut self, now: Zoned) {
         self.now = now;
     }
 }
@@ -68,12 +68,12 @@ mod tests {
 
     #[test]
     fn test_manual_clock_adjusting() {
-        let now = Timestamp::from_str("2023-01-01T12:00:00Z").unwrap();
-        let mut clock = ManualClock { now };
+        let now = Zoned::from_str("2024-08-10T17:12:52+08[+08]").unwrap();
+        let mut clock = ManualClock { now: now.clone() };
         assert_eq!(clock.now(), now);
 
-        let now = Timestamp::from_str("2024-01-01T12:00:00Z").unwrap();
-        clock.set_now(now);
+        let now = Zoned::from_str("2024-01-01T12:00:00+08[+08]").unwrap();
+        clock.set_now(now.clone());
         assert_eq!(clock.now(), now);
     }
 }
