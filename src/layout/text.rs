@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::fmt::Arguments;
-use std::time::SystemTime;
 
 use colored::Color;
 use colored::ColoredString;

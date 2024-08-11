@@ -21,10 +21,8 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context;
+use jiff::Timestamp;
 use parking_lot::RwLock;
-use time::format_description;
-use time::Date;
-use time::OffsetDateTime;
 
 use crate::append::rolling_file::clock::Clock;
 use crate::append::rolling_file::Rotation;
@@ -166,7 +164,7 @@ struct State {
     log_dir: PathBuf,
     log_filename_prefix: Option<String>,
     log_filename_suffix: Option<String>,
-    date_format: Vec<format_description::FormatItem<'static>>,
+    date_format: &'static str,
     rotation: Rotation,
     current_count: usize,
     current_filesize: usize,
@@ -213,11 +211,8 @@ impl State {
         Ok((state, writer))
     }
 
-    fn join_date(&self, date: &OffsetDateTime, cnt: usize) -> String {
-        let date = date.format(&self.date_format).expect(
-            "failed to format OffsetDateTime; this is a bug in logforth rolling file appender",
-        );
-
+    fn join_date(&self, date: &Timestamp, cnt: usize) -> String {
+        let date = date.strftime(self.date_format);
         match (
             &self.rotation,
             &self.log_filename_prefix,
@@ -235,7 +230,7 @@ impl State {
         }
     }
 
-    fn create_log_writer(&self, now: OffsetDateTime, cnt: usize) -> anyhow::Result<File> {
+    fn create_log_writer(&self, now: Timestamp, cnt: usize) -> anyhow::Result<File> {
         fs::create_dir_all(&self.log_dir).context("failed to create log directory")?;
         let filename = self.join_date(&now, cnt);
         if let Some(max_files) = self.max_files {
@@ -280,9 +275,8 @@ impl State {
                     }
                 }
 
-                if self.log_filename_prefix.is_none()
-                    && self.log_filename_suffix.is_none()
-                    && Date::parse(filename, &self.date_format).is_err()
+                if self.log_filename_prefix.is_none() && self.log_filename_suffix.is_none()
+                // && Date::parse(filename, &self.date_format).is_err()
                 {
                     return None;
                 }
@@ -309,7 +303,7 @@ impl State {
         Ok(())
     }
 
-    fn refresh_writer(&self, now: OffsetDateTime, cnt: usize, file: &mut File) {
+    fn refresh_writer(&self, now: Timestamp, cnt: usize, file: &mut File) {
         match self.create_log_writer(now, cnt) {
             Ok(new_file) => {
                 if let Err(err) = file.flush() {
@@ -321,9 +315,9 @@ impl State {
         }
     }
 
-    fn should_rollover_on_date(&self, date: OffsetDateTime) -> bool {
+    fn should_rollover_on_date(&self, date: Timestamp) -> bool {
         self.next_date_timestamp
-            .is_some_and(|ts| date.unix_timestamp() as usize >= ts)
+            .is_some_and(|ts| date.as_millisecond() as usize >= ts)
     }
 
     fn should_rollover_on_size(&self) -> bool {
@@ -336,24 +330,23 @@ impl State {
         self.current_count
     }
 
-    fn advance_date(&mut self, now: OffsetDateTime) {
+    fn advance_date(&mut self, now: Timestamp) {
         self.current_count = 0;
         self.current_filesize = 0;
         self.next_date_timestamp = self.rotation.next_date_timestamp(&now);
     }
 }
+
 #[cfg(test)]
 mod tests {
     use std::cmp::min;
     use std::fs;
     use std::io::Write;
     use std::ops::Add;
-
+    use std::time::Duration;
     use rand::distributions::Alphanumeric;
     use rand::Rng;
     use tempfile::TempDir;
-    use time::macros::datetime;
-    use time::Duration;
 
     use crate::append::rolling_file::clock::Clock;
     use crate::append::rolling_file::clock::ManualClock;
@@ -487,8 +480,8 @@ mod tests {
     ) {
         let temp_dir = TempDir::new().expect("failed to create a temporary directory");
         let max_files = 10;
-        // Small file size and too many files to ensure both of file size and time rotation can be
-        // triggered.
+        // Small file size and too many files to ensure both of file size and time rotation can
+be         // triggered.
         let total_files = 100;
         let file_size = 500;
 

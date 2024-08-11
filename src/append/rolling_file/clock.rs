@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use time::OffsetDateTime;
+use jiff::Timestamp;
 
 #[derive(Debug)]
 pub enum Clock {
@@ -22,16 +22,16 @@ pub enum Clock {
 }
 
 impl Clock {
-    pub fn now(&self) -> OffsetDateTime {
+    pub fn now(&self) -> Timestamp {
         match self {
-            Clock::DefaultClock => OffsetDateTime::now_utc(),
+            Clock::DefaultClock => Timestamp::now(),
             #[cfg(test)]
             Clock::ManualClock(clock) => clock.now(),
         }
     }
 
     #[cfg(test)]
-    pub fn set_now(&mut self, new_time: OffsetDateTime) {
+    pub fn set_now(&mut self, new_time: Timestamp) {
         if let Clock::ManualClock(clock) = self {
             clock.set_now(new_time);
         }
@@ -42,38 +42,38 @@ impl Clock {
 #[derive(Debug)]
 #[cfg(test)]
 pub struct ManualClock {
-    fixed_time: OffsetDateTime,
+    now: Timestamp,
 }
 
 #[cfg(test)]
 impl ManualClock {
-    pub fn new(fixed_time: OffsetDateTime) -> ManualClock {
-        ManualClock { fixed_time }
+    pub fn new(now: Timestamp) -> ManualClock {
+        ManualClock { now }
     }
 
-    fn now(&self) -> OffsetDateTime {
-        self.fixed_time
+    fn now(&self) -> Timestamp {
+        self.now
     }
 
-    pub fn set_now(&mut self, new_time: OffsetDateTime) {
-        self.fixed_time = new_time;
+    pub fn set_now(&mut self, now: Timestamp) {
+        self.now = now;
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use time::macros::datetime;
+    use std::str::FromStr;
 
     use super::*;
 
     #[test]
     fn test_manual_clock_adjusting() {
-        let mut clock = ManualClock {
-            fixed_time: datetime!(2023-01-01 12:00:00 UTC),
-        };
-        assert_eq!(clock.now(), datetime!(2023-01-01 12:00:00 UTC));
+        let now = Timestamp::from_str("2023-01-01T12:00:00Z").unwrap();
+        let mut clock = ManualClock { now };
+        assert_eq!(clock.now(), now);
 
-        clock.set_now(datetime!(2024-01-01 12:00:00 UTC));
-        assert_eq!(clock.now(), datetime!(2024-01-01 12:00:00 UTC));
+        let now = Timestamp::from_str("2024-01-01T12:00:00Z").unwrap();
+        clock.set_now(now);
+        assert_eq!(clock.now(), now);
     }
 }

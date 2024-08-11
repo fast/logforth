@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::SystemTime;
-
+use jiff::Zoned;
 use log::Record;
 
 use crate::append::Append;
@@ -27,7 +26,7 @@ impl Append for FastraceEvent {
     fn append(&self, record: &Record) -> anyhow::Result<()> {
         let message = format!(
             "{} {:>5} {}{}",
-            humantime::format_rfc3339_micros(SystemTime::now()),
+            Zoned::now(),
             record.level(),
             record.args(),
             KvDisplay::new(record.key_values()),
