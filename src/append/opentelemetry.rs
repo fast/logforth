@@ -32,7 +32,7 @@ use crate::append::Append;
 
 /// The communication protocol to opentelemetry that used when exporting data.
 ///
-/// This is a logical re-exported [`opentelemetry_otlp::Protocol`] to avoid version lock-in to
+/// This is a logical re-exported [`Protocol`] to avoid version lock-in to
 /// `opentelemetry_otlp`.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -109,7 +109,7 @@ impl Append for OpentelemetryLog {
         let provider = self.provider.clone();
         let logger = provider.library_logger(self.library.clone());
 
-        let mut record = opentelemetry_sdk::logs::LogRecord::default();
+        let mut record = LogRecord::default();
         record.observed_timestamp = Some(SystemTime::now());
         record.severity_number = Some(log_level_to_otel_severity(log_record.level()));
         record.severity_text = Some(log_record.level().as_str().into());
