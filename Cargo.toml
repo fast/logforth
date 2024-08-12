@@ -23,7 +23,7 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/cratesland/logforth"
 rust-version = "1.71.0"
-version = "0.8.0"
+version = "0.9.0"
 
 categories = ["development-tools::debugging"]
 keywords = ["logging", "log", "opentelemetry", "fastrace"]
@@ -34,27 +34,27 @@ rustdoc-args = ["--cfg", "docs"]
 
 [features]
 fastrace = ["dep:fastrace"]
-json = ["dep:serde_json", "dep:serde"]
+json = ["dep:serde_json", "dep:serde", "jiff/serde"]
 no-color = ["colored/no-color"]
 opentelemetry = [
   "dep:opentelemetry",
   "dep:opentelemetry-otlp",
   "dep:opentelemetry_sdk",
 ]
-rolling_file = ["dep:crossbeam-channel", "dep:parking_lot", "dep:time"]
+rolling_file = ["dep:crossbeam-channel", "dep:parking_lot"]
 
 [dependencies]
 anyhow = { version = "1.0" }
 colored = { version = "2.1" }
-humantime = { version = "2.1" }
+jiff = { version = "0.1.5" }
 log = { version = "0.4", features = ["std", "kv_unstable"] }
 paste = { version = "1.0" }
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
 
 [dev-dependencies]
-rand = "0.8.5"
-tempfile = "3.3"
+rand = "0.8"
+tempfile = "3.12"
 
 ## Rolling file dependencies
 [dependencies.crossbeam-channel]
@@ -64,11 +64,6 @@ version = "0.5"
 [dependencies.parking_lot]
 optional = true
 version = "0.12"
-
-[dependencies.time]
-features = ["formatting", "parsing", "macros"]
-optional = true
-version = "0.3"
 
 ## Fastrace dependencies
 [dependencies.fastrace]

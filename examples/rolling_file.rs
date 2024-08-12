@@ -38,7 +38,7 @@ fn main() {
         .dispatch(
             Dispatch::new()
                 .filter(LevelFilter::Trace)
-                .layout(JsonLayout)
+                .layout(JsonLayout::default())
                 .append(RollingFile::new(writer)),
         )
         .dispatch(Dispatch::new().layout(TextLayout::default()).append(Stdout))

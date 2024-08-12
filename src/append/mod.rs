@@ -24,7 +24,6 @@ pub use self::opentelemetry::OpentelemetryLog;
 pub use self::rolling_file::RollingFile;
 pub use self::stdio::Stderr;
 pub use self::stdio::Stdout;
-
 use crate::layout::IdenticalLayout;
 use crate::layout::Layout;
 
