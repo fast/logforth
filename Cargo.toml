@@ -1,4 +1,4 @@
-# Copyright 2024 CratesLand Developers
+# Copyright 2024 FastLabs Developers
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,13 +15,13 @@
 [package]
 name = "logforth"
 
-authors = ["CratesLand Developers"]
+authors = ["FastLabs Developers"]
 description = "A versatile and extensible logging implementation."
 edition = "2021"
-homepage = "https://github.com/cratesland/logforth"
+homepage = "https://github.com/fast/logforth"
 license = "Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/cratesland/logforth"
+repository = "https://github.com/fast/logforth"
 rust-version = "1.71.0"
 version = "0.9.0"
 
