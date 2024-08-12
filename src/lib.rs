@@ -1,4 +1,4 @@
-// Copyright 2024 CratesLand Developers
+// Copyright 2024 FastLabs Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@
 //! log::trace!("Hello trace!");
 //! ```
 //!
-//! Read more demos under the [examples](https://github.com/cratesland/logforth/tree/main/examples) directory.
+//! Read more demos under the [examples](https://github.com/fast/logforth/tree/main/examples) directory.
 
 pub mod append;
 pub mod filter;
