@@ -17,7 +17,7 @@ use log::Metadata;
 use crate::filter::Filter;
 use crate::filter::FilterResult;
 
-/// A filter that checks if the log level is at most the specified level.
+/// A filter that checks if the log level is higher than the specified level.
 ///
 /// From least to most verbose, the levels are:
 ///
@@ -31,9 +31,13 @@ use crate::filter::FilterResult;
 ///
 /// If LevelFilter is set to `Off`, it will reject all logs.
 #[derive(Debug, Clone)]
-pub struct LevelFilter(pub log::LevelFilter);
+pub struct LevelFilter(log::LevelFilter);
 
 impl LevelFilter {
+    pub fn new(level: log::LevelFilter) -> Self {
+        LevelFilter(level)
+    }
+
     pub(crate) fn filter(&self, metadata: &Metadata) -> FilterResult {
         let level = metadata.level();
         if level <= self.0 {
