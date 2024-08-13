@@ -15,7 +15,6 @@
 [package]
 name = "logforth"
 
-authors = ["FastLabs Developers"]
 description = "A versatile and extensible logging implementation."
 edition = "2021"
 homepage = "https://github.com/fast/logforth"
