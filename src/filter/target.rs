@@ -22,8 +22,8 @@ use crate::filter::FilterResult;
 /// A filter that checks if the log level is higher than the specified level for a specific
 /// target.
 ///
-/// If the target has a prefix that matches the target of the log record, the filter will be
-/// applied.
+/// Only if the target has a prefix that matches the target of the log record, the filter
+/// will be applied.
 #[derive(Debug, Clone)]
 pub struct TargetFilter {
     target: Cow<'static, str>,

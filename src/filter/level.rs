@@ -17,7 +17,7 @@ use log::Metadata;
 use crate::filter::Filter;
 use crate::filter::FilterResult;
 
-/// A filter that checks if the log level is at higher than the specified level.
+/// A filter that checks if the log level is higher than the specified level.
 ///
 /// From least to most verbose, the levels are:
 ///
