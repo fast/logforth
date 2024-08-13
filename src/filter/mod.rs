@@ -16,9 +16,11 @@
 
 pub use self::custom::CustomFilter;
 pub use self::level::LevelFilter;
+pub use self::target::TargetFilter;
 
 mod custom;
 mod level;
+mod target;
 
 /// The result of a filter may return.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,6 +36,7 @@ pub enum FilterResult {
 #[derive(Debug)]
 pub enum Filter {
     Level(LevelFilter),
+    Target(TargetFilter),
     Custom(CustomFilter),
 }
 
@@ -41,6 +44,7 @@ impl Filter {
     pub(crate) fn filter(&self, metadata: &log::Metadata) -> FilterResult {
         match self {
             Filter::Level(filter) => filter.filter(metadata),
+            Filter::Target(filter) => filter.filter(metadata),
             Filter::Custom(filter) => filter.filter(metadata),
         }
     }
