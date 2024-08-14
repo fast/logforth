@@ -45,3 +45,25 @@ impl<'a, 'kvs> log::kv::Visitor<'kvs> for KvWriter<'a, 'kvs> {
         Ok(())
     }
 }
+
+/// A helper to collect log's key-value pairs.
+pub fn collect_kvs(kv: &dyn log::kv::Source) -> Vec<(String, String)> {
+    let mut collector = KvCollector { kv: Vec::new() };
+    kv.visit(&mut collector).ok();
+    collector.kv
+}
+
+struct KvCollector {
+    kv: Vec<(String, String)>,
+}
+
+impl<'kvs> log::kv::Visitor<'kvs> for KvCollector {
+    fn visit_pair(
+        &mut self,
+        key: log::kv::Key<'kvs>,
+        value: log::kv::Value<'kvs>,
+    ) -> Result<(), log::kv::Error> {
+        self.kv.push((key.to_string(), value.to_string()));
+        Ok(())
+    }
+}

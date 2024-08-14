@@ -18,6 +18,7 @@ pub use custom::CustomLayout;
 pub use identical::IdenticalLayout;
 #[cfg(feature = "json")]
 pub use json::JsonLayout;
+pub use kv::collect_kvs;
 pub use kv::KvDisplay;
 pub use text::LevelColor;
 pub use text::TextLayout;
