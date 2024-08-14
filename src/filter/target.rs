@@ -50,8 +50,8 @@ impl TargetFilter {
     }
 
     pub(crate) fn filter(&self, metadata: &Metadata) -> FilterResult {
-        let mathced = metadata.target().starts_with(self.target.as_ref());
-        if (mathced && !self.not) || (!mathced && self.not) {
+        let matched = metadata.target().starts_with(self.target.as_ref());
+        if (matched && !self.not) || (!matched && self.not) {
             let level = metadata.level();
             if level <= self.level {
                 FilterResult::Neutral
