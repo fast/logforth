@@ -26,6 +26,12 @@ fn main() {
                 .layout(TextLayout::default())
                 .append(append::Stdout),
         )
+        .dispatch(
+            Dispatch::new()
+                .filter(LevelFilter::Trace)
+                .layout(TextLayout::default().no_color())
+                .append(append::Stderr),
+        )
         .apply()
         .unwrap();
 

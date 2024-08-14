@@ -37,7 +37,7 @@ use crate::layout::Layout;
 /// ```
 ///
 /// By default, log levels are colored. You can turn on the `no-color` feature flag to disable this
-/// feature.
+/// feature. Instead, you can also set the `no_color` field to `true` to disable coloring.
 ///
 /// You can also customize the color of each log level by setting the `colors` field with a
 /// [`LevelColor`] instance.
@@ -47,7 +47,64 @@ use crate::layout::Layout;
 #[derive(Default, Debug, Clone)]
 pub struct TextLayout {
     pub colors: LevelColor,
+    pub no_color: bool,
     pub tz: Option<TimeZone>,
+}
+
+impl TextLayout {
+    /// Turn off coloring of log levels.
+    pub fn no_color(mut self) -> Self {
+        self.no_color = true;
+        self
+    }
+
+    /// Set the timezone of the timestamp; default to the system timezone.
+    pub fn timezone(mut self, tz: TimeZone) -> Self {
+        self.tz = Some(tz);
+        self
+    }
+
+    /// Customize the color of each log level; no effect if `no_color` is set to `true`,
+    /// or the `no-color` feature flag is enabled.
+    pub fn colors(mut self, colors: LevelColor) -> Self {
+        self.colors = colors;
+        self
+    }
+
+    /// Customize the color of the error log level; no effect if `no_color` is set to `true`,
+    /// or the `no-color` feature flag is enabled. Default to red.
+    pub fn error_color(mut self, color: Color) -> Self {
+        self.colors.error = color;
+        self
+    }
+
+    /// Customize the color of the warn log level; no effect if `no_color` is set to `true`,
+    /// or the `no-color` feature flag is enabled. Default to yellow.
+    pub fn warn_color(mut self, color: Color) -> Self {
+        self.colors.warn = color;
+        self
+    }
+
+    /// Customize the color of the info log level; no effect if `no_color` is set to `true`,
+    /// or the `no-color` feature flag is enabled. Default to green.
+    pub fn info_color(mut self, color: Color) -> Self {
+        self.colors.info = color;
+        self
+    }
+
+    /// Customize the color of the debug log level; no effect if `no_color` is set to `true`,
+    /// or the `no-color` feature flag is enabled. Default to blue.
+    pub fn debug_color(mut self, color: Color) -> Self {
+        self.colors.debug = color;
+        self
+    }
+
+    /// Customize the color of the trace log level; no effect if `no_color` is set to `true`,
+    /// or the `no-color` feature flag is enabled. Default to magenta.
+    pub fn trace_color(mut self, color: Color) -> Self {
+        self.colors.trace = color;
+        self
+    }
 }
 
 /// Customize the color of each log level.
@@ -77,20 +134,23 @@ impl TextLayout {
     where
         F: Fn(Arguments) -> anyhow::Result<()>,
     {
-        let color = match record.level() {
-            Level::Error => self.colors.error,
-            Level::Warn => self.colors.warn,
-            Level::Info => self.colors.info,
-            Level::Debug => self.colors.debug,
-            Level::Trace => self.colors.trace,
-        };
-
         let time = match self.tz.clone() {
             Some(tz) => Zoned::now().with_time_zone(tz),
             None => Zoned::now(),
         }
         .strftime("%Y-%m-%dT%H:%M:%S.%6f%:z");
-        let level = ColoredString::from(record.level().to_string()).color(color);
+        let level = if self.no_color {
+            ColoredString::from(record.level().to_string())
+        } else {
+            let color = match record.level() {
+                Level::Error => self.colors.error,
+                Level::Warn => self.colors.warn,
+                Level::Info => self.colors.info,
+                Level::Debug => self.colors.debug,
+                Level::Trace => self.colors.trace,
+            };
+            ColoredString::from(record.level().to_string()).color(color)
+        };
         let module = record.module_path().unwrap_or_default();
         let file = record.file().unwrap_or_default();
         let line = record.line().unwrap_or_default();
