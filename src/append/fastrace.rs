@@ -25,7 +25,7 @@ pub struct FastraceEvent;
 
 impl Append for FastraceEvent {
     fn append(&self, record: &Record) -> anyhow::Result<()> {
-        let message = format!("{}", record.args(),);
+        let message = format!("{}", record.args());
         fastrace::Event::add_to_local_parent(message, || {
             [("level", record.level()), ("timestamp", Zoned::now())]
                 .chain(collect_kvs(record.key_values()))
