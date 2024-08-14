@@ -21,25 +21,37 @@ use crate::filter::FilterResult;
 
 /// A filter that checks if the log level is higher than the specified level for a specific
 /// target.
-///
-/// Only if the target has a prefix that matches the target of the log record, the filter
-/// will be applied.
 #[derive(Debug, Clone)]
 pub struct TargetFilter {
     target: Cow<'static, str>,
     level: log::LevelFilter,
+    not: bool,
 }
 
 impl TargetFilter {
+    /// The filter will be applied only if the target **has** a prefix that matches the target of
+    /// the log record.
     pub fn level_for(target: impl Into<Cow<'static, str>>, level: log::LevelFilter) -> Self {
         TargetFilter {
             target: target.into(),
             level,
+            not: false,
+        }
+    }
+
+    /// The filter will be applied only if the target **does not have** a prefix that matches the
+    /// target of the log record,
+    pub fn level_for_not(target: impl Into<Cow<'static, str>>, level: log::LevelFilter) -> Self {
+        TargetFilter {
+            target: target.into(),
+            level,
+            not: true,
         }
     }
 
     pub(crate) fn filter(&self, metadata: &Metadata) -> FilterResult {
-        if metadata.target().starts_with(self.target.as_ref()) {
+        let mathced = metadata.target().starts_with(self.target.as_ref());
+        if (mathced && !self.not) || (!mathced && self.not) {
             let level = metadata.level();
             if level <= self.level {
                 FilterResult::Neutral
