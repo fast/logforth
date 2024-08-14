@@ -53,6 +53,8 @@
 //!
 //! Read more demos under the [examples](https://github.com/fast/logforth/tree/main/examples) directory.
 
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+
 pub mod append;
 pub mod filter;
 pub mod layout;
