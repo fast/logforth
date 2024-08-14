@@ -15,6 +15,7 @@
 use std::fmt::Arguments;
 
 use jiff::tz::TimeZone;
+use jiff::Timestamp;
 use jiff::Zoned;
 use log::Record;
 use serde::Serialize;
@@ -97,7 +98,7 @@ impl JsonLayout {
 
         let record_line = RecordLine {
             timestamp: match self.tz.clone() {
-                Some(tz) => Zoned::now().with_time_zone(tz),
+                Some(tz) => Timestamp::now().to_zoned(tz),
                 None => Zoned::now(),
             },
             level: record.level().as_str(),

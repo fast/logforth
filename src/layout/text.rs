@@ -18,6 +18,7 @@ use colored::Color;
 use colored::ColoredString;
 use colored::Colorize;
 use jiff::tz::TimeZone;
+use jiff::Timestamp;
 use jiff::Zoned;
 use log::Level;
 
@@ -135,7 +136,7 @@ impl TextLayout {
         F: Fn(Arguments) -> anyhow::Result<()>,
     {
         let time = match self.tz.clone() {
-            Some(tz) => Zoned::now().with_time_zone(tz),
+            Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),
         }
         .strftime("%Y-%m-%dT%H:%M:%S.%6f%:z");
