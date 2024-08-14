@@ -9,7 +9,7 @@
 [crates-badge]: https://img.shields.io/crates/v/logforth.svg
 [crates-url]: https://crates.io/crates/logforth
 [docs-badge]: https://docs.rs/logforth/badge.svg
-[msrv-badge]: https://img.shields.io/badge/MSRV-1.71-green?logo=rust
+[msrv-badge]: https://img.shields.io/badge/MSRV-1.75-green?logo=rust
 [docs-url]: https://docs.rs/logforth
 [license-badge]: https://img.shields.io/crates/l/logforth
 [license-url]: LICENSE
