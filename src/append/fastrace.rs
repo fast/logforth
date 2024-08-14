@@ -16,6 +16,7 @@ use jiff::Zoned;
 use log::Record;
 
 use crate::append::Append;
+use crate::layout::collect_kvs;
 use crate::layout::KvDisplay;
 
 /// An appender that adds log records to fastrace as an event associated to the current span.
@@ -24,14 +25,11 @@ pub struct FastraceEvent;
 
 impl Append for FastraceEvent {
     fn append(&self, record: &Record) -> anyhow::Result<()> {
-        let message = format!(
-            "{} {:>5} {}{}",
-            Zoned::now(),
-            record.level(),
-            record.args(),
-            KvDisplay::new(record.key_values()),
-        );
-        fastrace::Event::add_to_local_parent(message, || []);
+        let message = format!("{}", record.args(),);
+        fastrace::Event::add_to_local_parent(message, || {
+            [("level", record.level()), ("timestamp", Zoned::now())]
+                .chain(collect_kvs(record.key_values()))
+        });
         Ok(())
     }
 
