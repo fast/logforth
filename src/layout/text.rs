@@ -46,9 +46,9 @@ use crate::layout::Layout;
 /// instance. Otherwise, the system timezone is used.
 #[derive(Default, Debug, Clone)]
 pub struct TextLayout {
-    pub colors: LevelColor,
-    pub no_color: bool,
-    pub tz: Option<TimeZone>,
+    colors: LevelColor,
+    no_color: bool,
+    tz: Option<TimeZone>,
 }
 
 impl TextLayout {
