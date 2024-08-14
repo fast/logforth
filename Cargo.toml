@@ -29,7 +29,7 @@ keywords = ["logging", "log", "opentelemetry", "fastrace"]
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = ["--cfg", "docs"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 fastrace = ["dep:fastrace"]
