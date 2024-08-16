@@ -14,7 +14,7 @@
 
 use std::borrow::Cow;
 
-pub use env_filter::Builder as EnvFilterBuilder;
+use log::LevelFilter;
 use log::Metadata;
 
 use crate::filter::FilterResult;
@@ -24,7 +24,7 @@ const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
 
 /// A filter that respects the `RUST_LOG` environment variable.
 ///
-/// Read [the `env_logger` documentation](https://docs.rs/env_logger/#enabling-logging) for more.
+/// Read more from [the `env_logger` documentation](https://docs.rs/env_logger/#enabling-logging).
 #[derive(Debug)]
 pub struct EnvFilter(env_filter::Filter);
 
@@ -76,12 +76,14 @@ impl EnvFilter {
     where
         E: Into<Cow<'a, str>>,
     {
-        let mut builder = EnvFilterBuilder::new();
         let name = name.into();
+
+        let builder = EnvFilterBuilder::new();
         if let Ok(s) = std::env::var(&*name) {
-            builder.parse(&s);
+            EnvFilter::new(builder.parse(&s))
+        } else {
+            EnvFilter::new(builder)
         }
-        EnvFilter::new(builder)
     }
 
     /// Initializes the filter builder from the environment using specific variable name.
@@ -101,20 +103,20 @@ impl EnvFilter {
         E: Into<Cow<'a, str>>,
         V: Into<Cow<'b, str>>,
     {
-        let mut builder = EnvFilterBuilder::new();
         let name = name.into();
         let default = default.into();
+
+        let builder = EnvFilterBuilder::new();
         if let Ok(s) = std::env::var(&*name) {
-            builder.parse(&s);
+            EnvFilter::new(builder.parse(&s))
         } else {
-            builder.parse(&default);
+            EnvFilter::new(builder.parse(&default))
         }
-        EnvFilter::new(builder)
     }
 
     /// Initializes the filter builder from the [EnvFilterBuilder].
     pub fn new(mut builder: EnvFilterBuilder) -> Self {
-        EnvFilter(builder.build())
+        EnvFilter(builder.0.build())
     }
 
     pub(crate) fn enabled(&self, metadata: &Metadata) -> FilterResult {
@@ -137,5 +139,61 @@ impl EnvFilter {
 impl From<EnvFilter> for Filter {
     fn from(filter: EnvFilter) -> Self {
         Filter::Env(filter)
+    }
+}
+
+/// A builder for the env log filter.
+///
+/// It can be used to parse a set of directives from a string before building a [EnvFilter]
+/// instance.
+#[derive(Default, Debug)]
+pub struct EnvFilterBuilder(env_filter::Builder);
+
+impl EnvFilterBuilder {
+    /// Initializes the filter builder with defaults.
+    pub fn new() -> Self {
+        EnvFilterBuilder(env_filter::Builder::new())
+    }
+
+    /// Initializes the filter builder from an environment.
+    pub fn from_env(env: &str) -> Self {
+        EnvFilterBuilder(env_filter::Builder::from_env(env))
+    }
+
+    /// Adds a directive to the filter for a specific module.
+    pub fn filter_module(mut self, module: &str, level: LevelFilter) -> Self {
+        self.0.filter_module(module, level);
+        self
+    }
+
+    /// Adds a directive to the filter for all modules.
+    pub fn filter_level(mut self, level: LevelFilter) -> Self {
+        self.0.filter_level(level);
+        self
+    }
+
+    /// Adds a directive to the filter.
+    ///
+    /// The given module (if any) will log at most the specified level provided. If no module is
+    /// provided then the filter will apply to all log messages.
+    pub fn filter(mut self, module: Option<&str>, level: LevelFilter) -> Self {
+        self.0.filter(module, level);
+        self
+    }
+
+    /// Parses the directive string, returning an error if the given directive string is invalid.
+    ///
+    /// See [the `env_logger` documentation](https://docs.rs/env_logger/#enabling-logging) for more details.
+    pub fn try_parse(mut self, filters: &str) -> anyhow::Result<Self> {
+        self.0.try_parse(filters)?;
+        Ok(self)
+    }
+
+    /// Parses the directives string.
+    ///
+    /// See [the `env_logger` documentation](https://docs.rs/env_logger/#enabling-logging) for more details.
+    pub fn parse(mut self, filters: &str) -> Self {
+        self.0.parse(filters);
+        self
     }
 }
