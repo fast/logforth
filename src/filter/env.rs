@@ -20,7 +20,8 @@ use log::Metadata;
 use crate::filter::FilterResult;
 use crate::Filter;
 
-const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
+/// The default name for the environment variable to read filters from.
+pub const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
 
 /// A filter that respects the `RUST_LOG` environment variable.
 ///
@@ -155,9 +156,13 @@ impl EnvFilterBuilder {
         EnvFilterBuilder(env_filter::Builder::new())
     }
 
-    /// Initializes the filter builder from an environment.
-    pub fn from_env(env: &str) -> Self {
-        EnvFilterBuilder(env_filter::Builder::from_env(env))
+    /// Try to initialize the filter builder from an environment; return `None` if the environment
+    /// variable is not set or invalid.
+    pub fn try_from_env(env: &str) -> Option<Self> {
+        let mut builder = env_filter::Builder::new();
+        let config = std::env::var(env).ok()?;
+        builder.try_parse(&config).ok()?;
+        Some(EnvFilterBuilder(builder))
     }
 
     /// Adds a directive to the filter for a specific module.
