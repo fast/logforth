@@ -22,7 +22,7 @@ pub use self::target::TargetFilter;
 
 mod custom;
 #[cfg(feature = "env-filter")]
-mod env;
+pub mod env;
 mod level;
 mod target;
 

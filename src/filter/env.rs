@@ -22,14 +22,39 @@ use crate::Filter;
 
 const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
 
+/// A filter that respects the `RUST_LOG` environment variable.
+///
+/// Read [the `env_logger` documentation](https://docs.rs/env_logger/#enabling-logging) for more.
 #[derive(Debug)]
 pub struct EnvFilter(env_filter::Filter);
 
 impl EnvFilter {
+    /// Initializes the filter builder from the environment using default variable name `RUST_LOG`.
+    ///
+    /// # Examples
+    ///
+    /// Initialize a filter using the default environment variables:
+    ///
+    /// ```
+    /// use logforth::filter::EnvFilter;
+    /// let filter = EnvFilter::from_default_env();
+    /// ```
     pub fn from_default_env() -> Self {
         EnvFilter::from_env(DEFAULT_FILTER_ENV)
     }
 
+    /// Initializes the filter builder from the environment using default variable name `RUST_LOG`.
+    /// If the variable is not set, the default value will be used.
+    ///
+    /// # Examples
+    ///
+    /// Initialize a filter using the default environment variables, or fallback to the default
+    /// value:
+    ///
+    /// ```
+    /// use logforth::filter::EnvFilter;
+    /// let filter = EnvFilter::from_default_env_or("info");
+    /// ```
     pub fn from_default_env_or<'a, V>(default: V) -> Self
     where
         V: Into<Cow<'a, str>>,
@@ -37,6 +62,16 @@ impl EnvFilter {
         EnvFilter::from_env_or(DEFAULT_FILTER_ENV, default)
     }
 
+    /// Initializes the filter builder from the environment using specific variable name.
+    ///
+    /// # Examples
+    ///
+    /// Initialize a filter using the using specific variable name:
+    ///
+    /// ```
+    /// use logforth::filter::EnvFilter;
+    /// let filter = EnvFilter::from_env("MY_LOG");
+    /// ```
     pub fn from_env<'a, E>(name: E) -> Self
     where
         E: Into<Cow<'a, str>>,
@@ -49,6 +84,18 @@ impl EnvFilter {
         EnvFilter::new(builder)
     }
 
+    /// Initializes the filter builder from the environment using specific variable name.
+    /// If the variable is not set, the default value will be used.
+    ///
+    /// # Examples
+    ///
+    /// Initialize a filter using the using specific variable name, or fallback to the default
+    /// value:
+    ///
+    /// ```
+    /// use logforth::filter::EnvFilter;
+    /// let filter = EnvFilter::from_env_or("MY_LOG", "info");
+    /// ```
     pub fn from_env_or<'a, 'b, E, V>(name: E, default: V) -> Self
     where
         E: Into<Cow<'a, str>>,
@@ -65,6 +112,7 @@ impl EnvFilter {
         EnvFilter::new(builder)
     }
 
+    /// Initializes the filter builder from the [EnvFilterBuilder].
     pub fn new(mut builder: EnvFilterBuilder) -> Self {
         EnvFilter(builder.build())
     }
