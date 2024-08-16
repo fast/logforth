@@ -89,7 +89,7 @@ impl<const LAYOUT: bool, const APPEND: bool> Dispatch<LAYOUT, APPEND> {
 impl Dispatch {
     fn enabled(&self, metadata: &Metadata) -> bool {
         for filter in &self.filters {
-            match filter.filter(metadata) {
+            match filter.enabled(metadata) {
                 FilterResult::Reject => return false,
                 FilterResult::Accept => return true,
                 FilterResult::Neutral => {}
@@ -100,6 +100,14 @@ impl Dispatch {
     }
 
     fn log(&self, record: &Record) -> anyhow::Result<()> {
+        for filter in &self.filters {
+            match filter.matches(record) {
+                FilterResult::Reject => return Ok(()),
+                FilterResult::Accept => break,
+                FilterResult::Neutral => {}
+            }
+        }
+
         let layout = self.layout.as_ref();
         for append in &self.appends {
             match layout {
@@ -169,10 +177,8 @@ impl log::Log for Logger {
 
     fn log(&self, record: &Record) {
         for dispatch in &self.dispatches {
-            if dispatch.enabled(record.metadata()) {
-                if let Err(err) = dispatch.log(record) {
-                    handle_error(record, err);
-                }
+            if let Err(err) = dispatch.log(record) {
+                handle_error(record, err);
             }
         }
     }

@@ -49,7 +49,7 @@ impl TargetFilter {
         }
     }
 
-    pub(crate) fn filter(&self, metadata: &Metadata) -> FilterResult {
+    pub(crate) fn enabled(&self, metadata: &Metadata) -> FilterResult {
         let matched = metadata.target().starts_with(self.target.as_ref());
         if (matched && !self.not) || (!matched && self.not) {
             let level = metadata.level();
