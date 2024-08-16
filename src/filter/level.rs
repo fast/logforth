@@ -38,7 +38,7 @@ impl LevelFilter {
         LevelFilter(level)
     }
 
-    pub(crate) fn filter(&self, metadata: &Metadata) -> FilterResult {
+    pub(crate) fn enabled(&self, metadata: &Metadata) -> FilterResult {
         let level = metadata.level();
         if level <= self.0 {
             FilterResult::Neutral

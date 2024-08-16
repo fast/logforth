@@ -32,6 +32,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
+env-filter = ["dep:env_filter"]
 fastrace = ["dep:fastrace"]
 json = ["dep:serde_json", "dep:serde", "jiff/serde"]
 no-color = ["colored/no-color"]
@@ -48,12 +49,25 @@ colored = { version = "2.1" }
 jiff = { version = "0.1.5" }
 log = { version = "0.4", features = ["std", "kv_unstable"] }
 paste = { version = "1.0" }
-serde = { version = "1.0", features = ["derive"], optional = true }
-serde_json = { version = "1.0", optional = true }
 
 [dev-dependencies]
 rand = "0.8"
 tempfile = "3.12"
+
+## Env filter dependencies
+[dependencies.env_filter]
+optional = true
+version = "0.1"
+
+## Serde dependencies
+[dependencies.serde]
+features = ["derive"]
+optional = true
+version = "1.0"
+
+[dependencies.serde_json]
+optional = true
+version = "1.0"
 
 ## Rolling file dependencies
 [dependencies.crossbeam-channel]
@@ -103,3 +117,8 @@ required-features = ["rolling_file", "json"]
 [[example]]
 name = "fn_layout_filter"
 path = "examples/fn_layout_filter.rs"
+
+[[example]]
+name = "env_filter"
+path = "examples/env_filter.rs"
+required-features = ["env-filter"]

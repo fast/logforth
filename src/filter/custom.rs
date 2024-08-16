@@ -54,7 +54,7 @@ impl CustomFilter {
         }
     }
 
-    pub(crate) fn filter(&self, metadata: &Metadata) -> FilterResult {
+    pub(crate) fn enabled(&self, metadata: &Metadata) -> FilterResult {
         (self.f)(metadata)
     }
 }
