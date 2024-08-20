@@ -144,6 +144,7 @@ impl Default for Logger {
 
 impl Logger {
     /// Create a new [`Logger`] instance.
+    #[must_use = "call `dispatch` to add a dispatch to the logger and `apply` to set the global logger"]
     pub fn new() -> Logger {
         Self { dispatches: vec![] }
     }
@@ -151,6 +152,7 @@ impl Logger {
 
 impl Logger {
     /// Add a [`Dispatch`] to the [`Logger`].
+    #[must_use = "call `apply` to set the global logger"]
     pub fn dispatch(mut self, dispatch: Dispatch) -> Logger {
         self.dispatches.push(dispatch);
         self
