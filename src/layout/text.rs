@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Cow;
 use std::fmt::Arguments;
 
 use colored::Color;
@@ -153,7 +154,7 @@ impl TextLayout {
             ColoredString::from(record.level().to_string()).color(color)
         };
         let module = record.module_path().unwrap_or_default();
-        let file = record.file().unwrap_or_default();
+        let file = filename(record);
         let line = record.line().unwrap_or_default();
         let message = record.args();
         let kvs = KvDisplay::new(record.key_values());
@@ -168,4 +169,15 @@ impl From<TextLayout> for Layout {
     fn from(layout: TextLayout) -> Self {
         Layout::Text(layout)
     }
+}
+
+// obtain filename only from record's full file path
+// reason: the module is already logged + full file path is noisy for text layout
+fn filename<'a>(record: &'a log::Record<'a>) -> Cow<'a, str> {
+    record
+        .file()
+        .map(std::path::Path::new)
+        .and_then(std::path::Path::file_name)
+        .map(std::ffi::OsStr::to_string_lossy)
+        .unwrap_or_default()
 }
