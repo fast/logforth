@@ -77,7 +77,7 @@ fn serialize_time_zone<S>(timestamp: &Zoned, serializer: S) -> Result<S::Ok, S::
 where
     S: serde::Serializer,
 {
-    serializer.collect_str(&timestamp.strftime("%Y-%m-%dT%H:%M:%S.%6f%:z"))
+    serializer.collect_str(&format_args!("{timestamp:.6}"))
 }
 
 fn serialize_args<S>(args: &Arguments, serializer: S) -> Result<S::Ok, S::Error>
