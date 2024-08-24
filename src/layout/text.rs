@@ -139,8 +139,7 @@ impl TextLayout {
         let time = match self.tz.clone() {
             Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),
-        }
-        .strftime("%Y-%m-%dT%H:%M:%S.%6f%:z");
+        };
         let level = if self.no_color {
             ColoredString::from(record.level().to_string())
         } else {
@@ -160,7 +159,7 @@ impl TextLayout {
         let kvs = KvDisplay::new(record.key_values());
 
         f(format_args!(
-            "{time} {level:>5} {module}: {file}:{line} {message}{kvs}"
+            "{time:.6} {level:>5} {module}: {file}:{line} {message}{kvs}"
         ))
     }
 }

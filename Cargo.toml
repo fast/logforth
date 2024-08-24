@@ -46,7 +46,7 @@ rolling_file = ["dep:crossbeam-channel", "dep:parking_lot"]
 [dependencies]
 anyhow = { version = "1.0" }
 colored = { version = "2.1" }
-jiff = { version = "0.1.5" }
+jiff = { version = "0.1.10" }
 log = { version = "0.4", features = ["std", "kv_unstable"] }
 paste = { version = "1.0" }
 
@@ -81,7 +81,7 @@ version = "0.12"
 ## Fastrace dependencies
 [dependencies.fastrace]
 optional = true
-version = "0.7.1"
+version = "0.7"
 
 ## Opentelemetry dependencies
 [dependencies.opentelemetry]
