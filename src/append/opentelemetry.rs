@@ -38,61 +38,70 @@ use crate::append::Append;
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OpentelemetryWireProtocol {
+    /// GRPC protocol
     Grpc,
+    /// HTTP protocol with binary protobuf
     HttpBinary,
+    /// HTTP protocol with JSON payload
     HttpJson,
 }
 
-/// An appender that sends log records to opentelemetry.
-#[derive(Debug)]
-pub struct OpentelemetryLog {
+/// A builder to configure and create an [`OpentelemetryLog`] appender.
+pub struct OpentelemetryLogBuilder {
     name: String,
-    library: Arc<InstrumentationLibrary>,
-    provider: LoggerProvider,
+    endpoint: String,
+    protocol: Protocol,
+    labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
 }
 
-impl OpentelemetryLog {
-    pub fn new(
-        name: impl Into<String>,
-        otlp_endpoint: impl Into<String>,
-        protocol: OpentelemetryWireProtocol,
-    ) -> Result<Self, opentelemetry::logs::LogError> {
-        Self::new_with_labels(name, otlp_endpoint, protocol, [])
+impl OpentelemetryLogBuilder {
+    /// Create a new builder with the given name and OTLP endpoint.
+    pub fn new(name: impl Into<String>, otlp_endpoint: impl Into<String>) -> Self {
+        OpentelemetryLogBuilder {
+            name: name.into(),
+            endpoint: otlp_endpoint.into(),
+            protocol: Protocol::Grpc,
+            labels: vec![],
+        }
     }
 
-    pub fn new_with_labels(
-        name: impl Into<String>,
-        otlp_endpoint: impl Into<String>,
-        protocol: OpentelemetryWireProtocol,
-        labels: impl IntoIterator<Item = (Cow<'static, str>, Cow<'static, str>)>,
-    ) -> Result<Self, opentelemetry::logs::LogError> {
-        let name = name.into();
-        let otlp_endpoint = otlp_endpoint.into();
+    /// Set the protocol to use when exporting data to opentelemetry.
+    ///
+    /// Default to [`Grpc`].
+    ///
+    /// [`Grpc`]: OpentelemetryWireProtocol::Grpc
+    pub fn with_protocol(mut self, protocol: OpentelemetryWireProtocol) -> Self {
+        self.protocol = match protocol {
+            OpentelemetryWireProtocol::Grpc => Protocol::Grpc,
+            OpentelemetryWireProtocol::HttpBinary => Protocol::HttpBinary,
+            OpentelemetryWireProtocol::HttpJson => Protocol::HttpJson,
+        };
+        self
+    }
 
+    /// Add a label to the resource.
+    pub fn with_label(mut self, key: impl Into<Cow<'static, str>>, value: impl Into<Cow<'static, str>>) -> Self {
+        self.labels.push((key.into(), value.into()));
+        self
+    }
+
+    /// Build the [`OpentelemetryLog`] appender.
+    pub fn build(self) -> Result<OpentelemetryLog, opentelemetry::logs::LogError> {
+        let OpentelemetryLogBuilder { name, endpoint, protocol, labels } = self;
+
+        let collector_timeout = Duration::from_secs(opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT);
         let exporter = match protocol {
-            OpentelemetryWireProtocol::Grpc => opentelemetry_otlp::new_exporter()
+            Protocol::Grpc => opentelemetry_otlp::new_exporter()
                 .tonic()
-                .with_endpoint(otlp_endpoint)
-                .with_protocol(Protocol::Grpc)
-                .with_timeout(Duration::from_secs(
-                    opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
-                ))
+                .with_endpoint(endpoint)
+                .with_protocol(protocol)
+                .with_timeout(collector_timeout)
                 .build_log_exporter(),
-            OpentelemetryWireProtocol::HttpBinary => opentelemetry_otlp::new_exporter()
+            Protocol::HttpBinary | Protocol::HttpJson => opentelemetry_otlp::new_exporter()
                 .http()
-                .with_endpoint(otlp_endpoint)
-                .with_protocol(Protocol::HttpBinary)
-                .with_timeout(Duration::from_secs(
-                    opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
-                ))
-                .build_log_exporter(),
-            OpentelemetryWireProtocol::HttpJson => opentelemetry_otlp::new_exporter()
-                .http()
-                .with_endpoint(otlp_endpoint)
-                .with_protocol(Protocol::HttpJson)
-                .with_timeout(Duration::from_secs(
-                    opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
-                ))
+                .with_endpoint(endpoint)
+                .with_protocol(protocol)
+                .with_timeout(collector_timeout)
                 .build_log_exporter(),
         }?;
 
@@ -108,12 +117,20 @@ impl OpentelemetryLog {
 
         let library = Arc::new(InstrumentationLibrary::builder(name.clone()).build());
 
-        Ok(Self {
+        Ok(OpentelemetryLog {
             name,
             library,
             provider,
         })
     }
+}
+
+/// An appender that sends log records to opentelemetry.
+#[derive(Debug)]
+pub struct OpentelemetryLog {
+    name: String,
+    library: Arc<InstrumentationLibrary>,
+    provider: LoggerProvider,
 }
 
 impl Append for OpentelemetryLog {
