@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Cow;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::SystemTime;
@@ -46,7 +47,6 @@ pub enum OpentelemetryWireProtocol {
 #[derive(Debug)]
 pub struct OpentelemetryLog {
     name: String,
-    category: String,
     library: Arc<InstrumentationLibrary>,
     provider: LoggerProvider,
 }
@@ -54,12 +54,19 @@ pub struct OpentelemetryLog {
 impl OpentelemetryLog {
     pub fn new(
         name: impl Into<String>,
-        category: impl Into<String>,
         otlp_endpoint: impl Into<String>,
         protocol: OpentelemetryWireProtocol,
     ) -> Result<Self, opentelemetry::logs::LogError> {
+        Self::new_with_labels(name, otlp_endpoint, protocol, [])
+    }
+
+    pub fn new_with_labels(
+        name: impl Into<String>,
+        otlp_endpoint: impl Into<String>,
+        protocol: OpentelemetryWireProtocol,
+        labels: impl IntoIterator<Item = (Cow<'static, str>, Cow<'static, str>)>,
+    ) -> Result<Self, opentelemetry::logs::LogError> {
         let name = name.into();
-        let category = category.into();
         let otlp_endpoint = otlp_endpoint.into();
 
         let exporter = match protocol {
@@ -91,13 +98,18 @@ impl OpentelemetryLog {
 
         let provider = LoggerProvider::builder()
             .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
+            .with_resource(opentelemetry_sdk::Resource::new(labels.into_iter().map(
+                |(key, value)| opentelemetry::KeyValue {
+                    key: key.into(),
+                    value: value.into(),
+                },
+            )))
             .build();
 
         let library = Arc::new(InstrumentationLibrary::builder(name.clone()).build());
 
         Ok(Self {
             name,
-            category,
             library,
             provider,
         })
@@ -158,10 +170,7 @@ impl Append for OpentelemetryLog {
             .into_iter()
             .filter_map(|r| r.err())
         {
-            eprintln!(
-                "failed to flush logger ({}@{}): {}",
-                self.name, self.category, err
-            );
+            eprintln!("failed to flush logger {}: {}", self.name, err);
         }
     }
 }
