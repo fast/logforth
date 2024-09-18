@@ -80,7 +80,7 @@ impl OpentelemetryLogBuilder {
     }
 
     /// Add a label to the resource.
-    pub fn with_label(mut self, key: impl Into<Cow<'static, str>>, value: impl Into<Cow<'static, str>>) -> Self {
+    pub fn add_label(mut self, key: impl Into<Cow<'static, str>>, value: impl Into<Cow<'static, str>>) -> Self {
         self.labels.push((key.into(), value.into()));
         self
     }
