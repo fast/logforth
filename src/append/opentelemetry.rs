@@ -80,16 +80,37 @@ impl OpentelemetryLogBuilder {
     }
 
     /// Add a label to the resource.
-    pub fn add_label(mut self, key: impl Into<Cow<'static, str>>, value: impl Into<Cow<'static, str>>) -> Self {
+    pub fn with_label(
+        mut self,
+        key: impl Into<Cow<'static, str>>,
+        value: impl Into<Cow<'static, str>>,
+    ) -> Self {
         self.labels.push((key.into(), value.into()));
+        self
+    }
+
+    /// Add multiple labels to the resource.
+    pub fn with_labels<K, V>(mut self, labels: impl IntoIterator<Item = (K, V)>) -> Self
+    where
+        K: Into<Cow<'static, str>>,
+        V: Into<Cow<'static, str>>,
+    {
+        self.labels
+            .extend(labels.into_iter().map(|(k, v)| (k.into(), v.into())));
         self
     }
 
     /// Build the [`OpentelemetryLog`] appender.
     pub fn build(self) -> Result<OpentelemetryLog, opentelemetry::logs::LogError> {
-        let OpentelemetryLogBuilder { name, endpoint, protocol, labels } = self;
+        let OpentelemetryLogBuilder {
+            name,
+            endpoint,
+            protocol,
+            labels,
+        } = self;
 
-        let collector_timeout = Duration::from_secs(opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT);
+        let collector_timeout =
+            Duration::from_secs(opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT);
         let exporter = match protocol {
             Protocol::Grpc => opentelemetry_otlp::new_exporter()
                 .tonic()

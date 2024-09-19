@@ -13,6 +13,8 @@
 // limitations under the License.
 
 /// A helper struct to format log's key-value pairs.
+///
+/// This is useful when you want to display log's key-value pairs in a log message.
 pub struct KvDisplay<'kvs> {
     kv: &'kvs dyn log::kv::Source,
 }
@@ -47,6 +49,8 @@ impl<'a, 'kvs> log::kv::Visitor<'kvs> for KvWriter<'a, 'kvs> {
 }
 
 /// A helper to collect log's key-value pairs.
+/// 
+/// This is useful when you want to collect log's key-value pairs for further processing.
 pub fn collect_kvs(kv: &dyn log::kv::Source) -> Vec<(String, String)> {
     let mut collector = KvCollector { kv: Vec::new() };
     kv.visit(&mut collector).ok();
