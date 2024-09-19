@@ -117,7 +117,6 @@ impl NonBlocking {
     }
 
     pub(super) fn send(&self, record: Vec<u8>) -> anyhow::Result<()> {
-        // TODO(tisonkun): consider drop the message if the channel is full
         self.sender
             .send(Message::Record(record))
             .context("failed to send log message")
