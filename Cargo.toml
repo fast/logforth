@@ -87,17 +87,17 @@ version = "0.7"
 [dependencies.opentelemetry]
 features = ["logs"]
 optional = true
-version = "0.24"
+version = "0.25"
 
 [dependencies.opentelemetry-otlp]
 features = ["logs", "grpc-tonic", "http-json", "http-proto"]
 optional = true
-version = "0.17"
+version = "0.25"
 
 [dependencies.opentelemetry_sdk]
 features = ["logs", "rt-tokio"]
 optional = true
-version = "0.24"
+version = "0.25"
 
 ## Examples
 [[example]]
