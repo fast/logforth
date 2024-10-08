@@ -70,7 +70,7 @@ impl OpentelemetryLogBuilder {
     /// Default to [`Grpc`].
     ///
     /// [`Grpc`]: OpentelemetryWireProtocol::Grpc
-    pub fn with_protocol(mut self, protocol: OpentelemetryWireProtocol) -> Self {
+    pub fn protocol(mut self, protocol: OpentelemetryWireProtocol) -> Self {
         self.protocol = match protocol {
             OpentelemetryWireProtocol::Grpc => Protocol::Grpc,
             OpentelemetryWireProtocol::HttpBinary => Protocol::HttpBinary,
@@ -79,8 +79,8 @@ impl OpentelemetryLogBuilder {
         self
     }
 
-    /// Add a label to the resource.
-    pub fn with_label(
+    /// Append a label to the resource.
+    pub fn label(
         mut self,
         key: impl Into<Cow<'static, str>>,
         value: impl Into<Cow<'static, str>>,
@@ -89,8 +89,8 @@ impl OpentelemetryLogBuilder {
         self
     }
 
-    /// Add multiple labels to the resource.
-    pub fn with_labels<K, V>(mut self, labels: impl IntoIterator<Item = (K, V)>) -> Self
+    /// Append multiple labels to the resource.
+    pub fn labels<K, V>(mut self, labels: impl IntoIterator<Item = (K, V)>) -> Self
     where
         K: Into<Cow<'static, str>>,
         V: Into<Cow<'static, str>>,
