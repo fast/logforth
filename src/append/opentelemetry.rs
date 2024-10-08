@@ -162,7 +162,7 @@ impl Append for OpentelemetryLog {
         let mut record = LogRecord::default();
         record.observed_timestamp = Some(SystemTime::now());
         record.severity_number = Some(log_level_to_otel_severity(log_record.level()));
-        record.severity_text = Some(log_record.level().as_str().into());
+        record.severity_text = Some(log_record.level().as_str());
         record.target = Some(log_record.target().to_string().into());
         record.body = Some(AnyValue::from(log_record.args().to_string()));
 
