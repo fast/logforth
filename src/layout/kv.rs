@@ -49,7 +49,7 @@ impl<'a, 'kvs> log::kv::Visitor<'kvs> for KvWriter<'a, 'kvs> {
 }
 
 /// A helper to collect log's key-value pairs.
-/// 
+///
 /// This is useful when you want to collect log's key-value pairs for further processing.
 pub fn collect_kvs(kv: &dyn log::kv::Source) -> Vec<(String, String)> {
     let mut collector = KvCollector { kv: Vec::new() };
