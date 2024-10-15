@@ -16,6 +16,7 @@ use log::Record;
 
 use crate::append::rolling_file::non_blocking::NonBlocking;
 use crate::append::Append;
+use crate::encoder::IntoEncoder;
 use crate::layout::TextLayout;
 use crate::Encoder;
 
@@ -39,7 +40,7 @@ impl RollingFile {
     }
 
     /// Sets the encoder used to format log records as bytes.
-    pub fn with_encoder(mut self, encoder: impl Into<Encoder>) -> Self {
+    pub fn with_encoder(mut self, encoder: impl IntoEncoder) -> Self {
         self.encoder = encoder.into();
         self
     }

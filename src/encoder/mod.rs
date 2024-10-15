@@ -39,9 +39,19 @@ impl Encoder {
     }
 }
 
-impl<L: Into<Layout>> From<L> for Encoder {
-    fn from(layout: L) -> Self {
-        let layout = layout.into();
+pub trait IntoEncoder {
+    fn into(self) -> Encoder;
+}
+
+impl<L: Into<Encoder>> IntoEncoder for L {
+    fn into(self) -> Encoder {
+        self.into()
+    }
+}
+
+impl<L: Into<Layout>> IntoEncoder for L {
+    fn into(self) -> Encoder {
+        let layout = self.into();
         Encoder::Custom(CustomEncoder::new(move |record| {
             Ok(layout.format(record)?.into_bytes())
         }))

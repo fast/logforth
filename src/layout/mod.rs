@@ -14,6 +14,7 @@
 
 //! Describe how to format a log record.
 
+use crate::Encoder;
 pub use custom::CustomLayout;
 #[cfg(feature = "json")]
 pub use json::JsonLayout;
@@ -21,7 +22,6 @@ pub use kv::collect_kvs;
 pub use kv::KvDisplay;
 pub use text::LevelColor;
 pub use text::TextLayout;
-
 
 mod custom;
 #[cfg(feature = "json")]
@@ -46,5 +46,25 @@ impl Layout {
             #[cfg(feature = "json")]
             Layout::Json(layout) => layout.format(record),
         }
+    }
+}
+
+pub trait IntoLayout {
+    fn into(self) -> Layout;
+}
+
+impl<L: Into<Layout>> IntoLayout for L {
+    fn into(self) -> Layout {
+        self.into()
+    }
+}
+
+impl<L: Into<Encoder>> IntoLayout for L {
+    fn into(self) -> Layout {
+        let encoder = self.into();
+        Layout::Custom(CustomLayout::new(move |record| {
+            let bytes = encoder.format(record)?;
+            Ok(String::from_utf8_lossy(&bytes).to_string())
+        }))
     }
 }

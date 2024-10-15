@@ -15,6 +15,7 @@
 use std::io::Write;
 
 use crate::append::Append;
+use crate::encoder::IntoEncoder;
 use crate::layout::TextLayout;
 use crate::Encoder;
 
@@ -34,7 +35,7 @@ impl Default for Stdout {
 
 impl Stdout {
     /// Creates a new `Stdout` appender with the given encoder.
-    pub fn with_encoder(mut self, encoder: impl Into<Encoder>) -> Self {
+    pub fn with_encoder(mut self, encoder: impl IntoEncoder) -> Self {
         self.encoder = encoder.into();
         self
     }
@@ -69,7 +70,7 @@ impl Default for Stderr {
 
 impl Stderr {
     /// Creates a new `Stderr` appender with the given encoder.
-    pub fn with_encoder(mut self, encoder: impl Into<Encoder>) -> Self {
+    pub fn with_encoder(mut self, encoder: impl IntoEncoder) -> Self {
         self.encoder = encoder.into();
         self
     }
