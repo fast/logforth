@@ -21,19 +21,20 @@ use crate::layout::Layout;
 
 // TODO(tisonkun): use trait alias when it's stable - https://github.com/rust-lang/rust/issues/41517
 //  then we can use the alias for both `dyn` and `impl`.
-type FormatFunction = dyn Fn(&Record) -> anyhow::Result<String> + Send + Sync + 'static;
+type FormatFunction = dyn Fn(&Record) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static;
 
 /// A layout that you can pass the custom layout function.
 ///
-/// The custom layout function accepts [`&log::Record`][Record] and formats it into [`String`].
+/// The custom layout function accepts [`&log::Record`][Record] and formats it into [`Vec<u8>`].
 /// For example:
 ///
 /// ```rust
 /// use log::Record;
 /// use logforth::layout::CustomLayout;
 ///
-/// let layout =
-///     CustomLayout::new(|record: &Record| Ok(format!("{} - {}", record.level(), record.args())));
+/// let layout = CustomLayout::new(|record: &Record| {
+///     Ok(format!("{} - {}", record.level(), record.args()).into_bytes())
+/// });
 /// ```
 pub struct CustomLayout {
     f: Box<FormatFunction>,
@@ -46,13 +47,15 @@ impl Debug for CustomLayout {
 }
 
 impl CustomLayout {
-    pub fn new(layout: impl Fn(&Record) -> anyhow::Result<String> + Send + Sync + 'static) -> Self {
+    pub fn new(
+        layout: impl Fn(&Record) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static,
+    ) -> Self {
         CustomLayout {
             f: Box::new(layout),
         }
     }
 
-    pub(crate) fn format(&self, record: &Record) -> anyhow::Result<String> {
+    pub(crate) fn format(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
         (self.f)(record)
     }
 }

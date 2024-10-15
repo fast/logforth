@@ -14,7 +14,6 @@
 
 //! Describe how to format a log record.
 
-use crate::Encoder;
 pub use custom::CustomLayout;
 #[cfg(feature = "json")]
 pub use json::JsonLayout;
@@ -39,32 +38,12 @@ pub enum Layout {
 }
 
 impl Layout {
-    pub(crate) fn format(&self, record: &log::Record) -> anyhow::Result<String> {
+    pub(crate) fn format(&self, record: &log::Record) -> anyhow::Result<Vec<u8>> {
         match self {
             Layout::Custom(layout) => layout.format(record),
             Layout::Text(layout) => layout.format(record),
             #[cfg(feature = "json")]
             Layout::Json(layout) => layout.format(record),
         }
-    }
-}
-
-pub trait IntoLayout {
-    fn into(self) -> Layout;
-}
-
-impl<L: Into<Layout>> IntoLayout for L {
-    fn into(self) -> Layout {
-        self.into()
-    }
-}
-
-impl<L: Into<Encoder>> IntoLayout for L {
-    fn into(self) -> Layout {
-        let encoder = self.into();
-        Layout::Custom(CustomLayout::new(move |record| {
-            let bytes = encoder.format(record)?;
-            Ok(String::from_utf8_lossy(&bytes).to_string())
-        }))
     }
 }

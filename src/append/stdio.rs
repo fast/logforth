@@ -15,35 +15,34 @@
 use std::io::Write;
 
 use crate::append::Append;
-use crate::encoder::IntoEncoder;
 use crate::layout::TextLayout;
-use crate::Encoder;
+use crate::Layout;
 
 /// An appender that prints log records to stdout.
 #[derive(Debug)]
 pub struct Stdout {
-    encoder: Encoder,
+    layout: Layout,
 }
 
 impl Default for Stdout {
     fn default() -> Self {
         Self {
-            encoder: TextLayout::default().into(),
+            layout: TextLayout::default().into(),
         }
     }
 }
 
 impl Stdout {
-    /// Creates a new `Stdout` appender with the given encoder.
-    pub fn with_encoder(mut self, encoder: impl IntoEncoder) -> Self {
-        self.encoder = encoder.into();
+    /// Creates a new `Stdout` appender with the given layout.
+    pub fn with_layout(mut self, layout: impl Into<Layout>) -> Self {
+        self.layout = layout.into();
         self
     }
 }
 
 impl Append for Stdout {
     fn append(&self, record: &log::Record) -> anyhow::Result<()> {
-        let mut bytes = self.encoder.format(record)?;
+        let mut bytes = self.layout.format(record)?;
         bytes.push(b'\n');
         std::io::stdout().write_all(&bytes)?;
         Ok(())
@@ -57,28 +56,28 @@ impl Append for Stdout {
 /// An appender that prints log records to stderr.
 #[derive(Debug)]
 pub struct Stderr {
-    encoder: Encoder,
+    layout: Layout,
 }
 
 impl Default for Stderr {
     fn default() -> Self {
         Self {
-            encoder: TextLayout::default().into(),
+            layout: TextLayout::default().into(),
         }
     }
 }
 
 impl Stderr {
-    /// Creates a new `Stderr` appender with the given encoder.
-    pub fn with_encoder(mut self, encoder: impl IntoEncoder) -> Self {
-        self.encoder = encoder.into();
+    /// Creates a new `Stderr` appender with the given layout.
+    pub fn with_layout(mut self, encoder: impl Into<Layout>) -> Self {
+        self.layout = encoder.into();
         self
     }
 }
 
 impl Append for Stderr {
     fn append(&self, record: &log::Record) -> anyhow::Result<()> {
-        let mut bytes = self.encoder.format(record)?;
+        let mut bytes = self.layout.format(record)?;
         bytes.push(b'\n');
         std::io::stderr().write_all(&bytes)?;
         Ok(())

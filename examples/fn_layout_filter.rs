@@ -32,8 +32,8 @@ fn main() {
                     }
                 }))
                 .append(
-                    append::Stdout::default().with_encoder(CustomLayout::new(|record| {
-                        Ok(format!("[system alert] {}", record.args()))
+                    append::Stdout::default().with_layout(CustomLayout::new(|record| {
+                        Ok(format!("[system alert] {}", record.args()).into_bytes())
                     })),
                 ),
         )

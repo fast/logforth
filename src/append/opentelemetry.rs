@@ -176,10 +176,10 @@ impl Append for OpentelemetryLog {
         log_record_.severity_number = Some(log_level_to_otel_severity(record.level()));
         log_record_.severity_text = Some(record.level().as_str());
         log_record_.target = Some(record.target().to_string().into());
-        log_record_.body = Some(AnyValue::from(match self.layout.as_ref() {
-            None => record.args().to_string(),
+        log_record_.body = Some(AnyValue::Bytes(Box::new(match self.layout.as_ref() {
+            None => record.args().to_string().into_bytes(),
             Some(layout) => layout.format(record)?,
-        }));
+        })));
 
         if let Some(module_path) = record.module_path() {
             log_record_.add_attribute("module_path", module_path.to_string());

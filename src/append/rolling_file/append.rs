@@ -16,15 +16,14 @@ use log::Record;
 
 use crate::append::rolling_file::non_blocking::NonBlocking;
 use crate::append::Append;
-use crate::encoder::IntoEncoder;
 use crate::layout::TextLayout;
-use crate::Encoder;
+use crate::Layout;
 
 /// An appender that writes log records to a file that rolls over when it reaches a certain date
 /// time.
 #[derive(Debug)]
 pub struct RollingFile {
-    encoder: Encoder,
+    layout: Layout,
     writer: NonBlocking,
 }
 
@@ -34,21 +33,21 @@ impl RollingFile {
     /// This appender by default uses [`TextLayout`] to format log records as bytes.
     pub fn new(writer: NonBlocking) -> Self {
         Self {
-            encoder: TextLayout::default().no_color().into(),
+            layout: TextLayout::default().no_color().into(),
             writer,
         }
     }
 
-    /// Sets the encoder used to format log records as bytes.
-    pub fn with_encoder(mut self, encoder: impl IntoEncoder) -> Self {
-        self.encoder = encoder.into();
+    /// Sets the layout used to format log records as bytes.
+    pub fn with_layout(mut self, layout: impl Into<Layout>) -> Self {
+        self.layout = layout.into();
         self
     }
 }
 
 impl Append for RollingFile {
     fn append(&self, record: &Record) -> anyhow::Result<()> {
-        let mut bytes = self.encoder.format(record)?;
+        let mut bytes = self.layout.format(record)?;
         bytes.push(b'\n');
         self.writer.send(bytes)?;
         Ok(())

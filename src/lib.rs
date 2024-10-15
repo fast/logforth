@@ -55,16 +55,11 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 pub mod append;
-pub mod encoder;
 pub mod filter;
 pub mod layout;
 mod logger;
 
-// utilities
-pub(crate) mod format;
-
 pub use append::Append;
-pub use encoder::Encoder;
 pub use filter::Filter;
 pub use layout::Layout;
 pub use logger::Dispatch;

@@ -35,15 +35,15 @@ fn test_meta_logging_in_format_works() {
 
     let layout = |src: &'static str| {
         layout::CustomLayout::new(move |record| {
-            Ok(format!("{src} [{}] {}", record.level(), record.args()))
+            Ok(format!("{src} [{}] {}", record.level(), record.args()).into_bytes())
         })
     };
 
     Logger::new()
-        .dispatch(Dispatch::new().append(append::Stdout::default().with_encoder(layout("out"))))
-        .dispatch(Dispatch::new().append(append::Stderr::default().with_encoder(layout("err"))))
+        .dispatch(Dispatch::new().append(append::Stdout::default().with_layout(layout("out"))))
+        .dispatch(Dispatch::new().append(append::Stderr::default().with_layout(layout("err"))))
         .dispatch(
-            Dispatch::new().append(append::RollingFile::new(writer).with_encoder(layout("file"))),
+            Dispatch::new().append(append::RollingFile::new(writer).with_layout(layout("file"))),
         )
         .apply()
         .unwrap();
