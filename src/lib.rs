@@ -38,8 +38,7 @@
 //!     .dispatch(
 //!         Dispatch::new()
 //!             .filter(LevelFilter::Trace)
-//!             .layout(TextLayout::default())
-//!             .append(append::Stdout),
+//!             .append(append::Stdout::new(TextLayout::default())),
 //!     )
 //!     .apply()
 //!     .unwrap();
@@ -56,11 +55,16 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 pub mod append;
+pub mod encoder;
 pub mod filter;
 pub mod layout;
 mod logger;
 
+// utilities
+pub(crate) mod format;
+
 pub use append::Append;
+pub use encoder::Encoder;
 pub use filter::Filter;
 pub use layout::Layout;
 pub use logger::Dispatch;

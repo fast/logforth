@@ -24,8 +24,6 @@ pub use self::opentelemetry::OpentelemetryLog;
 pub use self::rolling_file::RollingFile;
 pub use self::stdio::Stderr;
 pub use self::stdio::Stdout;
-use crate::layout::IdenticalLayout;
-use crate::layout::Layout;
 
 #[cfg(feature = "fastrace")]
 mod fastrace;
@@ -41,10 +39,4 @@ pub trait Append: fmt::Debug + Send + Sync + 'static {
 
     /// Flushes any buffered records.
     fn flush(&self) {}
-
-    /// Default layout to use when [`Dispatch`][crate::logger::Dispatch] does not configure a
-    /// preferred layout.
-    fn default_layout(&self) -> Layout {
-        Layout::Identical(IdenticalLayout)
-    }
 }

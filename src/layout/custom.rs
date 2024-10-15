@@ -12,20 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt::Arguments;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 
 use log::Record;
 
+use crate::encoder::LayoutWrappingEncoder;
 use crate::layout::Layout;
+use crate::Encoder;
 
 // TODO(tisonkun): use trait alias when it's stable - https://github.com/rust-lang/rust/issues/41517
 //  then we can use the alias for both `dyn` and `impl`.
-type FormatFunction = dyn Fn(&Record, &dyn Fn(Arguments) -> anyhow::Result<()>) -> anyhow::Result<()>
-    + Send
-    + Sync
-    + 'static;
+type FormatFunction = dyn Fn(&Record) -> anyhow::Result<String> + Send + Sync + 'static;
 
 /// A layout that you can pass the custom layout function.
 ///
@@ -38,11 +36,8 @@ type FormatFunction = dyn Fn(&Record, &dyn Fn(Arguments) -> anyhow::Result<()>) 
 /// use log::Record;
 /// use logforth::layout::CustomLayout;
 ///
-/// let layout = CustomLayout::new(
-///     |record: &Record, f: &dyn Fn(Arguments) -> anyhow::Result<()>| {
-///         f(format_args!("{} - {}", record.level(), record.args()))
-///     },
-/// );
+/// let layout =
+///     CustomLayout::new(|record: &Record| Ok(format!("{} - {}", record.level(), record.args())));
 /// ```
 pub struct CustomLayout {
     f: Box<FormatFunction>,
@@ -55,27 +50,25 @@ impl Debug for CustomLayout {
 }
 
 impl CustomLayout {
-    pub fn new(
-        layout: impl Fn(&Record, &dyn Fn(Arguments) -> anyhow::Result<()>) -> anyhow::Result<()>
-            + Send
-            + Sync
-            + 'static,
-    ) -> Self {
+    pub fn new(layout: impl Fn(&Record) -> anyhow::Result<String> + Send + Sync + 'static) -> Self {
         CustomLayout {
             f: Box::new(layout),
         }
     }
 
-    pub(crate) fn format<F>(&self, record: &Record, f: &F) -> anyhow::Result<()>
-    where
-        F: Fn(Arguments) -> anyhow::Result<()>,
-    {
-        (self.f)(record, f)
+    pub(crate) fn format(&self, record: &Record) -> anyhow::Result<String> {
+        (self.f)(record)
     }
 }
 
 impl From<CustomLayout> for Layout {
     fn from(layout: CustomLayout) -> Self {
         Layout::Custom(layout)
+    }
+}
+
+impl From<CustomLayout> for Encoder {
+    fn from(layout: CustomLayout) -> Self {
+        LayoutWrappingEncoder::new(layout.into()).into()
     }
 }

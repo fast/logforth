@@ -34,19 +34,15 @@ fn test_meta_logging_in_format_works() {
     let (writer, _guard) = NonBlockingBuilder::default().finish(rolling);
 
     let layout = |src: &'static str| {
-        layout::CustomLayout::new(move |record, f| {
-            f(format_args!("{src} [{}] {}", record.level(), record.args()))
+        layout::CustomLayout::new(move |record| {
+            Ok(format!("{src} [{}] {}", record.level(), record.args()))
         })
     };
 
     Logger::new()
-        .dispatch(Dispatch::new().layout(layout("out")).append(append::Stdout))
-        .dispatch(Dispatch::new().layout(layout("err")).append(append::Stderr))
-        .dispatch(
-            Dispatch::new()
-                .layout(layout("file"))
-                .append(append::RollingFile::new(writer)),
-        )
+        .dispatch(Dispatch::new().append(append::Stdout::new(layout("out"))))
+        .dispatch(Dispatch::new().append(append::Stderr::new(layout("err"))))
+        .dispatch(Dispatch::new().append(append::RollingFile::new(layout("file"), writer)))
         .apply()
         .unwrap();
 

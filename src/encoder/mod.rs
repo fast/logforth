@@ -12,38 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Describe how to format a log record.
+mod layout_wrapping;
+pub use layout_wrapping::LayoutWrappingEncoder;
 
-pub use custom::CustomLayout;
-#[cfg(feature = "json")]
-pub use json::JsonLayout;
-pub use kv::collect_kvs;
-pub use kv::KvDisplay;
-pub use text::LevelColor;
-pub use text::TextLayout;
-
-mod custom;
 #[cfg(feature = "json")]
 mod json;
-mod kv;
-mod text;
+#[cfg(feature = "json")]
+pub use json::JsonEncoder;
 
-/// A layout describes how to format a log record.
 #[derive(Debug)]
-pub enum Layout {
-    Custom(CustomLayout),
-    Text(TextLayout),
+pub enum Encoder {
+    LayoutWrapping(LayoutWrappingEncoder),
     #[cfg(feature = "json")]
-    Json(JsonLayout),
+    Json(JsonEncoder),
 }
 
-impl Layout {
-    pub(crate) fn format(&self, record: &log::Record) -> anyhow::Result<String> {
+impl Encoder {
+    pub(crate) fn format(&self, record: &log::Record) -> anyhow::Result<Vec<u8>> {
         match self {
-            Layout::Custom(layout) => layout.format(record),
-            Layout::Text(layout) => layout.format(record),
+            Encoder::LayoutWrapping(encoder) => encoder.format(record),
             #[cfg(feature = "json")]
-            Layout::Json(layout) => layout.format(record),
+            Encoder::Json(encoder) => encoder.format(record),
         }
     }
 }

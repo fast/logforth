@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::borrow::Cow;
-use std::fmt::Arguments;
 
 use colored::Color;
 use colored::ColoredString;
@@ -23,8 +22,10 @@ use jiff::Timestamp;
 use jiff::Zoned;
 use log::Level;
 
+use crate::encoder::LayoutWrappingEncoder;
 use crate::layout::KvDisplay;
 use crate::layout::Layout;
+use crate::Encoder;
 
 /// A layout that formats log record as text.
 ///
@@ -132,10 +133,7 @@ impl Default for LevelColor {
 }
 
 impl TextLayout {
-    pub(crate) fn format<F>(&self, record: &log::Record, f: &F) -> anyhow::Result<()>
-    where
-        F: Fn(Arguments) -> anyhow::Result<()>,
-    {
+    pub(crate) fn format(&self, record: &log::Record) -> anyhow::Result<String> {
         let time = match self.tz.clone() {
             Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),
@@ -158,7 +156,7 @@ impl TextLayout {
         let message = record.args();
         let kvs = KvDisplay::new(record.key_values());
 
-        f(format_args!(
+        Ok(format!(
             "{time:.6} {level:>5} {module}: {file}:{line} {message}{kvs}"
         ))
     }
@@ -167,6 +165,12 @@ impl TextLayout {
 impl From<TextLayout> for Layout {
     fn from(layout: TextLayout) -> Self {
         Layout::Text(layout)
+    }
+}
+
+impl From<TextLayout> for Encoder {
+    fn from(layout: TextLayout) -> Self {
+        LayoutWrappingEncoder::new(layout.into()).into()
     }
 }
 

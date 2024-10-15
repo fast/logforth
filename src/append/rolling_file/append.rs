@@ -16,23 +16,29 @@ use log::Record;
 
 use crate::append::rolling_file::non_blocking::NonBlocking;
 use crate::append::Append;
+use crate::Encoder;
 
 /// An appender that writes log records to a file that rolls over when it reaches a certain date
 /// time.
 #[derive(Debug)]
 pub struct RollingFile {
+    encoder: Encoder,
     writer: NonBlocking,
 }
 
 impl RollingFile {
-    pub fn new(writer: NonBlocking) -> Self {
-        Self { writer }
+    pub fn new(encoder: impl Into<Encoder>, writer: NonBlocking) -> Self {
+        Self {
+            encoder: encoder.into(),
+            writer,
+        }
     }
 }
 
 impl Append for RollingFile {
     fn append(&self, record: &Record) -> anyhow::Result<()> {
-        let bytes = format!("{}\n", record.args()).into_bytes();
+        let mut bytes = self.encoder.format(record)?;
+        bytes.push(b'\n');
         self.writer.send(bytes)?;
         Ok(())
     }

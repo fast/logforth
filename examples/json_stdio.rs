@@ -14,7 +14,7 @@
 
 use log::LevelFilter;
 use logforth::append;
-use logforth::layout::JsonLayout;
+use logforth::encoder::JsonEncoder;
 use logforth::Dispatch;
 use logforth::Logger;
 
@@ -23,8 +23,7 @@ fn main() {
         .dispatch(
             Dispatch::new()
                 .filter(LevelFilter::Trace)
-                .layout(JsonLayout::default())
-                .append(append::Stdout),
+                .append(append::Stdout::new(JsonEncoder::default())),
         )
         .apply()
         .unwrap();

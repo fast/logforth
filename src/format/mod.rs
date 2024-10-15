@@ -12,25 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use logforth::append;
-use logforth::filter::EnvFilter;
-use logforth::layout::TextLayout;
-use logforth::Dispatch;
-use logforth::Logger;
+/// Shared logics between `encoder` and `layout`.
 
-fn main() {
-    Logger::new()
-        .dispatch(
-            Dispatch::new()
-                .filter(EnvFilter::from_default_env())
-                .append(append::Stdout::new(TextLayout::default())),
-        )
-        .apply()
-        .unwrap();
-
-    log::error!("Hello error!");
-    log::warn!("Hello warn!");
-    log::info!("Hello info!");
-    log::debug!("Hello debug!");
-    log::trace!("Hello trace!");
-}
+#[cfg(feature = "json")]
+pub(crate) mod json;

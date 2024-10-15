@@ -23,14 +23,12 @@ fn main() {
         .dispatch(
             Dispatch::new()
                 .filter(LevelFilter::Trace)
-                .layout(TextLayout::default())
-                .append(append::Stdout),
+                .append(append::Stdout::new(TextLayout::default())),
         )
         .dispatch(
             Dispatch::new()
                 .filter(LevelFilter::Trace)
-                .layout(TextLayout::default().no_color())
-                .append(append::Stderr),
+                .append(append::Stderr::new(TextLayout::default().no_color())),
         )
         .apply()
         .unwrap();

@@ -12,25 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use logforth::append;
-use logforth::filter::EnvFilter;
-use logforth::layout::TextLayout;
-use logforth::Dispatch;
-use logforth::Logger;
+use jiff::tz::TimeZone;
+use log::Record;
 
-fn main() {
-    Logger::new()
-        .dispatch(
-            Dispatch::new()
-                .filter(EnvFilter::from_default_env())
-                .append(append::Stdout::new(TextLayout::default())),
-        )
-        .apply()
-        .unwrap();
+use crate::Encoder;
 
-    log::error!("Hello error!");
-    log::warn!("Hello warn!");
-    log::info!("Hello info!");
-    log::debug!("Hello debug!");
-    log::trace!("Hello trace!");
+#[derive(Default, Debug, Clone)]
+pub struct JsonEncoder {
+    pub tz: Option<TimeZone>,
+}
+
+impl JsonEncoder {
+    pub(crate) fn format(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
+        let record_line = crate::format::json::do_format(record, self.tz.clone())?;
+        Ok(serde_json::to_vec(&record_line)?)
+    }
+}
+
+impl From<JsonEncoder> for Encoder {
+    fn from(encoder: JsonEncoder) -> Self {
+        Encoder::Json(encoder)
+    }
 }

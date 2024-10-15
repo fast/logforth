@@ -12,17 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt::Arguments;
-
 use jiff::tz::TimeZone;
-use jiff::Timestamp;
-use jiff::Zoned;
 use log::Record;
-use serde::Serialize;
-use serde_json::Map;
-use serde_json::Value;
 
+use crate::encoder::LayoutWrappingEncoder;
 use crate::layout::Layout;
+use crate::Encoder;
 
 /// A layout that formats log record as JSON lines.
 ///
@@ -43,79 +38,21 @@ pub struct JsonLayout {
     pub tz: Option<TimeZone>,
 }
 
-struct KvCollector<'a> {
-    kvs: &'a mut Map<String, Value>,
-}
-
-impl<'a, 'kvs> log::kv::Visitor<'kvs> for KvCollector<'a> {
-    fn visit_pair(
-        &mut self,
-        key: log::kv::Key<'kvs>,
-        value: log::kv::Value<'kvs>,
-    ) -> Result<(), log::kv::Error> {
-        let k = key.to_string();
-        let v = value.to_string();
-        self.kvs.insert(k, v.into());
-        Ok(())
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct RecordLine<'a> {
-    #[serde(serialize_with = "serialize_time_zone")]
-    timestamp: Zoned,
-    level: &'a str,
-    module_path: &'a str,
-    file: &'a str,
-    line: u32,
-    #[serde(serialize_with = "serialize_args")]
-    message: &'a Arguments<'a>,
-    kvs: Map<String, Value>,
-}
-
-fn serialize_time_zone<S>(timestamp: &Zoned, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serializer.collect_str(&format_args!("{timestamp:.6}"))
-}
-
-fn serialize_args<S>(args: &Arguments, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serializer.collect_str(args)
-}
-
 impl JsonLayout {
-    pub(crate) fn format<F>(&self, record: &Record, f: &F) -> anyhow::Result<()>
-    where
-        F: Fn(Arguments) -> anyhow::Result<()>,
-    {
-        let mut kvs = Map::new();
-        let mut visitor = KvCollector { kvs: &mut kvs };
-        record.key_values().visit(&mut visitor)?;
-
-        let record_line = RecordLine {
-            timestamp: match self.tz.clone() {
-                Some(tz) => Timestamp::now().to_zoned(tz),
-                None => Zoned::now(),
-            },
-            level: record.level().as_str(),
-            module_path: record.module_path().unwrap_or_default(),
-            file: record.file().unwrap_or_default(),
-            line: record.line().unwrap_or_default(),
-            message: record.args(),
-            kvs,
-        };
-
-        let text = serde_json::to_string(&record_line)?;
-        f(format_args!("{text}"))
+    pub(crate) fn format(&self, record: &Record) -> anyhow::Result<String> {
+        let record_line = crate::format::json::do_format(record, self.tz.clone())?;
+        Ok(serde_json::to_string(&record_line)?)
     }
 }
 
 impl From<JsonLayout> for Layout {
     fn from(layout: JsonLayout) -> Self {
         Layout::Json(layout)
+    }
+}
+
+impl From<JsonLayout> for Encoder {
+    fn from(layout: JsonLayout) -> Self {
+        LayoutWrappingEncoder::new(layout.into()).into()
     }
 }

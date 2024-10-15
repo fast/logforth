@@ -15,14 +15,27 @@
 use std::io::Write;
 
 use crate::append::Append;
+use crate::Encoder;
 
 /// An appender that prints log records to stdout.
-#[derive(Default, Debug)]
-pub struct Stdout;
+#[derive(Debug)]
+pub struct Stdout {
+    encoder: Encoder,
+}
+
+impl Stdout {
+    /// Creates a new `Stdout` appender with the given encoder.
+    pub fn new(encoder: impl Into<Encoder>) -> Self {
+        Self {
+            encoder: encoder.into(),
+        }
+    }
+}
 
 impl Append for Stdout {
     fn append(&self, record: &log::Record) -> anyhow::Result<()> {
-        let bytes = format!("{}\n", record.args()).into_bytes();
+        let mut bytes = self.encoder.format(record)?;
+        bytes.push(b'\n');
         std::io::stdout().write_all(&bytes)?;
         Ok(())
     }
@@ -33,12 +46,24 @@ impl Append for Stdout {
 }
 
 /// An appender that prints log records to stderr.
-#[derive(Default, Debug)]
-pub struct Stderr;
+#[derive(Debug)]
+pub struct Stderr {
+    encoder: Encoder,
+}
+
+impl Stderr {
+    /// Creates a new `Stderr` appender with the given encoder.
+    pub fn new(encoder: impl Into<Encoder>) -> Self {
+        Self {
+            encoder: encoder.into(),
+        }
+    }
+}
 
 impl Append for Stderr {
     fn append(&self, record: &log::Record) -> anyhow::Result<()> {
-        let bytes = format!("{}\n", record.args()).into_bytes();
+        let mut bytes = self.encoder.format(record)?;
+        bytes.push(b'\n');
         std::io::stderr().write_all(&bytes)?;
         Ok(())
     }
