@@ -15,18 +15,15 @@
 mod custom;
 pub use custom::CustomEncoder;
 
-mod layout_wrapping;
-pub use layout_wrapping::LayoutWrappingEncoder;
-
 #[cfg(feature = "json")]
 mod json;
+use crate::Layout;
 #[cfg(feature = "json")]
 pub use json::JsonEncoder;
 
 #[derive(Debug)]
 pub enum Encoder {
     Custom(CustomEncoder),
-    LayoutWrapping(LayoutWrappingEncoder),
     #[cfg(feature = "json")]
     Json(JsonEncoder),
 }
@@ -35,9 +32,17 @@ impl Encoder {
     pub(crate) fn format(&self, record: &log::Record) -> anyhow::Result<Vec<u8>> {
         match self {
             Encoder::Custom(encoder) => encoder.format(record),
-            Encoder::LayoutWrapping(encoder) => encoder.format(record),
             #[cfg(feature = "json")]
             Encoder::Json(encoder) => encoder.format(record),
         }
+    }
+}
+
+impl<L: Into<Layout>> From<L> for Encoder {
+    fn from(layout: L) -> Self {
+        let layout = layout.into();
+        Encoder::Custom(CustomEncoder::new(move |record| {
+            Ok(layout.format(record)?.into_bytes())
+        }))
     }
 }
