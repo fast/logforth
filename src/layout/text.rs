@@ -22,10 +22,8 @@ use jiff::Timestamp;
 use jiff::Zoned;
 use log::Level;
 
-use crate::encoder::LayoutWrappingEncoder;
 use crate::layout::KvDisplay;
 use crate::layout::Layout;
-use crate::Encoder;
 
 /// A layout that formats log record as text.
 ///
@@ -165,12 +163,6 @@ impl TextLayout {
 impl From<TextLayout> for Layout {
     fn from(layout: TextLayout) -> Self {
         Layout::Text(layout)
-    }
-}
-
-impl From<TextLayout> for Encoder {
-    fn from(layout: TextLayout) -> Self {
-        LayoutWrappingEncoder::new(layout.into()).into()
     }
 }
 

@@ -15,9 +15,7 @@
 use jiff::tz::TimeZone;
 use log::Record;
 
-use crate::encoder::LayoutWrappingEncoder;
 use crate::layout::Layout;
-use crate::Encoder;
 
 /// A layout that formats log record as JSON lines.
 ///
@@ -48,11 +46,5 @@ impl JsonLayout {
 impl From<JsonLayout> for Layout {
     fn from(layout: JsonLayout) -> Self {
         Layout::Json(layout)
-    }
-}
-
-impl From<JsonLayout> for Encoder {
-    fn from(layout: JsonLayout) -> Self {
-        LayoutWrappingEncoder::new(layout.into()).into()
     }
 }

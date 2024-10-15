@@ -17,9 +17,7 @@ use std::fmt::Formatter;
 
 use log::Record;
 
-use crate::encoder::LayoutWrappingEncoder;
 use crate::layout::Layout;
-use crate::Encoder;
 
 // TODO(tisonkun): use trait alias when it's stable - https://github.com/rust-lang/rust/issues/41517
 //  then we can use the alias for both `dyn` and `impl`.
@@ -62,11 +60,5 @@ impl CustomLayout {
 impl From<CustomLayout> for Layout {
     fn from(layout: CustomLayout) -> Self {
         Layout::Custom(layout)
-    }
-}
-
-impl From<CustomLayout> for Encoder {
-    fn from(layout: CustomLayout) -> Self {
-        LayoutWrappingEncoder::new(layout.into()).into()
     }
 }

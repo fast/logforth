@@ -40,8 +40,10 @@ impl From<LayoutWrappingEncoder> for Encoder {
     }
 }
 
-impl From<Layout> for Encoder {
-    fn from(layout: Layout) -> Self {
-        LayoutWrappingEncoder::new(layout).into()
+impl<L: Into<Layout>> From<L> for Encoder {
+    fn from(layout: L) -> Self {
+        let layout = layout.into();
+        let encoder = LayoutWrappingEncoder::new(layout);
+        Encoder::LayoutWrapping(encoder)
     }
 }
