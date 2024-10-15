@@ -23,7 +23,7 @@ fn main() {
         .dispatch(
             Dispatch::new()
                 .filter(EnvFilter::from_default_env())
-                .append(append::Stdout::new(TextLayout::default())),
+                .append(append::Stdout::default()),
         )
         .apply()
         .unwrap();

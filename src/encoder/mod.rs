@@ -17,9 +17,10 @@ pub use custom::CustomEncoder;
 
 #[cfg(feature = "json")]
 mod json;
-use crate::Layout;
 #[cfg(feature = "json")]
 pub use json::JsonEncoder;
+
+use crate::Layout;
 
 #[derive(Debug)]
 pub enum Encoder {

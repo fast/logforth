@@ -16,6 +16,7 @@ use log::Record;
 
 use crate::append::rolling_file::non_blocking::NonBlocking;
 use crate::append::Append;
+use crate::layout::TextLayout;
 use crate::Encoder;
 
 /// An appender that writes log records to a file that rolls over when it reaches a certain date
@@ -27,11 +28,20 @@ pub struct RollingFile {
 }
 
 impl RollingFile {
-    pub fn new(encoder: impl Into<Encoder>, writer: NonBlocking) -> Self {
+    /// Creates a new `RollingFile` appender that writes log records to the given writer.
+    ///
+    /// This appender by default uses [`TextLayout`] to format log records as bytes.
+    pub fn new(writer: NonBlocking) -> Self {
         Self {
-            encoder: encoder.into(),
+            encoder: TextLayout::default().no_color().into(),
             writer,
         }
+    }
+
+    /// Sets the encoder used to format log records as bytes.
+    pub fn with_encoder(mut self, encoder: impl Into<Encoder>) -> Self {
+        self.encoder = encoder.into();
+        self
     }
 }
 

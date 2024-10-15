@@ -31,9 +31,11 @@ fn main() {
                         FilterResult::Reject
                     }
                 }))
-                .append(append::Stdout::new(CustomLayout::new(|record| {
-                    Ok(format!("[system alert] {}", record.args()))
-                }))),
+                .append(
+                    append::Stdout::default().with_encoder(CustomLayout::new(|record| {
+                        Ok(format!("[system alert] {}", record.args()))
+                    })),
+                ),
         )
         .apply()
         .unwrap();

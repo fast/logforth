@@ -15,6 +15,7 @@
 use std::io::Write;
 
 use crate::append::Append;
+use crate::layout::TextLayout;
 use crate::Encoder;
 
 /// An appender that prints log records to stdout.
@@ -23,12 +24,19 @@ pub struct Stdout {
     encoder: Encoder,
 }
 
+impl Default for Stdout {
+    fn default() -> Self {
+        Self {
+            encoder: TextLayout::default().into(),
+        }
+    }
+}
+
 impl Stdout {
     /// Creates a new `Stdout` appender with the given encoder.
-    pub fn new(encoder: impl Into<Encoder>) -> Self {
-        Self {
-            encoder: encoder.into(),
-        }
+    pub fn with_encoder(mut self, encoder: impl Into<Encoder>) -> Self {
+        self.encoder = encoder.into();
+        self
     }
 }
 
@@ -51,12 +59,19 @@ pub struct Stderr {
     encoder: Encoder,
 }
 
+impl Default for Stderr {
+    fn default() -> Self {
+        Self {
+            encoder: TextLayout::default().into(),
+        }
+    }
+}
+
 impl Stderr {
     /// Creates a new `Stderr` appender with the given encoder.
-    pub fn new(encoder: impl Into<Encoder>) -> Self {
-        Self {
-            encoder: encoder.into(),
-        }
+    pub fn with_encoder(mut self, encoder: impl Into<Encoder>) -> Self {
+        self.encoder = encoder.into();
+        self
     }
 }
 

@@ -38,8 +38,8 @@ fn main() {
         .dispatch(
             Dispatch::new()
                 .filter(LevelFilter::Trace)
-                .append(RollingFile::new(JsonEncoder::default(), writer))
-                .append(Stdout::new(TextLayout::default())),
+                .append(RollingFile::new(writer).with_encoder(JsonEncoder::default()))
+                .append(Stdout::default()),
         )
         .apply()
         .unwrap();

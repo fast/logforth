@@ -14,7 +14,6 @@
 
 //! Describe how to format a log record.
 
-use crate::Encoder;
 pub use custom::CustomLayout;
 #[cfg(feature = "json")]
 pub use json::JsonLayout;
@@ -22,6 +21,8 @@ pub use kv::collect_kvs;
 pub use kv::KvDisplay;
 pub use text::LevelColor;
 pub use text::TextLayout;
+
+use crate::Encoder;
 
 mod custom;
 #[cfg(feature = "json")]

@@ -23,7 +23,7 @@ fn main() {
         .dispatch(
             Dispatch::new()
                 .filter(LevelFilter::Trace)
-                .append(append::Stdout::new(JsonEncoder::default())),
+                .append(append::Stdout::default().with_encoder(JsonEncoder::default())),
         )
         .apply()
         .unwrap();
