@@ -14,7 +14,6 @@
 
 use log::LevelFilter;
 use logforth::append;
-use logforth::layout::TextLayout;
 use logforth::Dispatch;
 use logforth::Logger;
 

@@ -40,9 +40,11 @@ fn test_meta_logging_in_format_works() {
     };
 
     Logger::new()
-        .dispatch(Dispatch::new().append(append::Stdout::new(layout("out"))))
-        .dispatch(Dispatch::new().append(append::Stderr::new(layout("err"))))
-        .dispatch(Dispatch::new().append(append::RollingFile::new(layout("file"), writer)))
+        .dispatch(Dispatch::new().append(append::Stdout::default().with_encoder(layout("out"))))
+        .dispatch(Dispatch::new().append(append::Stderr::default().with_encoder(layout("err"))))
+        .dispatch(
+            Dispatch::new().append(append::RollingFile::new(writer).with_encoder(layout("file"))),
+        )
         .apply()
         .unwrap();
 

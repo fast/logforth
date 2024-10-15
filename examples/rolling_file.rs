@@ -19,7 +19,6 @@ use logforth::append::rolling_file::RollingFileWriter;
 use logforth::append::rolling_file::Rotation;
 use logforth::append::Stdout;
 use logforth::encoder::JsonEncoder;
-use logforth::layout::TextLayout;
 use logforth::Dispatch;
 use logforth::Logger;
 

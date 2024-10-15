@@ -44,7 +44,7 @@ fn main() {
     Logger::new().dispatch(
         Dispatch::new()
             .filter(LevelFilter::Trace)
-            .append(append::Stdout::new(TextLayout::default())),
+            .append(append::Stdout::default()),
         )
         .apply()
         .unwrap();

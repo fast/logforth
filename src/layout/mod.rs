@@ -22,7 +22,6 @@ pub use kv::KvDisplay;
 pub use text::LevelColor;
 pub use text::TextLayout;
 
-use crate::Encoder;
 
 mod custom;
 #[cfg(feature = "json")]
@@ -47,15 +46,5 @@ impl Layout {
             #[cfg(feature = "json")]
             Layout::Json(layout) => layout.format(record),
         }
-    }
-}
-
-impl<E: Into<Encoder>> From<E> for Layout {
-    fn from(encoder: E) -> Self {
-        let encoder = encoder.into();
-        Layout::Custom(CustomLayout::new(move |record| {
-            let bytes = encoder.format(record)?;
-            Ok(String::from_utf8_lossy(&bytes).to_string())
-        }))
     }
 }
