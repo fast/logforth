@@ -30,6 +30,7 @@ use opentelemetry_sdk::logs::LogRecord;
 use opentelemetry_sdk::logs::LoggerProvider;
 
 use crate::append::Append;
+use crate::Layout;
 
 /// The communication protocol to opentelemetry that used when exporting data.
 ///
@@ -52,6 +53,7 @@ pub struct OpentelemetryLogBuilder {
     endpoint: String,
     protocol: Protocol,
     labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
+    layout: Option<Layout>,
 }
 
 impl OpentelemetryLogBuilder {
@@ -62,6 +64,7 @@ impl OpentelemetryLogBuilder {
             endpoint: otlp_endpoint.into(),
             protocol: Protocol::Grpc,
             labels: vec![],
+            layout: None,
         }
     }
 
@@ -100,6 +103,12 @@ impl OpentelemetryLogBuilder {
         self
     }
 
+    /// Set the layout to use when formatting log records.
+    pub fn layout(mut self, layout: impl Into<Layout>) -> Self {
+        self.layout = Some(layout.into());
+        self
+    }
+
     /// Build the [`OpentelemetryLog`] appender.
     pub fn build(self) -> Result<OpentelemetryLog, opentelemetry::logs::LogError> {
         let OpentelemetryLogBuilder {
@@ -107,6 +116,7 @@ impl OpentelemetryLogBuilder {
             endpoint,
             protocol,
             labels,
+            layout,
         } = self;
 
         let collector_timeout =
@@ -140,6 +150,7 @@ impl OpentelemetryLogBuilder {
 
         Ok(OpentelemetryLog {
             name,
+            layout,
             library,
             provider,
         })
@@ -150,6 +161,7 @@ impl OpentelemetryLogBuilder {
 #[derive(Debug)]
 pub struct OpentelemetryLog {
     name: String,
+    layout: Option<Layout>,
     library: Arc<InstrumentationLibrary>,
     provider: LoggerProvider,
 }
@@ -164,7 +176,10 @@ impl Append for OpentelemetryLog {
         log_record_.severity_number = Some(log_level_to_otel_severity(record.level()));
         log_record_.severity_text = Some(record.level().as_str());
         log_record_.target = Some(record.target().to_string().into());
-        log_record_.body = Some(AnyValue::from(record.args().to_string()));
+        log_record_.body = Some(AnyValue::from(match self.layout.as_ref() {
+            None => record.args().to_string(),
+            Some(layout) => layout.format(record)?,
+        }));
 
         if let Some(module_path) = record.module_path() {
             log_record_.add_attribute("module_path", module_path.to_string());
