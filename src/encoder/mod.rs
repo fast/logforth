@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod custom;
+pub use custom::CustomEncoder;
+
 mod layout_wrapping;
 pub use layout_wrapping::LayoutWrappingEncoder;
 
@@ -22,6 +25,7 @@ pub use json::JsonEncoder;
 
 #[derive(Debug)]
 pub enum Encoder {
+    Custom(CustomEncoder),
     LayoutWrapping(LayoutWrappingEncoder),
     #[cfg(feature = "json")]
     Json(JsonEncoder),
@@ -30,6 +34,7 @@ pub enum Encoder {
 impl Encoder {
     pub(crate) fn format(&self, record: &log::Record) -> anyhow::Result<Vec<u8>> {
         match self {
+            Encoder::Custom(encoder) => encoder.format(record),
             Encoder::LayoutWrapping(encoder) => encoder.format(record),
             #[cfg(feature = "json")]
             Encoder::Json(encoder) => encoder.format(record),

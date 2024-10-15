@@ -17,56 +17,51 @@ use std::fmt::Formatter;
 
 use log::Record;
 
-use crate::encoder::LayoutWrappingEncoder;
-use crate::layout::Layout;
 use crate::Encoder;
 
 // TODO(tisonkun): use trait alias when it's stable - https://github.com/rust-lang/rust/issues/41517
 //  then we can use the alias for both `dyn` and `impl`.
-type FormatFunction = dyn Fn(&Record) -> anyhow::Result<String> + Send + Sync + 'static;
+type FormatFunction = dyn Fn(&Record) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static;
 
-/// A layout that you can pass the custom layout function.
+/// An encoder that you can pass the custom encoder function.
 ///
-/// The custom layout function accepts [`&log::Record`][Record] and formats it into [`String`].
+/// The custom encoder function accepts [`&log::Record`][Record] and formats it into [`Vec<u8>`].
 /// For example:
 ///
 /// ```rust
 /// use log::Record;
-/// use logforth::layout::CustomLayout;
+/// use logforth::encoder::CustomEncoder;
 ///
-/// let layout =
-///     CustomLayout::new(|record: &Record| Ok(format!("{} - {}", record.level(), record.args())));
+/// let layout = CustomEncoder::new(|record: &Record| {
+///     Ok(format!("{} - {}", record.level(), record.args()).into_bytes())
+/// });
 /// ```
-pub struct CustomLayout {
+pub struct CustomEncoder {
     f: Box<FormatFunction>,
 }
 
-impl Debug for CustomLayout {
+impl Debug for CustomEncoder {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "CustomLayout {{ ... }}")
+        write!(f, "CustomEncoder {{ ... }}")
     }
 }
 
-impl CustomLayout {
-    pub fn new(layout: impl Fn(&Record) -> anyhow::Result<String> + Send + Sync + 'static) -> Self {
-        CustomLayout {
+impl CustomEncoder {
+    pub fn new(
+        layout: impl Fn(&Record) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static,
+    ) -> Self {
+        CustomEncoder {
             f: Box::new(layout),
         }
     }
 
-    pub(crate) fn format(&self, record: &Record) -> anyhow::Result<String> {
+    pub(crate) fn format(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
         (self.f)(record)
     }
 }
 
-impl From<CustomLayout> for Layout {
-    fn from(layout: CustomLayout) -> Self {
-        Layout::Custom(layout)
-    }
-}
-
-impl From<CustomLayout> for Encoder {
-    fn from(layout: CustomLayout) -> Self {
-        LayoutWrappingEncoder::new(layout.into()).into()
+impl From<CustomEncoder> for Encoder {
+    fn from(encoder: CustomEncoder) -> Self {
+        Encoder::Custom(encoder)
     }
 }
