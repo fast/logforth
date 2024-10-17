@@ -22,7 +22,9 @@ use crate::layout::collect_kvs;
 
 /// An appender that adds log records to fastrace as an event associated to the current span.
 #[derive(Default, Debug, Clone)]
-pub struct FastraceEvent;
+pub struct FastraceEvent {
+    _private: (), // suppress structure literal syntax
+}
 
 impl Append for FastraceEvent {
     fn append(&self, record: &Record) -> anyhow::Result<()> {

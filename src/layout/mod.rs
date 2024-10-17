@@ -15,7 +15,6 @@
 //! Describe how to format a log record.
 
 pub use custom::CustomLayout;
-pub use identical::IdenticalLayout;
 #[cfg(feature = "json")]
 pub use json::JsonLayout;
 pub use kv::collect_kvs;
@@ -24,7 +23,6 @@ pub use text::LevelColor;
 pub use text::TextLayout;
 
 mod custom;
-mod identical;
 #[cfg(feature = "json")]
 mod json;
 mod kv;
@@ -33,32 +31,19 @@ mod text;
 /// A layout describes how to format a log record.
 #[derive(Debug)]
 pub enum Layout {
-    Identical(IdenticalLayout),
+    Custom(CustomLayout),
     Text(TextLayout),
     #[cfg(feature = "json")]
     Json(JsonLayout),
-    Custom(CustomLayout),
 }
 
 impl Layout {
-    pub(crate) fn format<F>(&self, record: &log::Record, f: &F) -> anyhow::Result<()>
-    where
-        F: Fn(&log::Record) -> anyhow::Result<()>,
-    {
+    pub(crate) fn format(&self, record: &log::Record) -> anyhow::Result<Vec<u8>> {
         match self {
-            Layout::Identical(layout) => {
-                layout.format(record, &|args| f(&record.to_builder().args(args).build()))
-            }
-            Layout::Text(layout) => {
-                layout.format(record, &|args| f(&record.to_builder().args(args).build()))
-            }
+            Layout::Custom(layout) => layout.format(record),
+            Layout::Text(layout) => layout.format(record),
             #[cfg(feature = "json")]
-            Layout::Json(layout) => {
-                layout.format(record, &|args| f(&record.to_builder().args(args).build()))
-            }
-            Layout::Custom(layout) => {
-                layout.format(record, &|args| f(&record.to_builder().args(args).build()))
-            }
+            Layout::Json(layout) => layout.format(record),
         }
     }
 }

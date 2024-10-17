@@ -14,7 +14,6 @@
 
 use log::LevelFilter;
 use logforth::append;
-use logforth::layout::TextLayout;
 use logforth::Dispatch;
 use logforth::Logger;
 
@@ -23,14 +22,8 @@ fn main() {
         .dispatch(
             Dispatch::new()
                 .filter(LevelFilter::Trace)
-                .layout(TextLayout::default())
-                .append(append::Stdout),
-        )
-        .dispatch(
-            Dispatch::new()
-                .filter(LevelFilter::Trace)
-                .layout(TextLayout::default().no_color())
-                .append(append::Stderr),
+                .append(append::Stdout::default())
+                .append(append::Stderr::default()),
         )
         .apply()
         .unwrap();

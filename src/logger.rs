@@ -21,67 +21,52 @@ use log::Record;
 use crate::append::Append;
 use crate::filter::Filter;
 use crate::filter::FilterResult;
-use crate::layout::Layout;
 
-/// A grouped set of appenders, filters, and optional layout.
+/// A grouped set of appenders and filters.
 ///
 /// The [`Logger`] facade dispatches log records to one or more [`Dispatch`] instances.
-/// Each [`Dispatch`] instance contains a set of filters, appenders, and an optional layout.
+/// Each [`Dispatch`] instance contains a set of filters and appenders.
 ///
 /// `filters` are used to determine whether a log record should be passed to the appenders.
-/// `appends` are used to write log records to a destination. Each appender has its own
-/// default layout. If the [`Dispatch`] has a layout, it will be used instead of the default layout.
+/// `appends` are used to write log records to a destination.
 #[derive(Debug)]
-pub struct Dispatch<const LAYOUT: bool = true, const APPEND: bool = true> {
+pub struct Dispatch<const APPEND: bool = true> {
     filters: Vec<Filter>,
     appends: Vec<Box<dyn Append>>,
-    layout: Option<Layout>,
 }
 
-impl Default for Dispatch<false, false> {
-    fn default() -> Dispatch<false, false> {
+impl Default for Dispatch<false> {
+    fn default() -> Dispatch<false> {
         Self::new()
     }
 }
 
-impl Dispatch<false, false> {
+impl Dispatch<false> {
     /// Create a new incomplete [`Dispatch`] instance.
     ///
     /// At least one append must be added to the [`Dispatch`] before it can be used.
-    pub fn new() -> Dispatch<false, false> {
+    pub fn new() -> Dispatch<false> {
         Self {
             filters: vec![],
             appends: vec![],
-            layout: None,
         }
     }
 
     /// Add a [`Filter`] to the [`Dispatch`].
-    pub fn filter(mut self, filter: impl Into<Filter>) -> Dispatch<false, false> {
+    pub fn filter(mut self, filter: impl Into<Filter>) -> Dispatch<false> {
         self.filters.push(filter.into());
         self
     }
-
-    /// Add the preferred [`Layout`] to the [`Dispatch`]. At most one layout can be added to a
-    /// [`Dispatch`].
-    pub fn layout(self, layout: impl Into<Layout>) -> Dispatch<true, false> {
-        Dispatch {
-            filters: self.filters,
-            appends: self.appends,
-            layout: Some(layout.into()),
-        }
-    }
 }
 
-impl<const LAYOUT: bool, const APPEND: bool> Dispatch<LAYOUT, APPEND> {
+impl<const APPEND: bool> Dispatch<APPEND> {
     /// Add an [`Append`] to the [`Dispatch`].
-    pub fn append(mut self, append: impl Append) -> Dispatch<true, true> {
+    pub fn append(mut self, append: impl Append) -> Dispatch<true> {
         self.appends.push(Box::new(append));
 
         Dispatch {
             filters: self.filters,
             appends: self.appends,
-            layout: self.layout,
         }
     }
 }
@@ -108,14 +93,8 @@ impl Dispatch {
             }
         }
 
-        let layout = self.layout.as_ref();
         for append in &self.appends {
-            match layout {
-                Some(layout) => layout.format(record, &|record| append.append(record))?,
-                None => append
-                    .default_layout()
-                    .format(record, &|record| append.append(record))?,
-            }
+            append.append(record)?;
         }
         Ok(())
     }

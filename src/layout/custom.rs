@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt::Arguments;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 
@@ -22,27 +21,20 @@ use crate::layout::Layout;
 
 // TODO(tisonkun): use trait alias when it's stable - https://github.com/rust-lang/rust/issues/41517
 //  then we can use the alias for both `dyn` and `impl`.
-type FormatFunction = dyn Fn(&Record, &dyn Fn(Arguments) -> anyhow::Result<()>) -> anyhow::Result<()>
-    + Send
-    + Sync
-    + 'static;
+type FormatFunction = dyn Fn(&Record) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static;
 
 /// A layout that you can pass the custom layout function.
 ///
-/// The custom layout function accepts [`&log::Record`][Record], formats it into [Arguments], and
-/// then passes to the closure. For example:
+/// The custom layout function accepts [`&log::Record`][Record] and formats it into [`Vec<u8>`].
+/// For example:
 ///
 /// ```rust
-/// use std::fmt::Arguments;
-///
 /// use log::Record;
 /// use logforth::layout::CustomLayout;
 ///
-/// let layout = CustomLayout::new(
-///     |record: &Record, f: &dyn Fn(Arguments) -> anyhow::Result<()>| {
-///         f(format_args!("{} - {}", record.level(), record.args()))
-///     },
-/// );
+/// let layout = CustomLayout::new(|record: &Record| {
+///     Ok(format!("{} - {}", record.level(), record.args()).into_bytes())
+/// });
 /// ```
 pub struct CustomLayout {
     f: Box<FormatFunction>,
@@ -56,21 +48,15 @@ impl Debug for CustomLayout {
 
 impl CustomLayout {
     pub fn new(
-        layout: impl Fn(&Record, &dyn Fn(Arguments) -> anyhow::Result<()>) -> anyhow::Result<()>
-            + Send
-            + Sync
-            + 'static,
+        layout: impl Fn(&Record) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static,
     ) -> Self {
         CustomLayout {
             f: Box::new(layout),
         }
     }
 
-    pub(crate) fn format<F>(&self, record: &Record, f: &F) -> anyhow::Result<()>
-    where
-        F: Fn(Arguments) -> anyhow::Result<()>,
-    {
-        (self.f)(record, f)
+    pub(crate) fn format(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
+        (self.f)(record)
     }
 }
 

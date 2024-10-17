@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::borrow::Cow;
-use std::fmt::Arguments;
 
 use colored::Color;
 use colored::ColoredString;
@@ -132,10 +131,7 @@ impl Default for LevelColor {
 }
 
 impl TextLayout {
-    pub(crate) fn format<F>(&self, record: &log::Record, f: &F) -> anyhow::Result<()>
-    where
-        F: Fn(Arguments) -> anyhow::Result<()>,
-    {
+    pub(crate) fn format(&self, record: &log::Record) -> anyhow::Result<Vec<u8>> {
         let time = match self.tz.clone() {
             Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),
@@ -157,10 +153,7 @@ impl TextLayout {
         let line = record.line().unwrap_or_default();
         let message = record.args();
         let kvs = KvDisplay::new(record.key_values());
-
-        f(format_args!(
-            "{time:.6} {level:>5} {module}: {file}:{line} {message}{kvs}"
-        ))
+        Ok(format!("{time:.6} {level:>5} {module}: {file}:{line} {message}{kvs}").into_bytes())
     }
 }
 

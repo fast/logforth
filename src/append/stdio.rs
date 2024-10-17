@@ -15,14 +15,35 @@
 use std::io::Write;
 
 use crate::append::Append;
+use crate::layout::TextLayout;
+use crate::Layout;
 
 /// An appender that prints log records to stdout.
-#[derive(Default, Debug)]
-pub struct Stdout;
+#[derive(Debug)]
+pub struct Stdout {
+    layout: Layout,
+}
+
+impl Default for Stdout {
+    fn default() -> Self {
+        Self {
+            layout: TextLayout::default().into(),
+        }
+    }
+}
+
+impl Stdout {
+    /// Creates a new `Stdout` appender with the given layout.
+    pub fn with_layout(mut self, layout: impl Into<Layout>) -> Self {
+        self.layout = layout.into();
+        self
+    }
+}
 
 impl Append for Stdout {
     fn append(&self, record: &log::Record) -> anyhow::Result<()> {
-        let bytes = format!("{}\n", record.args()).into_bytes();
+        let mut bytes = self.layout.format(record)?;
+        bytes.push(b'\n');
         std::io::stdout().write_all(&bytes)?;
         Ok(())
     }
@@ -33,12 +54,31 @@ impl Append for Stdout {
 }
 
 /// An appender that prints log records to stderr.
-#[derive(Default, Debug)]
-pub struct Stderr;
+#[derive(Debug)]
+pub struct Stderr {
+    layout: Layout,
+}
+
+impl Default for Stderr {
+    fn default() -> Self {
+        Self {
+            layout: TextLayout::default().into(),
+        }
+    }
+}
+
+impl Stderr {
+    /// Creates a new `Stderr` appender with the given layout.
+    pub fn with_layout(mut self, encoder: impl Into<Layout>) -> Self {
+        self.layout = encoder.into();
+        self
+    }
+}
 
 impl Append for Stderr {
     fn append(&self, record: &log::Record) -> anyhow::Result<()> {
-        let bytes = format!("{}\n", record.args()).into_bytes();
+        let mut bytes = self.layout.format(record)?;
+        bytes.push(b'\n');
         std::io::stderr().write_all(&bytes)?;
         Ok(())
     }

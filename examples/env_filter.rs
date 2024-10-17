@@ -14,7 +14,6 @@
 
 use logforth::append;
 use logforth::filter::EnvFilter;
-use logforth::layout::TextLayout;
 use logforth::Dispatch;
 use logforth::Logger;
 
@@ -23,8 +22,7 @@ fn main() {
         .dispatch(
             Dispatch::new()
                 .filter(EnvFilter::from_default_env())
-                .layout(TextLayout::default())
-                .append(append::Stdout),
+                .append(append::Stdout::default()),
         )
         .apply()
         .unwrap();

@@ -19,7 +19,6 @@ use logforth::append::rolling_file::RollingFileWriter;
 use logforth::append::rolling_file::Rotation;
 use logforth::append::Stdout;
 use logforth::layout::JsonLayout;
-use logforth::layout::TextLayout;
 use logforth::Dispatch;
 use logforth::Logger;
 
@@ -38,10 +37,9 @@ fn main() {
         .dispatch(
             Dispatch::new()
                 .filter(LevelFilter::Trace)
-                .layout(JsonLayout::default())
-                .append(RollingFile::new(writer)),
+                .append(RollingFile::new(writer).with_layout(JsonLayout::default()))
+                .append(Stdout::default()),
         )
-        .dispatch(Dispatch::new().layout(TextLayout::default()).append(Stdout))
         .apply()
         .unwrap();
 

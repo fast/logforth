@@ -61,7 +61,7 @@ impl<'a, 'kvs> log::kv::Visitor<'kvs> for KvCollector<'a> {
 }
 
 #[derive(Debug, Clone, Serialize)]
-struct RecordLine<'a> {
+pub(crate) struct RecordLine<'a> {
     #[serde(serialize_with = "serialize_time_zone")]
     timestamp: Zoned,
     level: &'a str,
@@ -88,10 +88,7 @@ where
 }
 
 impl JsonLayout {
-    pub(crate) fn format<F>(&self, record: &Record, f: &F) -> anyhow::Result<()>
-    where
-        F: Fn(Arguments) -> anyhow::Result<()>,
-    {
+    pub(crate) fn format(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
         let mut kvs = Map::new();
         let mut visitor = KvCollector { kvs: &mut kvs };
         record.key_values().visit(&mut visitor)?;
@@ -109,8 +106,7 @@ impl JsonLayout {
             kvs,
         };
 
-        let text = serde_json::to_string(&record_line)?;
-        f(format_args!("{text}"))
+        Ok(serde_json::to_vec(&record_line)?)
     }
 }
 
