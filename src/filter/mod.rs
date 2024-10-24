@@ -15,16 +15,10 @@
 //! Determinate whether a log record should be processed.
 
 pub use self::custom::CustomFilter;
-#[cfg(feature = "env-filter")]
-pub use self::env::EnvFilter;
-pub use self::level::LevelFilter;
-pub use self::target::TargetFilter;
+pub use self::directive::DirectiveFilter;
 
 mod custom;
-#[cfg(feature = "env-filter")]
-pub mod env;
-mod level;
-mod target;
+pub mod directive;
 
 /// The result of a filter may return.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,30 +33,21 @@ pub enum FilterResult {
 
 #[derive(Debug)]
 pub enum Filter {
-    #[cfg(feature = "env-filter")]
-    Env(EnvFilter),
-    Level(LevelFilter),
-    Target(TargetFilter),
+    Directive(DirectiveFilter),
     Custom(CustomFilter),
 }
 
 impl Filter {
     pub(crate) fn enabled(&self, metadata: &log::Metadata) -> FilterResult {
         match self {
-            #[cfg(feature = "env-filter")]
-            Filter::Env(filter) => filter.enabled(metadata),
-            Filter::Level(filter) => filter.enabled(metadata),
-            Filter::Target(filter) => filter.enabled(metadata),
+            Filter::Directive(filter) => filter.enabled(metadata),
             Filter::Custom(filter) => filter.enabled(metadata),
         }
     }
 
     pub(crate) fn matches(&self, record: &log::Record) -> FilterResult {
         match self {
-            #[cfg(feature = "env-filter")]
-            Filter::Env(filter) => filter.matches(record),
-            Filter::Level(filter) => filter.enabled(record.metadata()),
-            Filter::Target(filter) => filter.enabled(record.metadata()),
+            Filter::Directive(filter) => filter.matches(record),
             Filter::Custom(filter) => filter.enabled(record.metadata()),
         }
     }

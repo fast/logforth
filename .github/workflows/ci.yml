@@ -75,11 +75,11 @@ jobs:
       - name: Run examples
         run: |
           cargo run --example simple_stdio
+          cargo run --example fn_layout_filter
+          cargo run --example directive_filter
           cargo run --features="no-color" --example simple_stdio
           cargo run --features="json" --example json_stdio
           cargo run --features="json,rolling_file" --example rolling_file
-          cargo run --example fn_layout_filter
-          cargo run --features="env-filter" --example env_filter
 
   required:
     name: Required

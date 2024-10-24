@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::borrow::Cow;
+use std::str::FromStr;
 
 use log::LevelFilter;
 use log::Metadata;
@@ -23,13 +24,18 @@ use crate::Filter;
 /// The default name for the environment variable to read filters from.
 pub const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
 
-/// A filter that respects the `RUST_LOG` environment variable.
+/// A filter that follows the `RUST_LOG` environment variable pattern.
 ///
 /// Read more from [the `env_logger` documentation](https://docs.rs/env_logger/#enabling-logging).
 #[derive(Debug)]
-pub struct EnvFilter(env_filter::Filter);
+pub struct DirectiveFilter(env_filter::Filter);
 
-impl EnvFilter {
+impl DirectiveFilter {
+    /// Initializes the filter builder from the [DirectiveFilterBuilder].
+    pub fn new(mut builder: DirectiveFilterBuilder) -> Self {
+        DirectiveFilter(builder.0.build())
+    }
+
     /// Initializes the filter builder from the environment using default variable name `RUST_LOG`.
     ///
     /// # Examples
@@ -37,11 +43,11 @@ impl EnvFilter {
     /// Initialize a filter using the default environment variables:
     ///
     /// ```
-    /// use logforth::filter::EnvFilter;
-    /// let filter = EnvFilter::from_default_env();
+    /// use logforth::filter::DirectiveFilter;
+    /// let filter = DirectiveFilter::from_default_env();
     /// ```
     pub fn from_default_env() -> Self {
-        EnvFilter::from_env(DEFAULT_FILTER_ENV)
+        DirectiveFilter::from_env(DEFAULT_FILTER_ENV)
     }
 
     /// Initializes the filter builder from the environment using default variable name `RUST_LOG`.
@@ -53,14 +59,14 @@ impl EnvFilter {
     /// value:
     ///
     /// ```
-    /// use logforth::filter::EnvFilter;
-    /// let filter = EnvFilter::from_default_env_or("info");
+    /// use logforth::filter::DirectiveFilter;
+    /// let filter = DirectiveFilter::from_default_env_or("info");
     /// ```
     pub fn from_default_env_or<'a, V>(default: V) -> Self
     where
         V: Into<Cow<'a, str>>,
     {
-        EnvFilter::from_env_or(DEFAULT_FILTER_ENV, default)
+        DirectiveFilter::from_env_or(DEFAULT_FILTER_ENV, default)
     }
 
     /// Initializes the filter builder from the environment using specific variable name.
@@ -70,8 +76,8 @@ impl EnvFilter {
     /// Initialize a filter using the using specific variable name:
     ///
     /// ```
-    /// use logforth::filter::EnvFilter;
-    /// let filter = EnvFilter::from_env("MY_LOG");
+    /// use logforth::filter::DirectiveFilter;
+    /// let filter = DirectiveFilter::from_env("MY_LOG");
     /// ```
     pub fn from_env<'a, E>(name: E) -> Self
     where
@@ -79,11 +85,11 @@ impl EnvFilter {
     {
         let name = name.into();
 
-        let builder = EnvFilterBuilder::new();
+        let builder = DirectiveFilterBuilder::new();
         if let Ok(s) = std::env::var(&*name) {
-            EnvFilter::new(builder.parse(&s))
+            DirectiveFilter::new(builder.parse(&s))
         } else {
-            EnvFilter::new(builder)
+            DirectiveFilter::new(builder)
         }
     }
 
@@ -96,8 +102,8 @@ impl EnvFilter {
     /// value:
     ///
     /// ```
-    /// use logforth::filter::EnvFilter;
-    /// let filter = EnvFilter::from_env_or("MY_LOG", "info");
+    /// use logforth::filter::DirectiveFilter;
+    /// let filter = DirectiveFilter::from_env_or("MY_LOG", "info");
     /// ```
     pub fn from_env_or<'a, 'b, E, V>(name: E, default: V) -> Self
     where
@@ -107,17 +113,12 @@ impl EnvFilter {
         let name = name.into();
         let default = default.into();
 
-        let builder = EnvFilterBuilder::new();
+        let builder = DirectiveFilterBuilder::new();
         if let Ok(s) = std::env::var(&*name) {
-            EnvFilter::new(builder.parse(&s))
+            DirectiveFilter::new(builder.parse(&s))
         } else {
-            EnvFilter::new(builder.parse(&default))
+            DirectiveFilter::new(builder.parse(&default))
         }
-    }
-
-    /// Initializes the filter builder from the [EnvFilterBuilder].
-    pub fn new(mut builder: EnvFilterBuilder) -> Self {
-        EnvFilter(builder.0.build())
     }
 
     pub(crate) fn enabled(&self, metadata: &Metadata) -> FilterResult {
@@ -137,23 +138,23 @@ impl EnvFilter {
     }
 }
 
-impl From<EnvFilter> for Filter {
-    fn from(filter: EnvFilter) -> Self {
-        Filter::Env(filter)
+impl From<DirectiveFilter> for Filter {
+    fn from(filter: DirectiveFilter) -> Self {
+        Filter::Directive(filter)
     }
 }
 
-/// A builder for the env log filter.
+/// A builder for the directive log filter.
 ///
-/// It can be used to parse a set of directives from a string before building a [EnvFilter]
+/// It can be used to parse a set of directives from a string before building a [DirectiveFilter]
 /// instance.
 #[derive(Default, Debug)]
-pub struct EnvFilterBuilder(env_filter::Builder);
+pub struct DirectiveFilterBuilder(env_filter::Builder);
 
-impl EnvFilterBuilder {
+impl DirectiveFilterBuilder {
     /// Initializes the filter builder with defaults.
     pub fn new() -> Self {
-        EnvFilterBuilder(env_filter::Builder::new())
+        DirectiveFilterBuilder(env_filter::Builder::new())
     }
 
     /// Try to initialize the filter builder from an environment; return `None` if the environment
@@ -162,7 +163,7 @@ impl EnvFilterBuilder {
         let mut builder = env_filter::Builder::new();
         let config = std::env::var(env).ok()?;
         builder.try_parse(&config).ok()?;
-        Some(EnvFilterBuilder(builder))
+        Some(DirectiveFilterBuilder(builder))
     }
 
     /// Adds a directive to the filter for a specific module.
@@ -200,5 +201,33 @@ impl EnvFilterBuilder {
     pub fn parse(mut self, filters: &str) -> Self {
         self.0.parse(filters);
         self
+    }
+}
+
+impl From<LevelFilter> for DirectiveFilter {
+    fn from(filter: LevelFilter) -> Self {
+        DirectiveFilter::new(DirectiveFilterBuilder::new().filter_level(filter))
+    }
+}
+
+impl From<LevelFilter> for Filter {
+    fn from(filter: LevelFilter) -> Self {
+        Filter::Directive(filter.into())
+    }
+}
+
+impl<'a> From<&'a str> for Filter {
+    fn from(filter: &'a str) -> Self {
+        DirectiveFilter::new(DirectiveFilterBuilder::new().parse(filter)).into()
+    }
+}
+
+impl FromStr for DirectiveFilter {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        DirectiveFilterBuilder::new()
+            .try_parse(s)
+            .map(DirectiveFilter::new)
     }
 }
