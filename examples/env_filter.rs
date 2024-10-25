@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use logforth::append;
-use logforth::filter::DirectiveFilter;
+use logforth::filter::EnvFilter;
 use logforth::Dispatch;
 use logforth::Logger;
 
@@ -21,7 +21,7 @@ fn main() {
     Logger::new()
         .dispatch(
             Dispatch::new()
-                .filter(DirectiveFilter::from_default_env())
+                .filter(EnvFilter::from_default_env())
                 .append(append::Stdout::default()),
         )
         .apply()

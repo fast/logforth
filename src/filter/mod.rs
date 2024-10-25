@@ -19,10 +19,10 @@ use std::str::FromStr;
 use log::LevelFilter;
 
 pub use self::custom::CustomFilter;
-pub use self::directive::DirectiveFilter;
+pub use self::env::EnvFilter;
 
 mod custom;
-pub mod directive;
+pub mod env;
 
 /// The result of a filter may return.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,21 +37,21 @@ pub enum FilterResult {
 
 #[derive(Debug)]
 pub enum Filter {
-    Directive(DirectiveFilter),
+    Env(EnvFilter),
     Custom(CustomFilter),
 }
 
 impl Filter {
     pub(crate) fn enabled(&self, metadata: &log::Metadata) -> FilterResult {
         match self {
-            Filter::Directive(filter) => filter.enabled(metadata),
+            Filter::Env(filter) => filter.enabled(metadata),
             Filter::Custom(filter) => filter.enabled(metadata),
         }
     }
 
     pub(crate) fn matches(&self, record: &log::Record) -> FilterResult {
         match self {
-            Filter::Directive(filter) => filter.matches(record),
+            Filter::Env(filter) => filter.matches(record),
             Filter::Custom(filter) => filter.enabled(record.metadata()),
         }
     }
@@ -59,13 +59,13 @@ impl Filter {
 
 impl From<LevelFilter> for Filter {
     fn from(filter: LevelFilter) -> Self {
-        DirectiveFilter::from(filter).into()
+        EnvFilter::from(filter).into()
     }
 }
 
 impl<'a> From<&'a str> for Filter {
     fn from(filter: &'a str) -> Self {
-        DirectiveFilter::from(filter).into()
+        EnvFilter::from(filter).into()
     }
 }
 
@@ -73,6 +73,6 @@ impl FromStr for Filter {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        DirectiveFilter::from_str(s).map(Into::into)
+        EnvFilter::from_str(s).map(Into::into)
     }
 }

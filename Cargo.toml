@@ -46,13 +46,13 @@ rolling_file = ["dep:crossbeam-channel", "dep:parking_lot"]
 anyhow = { version = "1.0" }
 colored = { version = "2.1" }
 env_filter = { version = "0.1" }
-jiff = { version = "0.1.10" }
+jiff = { version = "0.1.13" }
 log = { version = "0.4", features = ["std", "kv_unstable"] }
 paste = { version = "1.0" }
 
 [dev-dependencies]
 rand = "0.8"
-tempfile = "3.12"
+tempfile = "3.13"
 
 ## Serde dependencies
 [dependencies.serde]
@@ -114,5 +114,5 @@ name = "fn_layout_filter"
 path = "examples/fn_layout_filter.rs"
 
 [[example]]
-name = "directive_filter"
-path = "examples/directive_filter.rs"
+name = "env_filter"
+path = "examples/env_filter.rs"
