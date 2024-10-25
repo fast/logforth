@@ -14,6 +14,10 @@
 
 //! Determinate whether a log record should be processed.
 
+use std::str::FromStr;
+
+use log::LevelFilter;
+
 pub use self::custom::CustomFilter;
 pub use self::directive::DirectiveFilter;
 
@@ -50,5 +54,25 @@ impl Filter {
             Filter::Directive(filter) => filter.matches(record),
             Filter::Custom(filter) => filter.enabled(record.metadata()),
         }
+    }
+}
+
+impl From<LevelFilter> for Filter {
+    fn from(filter: LevelFilter) -> Self {
+        DirectiveFilter::from(filter).into()
+    }
+}
+
+impl<'a> From<&'a str> for Filter {
+    fn from(filter: &'a str) -> Self {
+        DirectiveFilter::from(filter).into()
+    }
+}
+
+impl FromStr for Filter {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        DirectiveFilter::from_str(s).map(Into::into)
     }
 }

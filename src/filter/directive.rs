@@ -144,6 +144,28 @@ impl From<DirectiveFilter> for Filter {
     }
 }
 
+impl From<LevelFilter> for DirectiveFilter {
+    fn from(filter: LevelFilter) -> Self {
+        DirectiveFilter::new(DirectiveFilterBuilder::new().filter_level(filter))
+    }
+}
+
+impl<'a> From<&'a str> for DirectiveFilter {
+    fn from(filter: &'a str) -> Self {
+        DirectiveFilter::new(DirectiveFilterBuilder::new().parse(filter))
+    }
+}
+
+impl FromStr for DirectiveFilter {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        DirectiveFilterBuilder::new()
+            .try_parse(s)
+            .map(DirectiveFilter::new)
+    }
+}
+
 /// A builder for the directive log filter.
 ///
 /// It can be used to parse a set of directives from a string before building a [DirectiveFilter]
@@ -201,33 +223,5 @@ impl DirectiveFilterBuilder {
     pub fn parse(mut self, filters: &str) -> Self {
         self.0.parse(filters);
         self
-    }
-}
-
-impl From<LevelFilter> for DirectiveFilter {
-    fn from(filter: LevelFilter) -> Self {
-        DirectiveFilter::new(DirectiveFilterBuilder::new().filter_level(filter))
-    }
-}
-
-impl From<LevelFilter> for Filter {
-    fn from(filter: LevelFilter) -> Self {
-        Filter::Directive(filter.into())
-    }
-}
-
-impl<'a> From<&'a str> for Filter {
-    fn from(filter: &'a str) -> Self {
-        DirectiveFilter::new(DirectiveFilterBuilder::new().parse(filter)).into()
-    }
-}
-
-impl FromStr for DirectiveFilter {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        DirectiveFilterBuilder::new()
-            .try_parse(s)
-            .map(DirectiveFilter::new)
     }
 }
