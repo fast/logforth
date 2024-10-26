@@ -14,17 +14,15 @@
 
 //! Determinate whether a log record should be processed.
 
+use std::str::FromStr;
+
+use log::LevelFilter;
+
 pub use self::custom::CustomFilter;
-#[cfg(feature = "env-filter")]
 pub use self::env::EnvFilter;
-pub use self::level::LevelFilter;
-pub use self::target::TargetFilter;
 
 mod custom;
-#[cfg(feature = "env-filter")]
 pub mod env;
-mod level;
-mod target;
 
 /// The result of a filter may return.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,31 +37,42 @@ pub enum FilterResult {
 
 #[derive(Debug)]
 pub enum Filter {
-    #[cfg(feature = "env-filter")]
     Env(EnvFilter),
-    Level(LevelFilter),
-    Target(TargetFilter),
     Custom(CustomFilter),
 }
 
 impl Filter {
     pub(crate) fn enabled(&self, metadata: &log::Metadata) -> FilterResult {
         match self {
-            #[cfg(feature = "env-filter")]
             Filter::Env(filter) => filter.enabled(metadata),
-            Filter::Level(filter) => filter.enabled(metadata),
-            Filter::Target(filter) => filter.enabled(metadata),
             Filter::Custom(filter) => filter.enabled(metadata),
         }
     }
 
     pub(crate) fn matches(&self, record: &log::Record) -> FilterResult {
         match self {
-            #[cfg(feature = "env-filter")]
             Filter::Env(filter) => filter.matches(record),
-            Filter::Level(filter) => filter.enabled(record.metadata()),
-            Filter::Target(filter) => filter.enabled(record.metadata()),
             Filter::Custom(filter) => filter.enabled(record.metadata()),
         }
+    }
+}
+
+impl From<LevelFilter> for Filter {
+    fn from(filter: LevelFilter) -> Self {
+        EnvFilter::from(filter).into()
+    }
+}
+
+impl<'a> From<&'a str> for Filter {
+    fn from(filter: &'a str) -> Self {
+        EnvFilter::from(filter).into()
+    }
+}
+
+impl FromStr for Filter {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        EnvFilter::from_str(s).map(Into::into)
     }
 }

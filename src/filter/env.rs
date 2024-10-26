@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::borrow::Cow;
+use std::str::FromStr;
 
 use log::LevelFilter;
 use log::Metadata;
@@ -23,13 +24,25 @@ use crate::Filter;
 /// The default name for the environment variable to read filters from.
 pub const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
 
-/// A filter that respects the `RUST_LOG` environment variable.
+/// A filter consists of one or more comma-separated directives which match on [`log::Record`].
 ///
-/// Read more from [the `env_logger` documentation](https://docs.rs/env_logger/#enabling-logging).
+/// Each directive may have a corresponding maximum verbosity [`level`][log::Level] which enables
+/// records that match.
+///
+/// Less exclusive levels (like `trace` or `info`) are considered to be more verbose than more
+/// exclusive levels (like `error` or `warn`).
+///
+/// The directive syntax is similar to that of [`env_logger`](https://crates.io/crates/env_logger)'s.
+/// Read more from [the `env_logger` documentation](https://docs.rs/env_logger/#enabling-logging)
 #[derive(Debug)]
 pub struct EnvFilter(env_filter::Filter);
 
 impl EnvFilter {
+    /// Initializes the filter builder from the [EnvFilterBuilder].
+    pub fn new(mut builder: EnvFilterBuilder) -> Self {
+        EnvFilter(builder.0.build())
+    }
+
     /// Initializes the filter builder from the environment using default variable name `RUST_LOG`.
     ///
     /// # Examples
@@ -115,11 +128,6 @@ impl EnvFilter {
         }
     }
 
-    /// Initializes the filter builder from the [EnvFilterBuilder].
-    pub fn new(mut builder: EnvFilterBuilder) -> Self {
-        EnvFilter(builder.0.build())
-    }
-
     pub(crate) fn enabled(&self, metadata: &Metadata) -> FilterResult {
         if self.0.enabled(metadata) {
             FilterResult::Neutral
@@ -140,6 +148,26 @@ impl EnvFilter {
 impl From<EnvFilter> for Filter {
     fn from(filter: EnvFilter) -> Self {
         Filter::Env(filter)
+    }
+}
+
+impl From<LevelFilter> for EnvFilter {
+    fn from(filter: LevelFilter) -> Self {
+        EnvFilter::new(EnvFilterBuilder::new().filter_level(filter))
+    }
+}
+
+impl<'a> From<&'a str> for EnvFilter {
+    fn from(filter: &'a str) -> Self {
+        EnvFilter::new(EnvFilterBuilder::new().parse(filter))
+    }
+}
+
+impl FromStr for EnvFilter {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        EnvFilterBuilder::new().try_parse(s).map(EnvFilter::new)
     }
 }
 

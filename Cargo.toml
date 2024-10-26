@@ -32,7 +32,6 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-env-filter = ["dep:env_filter"]
 fastrace = ["dep:fastrace"]
 json = ["dep:serde_json", "dep:serde", "jiff/serde"]
 no-color = ["colored/no-color"]
@@ -46,18 +45,14 @@ rolling_file = ["dep:crossbeam-channel", "dep:parking_lot"]
 [dependencies]
 anyhow = { version = "1.0" }
 colored = { version = "2.1" }
-jiff = { version = "0.1.10" }
+env_filter = { version = "0.1" }
+jiff = { version = "0.1.13" }
 log = { version = "0.4", features = ["std", "kv_unstable"] }
 paste = { version = "1.0" }
 
 [dev-dependencies]
 rand = "0.8"
-tempfile = "3.12"
-
-## Env filter dependencies
-[dependencies.env_filter]
-optional = true
-version = "0.1"
+tempfile = "3.13"
 
 ## Serde dependencies
 [dependencies.serde]
@@ -87,17 +82,17 @@ version = "0.7"
 [dependencies.opentelemetry]
 features = ["logs"]
 optional = true
-version = "0.25"
+version = "0.26"
 
 [dependencies.opentelemetry-otlp]
 features = ["logs", "grpc-tonic", "http-json", "http-proto"]
 optional = true
-version = "0.25"
+version = "0.26"
 
 [dependencies.opentelemetry_sdk]
 features = ["logs", "rt-tokio"]
 optional = true
-version = "0.25"
+version = "0.26"
 
 ## Examples
 [[example]]
@@ -121,4 +116,3 @@ path = "examples/fn_layout_filter.rs"
 [[example]]
 name = "env_filter"
 path = "examples/env_filter.rs"
-required-features = ["env-filter"]

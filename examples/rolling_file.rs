@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::LevelFilter;
 use logforth::append::rolling_file::NonBlockingBuilder;
 use logforth::append::rolling_file::RollingFile;
 use logforth::append::rolling_file::RollingFileWriter;
@@ -36,7 +35,7 @@ fn main() {
     Logger::new()
         .dispatch(
             Dispatch::new()
-                .filter(LevelFilter::Trace)
+                .filter("trace")
                 .append(RollingFile::new(writer).with_layout(JsonLayout::default()))
                 .append(Stdout::default()),
         )
