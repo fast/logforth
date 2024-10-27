@@ -1,5 +1,5 @@
-use log::{LevelFilter, Metadata, Record};
 use crate::logger::dispatch::Dispatch;
+use log::{LevelFilter, Metadata, Record};
 
 /// A logger facade that dispatches log records to one or more [`Dispatch`] instances.
 ///
@@ -8,7 +8,6 @@ use crate::logger::dispatch::Dispatch;
 #[derive(Debug)]
 pub struct Logger {
     dispatches: Vec<Dispatch>,
-    max_level: LevelFilter,
 }
 
 impl Default for Logger {
@@ -21,19 +20,7 @@ impl Logger {
     /// Create a new [`Logger`] instance.
     #[must_use = "call `dispatch` to add a dispatch to the logger and `apply` to set the global logger"]
     pub fn new() -> Logger {
-        Self {
-            dispatches: vec![],
-            max_level: LevelFilter::Trace,
-        }
-    }
-
-    /// Set the global maximum log level.
-    ///
-    /// This will be passed to [`log::set_max_level`] on [`Logger::apply`].
-    #[must_use = "call `apply` to set the global logger"]
-    pub fn max_level(mut self, max_level: LevelFilter) -> Self {
-        self.max_level = max_level;
-        self
+        Self { dispatches: vec![] }
     }
 
     /// Add a [`Dispatch`] to the [`Logger`].
@@ -49,9 +36,7 @@ impl Logger {
     ///
     /// An error is returned if the global logger has already been set.
     pub fn apply(self) -> Result<(), log::SetLoggerError> {
-        let max_level = self.max_level;
         log::set_boxed_logger(Box::new(self))?;
-        log::set_max_level(max_level);
         Ok(())
     }
 }
