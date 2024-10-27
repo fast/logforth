@@ -53,6 +53,6 @@ Breaking changes:
 
 2. refactor: unify level/target filter to directive filter ([#65](https://github.com/fast/logforth/pull/65))
 
-Most `From` conversions are kept so that typically you won't notice the change. But if you directly use `LevelFilter` and `TargetFilter`, they are now removed. The functionalities can be covered by `EnvFilter`.
+    Most `From` conversions are kept so that typically you won't notice the change. But if you directly use `LevelFilter` and `TargetFilter`, they are now removed. The functionalities can be covered by `EnvFilter`.
 
-Also, the feature flag `env-filter` is removed. The `EnvFilter` is always available now.
+    Also, the feature flag `env-filter` is removed. The `EnvFilter` is always available now.
