@@ -14,18 +14,13 @@
 
 use log::LevelFilter;
 use logforth::append;
-use logforth::Dispatch;
-use logforth::Logger;
 
 fn main() {
-    Logger::new()
-        .dispatch(
-            Dispatch::new()
-                .filter(LevelFilter::Trace)
-                .append(append::Stdout::default())
-                .append(append::Stderr::default()),
-        )
-        .apply()
+    logforth::builder()
+        .filter(LevelFilter::Trace)
+        .append(append::Stdout::default())
+        .append(append::Stderr::default())
+        .finish()
         .unwrap();
 
     log::error!("Hello error!");

@@ -13,5 +13,7 @@
 // limitations under the License.
 
 mod builder;
-mod dispatch;
-mod logger;
+mod log_impl;
+
+pub use builder::builder;
+pub use builder::Builder;

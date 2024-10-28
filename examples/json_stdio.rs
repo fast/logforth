@@ -15,17 +15,11 @@
 use log::LevelFilter;
 use logforth::append;
 use logforth::layout::JsonLayout;
-use logforth::Dispatch;
-use logforth::Logger;
 
 fn main() {
-    Logger::new()
-        .dispatch(
-            Dispatch::new()
-                .filter(LevelFilter::Trace)
-                .append(append::Stdout::default().with_layout(JsonLayout::default())),
-        )
-        .apply()
+    logforth::builder()
+        .append(append::Stdout::default().with_layout(JsonLayout::default()))
+        .finish()
         .unwrap();
 
     log::error!("Hello error!");

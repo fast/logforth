@@ -18,8 +18,6 @@ use logforth::append::rolling_file::RollingFileWriter;
 use logforth::append::rolling_file::Rotation;
 use logforth::append::Stdout;
 use logforth::layout::JsonLayout;
-use logforth::Dispatch;
-use logforth::Logger;
 
 fn main() {
     let rolling = RollingFileWriter::builder()
@@ -32,14 +30,13 @@ fn main() {
         .unwrap();
     let (writer, _guard) = NonBlockingBuilder::default().finish(rolling);
 
-    Logger::new()
-        .dispatch(
-            Dispatch::new()
-                .filter("trace")
-                .append(RollingFile::new(writer).with_layout(JsonLayout::default()))
-                .append(Stdout::default()),
-        )
-        .apply()
+    logforth::builder()
+        .filter("trace")
+        .append(RollingFile::new(writer).with_layout(JsonLayout::default()))
+        .dispatch()
+        .filter("info")
+        .append(Stdout::default())
+        .finish()
         .unwrap();
 
     let repeat = 1;

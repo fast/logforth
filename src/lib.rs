@@ -30,17 +30,11 @@
 //! ```rust
 //! use log::LevelFilter;
 //! use logforth::append;
-//! use logforth::layout::TextLayout;
-//! use logforth::Dispatch;
-//! use logforth::Logger;
 //!
-//! Logger::new()
-//!     .dispatch(
-//!         Dispatch::new()
-//!             .filter(LevelFilter::Trace)
-//!             .append(append::Stdout::default()),
-//!     )
-//!     .apply()
+//! logforth::builder()
+//!     .filter(LevelFilter::Info)
+//!     .append(append::Stdout::default())
+//!     .finish()
 //!     .unwrap();
 //!
 //! log::error!("Hello error!");
@@ -62,5 +56,5 @@ mod logger;
 pub use append::Append;
 pub use filter::Filter;
 pub use layout::Layout;
-pub use logger::Dispatch;
-pub use logger::Logger;
+pub use logger::builder;
+pub use logger::Builder;
