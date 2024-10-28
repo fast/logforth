@@ -1,8 +1,10 @@
+use log::LevelFilter;
+
 use super::log_impl::Dispatch;
 use super::log_impl::Logger;
+use crate::append;
 use crate::Append;
 use crate::Filter;
-use log::LevelFilter;
 
 /// Create a new empty [builder][Builder].
 ///
@@ -17,8 +19,7 @@ use log::LevelFilter;
 ///     // .finish()  CANNOT COMPILE: a staging dispatch without Append
 ///     .filter(LevelFilter::Info)
 ///     .append(append::Stdout::default())
-///     .finish()
-///     .unwrap();
+///     .finish();
 /// ```
 ///
 /// Multiple dispatches can be added:
@@ -33,11 +34,32 @@ use log::LevelFilter;
 ///     .dispatch() // finish the current dispatch and start a new staging dispatch with no Append and Filter configured
 ///     .filter(LevelFilter::Debug)
 ///     .append(append::Stderr::default())
-///     .finish()
-///     .unwrap();
+///     .finish();
 /// ```
 pub fn builder() -> Builder<false> {
     Builder::default()
+}
+
+/// Create a new [`Builder`] with a default `Stdout` append configured.
+///
+/// This is a convenient API that you can use as:
+///
+/// ```rust
+/// logforth::stdout().finish();
+/// ```
+pub fn stdout() -> Builder<true> {
+    builder().append(append::Stdout::default())
+}
+
+/// Create a new [`Builder`] with a default `Stderr` append configured.
+///
+/// This is a convenient API that you can use as:
+///
+/// ```rust
+/// logforth::stderr().finish();
+/// ```
+pub fn stderr() -> Builder<true> {
+    builder().append(append::Stdout::default())
 }
 
 /// A builder for configuring the logger. See also [`builder`] for a fluent API.
@@ -59,8 +81,7 @@ pub fn builder() -> Builder<false> {
 /// logforth::Builder::new()
 ///     .filter(LevelFilter::Info)
 ///     .append(append::Stdout::default())
-///     .finish()
-///     .unwrap();
+///     .finish();
 /// ```
 // TODO(tisonkun): consider use an enum as const generic param once `adt_const_params` stabilized.
 //  @see https://doc.rust-lang.org/beta/unstable-book/language-features/adt-const-params.html
@@ -140,10 +161,14 @@ impl Builder<true> {
 
     /// Set up the global logger with all the dispatches configured.
     ///
+    /// This should be called early in the execution of a Rust program. Any log events that occur
+    /// before initialization will be ignored.
+    ///
     /// # Errors
     ///
-    /// An error is returned if the global logger has already been set.
-    pub fn finish(mut self) -> Result<(), log::SetLoggerError> {
+    /// This function will fail if it is called more than once, or if another library has already
+    /// initialized a global logger.
+    pub fn try_finish(mut self) -> Result<(), log::SetLoggerError> {
         // finish the current staging dispatch
         let dispatch = Dispatch::new(self.filters, self.appends);
         self.dispatches.push(dispatch);
@@ -153,5 +178,19 @@ impl Builder<true> {
         log::set_boxed_logger(Box::new(logger))?;
         log::set_max_level(self.max_level);
         Ok(())
+    }
+
+    /// Set up the global logger with all the dispatches configured.
+    ///
+    /// This should be called early in the execution of a Rust program. Any log events that occur
+    /// before initialization will be ignored.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if it is called more than once, or if another library has already
+    /// initialized a global logger.
+    pub fn finish(self) {
+        self.try_finish()
+            .expect("Builder::finish should not be called after the global logger initialized");
     }
 }

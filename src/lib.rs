@@ -51,10 +51,10 @@
 pub mod append;
 pub mod filter;
 pub mod layout;
-mod logger;
 
 pub use append::Append;
 pub use filter::Filter;
 pub use layout::Layout;
-pub use logger::builder;
-pub use logger::Builder;
+
+mod logger;
+pub use logger::*;

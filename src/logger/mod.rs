@@ -13,7 +13,6 @@
 // limitations under the License.
 
 mod builder;
-mod log_impl;
+pub use builder::*;
 
-pub use builder::builder;
-pub use builder::Builder;
+mod log_impl;
