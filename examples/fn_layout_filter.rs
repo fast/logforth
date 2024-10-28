@@ -32,8 +32,8 @@ fn main() {
                 Ok(format!("[system alert] {}", record.args()).into_bytes())
             })),
         )
-        .finish()
-        .unwrap();
+        .finish();
+
     log::error!("Hello error!");
     log::warn!("Hello warn!");
     log::info!("Hello info!");

@@ -20,8 +20,7 @@ fn main() {
         .filter(LevelFilter::Trace)
         .append(append::Stdout::default())
         .append(append::Stderr::default())
-        .finish()
-        .unwrap();
+        .finish();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

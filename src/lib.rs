@@ -12,39 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # A versatile and extensible logging implementation
-//!
-//! ## Usage
-//!
-//! Add the dependencies to your `Cargo.toml` with:
-//!
-//! ```shell
-//! cargo add log
-//! cargo add logforth
-//! ```
-//!
-//! Here, [`log`] is the logging facade and `logforth` is the logging implementation.
-//!
-//! Then, you can use the logger with:
-//!
-//! ```rust
-//! use log::LevelFilter;
-//! use logforth::append;
-//!
-//! logforth::builder()
-//!     .filter(LevelFilter::Info)
-//!     .append(append::Stdout::default())
-//!     .finish()
-//!     .unwrap();
-//!
-//! log::error!("Hello error!");
-//! log::warn!("Hello warn!");
-//! log::info!("Hello info!");
-//! log::debug!("Hello debug!");
-//! log::trace!("Hello trace!");
-//! ```
-//!
-//! Read more demos under the [examples](https://github.com/fast/logforth/tree/main/examples) directory.
+/*!
+# A versatile and extensible logging implementation
+
+## Usage
+
+Add the dependencies to your `Cargo.toml` with:
+
+```shell
+cargo add log
+cargo add logforth
+```
+
+[`log`] is the logging facade and `logforth` is the logging implementation.
+
+Then, you can use the logger with the simplest default setup:
+
+```rust
+logforth::stderr().finish();
+```
+
+Or configure the logger in a more fine-grained way:
+
+```rust
+logforth::builder()
+    .filter(log::LevelFilter::Debug)
+    .append(logforth::append::Stderr::default())
+    .dispatch()
+    .filter(log::LevelFilter::Info)
+    .append(logforth::append::Stdout::default())
+    .finish();
+```
+
+Read more demos under the [examples](https://github.com/fast/logforth/tree/main/examples) directory.
+*/
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 

@@ -43,8 +43,7 @@ fn test_meta_logging_in_format_works() {
         .append(append::Stderr::default().with_layout(layout("err")))
         .dispatch()
         .append(append::RollingFile::new(writer).with_layout(layout("file")))
-        .finish()
-        .unwrap();
+        .finish();
 
     struct Thing<'a>(&'a str);
 

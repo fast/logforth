@@ -19,8 +19,7 @@ fn main() {
     logforth::builder()
         .filter(EnvFilter::from_default_env())
         .append(append::Stdout::default())
-        .finish()
-        .unwrap();
+        .finish();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

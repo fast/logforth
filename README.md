@@ -34,32 +34,23 @@ cargo add logforth
 Then, you can use the logger with the simplest default setup:
 
 ```rust
-use log::LevelFilter;
-use logforth::append;
-use logforth::layout::TextLayout;
-use logforth::Dispatch;
-use logforth::Logger;
-
 fn main() {
-    Logger::new().dispatch(
-        Dispatch::new()
-            .filter(LevelFilter::Trace)
-            .append(append::Stdout::default()),
-        )
-        .apply()
-        .unwrap();
-
-    log::error!("Hello error!");
-    log::warn!("Hello warn!");
-    log::info!("Hello info!");
-    log::debug!("Hello debug!");
-    log::trace!("Hello trace!");
+    logforth::stderr().finish();
 }
 ```
 
 Or configure the logger in a more fine-grained way:
 
 ```rust
+fn main() {
+    logforth::builder()
+        .filter(log::LevelFilter::Debug)
+        .append(logforth::append::Stderr::default())
+        .dispatch()
+        .filter(log::LevelFilter::Info)
+        .append(logforth::append::Stdout::default())
+        .finish();
+}
 ```
 
 Read more demos under the [examples](examples) directory.

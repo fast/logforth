@@ -36,8 +36,7 @@ fn main() {
         .dispatch()
         .filter("info")
         .append(Stdout::default())
-        .finish()
-        .unwrap();
+        .finish();
 
     let repeat = 1;
 
