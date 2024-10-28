@@ -31,7 +31,7 @@ cargo add logforth
 
 ... where [log](https://crates.io/crates/log) is the logging facade and [logforth](https://crates.io/crates/logforth) is the logging implementation.
 
-Then, you can use the logger with:
+Then, you can use the logger with the simplest default setup:
 
 ```rust
 use log::LevelFilter;
@@ -55,6 +55,11 @@ fn main() {
     log::debug!("Hello debug!");
     log::trace!("Hello trace!");
 }
+```
+
+Or configure the logger in a more fine-grained way:
+
+```rust
 ```
 
 Read more demos under the [examples](examples) directory.
