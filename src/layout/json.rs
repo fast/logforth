@@ -47,7 +47,7 @@ struct KvCollector<'a> {
     kvs: &'a mut Map<String, Value>,
 }
 
-impl<'a, 'kvs> log::kv::Visitor<'kvs> for KvCollector<'a> {
+impl<'kvs> log::kv::Visitor<'kvs> for KvCollector<'_> {
     fn visit_pair(
         &mut self,
         key: log::kv::Key<'kvs>,

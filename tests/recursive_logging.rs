@@ -48,7 +48,7 @@ fn test_meta_logging_in_format_works() {
 
     struct Thing<'a>(&'a str);
 
-    impl<'a> std::fmt::Display for Thing<'a> {
+    impl std::fmt::Display for Thing<'_> {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             log::debug!("formatting wrapping ({})", self.0);
             f.write_str(self.0)

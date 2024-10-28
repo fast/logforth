@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::LevelFilter;
 use logforth::append;
 use logforth::layout::JsonLayout;
 
