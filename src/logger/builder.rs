@@ -128,12 +128,12 @@ impl Builder<true> {
     /// # Errors
     ///
     /// An error is returned if the global logger has already been set.
-    pub fn finish(self) -> Result<(), log::SetLoggerError> {
-        debug_assert!(
-            !self.dispatches.is_empty(),
-            "Generic type should ensure dispatches is not empty"
-        );
+    pub fn finish(mut self) -> Result<(), log::SetLoggerError> {
+        // finish the current staging dispatch
+        let dispatch = Dispatch::new(self.filters, self.appends);
+        self.dispatches.push(dispatch);
 
+        // set up the global logger
         let logger = Logger::new(self.dispatches);
         log::set_boxed_logger(Box::new(logger))?;
         Ok(())

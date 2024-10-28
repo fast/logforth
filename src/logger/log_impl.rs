@@ -59,6 +59,11 @@ pub(super) struct Dispatch {
 
 impl Dispatch {
     pub(super) fn new(filters: Vec<Filter>, appends: Vec<Box<dyn Append>>) -> Self {
+        debug_assert!(
+            !appends.is_empty(),
+            "A Dispatch must have at least one filter"
+        );
+
         Self { filters, appends }
     }
 
