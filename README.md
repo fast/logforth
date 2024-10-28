@@ -63,9 +63,11 @@ Read more demos under the [examples](examples) directory.
 
 Read the online documents at https://docs.rs/logforth.
 
-## Supported Rust Versions (MSRV 1.75)
+## Minimum Rust version policy
 
-Logforth is built against the latest stable release. The minimum supported version is 1.75. The current Logforth version is not guaranteed to build on Rust versions earlier than the minimum supported version.
+This crate is built against the latest stable release, and its minimum supported rustc version is 1.75.0.
+
+The policy is that the minimum Rust version required to use this crate can be increased in minor version updates. For example, if Logforth 1.0 requires Rust 1.20.0, then Logforth 1.0.z for all values of z will also require Rust 1.20.0 or newer. However, Logforth 1.y for y > 0 may require a newer minimum version of Rust.
 
 ## When to release a 1.0 version
 
