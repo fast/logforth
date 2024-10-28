@@ -2,6 +2,7 @@ use super::log_impl::Dispatch;
 use super::log_impl::Logger;
 use crate::Append;
 use crate::Filter;
+use log::LevelFilter;
 
 /// Create a new empty [builder][Builder].
 ///
@@ -72,6 +73,9 @@ pub struct Builder<const READY: bool = true> {
 
     // stashed dispatches
     dispatches: Vec<Dispatch>,
+
+    // default to trace - we need this because the global default is OFF
+    max_level: LevelFilter,
 }
 
 impl Default for Builder<false> {
@@ -89,7 +93,16 @@ impl<const READY: bool> Builder<READY> {
             filters: self.filters,
             appends: self.appends,
             dispatches: self.dispatches,
+            max_level: self.max_level,
         }
+    }
+
+    /// Set the global maximum log level.
+    ///
+    /// This will be passed to [`log::set_max_level`] on [`Builder::finish`].
+    pub fn max_level(mut self, max_level: LevelFilter) -> Self {
+        self.max_level = max_level;
+        self
     }
 }
 
@@ -100,6 +113,7 @@ impl Builder<false> {
             filters: vec![],
             appends: vec![],
             dispatches: vec![],
+            max_level: LevelFilter::Trace,
         }
     }
 
@@ -120,6 +134,7 @@ impl Builder<true> {
             filters: vec![],
             appends: vec![],
             dispatches: self.dispatches,
+            max_level: self.max_level,
         }
     }
 
@@ -136,6 +151,7 @@ impl Builder<true> {
         // set up the global logger
         let logger = Logger::new(self.dispatches);
         log::set_boxed_logger(Box::new(logger))?;
+        log::set_max_level(self.max_level);
         Ok(())
     }
 }
