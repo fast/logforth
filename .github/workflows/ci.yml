@@ -73,7 +73,7 @@ jobs:
         run: |
           cargo run --example simple_stdio
           cargo run --example fn_layout_filter
-          cargo run --example env_filter
+          cargo run --example default_filter_respect_env
           cargo run --features="no-color" --example simple_stdio
           cargo run --features="json" --example json_stdio
           cargo run --features="json,rolling_file" --example rolling_file

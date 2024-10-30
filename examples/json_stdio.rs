@@ -16,9 +16,8 @@ use logforth::append;
 use logforth::layout::JsonLayout;
 
 fn main() {
-    logforth::builder()
-        .append(append::Stdout::default().with_layout(JsonLayout::default()))
-        .finish();
+    logforth::dispatch(|b| b.append(append::Stdout::default().with_layout(JsonLayout::default())))
+        .apply();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

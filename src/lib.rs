@@ -29,19 +29,18 @@ cargo add logforth
 Then, you can use the logger with the simplest default setup:
 
 ```rust
-logforth::stderr().finish();
+logforth::stderr().apply();
 ```
 
 Or configure the logger in a more fine-grained way:
 
 ```rust
-logforth::builder()
-    .filter(log::LevelFilter::Debug)
-    .append(logforth::append::Stderr::default())
-    .dispatch()
-    .filter(log::LevelFilter::Info)
-    .append(logforth::append::Stdout::default())
-    .finish();
+use log::LevelFilter;
+use logforth::append;
+
+logforth::dispatch(|b| b.filter(LevelFilter::Debug).append(append::Stderr::default()))
+    .and_dispatch(|b| b.filter(LevelFilter::Info).append(append::Stdout::default()))
+    .apply();
 ```
 
 Read more demos under the [examples](https://github.com/fast/logforth/tree/main/examples) directory.

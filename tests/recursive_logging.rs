@@ -37,13 +37,10 @@ fn test_meta_logging_in_format_works() {
         })
     };
 
-    logforth::builder()
-        .append(append::Stdout::default().with_layout(layout("out")))
-        .dispatch()
-        .append(append::Stderr::default().with_layout(layout("err")))
-        .dispatch()
-        .append(append::RollingFile::new(writer).with_layout(layout("file")))
-        .finish();
+    logforth::dispatch(|b| b.append(append::Stdout::default().with_layout(layout("out"))))
+        .and_dispatch(|b| b.append(append::Stderr::default().with_layout(layout("err"))))
+        .and_dispatch(|b| b.append(append::RollingFile::new(writer).with_layout(layout("file"))))
+        .apply();
 
     struct Thing<'a>(&'a str);
 
