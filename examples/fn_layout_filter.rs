@@ -17,28 +17,22 @@ use logforth::append;
 use logforth::filter::CustomFilter;
 use logforth::filter::FilterResult;
 use logforth::layout::CustomLayout;
-use logforth::Dispatch;
-use logforth::Logger;
 
 fn main() {
-    Logger::new()
-        .dispatch(
-            Dispatch::new()
-                .filter(CustomFilter::new(|metadata: &log::Metadata| {
-                    if metadata.level() > LevelFilter::Info {
-                        FilterResult::Accept
-                    } else {
-                        FilterResult::Reject
-                    }
-                }))
-                .append(
-                    append::Stdout::default().with_layout(CustomLayout::new(|record| {
-                        Ok(format!("[system alert] {}", record.args()).into_bytes())
-                    })),
-                ),
+    logforth::builder()
+        .filter(CustomFilter::new(|metadata: &log::Metadata| {
+            if metadata.level() > LevelFilter::Info {
+                FilterResult::Accept
+            } else {
+                FilterResult::Reject
+            }
+        }))
+        .append(
+            append::Stdout::default().with_layout(CustomLayout::new(|record| {
+                Ok(format!("[system alert] {}", record.args()).into_bytes())
+            })),
         )
-        .apply()
-        .unwrap();
+        .finish();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

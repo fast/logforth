@@ -17,8 +17,6 @@ use logforth::append::rolling_file::NonBlockingBuilder;
 use logforth::append::rolling_file::RollingFileWriter;
 use logforth::append::rolling_file::Rotation;
 use logforth::layout;
-use logforth::Dispatch;
-use logforth::Logger;
 
 // ensure logforth's impl doesn't properly handle recursive logging
 #[test]
@@ -39,18 +37,17 @@ fn test_meta_logging_in_format_works() {
         })
     };
 
-    Logger::new()
-        .dispatch(Dispatch::new().append(append::Stdout::default().with_layout(layout("out"))))
-        .dispatch(Dispatch::new().append(append::Stderr::default().with_layout(layout("err"))))
-        .dispatch(
-            Dispatch::new().append(append::RollingFile::new(writer).with_layout(layout("file"))),
-        )
-        .apply()
-        .unwrap();
+    logforth::builder()
+        .append(append::Stdout::default().with_layout(layout("out")))
+        .dispatch()
+        .append(append::Stderr::default().with_layout(layout("err")))
+        .dispatch()
+        .append(append::RollingFile::new(writer).with_layout(layout("file")))
+        .finish();
 
     struct Thing<'a>(&'a str);
 
-    impl<'a> std::fmt::Display for Thing<'a> {
+    impl std::fmt::Display for Thing<'_> {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             log::debug!("formatting wrapping ({})", self.0);
             f.write_str(self.0)

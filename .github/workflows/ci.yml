@@ -57,10 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Ensure both MSRV and stable work
-        rust-version:
-          - "1.75.0"
-          - stable
+        rust-version: [ "1.75.0", "stable" ]
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2

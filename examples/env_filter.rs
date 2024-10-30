@@ -14,18 +14,12 @@
 
 use logforth::append;
 use logforth::filter::EnvFilter;
-use logforth::Dispatch;
-use logforth::Logger;
 
 fn main() {
-    Logger::new()
-        .dispatch(
-            Dispatch::new()
-                .filter(EnvFilter::from_default_env())
-                .append(append::Stdout::default()),
-        )
-        .apply()
-        .unwrap();
+    logforth::builder()
+        .filter(EnvFilter::from_default_env())
+        .append(append::Stdout::default())
+        .finish();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

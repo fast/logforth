@@ -12,19 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::LevelFilter;
-use logforth::append;
+mod builder;
+pub use builder::*;
 
-fn main() {
-    logforth::builder()
-        .filter(LevelFilter::Trace)
-        .append(append::Stdout::default())
-        .append(append::Stderr::default())
-        .finish();
-
-    log::error!("Hello error!");
-    log::warn!("Hello warn!");
-    log::info!("Hello info!");
-    log::debug!("Hello debug!");
-    log::trace!("Hello trace!");
-}
+mod log_impl;
