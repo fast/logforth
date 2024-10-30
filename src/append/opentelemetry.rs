@@ -35,6 +35,9 @@ use crate::append::Append;
 use crate::Layout;
 
 /// Specifies the wire protocol to use when sending logs to OpenTelemetry.
+///
+/// This is a logical re-exported [`Protocol`] to avoid version lock-in to
+/// `opentelemetry_otlp`.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OpentelemetryWireProtocol {
