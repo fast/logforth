@@ -12,6 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Appender for writing log records to rolling files.
+//!
+//! # Example
+//!
+//!```
+//! use logforth::append::rolling_file::NonBlockingBuilder;
+//! use logforth::append::rolling_file::RollingFile;
+//! use logforth::append::rolling_file::RollingFileWriter;
+//! use logforth::append::rolling_file::Rotation;
+//! use logforth::layout::JsonLayout;
+//!
+//! let rolling_writer = RollingFileWriter::builder()
+//!     .rotation(Rotation::Daily)
+//!     .filename_prefix("app_log")
+//!     .build("logs")
+//!     .unwrap();
+//!
+//! let (non_blocking, _guard) = NonBlockingBuilder::default().finish(rolling_writer);
+//!
+//! logforth::builder()
+//!     .dispatch(|d| {
+//!         d.filter(log::LevelFilter::Trace)
+//!             .append(RollingFile::new(non_blocking).with_layout(JsonLayout::default()))
+//!     })
+//!     .apply();
+//!
+//! log::info!("This log will be written to a rolling file.");
+//! ```
+
 pub use append::RollingFile;
 pub use non_blocking::NonBlocking;
 pub use non_blocking::NonBlockingBuilder;

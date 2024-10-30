@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Appenders and utilities for integrating with OpenTelemetry.
+
 use std::borrow::Cow;
 use std::sync::Arc;
 use std::time::Duration;
@@ -32,7 +34,7 @@ use opentelemetry_sdk::logs::LoggerProvider;
 use crate::append::Append;
 use crate::Layout;
 
-/// The communication protocol to opentelemetry that used when exporting data.
+/// Specifies the wire protocol to use when sending logs to OpenTelemetry.
 ///
 /// This is a logical re-exported [`Protocol`] to avoid version lock-in to
 /// `opentelemetry_otlp`.
@@ -57,7 +59,15 @@ pub struct OpentelemetryLogBuilder {
 }
 
 impl OpentelemetryLogBuilder {
-    /// Create a new builder with the given name and OTLP endpoint.
+    /// Creates a new [`OpentelemetryLogBuilder`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
+    ///
+    /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
+    /// ```
     pub fn new(name: impl Into<String>, otlp_endpoint: impl Into<String>) -> Self {
         OpentelemetryLogBuilder {
             name: name.into(),
@@ -68,11 +78,17 @@ impl OpentelemetryLogBuilder {
         }
     }
 
-    /// Set the protocol to use when exporting data to opentelemetry.
+    /// Sets the wire protocol to use.
     ///
-    /// Default to [`Grpc`].
+    /// # Examples
     ///
-    /// [`Grpc`]: OpentelemetryWireProtocol::Grpc
+    /// ```
+    /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
+    /// use logforth::append::opentelemetry::OpentelemetryWireProtocol;
+    ///
+    /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
+    /// builder.protocol(OpentelemetryWireProtocol::HttpJson);
+    /// ```
     pub fn protocol(mut self, protocol: OpentelemetryWireProtocol) -> Self {
         self.protocol = match protocol {
             OpentelemetryWireProtocol::Grpc => Protocol::Grpc,
@@ -82,7 +98,16 @@ impl OpentelemetryLogBuilder {
         self
     }
 
-    /// Append a label to the resource.
+    /// Adds a label to the logs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
+    ///
+    /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
+    /// builder.label("env", "production");
+    /// ```
     pub fn label(
         mut self,
         key: impl Into<Cow<'static, str>>,
@@ -92,7 +117,16 @@ impl OpentelemetryLogBuilder {
         self
     }
 
-    /// Append multiple labels to the resource.
+    /// Adds multiple labels to the logs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
+    ///
+    /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
+    /// builder.labels(vec![("env", "production"), ("version", "1.0")]);
+    /// ```
     pub fn labels<K, V>(mut self, labels: impl IntoIterator<Item = (K, V)>) -> Self
     where
         K: Into<Cow<'static, str>>,
@@ -103,13 +137,34 @@ impl OpentelemetryLogBuilder {
         self
     }
 
-    /// Set the layout to use when formatting log records.
+    /// Sets the layout for the logs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
+    /// use logforth::layout::JsonLayout;
+    ///
+    /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
+    /// builder.layout(JsonLayout::default());
+    /// ```
     pub fn layout(mut self, layout: impl Into<Layout>) -> Self {
         self.layout = Some(layout.into());
         self
     }
 
-    /// Build the [`OpentelemetryLog`] appender.
+    /// Builds the [`OpentelemetryLog`] appender.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
+    ///
+    /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
+    /// let otlp_appender = tokio::runtime::Runtime::new()
+    ///     .unwrap()
+    ///     .block_on(async { builder.build().unwrap() });
+    /// ```
     pub fn build(self) -> Result<OpentelemetryLog, opentelemetry::logs::LogError> {
         let OpentelemetryLogBuilder {
             name,
@@ -157,7 +212,21 @@ impl OpentelemetryLogBuilder {
     }
 }
 
-/// An appender that sends log records to opentelemetry.
+/// An appender that sends log records to OpenTelemetry.
+///
+/// # Examples
+///
+/// ```
+/// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
+/// use logforth::append::opentelemetry::OpentelemetryWireProtocol;
+///
+/// let otlp_appender = tokio::runtime::Runtime::new().unwrap().block_on(async {
+///     OpentelemetryLogBuilder::new("service_name", "http://localhost:4317")
+///         .protocol(OpentelemetryWireProtocol::Grpc)
+///         .build()
+///         .unwrap();
+/// });
+/// ```
 #[derive(Debug)]
 pub struct OpentelemetryLog {
     name: String,

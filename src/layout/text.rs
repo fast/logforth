@@ -45,6 +45,14 @@ use crate::layout::Layout;
 ///
 /// You can customize the timezone of the timestamp by setting the `tz` field with a [`TimeZone`]
 /// instance. Otherwise, the system timezone is used.
+///
+/// # Examples
+///
+/// ```
+/// use logforth::layout::TextLayout;
+///
+/// let text_layout = TextLayout::default();
+/// ```
 #[derive(Default, Debug, Clone)]
 pub struct TextLayout {
     colors: LevelColor,
@@ -53,68 +61,88 @@ pub struct TextLayout {
 }
 
 impl TextLayout {
-    /// Turn off coloring of log levels.
+    /// Disables colored output.
     pub fn no_color(mut self) -> Self {
         self.no_color = true;
         self
     }
 
-    /// Set the timezone of the timestamp; default to the system timezone.
+    /// Sets the timezone for timestamps.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jiff::tz::TimeZone;
+    /// use logforth::layout::TextLayout;
+    ///
+    /// let text_layout = TextLayout::default().timezone(TimeZone::UTC);
+    /// ```
     pub fn timezone(mut self, tz: TimeZone) -> Self {
         self.tz = Some(tz);
         self
     }
 
-    /// Customize the color of each log level; no effect if `no_color` is set to `true`,
-    /// or the `no-color` feature flag is enabled.
+    /// Customize the color of each log level.
+    ///
+    /// No effect if `no_color` is set to `true` or the `no-color` feature flag is enabled.
     pub fn colors(mut self, colors: LevelColor) -> Self {
         self.colors = colors;
         self
     }
 
-    /// Customize the color of the error log level; no effect if `no_color` is set to `true`,
-    /// or the `no-color` feature flag is enabled. Default to red.
+    /// Customize the color of the error log level. Default to red.
+    ///
+    /// No effect if `no_color` is set to `true` or the `no-color` feature flag is enabled.
     pub fn error_color(mut self, color: Color) -> Self {
         self.colors.error = color;
         self
     }
 
-    /// Customize the color of the warn log level; no effect if `no_color` is set to `true`,
-    /// or the `no-color` feature flag is enabled. Default to yellow.
+    /// Customize the color of the warn log level. Default to yellow.
+    ///
+    /// No effect if `no_color` is set to `true` or the `no-color` feature flag is enabled.
     pub fn warn_color(mut self, color: Color) -> Self {
         self.colors.warn = color;
         self
     }
 
-    /// Customize the color of the info log level; no effect if `no_color` is set to `true`,
-    /// or the `no-color` feature flag is enabled. Default to green.
+    /// Customize the color of the info log level/ Default to green.
+    ///
+    /// No effect if `no_color` is set to `true` or the `no-color` feature flag is enabled.
     pub fn info_color(mut self, color: Color) -> Self {
         self.colors.info = color;
         self
     }
 
-    /// Customize the color of the debug log level; no effect if `no_color` is set to `true`,
-    /// or the `no-color` feature flag is enabled. Default to blue.
+    /// Customize the color of the debug log level. Default to blue.
+    ///
+    /// No effect if `no_color` is set to `true` or the `no-color` feature flag is enabled.
     pub fn debug_color(mut self, color: Color) -> Self {
         self.colors.debug = color;
         self
     }
 
-    /// Customize the color of the trace log level; no effect if `no_color` is set to `true`,
-    /// or the `no-color` feature flag is enabled. Default to magenta.
+    /// Customize the color of the trace log level. Default to magenta.
+    ///
+    /// No effect if `no_color` is set to `true` or the `no-color` feature flag is enabled.
     pub fn trace_color(mut self, color: Color) -> Self {
         self.colors.trace = color;
         self
     }
 }
 
-/// Customize the color of each log level.
+/// Colors for different log levels.
 #[derive(Debug, Clone)]
 pub struct LevelColor {
+    /// Color for error level logs.
     pub error: Color,
+    /// Color for warning level logs.
     pub warn: Color,
+    /// Color for info level logs.
     pub info: Color,
+    /// Color for debug level logs.
     pub debug: Color,
+    /// Color for trace level logs.
     pub trace: Color,
 }
 

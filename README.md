@@ -1,4 +1,4 @@
-# Logforth Project
+# Logforth
 
 [![Crates.io][crates-badge]][crates-url]
 [![Documentation][docs-badge]][docs-url]
@@ -16,40 +16,58 @@
 [actions-badge]: https://github.com/fast/logforth/workflows/CI/badge.svg
 [actions-url]:https://github.com/fast/logforth/actions?query=workflow%3ACI
 
-## Overview
+Logforth is a flexible and easy-to-use logging framework for Rust applications. It allows you to configure multiple dispatches, filters, and appenders to customize your logging setup according to your needs.
 
-A versatile and extensible logging implementation.
+## Features
 
-## Usage
+- **Multiple Dispatches**: Configure different logging behaviors for different parts of your application.
+- **Flexible Filters**: Use built-in or custom filters to control which log records are processed.
+- **Various Appenders**: Output logs to stdout, stderr, files, or even send them to OpenTelemetry collectors.
+- **Custom Layouts**: Format log records using predefined layouts or create your own.
 
-Add the dependencies to your `Cargo.toml` with:
+## Getting Started
+
+Add `log` and `logforth` to your `Cargo.toml`:
 
 ```shell
 cargo add log
 cargo add logforth
 ```
 
-... where [log](https://crates.io/crates/log) is the logging facade and [logforth](https://crates.io/crates/logforth) is the logging implementation.
+## Simple Usage
 
-Then, you can use the logger with the simplest default setup:
+Set up a basic logger that outputs to stdout:
 
 ```rust
 fn main() {
-    logforth::stderr().apply();
+    logforth::stdout().apply();
+
+    log::info!("This is an info message.");
+    log::debug!("This debug message will not be printed by default.");
 }
 ```
 
-Or configure the logger in a more fine-grained way:
+## Advanced Usage
+
+Configure multiple dispatches with different filters and appenders:
 
 ```rust
-use log::LevelFilter;
 use logforth::append;
+use log::LevelFilter;
 
 fn main() {
     logforth::builder()
-        .dispatch(|d| d.filter(LevelFilter::Debug).append(append::Stderr::default()))
-        .dispatch(|d| d.filter(LevelFilter::Info).append(append::Stdout::default()))
+        .dispatch(|d| d
+            .filter(LevelFilter::Error)
+            .append(append::Stderr::default()))
+        .dispatch(|d| d
+            .filter(LevelFilter::Info)
+            .append(append::Stdout::default()))
         .apply();
+
+    log::error!("This error will be logged to stderr.");
+    log::info!("This info will be logged to stdout.");
+    log::debug!("This debug message will not be logged.");
 }
 ```
 

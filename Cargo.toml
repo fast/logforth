@@ -48,11 +48,11 @@ colored = { version = "2.1" }
 env_filter = { version = "0.1" }
 jiff = { version = "0.1.13" }
 log = { version = "0.4", features = ["std", "kv_unstable"] }
-paste = { version = "1.0" }
 
 [dev-dependencies]
 rand = "0.8"
 tempfile = "3.13"
+tokio = { version = "1", features = ["rt-multi-thread"] }
 
 ## Serde dependencies
 [dependencies.serde]
@@ -96,13 +96,16 @@ version = "0.26"
 
 ## Examples
 [[example]]
-name = "text_stdio"
-path = "examples/text_stdio.rs"
+name = "simple_stdout"
+path = "examples/simple_stdout.rs"
 
 [[example]]
-name = "json_stdio"
-path = "examples/json_stdio.rs"
-required-features = ["json"]
+name = "json_stdout"
+path = "examples/json_stdout.rs"
+
+[[example]]
+name = "multiple_dispatches"
+path = "examples/multiple_dispatches.rs"
 
 [[example]]
 name = "rolling_file"
@@ -112,7 +115,3 @@ required-features = ["rolling_file", "json"]
 [[example]]
 name = "custom_layout_filter"
 path = "examples/custom_layout_filter.rs"
-
-[[example]]
-name = "env_filter"
-path = "examples/env_filter.rs"

@@ -27,7 +27,7 @@ use parking_lot::RwLock;
 use crate::append::rolling_file::clock::Clock;
 use crate::append::rolling_file::Rotation;
 
-/// A file writer with the ability to rotate log files at a fixed schedule.
+/// A writer for rolling files.
 #[derive(Debug)]
 pub struct RollingFileWriter {
     state: State,
@@ -35,6 +35,15 @@ pub struct RollingFileWriter {
 }
 
 impl RollingFileWriter {
+    /// Creates a new [`RollingFileWriterBuilder`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth::append::rolling_file::RollingFileWriter;
+    ///
+    /// let builder = RollingFileWriter::builder();
+    /// ```
     #[must_use]
     pub fn builder() -> RollingFileWriterBuilder {
         RollingFileWriterBuilder::new()
@@ -65,7 +74,7 @@ impl Write for RollingFileWriter {
     }
 }
 
-/// A builder for [`RollingFileWriter`].
+/// A builder for configuring [`RollingFileWriter`].
 #[derive(Debug)]
 pub struct RollingFileWriterBuilder {
     rotation: Rotation,
@@ -83,6 +92,7 @@ impl Default for RollingFileWriterBuilder {
 }
 
 impl RollingFileWriterBuilder {
+    /// Creates a new [`RollingFileWriterBuilder`].
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -95,12 +105,14 @@ impl RollingFileWriterBuilder {
         }
     }
 
+    /// Sets the rotation policy.
     #[must_use]
     pub fn rotation(mut self, rotation: Rotation) -> Self {
         self.rotation = rotation;
         self
     }
 
+    /// Sets the filename prefix.
     #[must_use]
     pub fn filename_prefix(mut self, prefix: impl Into<String>) -> Self {
         let prefix = prefix.into();
@@ -112,6 +124,7 @@ impl RollingFileWriterBuilder {
         self
     }
 
+    /// Sets the filename suffix.
     #[must_use]
     pub fn filename_suffix(mut self, suffix: impl Into<String>) -> Self {
         let suffix = suffix.into();
@@ -123,6 +136,7 @@ impl RollingFileWriterBuilder {
         self
     }
 
+    /// Sets the maximum number of log files to keep.
     #[must_use]
     pub fn max_log_files(mut self, n: usize) -> Self {
         self.max_files = Some(n);
@@ -142,6 +156,7 @@ impl RollingFileWriterBuilder {
         self
     }
 
+    /// Builds the [`RollingFileWriter`].
     pub fn build(self, dir: impl AsRef<Path>) -> anyhow::Result<RollingFileWriter> {
         let Self {
             rotation,

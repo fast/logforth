@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use log::LevelFilter;
 use logforth::append;
-use logforth::layout::JsonLayout;
 
 fn main() {
     logforth::builder()
-        .dispatch(|d| d.append(append::Stdout::default().with_layout(JsonLayout::default())))
+        .dispatch(|d| {
+            d.filter(LevelFilter::Error)
+                .append(append::Stderr::default())
+        })
+        .dispatch(|d| {
+            d.filter(LevelFilter::Info)
+                .append(append::Stdout::default())
+        })
         .apply();
 
     log::error!("Hello error!");

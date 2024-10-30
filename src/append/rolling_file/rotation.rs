@@ -18,16 +18,16 @@ use jiff::Unit;
 use jiff::Zoned;
 use jiff::ZonedRound;
 
-/// Defines a fixed period for rolling of a log file.
+/// Rotation policies for rolling files.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Rotation {
-    /// Minutely Rotation
+    /// Rotate files every minute.
     Minutely,
-    /// Hourly Rotation
+    /// Rotate files every hour.
     Hourly,
-    /// Daily Rotation
+    /// Rotate files every day.
     Daily,
-    /// No Time Rotation
+    /// Never rotate files.
     Never,
 }
 

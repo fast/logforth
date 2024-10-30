@@ -24,7 +24,7 @@ use serde_json::Value;
 
 use crate::layout::Layout;
 
-/// A layout that formats log record as JSON lines.
+/// A JSON layout for formatting log records.
 ///
 /// Output format:
 ///
@@ -36,11 +36,33 @@ use crate::layout::Layout;
 /// {"timestamp":"2024-08-11T22:44:57.172353+08:00","level":"TRACE","module_path":"rolling_file","file":"examples/rolling_file.rs","line":55,"message":"Hello trace!","kvs":{}}
 /// ```
 ///
-/// You can customize the timezone of the timestamp by setting the `tz` field with a [`TimeZone`]
-/// instance. Otherwise, the system timezone is used.
+/// # Examples
+///
+/// ```
+/// use logforth::layout::JsonLayout;
+///
+/// let json_layout = JsonLayout::default();
+/// ```
 #[derive(Default, Debug, Clone)]
 pub struct JsonLayout {
-    pub tz: Option<TimeZone>,
+    tz: Option<TimeZone>,
+}
+
+impl JsonLayout {
+    /// Sets the timezone for timestamps.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jiff::tz::TimeZone;
+    /// use logforth::layout::JsonLayout;
+    ///
+    /// let json_layout = JsonLayout::default().timezone(TimeZone::UTC);
+    /// ```
+    pub fn timezone(mut self, tz: TimeZone) -> Self {
+        self.tz = Some(tz);
+        self
+    }
 }
 
 struct KvCollector<'a> {

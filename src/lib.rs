@@ -12,40 +12,45 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*!
-# A versatile and extensible logging implementation
-
-## Usage
-
-Add the dependencies to your `Cargo.toml` with:
-
-```shell
-cargo add log
-cargo add logforth
-```
-
-[`log`] is the logging facade and `logforth` is the logging implementation.
-
-Then, you can use the logger with the simplest default setup:
-
-```rust
-logforth::stderr().apply();
-```
-
-Or configure the logger in a more fine-grained way:
-
-```rust
-use log::LevelFilter;
-use logforth::append;
-
-logforth::builder()
-    .dispatch(|d| d.filter(LevelFilter::Debug).append(append::Stderr::default()))
-    .dispatch(|d| d.filter(LevelFilter::Info).append(append::Stdout::default()))
-    .apply();
-```
-
-Read more demos under the [examples](https://github.com/fast/logforth/tree/main/examples) directory.
-*/
+//! Logforth is a flexible logging framework for Rust applications, providing easy log dispatching
+//! and configuration.
+//!
+//! # Overview
+//!
+//! Logforth allows you to set up multiple log dispatches with different filters and appenders. You
+//! can configure global log levels, use built-in appenders for stdout, stderr, files, or create
+//! custom appenders. It integrates seamlessly with the `log` crate.
+//!
+//! # Examples
+//!
+//! Simple setup with default stdout appender:
+//!
+//! ```
+//! logforth::stdout().apply();
+//!
+//! log::info!("This is an info message.");
+//! ```
+//!
+//! Advanced setup with custom filters and multiple appenders:
+//!
+//! ```
+//! use log::LevelFilter;
+//! use logforth::append;
+//!
+//! logforth::builder()
+//!     .dispatch(|d| {
+//!         d.filter(LevelFilter::Error)
+//!             .append(append::Stderr::default())
+//!     })
+//!     .dispatch(|d| {
+//!         d.filter(LevelFilter::Info)
+//!             .append(append::Stdout::default())
+//!     })
+//!     .apply();
+//!
+//! log::error!("Error message.");
+//! log::info!("Info message.");
+//! ```
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::LevelFilter;
 use logforth::append;
 use logforth::filter::CustomFilter;
 use logforth::filter::FilterResult;
@@ -21,8 +20,8 @@ use logforth::layout::CustomLayout;
 fn main() {
     logforth::builder()
         .dispatch(|d| {
-            d.filter(CustomFilter::new(|metadata: &log::Metadata| {
-                if metadata.level() > LevelFilter::Info {
+            d.filter(CustomFilter::new(|metadata| {
+                if metadata.level() < log::Level::Info {
                     FilterResult::Accept
                 } else {
                     FilterResult::Reject
@@ -30,7 +29,7 @@ fn main() {
             }))
             .append(
                 append::Stdout::default().with_layout(CustomLayout::new(|record| {
-                    Ok(format!("[system alert] {}", record.args()).into_bytes())
+                    Ok(format!("[Alert] {}", record.args()).into_bytes())
                 })),
             )
         })
