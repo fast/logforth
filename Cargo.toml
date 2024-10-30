@@ -96,8 +96,8 @@ version = "0.26"
 
 ## Examples
 [[example]]
-name = "simple_stdio"
-path = "examples/simple_stdio.rs"
+name = "plain_stdio"
+path = "examples/plain_stdio.rs"
 
 [[example]]
 name = "json_stdio"
@@ -110,9 +110,9 @@ path = "examples/rolling_file.rs"
 required-features = ["rolling_file", "json"]
 
 [[example]]
-name = "fn_layout_filter"
-path = "examples/fn_layout_filter.rs"
+name = "custom_layout_filter"
+path = "examples/custom_layout_filter.rs"
 
 [[example]]
-name = "default_filter_respect_env"
-path = "examples/default_filter_respect_env.rs"
+name = "env_rust_log"
+path = "examples/env_rust_log.rs"

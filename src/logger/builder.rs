@@ -29,11 +29,12 @@ use crate::Filter;
 /// use log::LevelFilter;
 /// use logforth::append;
 ///
-/// logforth::dispatch(|b| {
-///     b.filter(LevelFilter::Info)
-///         .append(append::Stdout::default())
-/// })
-/// .apply();
+/// logforth::builder()
+///     .dispatch(|d| {
+///         d.filter(LevelFilter::Info)
+///             .append(append::Stdout::default())
+///     })
+///     .apply();
 /// ```
 ///
 /// Multiple dispatches can be added:
@@ -42,21 +43,19 @@ use crate::Filter;
 /// use log::LevelFilter;
 /// use logforth::append;
 ///
-/// logforth::dispatch(|b| {
-///     b.filter(LevelFilter::Info)
-///         .append(append::Stdout::default())
-/// })
-/// .and_dispatch(|b| {
-///     b.filter(LevelFilter::Debug)
-///         .append(append::Stderr::default())
-/// })
-/// .apply();
+/// logforth::builder()
+///     .dispatch(|d| {
+///         d.filter(LevelFilter::Info)
+///             .append(append::Stdout::default())
+///     })
+///     .dispatch(|d| {
+///         d.filter(LevelFilter::Debug)
+///             .append(append::Stderr::default())
+///     })
+///     .apply();
 /// ```
-pub fn dispatch<F>(f: F) -> Builder
-where
-    F: FnOnce(DispatchBuilder<false>) -> DispatchBuilder<true>,
-{
-    Builder::dispatch(f)
+pub fn builder() -> Builder {
+    Builder::new()
 }
 
 /// Create a new [`Builder`] with a default [`Stdout`][append::Stdout] append configured, and
@@ -68,8 +67,8 @@ where
 /// logforth::stdout().apply();
 /// ```
 pub fn stdout() -> Builder {
-    dispatch(|b| {
-        b.filter(EnvFilter::from_default_env())
+    crate::builder().dispatch(|d| {
+        d.filter(EnvFilter::from_default_env())
             .append(append::Stdout::default())
     })
 }
@@ -83,13 +82,13 @@ pub fn stdout() -> Builder {
 /// logforth::stderr().apply();
 /// ```
 pub fn stderr() -> Builder {
-    dispatch(|b| {
-        b.filter(EnvFilter::from_default_env())
+    crate::builder().dispatch(|d| {
+        d.filter(EnvFilter::from_default_env())
             .append(append::Stderr::default())
     })
 }
 
-/// A builder for configuring the logger. Always constructed via [`dispatch`] for a fluent API.
+/// A builder for configuring the logger. Always constructed via [`builder`] for a fluent API.
 ///
 /// ## Examples
 ///
@@ -99,11 +98,12 @@ pub fn stderr() -> Builder {
 /// use log::LevelFilter;
 /// use logforth::append;
 ///
-/// logforth::dispatch(|b| {
-///     b.filter(LevelFilter::Info)
-///         .append(append::Stdout::default())
-/// })
-/// .apply();
+/// logforth::builder()
+///     .dispatch(|d| {
+///         d.filter(LevelFilter::Info)
+///             .append(append::Stdout::default())
+///     })
+///     .apply();
 /// ```
 #[must_use = "call `apply` to set the global logger"]
 #[derive(Debug)]
@@ -116,19 +116,15 @@ pub struct Builder {
 }
 
 impl Builder {
-    /// Create a new logger builder with the first dispatch configured by `f`.
-    fn dispatch<F>(f: F) -> Self
-    where
-        F: FnOnce(DispatchBuilder<false>) -> DispatchBuilder<true>,
-    {
-        Self {
-            dispatches: vec![f(DispatchBuilder::new()).build()],
+    fn new() -> Self {
+        Builder {
+            dispatches: vec![],
             max_level: LevelFilter::Trace,
         }
     }
 
-    /// Stage a new dispatch.
-    pub fn and_dispatch<F>(mut self, f: F) -> Self
+    /// Register a new dispatch.
+    pub fn dispatch<F>(mut self, f: F) -> Self
     where
         F: FnOnce(DispatchBuilder<false>) -> DispatchBuilder<true>,
     {
@@ -138,7 +134,7 @@ impl Builder {
 
     /// Set the global maximum log level.
     ///
-    /// This will be passed to [`log::set_max_level`] on [`Builder::finish`].
+    /// This will be passed to [`log::set_max_level`] on [`Builder::apply`].
     pub fn max_level(mut self, max_level: LevelFilter) -> Self {
         self.max_level = max_level;
         self

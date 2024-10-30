@@ -19,10 +19,10 @@ use std::str::FromStr;
 use log::LevelFilter;
 
 pub use self::custom::CustomFilter;
-pub use self::env::EnvFilter;
+pub use self::env_filter::EnvFilter;
 
 mod custom;
-pub mod env;
+pub mod env_filter;
 
 /// The result of a filter may return.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
