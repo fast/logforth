@@ -96,8 +96,8 @@ version = "0.26"
 
 ## Examples
 [[example]]
-name = "plain_stdio"
-path = "examples/plain_stdio.rs"
+name = "text_stdio"
+path = "examples/text_stdio.rs"
 
 [[example]]
 name = "json_stdio"
@@ -114,5 +114,5 @@ name = "custom_layout_filter"
 path = "examples/custom_layout_filter.rs"
 
 [[example]]
-name = "env_rust_log"
-path = "examples/env_rust_log.rs"
+name = "env_filter"
+path = "examples/env_filter.rs"
