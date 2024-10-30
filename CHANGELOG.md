@@ -2,9 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.15.0] 2024-10-30
+
+### Breaking changes
+
+API is further improve in both [#69](https://github.com/fast/logforth/pull/69) and [#70](https://github.com/fast/logforth/pull/70).
+
+Now the logger build logic is like:
+
+```rust
+use log::LevelFilter;
+use logforth::append;
+use logforth::layout::JsonLayout;
+
+fn main() {
+    logforth::dispatch(|b| b.filter(LevelFilter::Debug).append(append::Stderr::default().with_layout(JsonLayout::default())))
+        .and_dispatch(|b| b.filter(LevelFilter::Info).append(append::Stdout::default().with_layout(JsonLayout::default())))
+        .apply();
+}
+```
+
+And we provide a convenient way to build the logger with default setup (stderr or stdout, with RUST_LOG envvar respected):
+
+```rust
+fn main() {
+    logforth::stderr().apply();
+    // or logforth::stdout().apply(); // for logging to stdout
+}
+```
+
 ## [0.14.0] 2024-10-28
 
-Breaking changes:
+### Breaking changes
 
 1. refactor: layouts and encoders should be nested to appenders ([#64](https://github.com/fast/logforth/pull/64))
 
