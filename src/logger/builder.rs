@@ -108,9 +108,6 @@ pub fn stderr() -> Builder {
 #[must_use = "call `apply` to set the global logger"]
 #[derive(Debug)]
 pub struct Builder {
-    // under building dispatch
-    dispatch: DispatchBuilder,
-
     // stashed dispatches
     dispatches: Vec<Dispatch>,
 
@@ -125,29 +122,17 @@ impl Builder {
         F: FnOnce(DispatchBuilder<false>) -> DispatchBuilder<true>,
     {
         Self {
-            dispatch: f(DispatchBuilder::new()),
-            dispatches: vec![],
+            dispatches: vec![f(DispatchBuilder::new()).build()],
             max_level: LevelFilter::Trace,
         }
     }
 
-    /// Start a new staging dispatch. The previous staging dispatch will be finished and added to
-    /// the list of final dispatches.
+    /// Stage a new dispatch.
     pub fn and_dispatch<F>(mut self, f: F) -> Self
     where
         F: FnOnce(DispatchBuilder<false>) -> DispatchBuilder<true>,
     {
-        self.dispatches.push(self.dispatch.build());
-        self.dispatch = f(DispatchBuilder::new());
-        self
-    }
-
-    /// Mutate the current staging dispatch.
-    pub fn mut_dispatch<F>(mut self, f: F) -> Self
-    where
-        F: FnOnce(DispatchBuilder) -> DispatchBuilder,
-    {
-        self.dispatch = f(self.dispatch);
+        self.dispatches.push(f(DispatchBuilder::new()).build());
         self
     }
 
@@ -168,11 +153,7 @@ impl Builder {
     ///
     /// This function will fail if it is called more than once, or if another library has already
     /// initialized a global logger.
-    pub fn try_apply(mut self) -> Result<(), log::SetLoggerError> {
-        // finish the current staging dispatch
-        self.dispatches.push(self.dispatch.build());
-
-        // set up the global logger
+    pub fn try_apply(self) -> Result<(), log::SetLoggerError> {
         let logger = Logger::new(self.dispatches);
         log::set_boxed_logger(Box::new(logger))?;
         log::set_max_level(self.max_level);

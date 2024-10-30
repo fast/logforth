@@ -35,21 +35,20 @@ Then, you can use the logger with the simplest default setup:
 
 ```rust
 fn main() {
-    logforth::stderr().finish();
+    logforth::stderr().apply();
 }
 ```
 
 Or configure the logger in a more fine-grained way:
 
 ```rust
+use log::LevelFilter;
+use logforth::append;
+
 fn main() {
-    logforth::builder()
-        .filter(log::LevelFilter::Debug)
-        .append(logforth::append::Stderr::default())
-        .dispatch()
-        .filter(log::LevelFilter::Info)
-        .append(logforth::append::Stdout::default())
-        .finish();
+    logforth::dispatch(|b| b.filter(LevelFilter::Debug).append(append::Stderr::default()))
+        .and_dispatch(|b| b.filter(LevelFilter::Info).append(append::Stdout::default()))
+        .apply();
 }
 ```
 

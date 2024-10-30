@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use logforth::append;
-use logforth::filter::EnvFilter;
-
 fn main() {
     logforth::stdout().apply();
 
