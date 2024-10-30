@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Appender for integrating with [fastrace](https://crates.io/crates/fastrace).
+
 use std::borrow::Cow;
 
 use jiff::Zoned;
@@ -21,6 +23,14 @@ use crate::append::Append;
 use crate::layout::collect_kvs;
 
 /// An appender that adds log records to fastrace as an event associated to the current span.
+///
+/// # Examples
+///
+/// ```
+/// use logforth::append::FastraceEvent;
+///
+/// let fastrace_appender = FastraceEvent::default();
+/// ```
 #[derive(Default, Debug, Clone)]
 pub struct FastraceEvent {
     _private: (), // suppress structure literal syntax

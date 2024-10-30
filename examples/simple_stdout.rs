@@ -15,9 +15,6 @@
 fn main() {
     logforth::stdout().apply();
 
-    log::error!("Hello error!");
-    log::warn!("Hello warn!");
-    log::info!("Hello info!");
-    log::debug!("Hello debug!");
-    log::trace!("Hello trace!");
+    log::info!("This is an info message.");
+    log::debug!("This debug message will not be printed by default.");
 }

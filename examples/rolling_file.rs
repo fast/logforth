@@ -16,39 +16,23 @@ use logforth::append::rolling_file::NonBlockingBuilder;
 use logforth::append::rolling_file::RollingFile;
 use logforth::append::rolling_file::RollingFileWriter;
 use logforth::append::rolling_file::Rotation;
-use logforth::append::Stdout;
 use logforth::layout::JsonLayout;
 
 fn main() {
-    let rolling = RollingFileWriter::builder()
-        .rotation(Rotation::Minutely)
-        .filename_prefix("example")
-        .filename_suffix("log")
-        .max_log_files(10)
-        .max_file_size(1024 * 1024)
+    let rolling_writer = RollingFileWriter::builder()
+        .rotation(Rotation::Daily)
+        .filename_prefix("app_log")
         .build("logs")
         .unwrap();
-    let (writer, _guard) = NonBlockingBuilder::default().finish(rolling);
+
+    let (non_blocking, _guard) = NonBlockingBuilder::default().finish(rolling_writer);
 
     logforth::builder()
         .dispatch(|d| {
-            d.filter("trace")
-                .append(RollingFile::new(writer).with_layout(JsonLayout::default()))
+            d.filter(log::LevelFilter::Trace)
+                .append(RollingFile::new(non_blocking).with_layout(JsonLayout::default()))
         })
-        .dispatch(|d| d.filter("info").append(Stdout::default()))
         .apply();
 
-    let repeat = 1;
-
-    for i in 0..repeat {
-        log::error!("Hello error!");
-        log::warn!("Hello warn!");
-        log::info!("Hello info!");
-        log::debug!("Hello debug!");
-        log::trace!("Hello trace!");
-
-        if i + 1 < repeat {
-            std::thread::sleep(std::time::Duration::from_secs(10));
-        }
-    }
+    log::info!("This log will be written to a rolling file.");
 }

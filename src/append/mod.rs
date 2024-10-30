@@ -12,9 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Dispatch log records to the appropriate target.
+//! Various appenders for log records.
 
 use std::fmt;
+
+#[cfg(feature = "fastrace")]
+mod fastrace;
+#[cfg(feature = "opentelemetry")]
+pub mod opentelemetry;
+#[cfg(feature = "rolling_file")]
+pub mod rolling_file;
+mod stdio;
 
 #[cfg(feature = "fastrace")]
 pub use self::fastrace::FastraceEvent;
@@ -25,16 +33,11 @@ pub use self::rolling_file::RollingFile;
 pub use self::stdio::Stderr;
 pub use self::stdio::Stdout;
 
-#[cfg(feature = "fastrace")]
-mod fastrace;
-#[cfg(feature = "opentelemetry")]
-pub mod opentelemetry;
-#[cfg(feature = "rolling_file")]
-pub mod rolling_file;
-mod stdio;
-
+/// A trait representing an appender that can process log records.
+///
+/// Implementors of this trait can handle log records in custom ways.
 pub trait Append: fmt::Debug + Send + Sync + 'static {
-    /// Dispatches a log record to the append target.
+    /// Processes a log record.
     fn append(&self, record: &log::Record) -> anyhow::Result<()>;
 
     /// Flushes any buffered records.

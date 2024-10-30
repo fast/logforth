@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Determinate whether a log record should be processed.
+//! Filters for log records.
 
 use std::str::FromStr;
 
@@ -24,20 +24,23 @@ pub use self::env_filter::EnvFilter;
 mod custom;
 pub mod env_filter;
 
-/// The result of a filter may return.
+/// The result of a filter check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FilterResult {
-    /// The record will be processed without further filtering.
+    /// Accept the log record.
     Accept,
-    /// The record should not be processed.
+    /// Reject the log record.
     Reject,
-    /// No decision could be made, further filtering should occur.
+    /// Neutral; defer to other filters.
     Neutral,
 }
 
+/// Represents a filter that can be applied to log records.
 #[derive(Debug)]
 pub enum Filter {
+    /// An env_logger filter.
     Env(EnvFilter),
+    /// A custom filter.
     Custom(CustomFilter),
 }
 

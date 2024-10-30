@@ -19,8 +19,7 @@ use crate::append::Append;
 use crate::layout::TextLayout;
 use crate::Layout;
 
-/// An appender that writes log records to a file that rolls over when it reaches a certain date
-/// time.
+/// An appender that writes log records to rolling files.
 #[derive(Debug)]
 pub struct RollingFile {
     layout: Layout,
@@ -28,9 +27,9 @@ pub struct RollingFile {
 }
 
 impl RollingFile {
-    /// Creates a new `RollingFile` appender that writes log records to the given writer.
+    /// Creates a new [`RollingFile`] appender.
     ///
-    /// This appender by default uses [`TextLayout`] to format log records as bytes.
+    /// This appender by default uses [`TextLayout`] to format log records.
     pub fn new(writer: NonBlocking) -> Self {
         Self {
             layout: TextLayout::default().no_color().into(),
@@ -38,7 +37,7 @@ impl RollingFile {
         }
     }
 
-    /// Sets the layout used to format log records as bytes.
+    /// Sets the layout used to format log records.
     pub fn with_layout(mut self, layout: impl Into<Layout>) -> Self {
         self.layout = layout.into();
         self

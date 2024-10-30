@@ -21,50 +21,29 @@ use crate::filter::EnvFilter;
 use crate::Append;
 use crate::Filter;
 
-/// Create a new empty [builder][Builder].
+/// Creates a new empty [`Builder`] instance for configuring log dispatching.
 ///
-/// At least one dispatch would be added:
+/// # Examples
 ///
-/// ```rust
-/// use log::LevelFilter;
-/// use logforth::append;
-///
-/// logforth::builder()
-///     .dispatch(|d| {
-///         d.filter(LevelFilter::Info)
-///             .append(append::Stdout::default())
-///     })
-///     .apply();
 /// ```
-///
-/// Multiple dispatches can be added:
-///
-/// ```rust
-/// use log::LevelFilter;
 /// use logforth::append;
 ///
-/// logforth::builder()
-///     .dispatch(|d| {
-///         d.filter(LevelFilter::Info)
-///             .append(append::Stdout::default())
-///     })
-///     .dispatch(|d| {
-///         d.filter(LevelFilter::Debug)
-///             .append(append::Stderr::default())
-///     })
+/// let builder = logforth::builder()
+///     .dispatch(|d| d.append(append::Stderr::default()))
 ///     .apply();
 /// ```
 pub fn builder() -> Builder {
     Builder::new()
 }
 
-/// Create a new [`Builder`] with a default [`Stdout`][append::Stdout] append configured, and
-/// respect the `RUST_LOG` environment variable for filtering logs.
+/// Creates a [`Builder`] with a default [`append::Stderr`] appender and an [`env_filter`](https://crates.io/crates/env_filter)
+/// respecting `RUST_LOG`.
 ///
-/// This is a convenient API that you can use as:
+/// # Examples
 ///
-/// ```rust
-/// logforth::stdout().apply();
+/// ```
+/// logforth::stderr().apply();
+/// log::error!("This error will be logged to stderr.");
 /// ```
 pub fn stdout() -> Builder {
     crate::builder().dispatch(|d| {
@@ -73,13 +52,14 @@ pub fn stdout() -> Builder {
     })
 }
 
-/// Create a new [`Builder`] with a default [`Stderr`][append::Stderr] append configured, and
-/// respect the `RUST_LOG` environment variable for filtering logs.
+/// Creates a [`Builder`] with a default [`append::Stdout`] appender and an [`env_filter`](https://crates.io/crates/env_filter)
+/// respecting `RUST_LOG`.
 ///
-/// This is a convenient API that you can use as:
+/// # Examples
 ///
-/// ```rust
-/// logforth::stderr().apply();
+/// ```
+/// logforth::stdout().apply();
+/// log::info!("This info will be logged to stdout.");
 /// ```
 pub fn stderr() -> Builder {
     crate::builder().dispatch(|d| {
@@ -88,21 +68,15 @@ pub fn stderr() -> Builder {
     })
 }
 
-/// A builder for configuring the logger. Always constructed via [`builder`] for a fluent API.
+/// A builder for configuring log dispatching and setting up the global logger.
 ///
-/// ## Examples
+/// # Examples
 ///
-/// Create a new builder and configure filters and appends:
-///
-/// ```rust
-/// use log::LevelFilter;
+/// ```
 /// use logforth::append;
 ///
 /// logforth::builder()
-///     .dispatch(|d| {
-///         d.filter(LevelFilter::Info)
-///             .append(append::Stdout::default())
-///     })
+///     .dispatch(|d| d.append(append::Stdout::default()))
 ///     .apply();
 /// ```
 #[must_use = "call `apply` to set the global logger"]
@@ -123,7 +97,17 @@ impl Builder {
         }
     }
 
-    /// Register a new dispatch.
+    /// Registers a new dispatch with the [`Builder`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth::append;
+    ///
+    /// logforth::builder()
+    ///     .dispatch(|d| d.append(append::Stderr::default()))
+    ///     .apply();
+    /// ```
     pub fn dispatch<F>(mut self, f: F) -> Self
     where
         F: FnOnce(DispatchBuilder<false>) -> DispatchBuilder<true>,
@@ -132,23 +116,39 @@ impl Builder {
         self
     }
 
-    /// Set the global maximum log level.
+    /// Sets the global maximum log level.
     ///
-    /// This will be passed to [`log::set_max_level`] on [`Builder::apply`].
+    /// This will bypass to `log::set_max_level()`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// logforth::builder()
+    ///     .max_level(log::LevelFilter::Warn)
+    ///     .apply();
+    /// ```
     pub fn max_level(mut self, max_level: LevelFilter) -> Self {
         self.max_level = max_level;
         self
     }
 
-    /// Set up the global logger with all the dispatches configured.
+    /// Sets up the global logger with all the configured dispatches.
     ///
     /// This should be called early in the execution of a Rust program. Any log events that occur
     /// before initialization will be ignored.
     ///
     /// # Errors
     ///
-    /// This function will fail if it is called more than once, or if another library has already
-    /// initialized a global logger.
+    /// Returns an error if a global logger has already been set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let result = logforth::builder().try_apply();
+    /// if let Err(e) = result {
+    ///     eprintln!("Failed to set logger: {}", e);
+    /// }
+    /// ```
     pub fn try_apply(self) -> Result<(), log::SetLoggerError> {
         let logger = Logger::new(self.dispatches);
         log::set_boxed_logger(Box::new(logger))?;
@@ -156,23 +156,42 @@ impl Builder {
         Ok(())
     }
 
-    /// Set up the global logger with all the dispatches configured.
-    ///
-    /// This should be called early in the execution of a Rust program. Any log events that occur
-    /// before initialization will be ignored.
-    ///
-    /// # Panics
+    /// Sets up the global logger with all the configured dispatches.
     ///
     /// This function will panic if it is called more than once, or if another library has already
     /// initialized a global logger.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the global logger has already been set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// logforth::builder().apply();
+    /// ```
     pub fn apply(self) {
         self.try_apply()
             .expect("Builder::apply should not be called after the global logger initialized");
     }
 }
 
+/// A builder for configuring a log dispatch, including filters and appenders.
+///
+/// # Examples
+///
+/// ```
+/// use logforth::append;
+///
+/// logforth::builder()
+///     .dispatch(|d| {
+///         d.filter(log::LevelFilter::Info)
+///             .append(append::Stdout::default())
+///     })
+///     .apply();
+/// ```
 #[derive(Debug)]
-pub struct DispatchBuilder<const APPEND: bool = true> {
+pub struct DispatchBuilder<const APPEND: bool> {
     filters: Vec<Filter>,
     appends: Vec<Box<dyn Append>>,
 }
@@ -184,6 +203,25 @@ impl DispatchBuilder<false> {
             appends: vec![],
         }
     }
+
+    /// Sets the filter for this dispatch.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth::append;
+    ///
+    /// logforth::builder()
+    ///     .dispatch(|d| {
+    ///         d.filter(log::LevelFilter::Error)
+    ///             .append(append::Stderr::default())
+    ///     })
+    ///     .apply();
+    /// ```
+    pub fn filter(mut self, filter: impl Into<Filter>) -> Self {
+        self.filters.push(filter.into());
+        self
+    }
 }
 
 impl DispatchBuilder<true> {
@@ -193,13 +231,17 @@ impl DispatchBuilder<true> {
 }
 
 impl<const APPEND: bool> DispatchBuilder<APPEND> {
-    /// Add a [`Filter`] to the under constructing `Dispatch`.
-    pub fn filter(mut self, filter: impl Into<Filter>) -> Self {
-        self.filters.push(filter.into());
-        self
-    }
-
-    /// Add an [`Append`] to the under constructing `Dispatch`.
+    /// Appends an appender to this dispatch.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth::append;
+    ///
+    /// logforth::builder()
+    ///     .dispatch(|d| d.append(append::Stdout::default()))
+    ///     .apply();
+    /// ```
     pub fn append(mut self, append: impl Append) -> DispatchBuilder<true> {
         self.appends.push(Box::new(append));
         DispatchBuilder {

@@ -18,15 +18,16 @@ use logforth::append;
 fn main() {
     logforth::builder()
         .dispatch(|d| {
-            d.filter(LevelFilter::Trace)
-                .append(append::Stdout::default())
+            d.filter(LevelFilter::Error)
                 .append(append::Stderr::default())
+        })
+        .dispatch(|d| {
+            d.filter(LevelFilter::Info)
+                .append(append::Stdout::default())
         })
         .apply();
 
-    log::error!("Hello error!");
-    log::warn!("Hello warn!");
-    log::info!("Hello info!");
-    log::debug!("Hello debug!");
-    log::trace!("Hello trace!");
+    log::error!("This error will be logged to stderr.");
+    log::info!("This info will be logged to stdout.");
+    log::debug!("This debug message will not be logged.");
 }

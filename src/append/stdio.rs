@@ -18,7 +18,15 @@ use crate::append::Append;
 use crate::layout::TextLayout;
 use crate::Layout;
 
-/// An appender that prints log records to stdout.
+/// An appender that writes log records to standard output.
+///
+/// # Examples
+///
+/// ```
+/// use logforth::append::Stdout;
+///
+/// let stdout_appender = Stdout::default();
+/// ```
 #[derive(Debug)]
 pub struct Stdout {
     layout: Layout,
@@ -33,7 +41,16 @@ impl Default for Stdout {
 }
 
 impl Stdout {
-    /// Creates a new `Stdout` appender with the given layout.
+    /// Sets the layout for the [`Stdout`] appender.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth::append::Stdout;
+    /// use logforth::layout::TextLayout;
+    ///
+    /// let stdout_appender = Stdout::default().with_layout(TextLayout::default());
+    /// ```
     pub fn with_layout(mut self, layout: impl Into<Layout>) -> Self {
         self.layout = layout.into();
         self
@@ -53,7 +70,15 @@ impl Append for Stdout {
     }
 }
 
-/// An appender that prints log records to stderr.
+/// An appender that writes log records to standard error.
+///
+/// # Examples
+///
+/// ```
+/// use logforth::append::Stderr;
+///
+/// let stderr_appender = Stderr::default();
+/// ```
 #[derive(Debug)]
 pub struct Stderr {
     layout: Layout,
@@ -68,7 +93,16 @@ impl Default for Stderr {
 }
 
 impl Stderr {
-    /// Creates a new `Stderr` appender with the given layout.
+    /// Sets the layout for the [`Stderr`] appender.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth::append::Stderr;
+    /// use logforth::layout::JsonLayout;
+    ///
+    /// let stderr_appender = Stderr::default().with_layout(JsonLayout::default());
+    /// ```
     pub fn with_layout(mut self, encoder: impl Into<Layout>) -> Self {
         self.layout = encoder.into();
         self

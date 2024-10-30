@@ -71,11 +71,11 @@ jobs:
         run: cargo test --all-features -- --nocapture
       - name: Run examples
         run: |
-          cargo run --example text_stdio
+          cargo run --example simple_stdio
+          cargo run --example multiple_dispatches
           cargo run --example custom_layout_filter
-          cargo run --example env_filter
-          cargo run --features="no-color" --example text_stdio
-          cargo run --features="json" --example json_stdio
+          cargo run --features="no-color" --example simple_stdio
+          cargo run --features="json" --example json_stdout
           cargo run --features="json,rolling_file" --example rolling_file
 
   required:

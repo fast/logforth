@@ -25,7 +25,7 @@ use crossbeam_channel::Sender;
 use crate::append::rolling_file::worker::Worker;
 use crate::append::rolling_file::Message;
 
-/// A guard that flushes log records associated to a [`NonBlocking`] on a drop.
+/// A guard that flushes log records associated with a [`NonBlocking`] writer on drop.
 ///
 /// Writing to a [`NonBlocking`] writer will **not** immediately write the log record to the
 /// underlying output. Instead, the log record will be written by a dedicated logging thread at
@@ -85,7 +85,7 @@ impl Drop for WorkerGuard {
     }
 }
 
-/// A non-blocking, off-thread writer.
+/// A non-blocking writer for rolling files.
 #[derive(Clone, Debug)]
 pub struct NonBlocking {
     sender: Sender<Message>,
@@ -123,7 +123,7 @@ impl NonBlocking {
     }
 }
 
-/// A builder for [`NonBlocking`].
+/// A builder for configuring [`NonBlocking`].
 #[derive(Debug)]
 pub struct NonBlockingBuilder {
     thread_name: String,

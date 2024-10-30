@@ -19,24 +19,7 @@ use log::Metadata;
 use crate::filter::Filter;
 use crate::filter::FilterResult;
 
-/// A filter that you can pass the custom filter function.
-///
-/// The custom filter function accepts [`&log::Metadata`][Metadata] and returns the
-/// [`FilterResult`]. For example:
-///
-/// ```rust
-/// use log::Metadata;
-/// use logforth::filter::CustomFilter;
-/// use logforth::filter::FilterResult;
-///
-/// let filter = CustomFilter::new(|metadata: &Metadata| {
-///     if metadata.target() == "my_crate" {
-///         FilterResult::Accept
-///     } else {
-///         FilterResult::Neutral
-///     }
-/// });
-/// ```
+/// A custom filter using a user-defined function.
 pub struct CustomFilter {
     f: Box<dyn Fn(&Metadata) -> FilterResult + Send + Sync + 'static>,
 }
@@ -48,6 +31,22 @@ impl Debug for CustomFilter {
 }
 
 impl CustomFilter {
+    /// Creates a new [`CustomFilter`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth::filter::CustomFilter;
+    /// use logforth::filter::FilterResult;
+    ///
+    /// let custom_filter = CustomFilter::new(|metadata| {
+    ///     if metadata.level() == log::Level::Error {
+    ///         FilterResult::Accept
+    ///     } else {
+    ///         FilterResult::Reject
+    ///     }
+    /// });
+    /// ```
     pub fn new(filter: impl Fn(&Metadata) -> FilterResult + Send + Sync + 'static) -> Self {
         CustomFilter {
             f: Box::new(filter),

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Provides [`env_filter`](https://crates.io/crates/env_filter) based filter for log records.
+
 use std::borrow::Cow;
 use std::str::FromStr;
 
@@ -21,7 +23,7 @@ use log::Metadata;
 use crate::filter::FilterResult;
 use crate::Filter;
 
-/// The default name for the environment variable to read filters from.
+/// The default environment variable for filtering logs.
 pub const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
 
 /// A filter consists of one or more comma-separated directives which match on [`log::Record`].
