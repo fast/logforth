@@ -21,7 +21,7 @@ fn main() {
     logforth::builder()
         .dispatch(|d| {
             d.filter(CustomFilter::new(|metadata| {
-                if metadata.level() > log::Level::Info {
+                if metadata.level() < log::Level::Info {
                     FilterResult::Accept
                 } else {
                     FilterResult::Reject
@@ -35,7 +35,9 @@ fn main() {
         })
         .apply();
 
-    log::error!("This is an error.");
-    log::warn!("This is a warning.");
-    log::info!("This info will not be logged.");
+    log::error!("Hello error!");
+    log::warn!("Hello warn!");
+    log::info!("Hello info!");
+    log::debug!("Hello debug!");
+    log::trace!("Hello trace!");
 }

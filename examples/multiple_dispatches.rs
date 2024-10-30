@@ -27,7 +27,9 @@ fn main() {
         })
         .apply();
 
-    log::error!("This error will be logged to stderr.");
-    log::info!("This info will be logged to stdout.");
-    log::debug!("This debug message will not be logged.");
+    log::error!("Hello error!");
+    log::warn!("Hello warn!");
+    log::info!("Hello info!");
+    log::debug!("Hello debug!");
+    log::trace!("Hello trace!");
 }

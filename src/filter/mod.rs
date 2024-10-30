@@ -27,11 +27,11 @@ pub mod env_filter;
 /// The result of a filter check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FilterResult {
-    /// Accept the log record.
+    /// The record will be processed without further filtering.
     Accept,
-    /// Reject the log record.
+    /// The record should not be processed.
     Reject,
-    /// Neutral; defer to other filters.
+    /// No decision could be made, further filtering should occur.
     Neutral,
 }
 

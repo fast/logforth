@@ -30,8 +30,8 @@ Logforth is a flexible and easy-to-use logging framework for Rust applications. 
 Add `log` and `logforth` to your `Cargo.toml`:
 
 ```shell
-> cargo add log
-> cargo add logforth
+cargo add log
+cargo add logforth
 ```
 
 ## Simple Usage

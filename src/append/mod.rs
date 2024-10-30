@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Various appenders for log records.
+//! Dispatch log records to various targets.
 
 use std::fmt;
 
@@ -37,7 +37,7 @@ pub use self::stdio::Stdout;
 ///
 /// Implementors of this trait can handle log records in custom ways.
 pub trait Append: fmt::Debug + Send + Sync + 'static {
-    /// Processes a log record.
+    /// Dispatches a log record to the append target.
     fn append(&self, record: &log::Record) -> anyhow::Result<()>;
 
     /// Flushes any buffered records.

@@ -34,5 +34,17 @@ fn main() {
         })
         .apply();
 
-    log::info!("This log will be written to a rolling file.");
+    let repeat = 1;
+
+    for i in 0..repeat {
+        log::error!("Hello error!");
+        log::warn!("Hello warn!");
+        log::info!("Hello info!");
+        log::debug!("Hello debug!");
+        log::trace!("Hello trace!");
+
+        if i + 1 < repeat {
+            std::thread::sleep(std::time::Duration::from_secs(10));
+        }
+    }
 }

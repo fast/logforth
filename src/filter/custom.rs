@@ -20,6 +20,21 @@ use crate::filter::Filter;
 use crate::filter::FilterResult;
 
 /// A custom filter using a user-defined function.
+///
+/// # Examples
+///
+/// ```
+/// use logforth::filter::CustomFilter;
+/// use logforth::filter::FilterResult;
+///
+/// let custom_filter = CustomFilter::new(|metadata| {
+///     if metadata.level() == log::Level::Error {
+///         FilterResult::Accept
+///     } else {
+///         FilterResult::Reject
+///     }
+/// });
+/// ```
 pub struct CustomFilter {
     f: Box<dyn Fn(&Metadata) -> FilterResult + Send + Sync + 'static>,
 }
@@ -32,21 +47,6 @@ impl Debug for CustomFilter {
 
 impl CustomFilter {
     /// Creates a new [`CustomFilter`].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use logforth::filter::CustomFilter;
-    /// use logforth::filter::FilterResult;
-    ///
-    /// let custom_filter = CustomFilter::new(|metadata| {
-    ///     if metadata.level() == log::Level::Error {
-    ///         FilterResult::Accept
-    ///     } else {
-    ///         FilterResult::Reject
-    ///     }
-    /// });
-    /// ```
     pub fn new(filter: impl Fn(&Metadata) -> FilterResult + Send + Sync + 'static) -> Self {
         CustomFilter {
             f: Box::new(filter),
