@@ -146,7 +146,7 @@ impl NonBlockingBuilder {
 
     /// Override the worker thread's name.
     ///
-    /// The default worker thread name is "tracing-appender".
+    /// The default worker thread name is "logforth-rolling-file".
     pub fn thread_name(mut self, name: impl Into<String>) -> NonBlockingBuilder {
         self.thread_name = name.into();
         self

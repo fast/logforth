@@ -36,22 +36,6 @@ pub fn builder() -> Builder {
     Builder::new()
 }
 
-/// Creates a [`Builder`] with a default [`append::Stderr`] appender and an [`env_filter`](https://crates.io/crates/env_filter)
-/// respecting `RUST_LOG`.
-///
-/// # Examples
-///
-/// ```
-/// logforth::stderr().apply();
-/// log::error!("This error will be logged to stderr.");
-/// ```
-pub fn stdout() -> Builder {
-    crate::builder().dispatch(|d| {
-        d.filter(EnvFilter::from_default_env())
-            .append(append::Stdout::default())
-    })
-}
-
 /// Creates a [`Builder`] with a default [`append::Stdout`] appender and an [`env_filter`](https://crates.io/crates/env_filter)
 /// respecting `RUST_LOG`.
 ///
@@ -59,10 +43,26 @@ pub fn stdout() -> Builder {
 ///
 /// ```
 /// logforth::stdout().apply();
-/// log::info!("This info will be logged to stdout.");
+/// log::error!("This error will be logged to stdout.");
+/// ```
+pub fn stdout() -> Builder {
+    builder().dispatch(|d| {
+        d.filter(EnvFilter::from_default_env())
+            .append(append::Stdout::default())
+    })
+}
+
+/// Creates a [`Builder`] with a default [`append::Stderr`] appender and an [`env_filter`](https://crates.io/crates/env_filter)
+/// respecting `RUST_LOG`.
+///
+/// # Examples
+///
+/// ```
+/// logforth::stderr().apply();
+/// log::info!("This info will be logged to stderr.");
 /// ```
 pub fn stderr() -> Builder {
-    crate::builder().dispatch(|d| {
+    builder().dispatch(|d| {
         d.filter(EnvFilter::from_default_env())
             .append(append::Stderr::default())
     })
@@ -116,9 +116,9 @@ impl Builder {
         self
     }
 
-    /// Sets the global maximum log level.
+    /// Sets the global maximum log level. Default to [`LevelFilter::Trace`].
     ///
-    /// This will bypass to `log::set_max_level()`.
+    /// This will be passed to `log::set_max_level()`.
     ///
     /// # Examples
     ///
@@ -204,7 +204,7 @@ impl DispatchBuilder<false> {
         }
     }
 
-    /// Sets the filter for this dispatch.
+    /// Add a filter to this dispatch.
     ///
     /// # Examples
     ///
@@ -231,7 +231,7 @@ impl DispatchBuilder<true> {
 }
 
 impl<const APPEND: bool> DispatchBuilder<APPEND> {
-    /// Appends an appender to this dispatch.
+    /// Add an appender to this dispatch.
     ///
     /// # Examples
     ///
