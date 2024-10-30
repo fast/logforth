@@ -30,12 +30,13 @@ fn main() {
         .unwrap();
     let (writer, _guard) = NonBlockingBuilder::default().finish(rolling);
 
-    logforth::dispatch(|b| {
-        b.filter("trace")
-            .append(RollingFile::new(writer).with_layout(JsonLayout::default()))
-    })
-    .and_dispatch(|b| b.filter("info").append(Stdout::default()))
-    .apply();
+    logforth::builder()
+        .dispatch(|d| {
+            d.filter("trace")
+                .append(RollingFile::new(writer).with_layout(JsonLayout::default()))
+        })
+        .dispatch(|d| d.filter("info").append(Stdout::default()))
+        .apply();
 
     let repeat = 1;
 

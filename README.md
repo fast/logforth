@@ -46,8 +46,9 @@ use log::LevelFilter;
 use logforth::append;
 
 fn main() {
-    logforth::dispatch(|b| b.filter(LevelFilter::Debug).append(append::Stderr::default()))
-        .and_dispatch(|b| b.filter(LevelFilter::Info).append(append::Stdout::default()))
+    logforth::builder()
+        .dispatch(|d| d.filter(LevelFilter::Debug).append(append::Stderr::default()))
+        .dispatch(|d| d.filter(LevelFilter::Info).append(append::Stdout::default()))
         .apply();
 }
 ```
