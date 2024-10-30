@@ -17,23 +17,23 @@ use log::LevelFilter;
 use super::log_impl::Dispatch;
 use super::log_impl::Logger;
 use crate::append;
+use crate::filter::EnvFilter;
 use crate::Append;
 use crate::Filter;
 
 /// Create a new empty [builder][Builder].
 ///
-/// The builder must be configured before initializing the global logger. At least one dispatch
-/// should be added:
+/// At least one dispatch would be added:
 ///
 /// ```rust
 /// use log::LevelFilter;
 /// use logforth::append;
 ///
-/// logforth::builder()
-///     // .finish()  CANNOT COMPILE: a staging dispatch without Append
-///     .filter(LevelFilter::Info)
-///     .append(append::Stdout::default())
-///     .finish();
+/// logforth::dispatch(|b| {
+///     b.filter(LevelFilter::Info)
+///         .append(append::Stdout::default())
+/// })
+/// .apply();
 /// ```
 ///
 /// Multiple dispatches can be added:
@@ -42,47 +42,54 @@ use crate::Filter;
 /// use log::LevelFilter;
 /// use logforth::append;
 ///
-/// logforth::builder()
-///     .filter(LevelFilter::Info)
-///     .append(append::Stdout::default())
-///     .dispatch() // finish the current dispatch and start a new staging dispatch with no Append and Filter configured
-///     .filter(LevelFilter::Debug)
-///     .append(append::Stderr::default())
-///     .finish();
+/// logforth::dispatch(|b| {
+///     b.filter(LevelFilter::Info)
+///         .append(append::Stdout::default())
+/// })
+/// .and_dispatch(|b| {
+///     b.filter(LevelFilter::Debug)
+///         .append(append::Stderr::default())
+/// })
+/// .apply();
 /// ```
-pub fn builder() -> Builder<false> {
-    Builder::default()
+pub fn dispatch<F>(f: F) -> Builder
+where
+    F: FnOnce(DispatchBuilder<false>) -> DispatchBuilder<true>,
+{
+    Builder::dispatch(f)
 }
 
-/// Create a new [`Builder`] with a default `Stdout` append configured.
+/// Create a new [`Builder`] with a default [`Stdout`][append::Stdout] append configured, and
+/// respect the `RUST_LOG` environment variable for filtering logs.
 ///
 /// This is a convenient API that you can use as:
 ///
 /// ```rust
-/// logforth::stdout().finish();
+/// logforth::stdout().apply();
 /// ```
-pub fn stdout() -> Builder<true> {
-    builder().append(append::Stdout::default())
+pub fn stdout() -> Builder {
+    dispatch(|b| {
+        b.filter(EnvFilter::from_default_env())
+            .append(append::Stdout::default())
+    })
 }
 
-/// Create a new [`Builder`] with a default `Stderr` append configured.
+/// Create a new [`Builder`] with a default [`Stderr`][append::Stderr] append configured, and
+/// respect the `RUST_LOG` environment variable for filtering logs.
 ///
 /// This is a convenient API that you can use as:
 ///
 /// ```rust
-/// logforth::stderr().finish();
+/// logforth::stderr().apply();
 /// ```
-pub fn stderr() -> Builder<true> {
-    builder().append(append::Stdout::default())
+pub fn stderr() -> Builder {
+    dispatch(|b| {
+        b.filter(EnvFilter::from_default_env())
+            .append(append::Stderr::default())
+    })
 }
 
-/// A builder for configuring the logger. See also [`builder`] for a fluent API.
-///
-/// * `READY=false`: The initialized state. You can configure [`Filter`]s and [`Append`]s for the
-///   current staging dispatch. Once at least one append is configured, the builder transit to
-///   `READY=true`.
-/// * `READY=true`: The builder can be [finished][Builder::finish] to set up the global logger. Or,
-///   you can start a new staging dispatch by calling [dispatch][Builder::dispatch].
+/// A builder for configuring the logger. See also [`dispatch`] for a fluent API.
 ///
 /// ## Examples
 ///
@@ -92,19 +99,17 @@ pub fn stderr() -> Builder<true> {
 /// use log::LevelFilter;
 /// use logforth::append;
 ///
-/// logforth::Builder::new()
-///     .filter(LevelFilter::Info)
-///     .append(append::Stdout::default())
-///     .finish();
+/// logforth::Builder::dispatch(|b| {
+///     b.filter(LevelFilter::Info)
+///         .append(append::Stdout::default())
+/// })
+/// .apply();
 /// ```
-// TODO(tisonkun): consider use an enum as const generic param once `adt_const_params` stabilized.
-//  @see https://doc.rust-lang.org/beta/unstable-book/language-features/adt-const-params.html
-#[must_use = "call `dispatch` to add a dispatch to the logger and `finish` to set the global logger"]
+#[must_use = "call `apply` to set the global logger"]
 #[derive(Debug)]
-pub struct Builder<const READY: bool = true> {
-    // for current dispatch
-    filters: Vec<Filter>,
-    appends: Vec<Box<dyn Append>>,
+pub struct Builder {
+    // under building dispatch
+    dispatch: DispatchBuilder,
 
     // stashed dispatches
     dispatches: Vec<Dispatch>,
@@ -113,23 +118,37 @@ pub struct Builder<const READY: bool = true> {
     max_level: LevelFilter,
 }
 
-impl Default for Builder<false> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<const READY: bool> Builder<READY> {
-    /// Add an [`Append`] to the under constructing `Dispatch`.
-    pub fn append(mut self, append: impl Append) -> Builder<true> {
-        self.appends.push(Box::new(append));
-
-        Builder {
-            filters: self.filters,
-            appends: self.appends,
-            dispatches: self.dispatches,
-            max_level: self.max_level,
+impl Builder {
+    /// Create a new logger builder with the first dispatch configured by `f`.
+    pub fn dispatch<F>(f: F) -> Self
+    where
+        F: FnOnce(DispatchBuilder<false>) -> DispatchBuilder<true>,
+    {
+        Self {
+            dispatch: f(DispatchBuilder::new()),
+            dispatches: vec![],
+            max_level: LevelFilter::Trace,
         }
+    }
+
+    /// Start a new staging dispatch. The previous staging dispatch will be finished and added to
+    /// the list of final dispatches.
+    pub fn and_dispatch<F>(mut self, f: F) -> Self
+    where
+        F: FnOnce(DispatchBuilder<false>) -> DispatchBuilder<true>,
+    {
+        self.dispatches.push(self.dispatch.build());
+        self.dispatch = f(DispatchBuilder::new());
+        self
+    }
+
+    /// Mutate the current staging dispatch.
+    pub fn mut_dispatch<F>(mut self, f: F) -> Self
+    where
+        F: FnOnce(DispatchBuilder) -> DispatchBuilder,
+    {
+        self.dispatch = f(self.dispatch);
+        self
     }
 
     /// Set the global maximum log level.
@@ -138,39 +157,6 @@ impl<const READY: bool> Builder<READY> {
     pub fn max_level(mut self, max_level: LevelFilter) -> Self {
         self.max_level = max_level;
         self
-    }
-}
-
-impl Builder<false> {
-    /// Create a new empty [`Builder`].
-    pub fn new() -> Self {
-        Self {
-            filters: vec![],
-            appends: vec![],
-            dispatches: vec![],
-            max_level: LevelFilter::Trace,
-        }
-    }
-
-    /// Add a [`Filter`] to the under constructing `Dispatch`.
-    pub fn filter(mut self, filter: impl Into<Filter>) -> Builder<false> {
-        self.filters.push(filter.into());
-        self
-    }
-}
-
-impl Builder<true> {
-    /// Construct a new `Dispatch` with the configured [`Filter`]s and [`Append`]s.
-    pub fn dispatch(mut self) -> Builder<false> {
-        let dispatch = Dispatch::new(self.filters, self.appends);
-        self.dispatches.push(dispatch);
-
-        Builder {
-            filters: vec![],
-            appends: vec![],
-            dispatches: self.dispatches,
-            max_level: self.max_level,
-        }
     }
 
     /// Set up the global logger with all the dispatches configured.
@@ -182,10 +168,9 @@ impl Builder<true> {
     ///
     /// This function will fail if it is called more than once, or if another library has already
     /// initialized a global logger.
-    pub fn try_finish(mut self) -> Result<(), log::SetLoggerError> {
+    pub fn try_apply(mut self) -> Result<(), log::SetLoggerError> {
         // finish the current staging dispatch
-        let dispatch = Dispatch::new(self.filters, self.appends);
-        self.dispatches.push(dispatch);
+        self.dispatches.push(self.dispatch.build());
 
         // set up the global logger
         let logger = Logger::new(self.dispatches);
@@ -203,8 +188,46 @@ impl Builder<true> {
     ///
     /// This function will panic if it is called more than once, or if another library has already
     /// initialized a global logger.
-    pub fn finish(self) {
-        self.try_finish()
-            .expect("Builder::finish should not be called after the global logger initialized");
+    pub fn apply(self) {
+        self.try_apply()
+            .expect("Builder::apply should not be called after the global logger initialized");
+    }
+}
+
+#[derive(Debug)]
+pub struct DispatchBuilder<const APPEND: bool = true> {
+    filters: Vec<Filter>,
+    appends: Vec<Box<dyn Append>>,
+}
+
+impl DispatchBuilder<false> {
+    fn new() -> Self {
+        DispatchBuilder {
+            filters: vec![],
+            appends: vec![],
+        }
+    }
+}
+
+impl DispatchBuilder<true> {
+    fn build(self) -> Dispatch {
+        Dispatch::new(self.filters, self.appends)
+    }
+}
+
+impl<const APPEND: bool> DispatchBuilder<APPEND> {
+    /// Add a [`Filter`] to the under constructing `Dispatch`.
+    pub fn filter(mut self, filter: impl Into<Filter>) -> Self {
+        self.filters.push(filter.into());
+        self
+    }
+
+    /// Add an [`Append`] to the under constructing `Dispatch`.
+    pub fn append(mut self, append: impl Append) -> DispatchBuilder<true> {
+        self.appends.push(Box::new(append));
+        DispatchBuilder {
+            filters: self.filters,
+            appends: self.appends,
+        }
     }
 }

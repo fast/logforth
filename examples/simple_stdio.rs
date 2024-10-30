@@ -16,11 +16,12 @@ use log::LevelFilter;
 use logforth::append;
 
 fn main() {
-    logforth::builder()
-        .filter(LevelFilter::Trace)
-        .append(append::Stdout::default())
-        .append(append::Stderr::default())
-        .finish();
+    logforth::dispatch(|b| {
+        b.filter(LevelFilter::Trace)
+            .append(append::Stdout::default())
+            .append(append::Stderr::default())
+    })
+    .apply();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

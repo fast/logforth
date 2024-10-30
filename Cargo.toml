@@ -114,5 +114,5 @@ name = "fn_layout_filter"
 path = "examples/fn_layout_filter.rs"
 
 [[example]]
-name = "env_filter"
-path = "examples/env_filter.rs"
+name = "default_filter_respect_env"
+path = "examples/default_filter_respect_env.rs"

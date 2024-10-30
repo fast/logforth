@@ -19,8 +19,8 @@ use logforth::filter::FilterResult;
 use logforth::layout::CustomLayout;
 
 fn main() {
-    logforth::builder()
-        .filter(CustomFilter::new(|metadata: &log::Metadata| {
+    logforth::dispatch(|b| {
+        b.filter(CustomFilter::new(|metadata: &log::Metadata| {
             if metadata.level() > LevelFilter::Info {
                 FilterResult::Accept
             } else {
@@ -32,7 +32,8 @@ fn main() {
                 Ok(format!("[system alert] {}", record.args()).into_bytes())
             })),
         )
-        .finish();
+    })
+    .apply();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

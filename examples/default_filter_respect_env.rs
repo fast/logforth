@@ -16,10 +16,7 @@ use logforth::append;
 use logforth::filter::EnvFilter;
 
 fn main() {
-    logforth::builder()
-        .filter(EnvFilter::from_default_env())
-        .append(append::Stdout::default())
-        .finish();
+    logforth::stdout().apply();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");
