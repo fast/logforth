@@ -89,7 +89,7 @@ pub fn stderr() -> Builder {
     })
 }
 
-/// A builder for configuring the logger. See also [`dispatch`] for a fluent API.
+/// A builder for configuring the logger. Always constructed via [`dispatch`] for a fluent API.
 ///
 /// ## Examples
 ///
@@ -99,7 +99,7 @@ pub fn stderr() -> Builder {
 /// use log::LevelFilter;
 /// use logforth::append;
 ///
-/// logforth::Builder::dispatch(|b| {
+/// logforth::dispatch(|b| {
 ///     b.filter(LevelFilter::Info)
 ///         .append(append::Stdout::default())
 /// })
@@ -117,7 +117,7 @@ pub struct Builder {
 
 impl Builder {
     /// Create a new logger builder with the first dispatch configured by `f`.
-    pub fn dispatch<F>(f: F) -> Self
+    fn dispatch<F>(f: F) -> Self
     where
         F: FnOnce(DispatchBuilder<false>) -> DispatchBuilder<true>,
     {
