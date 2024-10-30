@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.0] 2024-10-30
+
+### Breaking changes
+
+Two minor breaking changes in [#71](https://github.com/fast/logforth/pull/71):
+
+1. `JsonLayout`'s field `tz` is now private. You can change it with the new `timezone` method, like `JsonLayout::default().timezone(TimeZone::UTC)`.
+2. `DispatchBuilder` now always accepts `filter` first, and then `append`. Once an `append` is configured, no more `filter` can be added. This is for a strict order on config so that the code is more consistent.
+
 ## [0.15.0] 2024-10-30
 
 ### Breaking changes
