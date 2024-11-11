@@ -41,6 +41,7 @@ opentelemetry = [
   "dep:opentelemetry_sdk",
 ]
 rolling_file = ["dep:crossbeam-channel"]
+syslog = ["dep:crossbeam-channel", "dep:fasyslog"]
 
 [dependencies]
 anyhow = { version = "1.0" }
@@ -52,6 +53,7 @@ log = { version = "0.4", features = ["std", "kv_unstable"] }
 # Optional dependencies
 crossbeam-channel = { version = "0.5", optional = true }
 fastrace = { version = "0.7", optional = true }
+fasyslog = { version = "0.1", optional = true }
 opentelemetry = { version = "0.26", features = ["logs"], optional = true }
 opentelemetry-otlp = { version = "0.26", features = [
   "logs",
