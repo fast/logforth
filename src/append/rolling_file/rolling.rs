@@ -22,7 +22,6 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use jiff::Zoned;
-use parking_lot::RwLock;
 
 use crate::append::rolling_file::clock::Clock;
 use crate::append::rolling_file::Rotation;
@@ -31,7 +30,7 @@ use crate::append::rolling_file::Rotation;
 #[derive(Debug)]
 pub struct RollingFileWriter {
     state: State,
-    writer: RwLock<File>,
+    writer: File,
 }
 
 impl RollingFileWriter {
@@ -53,7 +52,7 @@ impl RollingFileWriter {
 impl Write for RollingFileWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let now = self.state.clock.now();
-        let writer = self.writer.get_mut();
+        let writer = &mut self.writer;
         if self.state.should_rollover_on_date(&now) {
             self.state.advance_date(&now);
             self.state.refresh_writer(&now, 0, writer);
@@ -70,7 +69,7 @@ impl Write for RollingFileWriter {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        self.writer.get_mut().flush()
+        self.writer.flush()
     }
 }
 
@@ -198,7 +197,7 @@ impl State {
         max_size: usize,
         max_files: Option<usize>,
         clock: Clock,
-    ) -> anyhow::Result<(Self, RwLock<File>)> {
+    ) -> anyhow::Result<(Self, File)> {
         let log_dir = dir.as_ref().to_path_buf();
         let date_format = rotation.date_format();
         let now = clock.now();
@@ -222,8 +221,7 @@ impl State {
         };
 
         let file = state.create_log_writer(&now, 0)?;
-        let writer = RwLock::new(file);
-        Ok((state, writer))
+        Ok((state, file))
     }
 
     fn join_date(&self, date: &Zoned, cnt: usize) -> String {
