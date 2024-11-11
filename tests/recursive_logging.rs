@@ -38,9 +38,9 @@ fn test_meta_logging_in_format_works() {
     };
 
     logforth::builder()
-        .dispatch(|d| d.append(append::Stdout::default().layout(layout("out"))))
-        .dispatch(|d| d.append(append::Stderr::default().layout(layout("err"))))
-        .dispatch(|d| d.append(append::RollingFile::new(writer).layout(layout("file"))))
+        .dispatch(|d| d.append(append::Stdout::default().with_layout(layout("out"))))
+        .dispatch(|d| d.append(append::Stderr::default().with_layout(layout("err"))))
+        .dispatch(|d| d.append(append::RollingFile::new(writer).with_layout(layout("file"))))
         .apply();
 
     struct Thing<'a>(&'a str);

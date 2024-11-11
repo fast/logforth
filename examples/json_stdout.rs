@@ -17,7 +17,7 @@ use logforth::layout::JsonLayout;
 
 fn main() {
     logforth::builder()
-        .dispatch(|d| d.append(append::Stdout::default().layout(JsonLayout::default())))
+        .dispatch(|d| d.append(append::Stdout::default().with_layout(JsonLayout::default())))
         .apply();
 
     log::info!("This is an info message.");
