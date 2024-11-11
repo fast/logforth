@@ -76,7 +76,7 @@ jobs:
           cargo run --example custom_layout_filter
           cargo run --features="no-color" --example simple_stdout
           cargo run --features="json" --example json_stdout
-          cargo run --features="json,rolling_file" --example rolling_file
+          cargo run --features="json,rolling-file" --example rolling_file
 
   required:
     name: Required

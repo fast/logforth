@@ -14,9 +14,9 @@
 
 use log::Record;
 
-use crate::append::rolling_file::non_blocking::NonBlocking;
 use crate::append::Append;
 use crate::layout::TextLayout;
+use crate::non_blocking::NonBlocking;
 use crate::Layout;
 
 /// An appender that writes log records to rolling files.

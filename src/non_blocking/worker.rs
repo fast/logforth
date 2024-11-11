@@ -19,16 +19,16 @@ use crossbeam_channel::Receiver;
 use crossbeam_channel::RecvError;
 use crossbeam_channel::TryRecvError;
 
-use crate::append::rolling_file::Message;
+use super::Message;
 
-pub(super) struct Worker<T: Write + Send + 'static> {
+pub(crate) struct Worker<T: Write + Send + 'static> {
     writer: T,
     receiver: Receiver<Message>,
     shutdown: Receiver<()>,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub(super) enum WorkerState {
+pub(crate) enum WorkerState {
     Empty,
     Disconnected,
     Continue,
@@ -67,7 +67,7 @@ impl<T: Write + Send + 'static> Worker<T> {
         }
     }
 
-    pub(super) fn work(&mut self) -> io::Result<WorkerState> {
+    pub(crate) fn work(&mut self) -> io::Result<WorkerState> {
         let mut worker_state = self.recv()?;
 
         while worker_state == WorkerState::Continue {
@@ -78,7 +78,7 @@ impl<T: Write + Send + 'static> Worker<T> {
         Ok(worker_state)
     }
 
-    pub(super) fn make_thread(mut self, name: String) -> std::thread::JoinHandle<()> {
+    pub(crate) fn make_thread(mut self, name: String) -> std::thread::JoinHandle<()> {
         std::thread::Builder::new()
             .name(name)
             .spawn(move || {

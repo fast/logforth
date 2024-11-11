@@ -22,8 +22,8 @@ use crossbeam_channel::unbounded;
 use crossbeam_channel::SendTimeoutError;
 use crossbeam_channel::Sender;
 
-use crate::append::rolling_file::worker::Worker;
-use crate::append::rolling_file::Message;
+use super::worker::Worker;
+use super::Message;
 
 /// A guard that flushes log records associated with a [`NonBlocking`] writer on drop.
 ///
@@ -116,7 +116,7 @@ impl NonBlocking {
         (Self { sender }, worker_guard)
     }
 
-    pub(super) fn send(&self, record: Vec<u8>) -> anyhow::Result<()> {
+    pub(crate) fn send(&self, record: Vec<u8>) -> anyhow::Result<()> {
         self.sender
             .send(Message::Record(record))
             .context("failed to send log message")

@@ -17,7 +17,7 @@
 //! # Example
 //!
 //!```
-//! use logforth::append::rolling_file::NonBlockingBuilder;
+//! use logforth::non_blocking::NonBlockingBuilder;
 //! use logforth::append::rolling_file::RollingFile;
 //! use logforth::append::rolling_file::RollingFileWriter;
 //! use logforth::append::rolling_file::Rotation;
@@ -42,22 +42,11 @@
 //! ```
 
 pub use append::RollingFile;
-pub use non_blocking::NonBlocking;
-pub use non_blocking::NonBlockingBuilder;
-pub use non_blocking::WorkerGuard;
 pub use rolling::RollingFileWriter;
 pub use rolling::RollingFileWriterBuilder;
 pub use rotation::Rotation;
 
 mod append;
 mod clock;
-mod non_blocking;
 mod rolling;
 mod rotation;
-mod worker;
-
-#[derive(Debug)]
-enum Message {
-    Record(Vec<u8>),
-    Shutdown,
-}
