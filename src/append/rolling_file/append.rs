@@ -38,7 +38,7 @@ impl RollingFile {
     }
 
     /// Sets the layout used to format log records.
-    pub fn with_layout(mut self, layout: impl Into<Layout>) -> Self {
+    pub fn layout(mut self, layout: impl Into<Layout>) -> Self {
         self.layout = layout.into();
         self
     }

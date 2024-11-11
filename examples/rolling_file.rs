@@ -30,7 +30,7 @@ fn main() {
     logforth::builder()
         .dispatch(|d| {
             d.filter(log::LevelFilter::Trace)
-                .append(RollingFile::new(non_blocking).with_layout(JsonLayout::default()))
+                .append(RollingFile::new(non_blocking).layout(JsonLayout::default()))
         })
         .apply();
 

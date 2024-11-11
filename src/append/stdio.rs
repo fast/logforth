@@ -49,9 +49,9 @@ impl Stdout {
     /// use logforth::append::Stdout;
     /// use logforth::layout::TextLayout;
     ///
-    /// let stdout_appender = Stdout::default().with_layout(TextLayout::default());
+    /// let stdout_appender = Stdout::default().layout(TextLayout::default());
     /// ```
-    pub fn with_layout(mut self, layout: impl Into<Layout>) -> Self {
+    pub fn layout(mut self, layout: impl Into<Layout>) -> Self {
         self.layout = layout.into();
         self
     }
@@ -101,9 +101,9 @@ impl Stderr {
     /// use logforth::append::Stderr;
     /// use logforth::layout::JsonLayout;
     ///
-    /// let stderr_appender = Stderr::default().with_layout(JsonLayout::default());
+    /// let stderr_appender = Stderr::default().layout(JsonLayout::default());
     /// ```
-    pub fn with_layout(mut self, encoder: impl Into<Layout>) -> Self {
+    pub fn layout(mut self, encoder: impl Into<Layout>) -> Self {
         self.layout = encoder.into();
         self
     }

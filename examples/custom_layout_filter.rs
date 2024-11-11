@@ -28,7 +28,7 @@ fn main() {
                 }
             }))
             .append(
-                append::Stdout::default().with_layout(CustomLayout::new(|record| {
+                append::Stdout::default().layout(CustomLayout::new(|record| {
                     Ok(format!("[Alert] {}", record.args()).into_bytes())
                 })),
             )
