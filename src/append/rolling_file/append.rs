@@ -14,6 +14,7 @@
 
 use log::Record;
 
+use crate::append::rolling_file::RollingFileWriter;
 use crate::append::Append;
 use crate::layout::TextLayout;
 use crate::non_blocking::NonBlocking;
@@ -23,14 +24,14 @@ use crate::Layout;
 #[derive(Debug)]
 pub struct RollingFile {
     layout: Layout,
-    writer: NonBlocking,
+    writer: NonBlocking<RollingFileWriter>,
 }
 
 impl RollingFile {
     /// Creates a new [`RollingFile`] appender.
     ///
     /// This appender by default uses [`TextLayout`] to format log records.
-    pub fn new(writer: NonBlocking) -> Self {
+    pub fn new(writer: NonBlocking<RollingFileWriter>) -> Self {
         Self {
             layout: TextLayout::default().no_color().into(),
             writer,

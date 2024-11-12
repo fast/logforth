@@ -87,17 +87,18 @@ impl Drop for WorkerGuard {
 
 /// A non-blocking writer for rolling files.
 #[derive(Clone, Debug)]
-pub struct NonBlocking {
+pub struct NonBlocking<T: Writer + Send + 'static> {
     sender: Sender<Message>,
+    marker: std::marker::PhantomData<T>,
 }
 
-impl NonBlocking {
-    fn create<T: Writer + Send + 'static>(
+impl<T: Writer + Send + 'static> NonBlocking<T> {
+    fn create(
         writer: T,
         thread_name: String,
         buffered_lines_limit: Option<usize>,
         shutdown_timeout: Option<Duration>,
-    ) -> (NonBlocking, WorkerGuard) {
+    ) -> (Self, WorkerGuard) {
         let (sender, receiver) = match buffered_lines_limit {
             Some(cap) => bounded(cap),
             None => unbounded(),
@@ -113,7 +114,8 @@ impl NonBlocking {
             shutdown_timeout,
         );
 
-        (Self { sender }, worker_guard)
+        let marker = std::marker::PhantomData;
+        (Self { sender, marker }, worker_guard)
     }
 
     pub(crate) fn send(&self, record: Vec<u8>) -> anyhow::Result<()> {
@@ -161,7 +163,7 @@ impl<T: Writer + Send + 'static> NonBlockingBuilder<T> {
     }
 
     /// Completes the builder, returning the configured `NonBlocking`.
-    pub fn finish(self, writer: T) -> (NonBlocking, WorkerGuard) {
+    pub fn finish(self, writer: T) -> (NonBlocking<T>, WorkerGuard) {
         NonBlocking::create(
             writer,
             self.thread_name,

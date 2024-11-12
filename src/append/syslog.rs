@@ -69,7 +69,7 @@ pub enum SyslogFormat {
 /// An appender that writes log records to syslog.
 #[derive(Debug)]
 pub struct Syslog {
-    writer: NonBlocking,
+    writer: NonBlocking<SyslogWriter>,
     format: SyslogFormat,
     context: SyslogContext,
     layout: Option<Layout>,
@@ -77,7 +77,7 @@ pub struct Syslog {
 
 impl Syslog {
     /// Creates a new [`Syslog`] appender.
-    pub fn new(writer: NonBlocking) -> Self {
+    pub fn new(writer: NonBlocking<SyslogWriter>) -> Self {
         Self {
             writer,
             format: SyslogFormat::RFC3164,
