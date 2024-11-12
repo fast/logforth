@@ -25,7 +25,7 @@ fn main() {
         .build("logs")
         .unwrap();
 
-    let (non_blocking, _guard) = rolling_file::non_blocking_builder().finish(rolling_writer);
+    let (non_blocking, _guard) = rolling_file::non_blocking(rolling_writer).finish();
 
     logforth::builder()
         .dispatch(|d| {

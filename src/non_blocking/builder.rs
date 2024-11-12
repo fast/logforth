@@ -131,16 +131,16 @@ pub struct NonBlockingBuilder<T: Writer + Send + 'static> {
     thread_name: String,
     buffered_lines_limit: Option<usize>,
     shutdown_timeout: Option<Duration>,
-    marker: std::marker::PhantomData<T>,
+    writer: T,
 }
 
 impl<T: Writer + Send + 'static> NonBlockingBuilder<T> {
-    pub(crate) fn new(thread_name: impl Into<String>) -> Self {
+    pub(crate) fn new(thread_name: impl Into<String>, writer: T) -> Self {
         Self {
             thread_name: thread_name.into(),
             buffered_lines_limit: None,
             shutdown_timeout: None,
-            marker: std::marker::PhantomData,
+            writer,
         }
     }
 
@@ -163,9 +163,9 @@ impl<T: Writer + Send + 'static> NonBlockingBuilder<T> {
     }
 
     /// Completes the builder, returning the configured `NonBlocking`.
-    pub fn finish(self, writer: T) -> (NonBlocking<T>, WorkerGuard) {
+    pub fn finish(self) -> (NonBlocking<T>, WorkerGuard) {
         NonBlocking::create(
-            writer,
+            self.writer,
             self.thread_name,
             self.buffered_lines_limit,
             self.shutdown_timeout,
