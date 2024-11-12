@@ -20,7 +20,6 @@
 //! use logforth::append::syslog;
 //! use logforth::append::syslog::Syslog;
 //! use logforth::append::syslog::SyslogWriter;
-//! use logforth::non_blocking::NonBlockingBuilder;
 //!
 //! let syslog_writer = SyslogWriter::tcp_well_known().unwrap();
 //! let (non_blocking, _guard) = syslog::non_blocking_builder().finish(syslog_writer);

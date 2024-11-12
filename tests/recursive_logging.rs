@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use logforth::append;
-use logforth::append::rolling_file::NonBlockingBuilder;
+use logforth::append::rolling_file;
 use logforth::append::rolling_file::RollingFileWriter;
 use logforth::append::rolling_file::Rotation;
 use logforth::layout;
@@ -29,7 +29,7 @@ fn test_meta_logging_in_format_works() {
         .max_file_size(1024 * 1024)
         .build("logs")
         .unwrap();
-    let (writer, _guard) = NonBlockingBuilder::default().finish(rolling);
+    let (writer, _guard) = rolling_file::non_blocking_builder().finish(rolling);
 
     let layout = |src: &'static str| {
         layout::CustomLayout::new(move |record| {

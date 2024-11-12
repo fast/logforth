@@ -24,8 +24,9 @@ use opentelemetry::logs::LogRecord as _;
 use opentelemetry::logs::Logger;
 use opentelemetry::logs::LoggerProvider as ILoggerProvider;
 use opentelemetry::InstrumentationScope;
+use opentelemetry_otlp::LogExporter;
+use opentelemetry_otlp::Protocol;
 use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_otlp::{LogExporter, Protocol};
 use opentelemetry_sdk::logs::LogRecord;
 use opentelemetry_sdk::logs::LoggerProvider;
 

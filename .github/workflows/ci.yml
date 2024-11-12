@@ -73,7 +73,7 @@ jobs:
         run: cargo build --workspace --all-features --bins --tests --examples --benches --lib
       - name: Run unit tests
         shell: bash
-        run: cargo test -- --nocapture
+        run: cargo test --all-features -- --nocapture
       - name: Run examples
         shell: bash
         run: |

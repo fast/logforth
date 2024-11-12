@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod non_blocking;
+mod builder;
 mod worker;
 
-pub use non_blocking::NonBlocking;
-pub use non_blocking::NonBlockingBuilder;
-pub use non_blocking::WorkerGuard;
-pub(crate) use worker::Writer;
+pub use builder::NonBlocking;
+pub use builder::NonBlockingBuilder;
+pub use builder::WorkerGuard;
+pub use worker::Writer;
 
 #[derive(Debug)]
 enum Message {

@@ -22,7 +22,6 @@
 //! use logforth::append::rolling_file::RollingFileWriter;
 //! use logforth::append::rolling_file::Rotation;
 //! use logforth::layout::JsonLayout;
-//! use logforth::non_blocking::NonBlockingBuilder;
 //!
 //! let rolling_writer = RollingFileWriter::builder()
 //!     .rotation(Rotation::Daily)

@@ -21,8 +21,11 @@ use crossbeam_channel::TryRecvError;
 
 use super::Message;
 
-pub(crate) trait Writer {
+/// A trait for the writer used in non-blocking background thread.
+pub trait Writer {
+    /// Write all the formatted record bytes to the writer.
     fn write_all(&mut self, buf: &[u8]) -> io::Result<()>;
+    /// Flush the writer.
     fn flush(&mut self) -> io::Result<()>;
 }
 

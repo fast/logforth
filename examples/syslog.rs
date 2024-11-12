@@ -15,7 +15,6 @@
 use logforth::append::syslog;
 use logforth::append::syslog::Syslog;
 use logforth::append::syslog::SyslogWriter;
-use logforth::non_blocking::NonBlockingBuilder;
 
 fn main() {
     let syslog_writer = SyslogWriter::tcp_well_known().unwrap();

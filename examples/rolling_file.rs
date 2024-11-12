@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use logforth::append::rolling_file;
-use logforth::append::rolling_file::NonBlockingBuilder;
 use logforth::append::rolling_file::RollingFile;
 use logforth::append::rolling_file::RollingFileWriter;
 use logforth::append::rolling_file::Rotation;
