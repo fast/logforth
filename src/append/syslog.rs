@@ -35,22 +35,23 @@
 //! log::info!("This log will be written to syslog.");
 //! ```
 
-use fasyslog::sender::SyslogSender;
-use fasyslog::{SDElement, SDParam};
-use log::Record;
 use std::io;
+
+use fasyslog::sender::SyslogSender;
+use fasyslog::SDElement;
+use log::Record;
 
 use crate::non_blocking::NonBlocking;
 use crate::non_blocking::NonBlockingBuilder;
 use crate::non_blocking::Writer;
-use crate::{Append, Layout};
+use crate::Append;
+use crate::Layout;
 
 // re-exports to avoid version conflicts
 mod exported {
     pub use fasyslog::format::SyslogContext;
     pub use fasyslog::Facility;
 }
-use crate::layout::collect_kvs;
 pub use exported::*;
 
 /// The format of the syslog message.
@@ -73,7 +74,6 @@ pub struct Syslog {
     format: SyslogFormat,
     context: SyslogContext,
     layout: Option<Layout>,
-    kvs_to_elements: bool,
 }
 
 impl Syslog {
@@ -84,7 +84,6 @@ impl Syslog {
             format: SyslogFormat::RFC3164,
             context: SyslogContext::default(),
             layout: None,
-            kvs_to_elements: false,
         }
     }
 
@@ -105,20 +104,6 @@ impl Syslog {
     /// Default to `None`, only the args will be logged.
     pub fn with_layout(mut self, layout: impl Into<Layout>) -> Self {
         self.layout = Some(layout.into());
-        self
-    }
-
-    /// Set whether to convert key-value pairs to structured data elements.
-    ///
-    /// This is only relevant when using the RFC 5424 format.
-    ///
-    /// Default to `false`.
-    ///
-    /// Note that [`SDParam`]s have several restrictions on the characters that can be used in
-    /// the key fields, including a maximum of 32 characters. See also the 'SD-NAME' rule in
-    /// [Syslog Message Format](https://datatracker.ietf.org/doc/html/rfc5424#section-6).
-    pub fn with_kvs_to_elements(mut self, kvs_to_elements: bool) -> Self {
-        self.kvs_to_elements = kvs_to_elements;
         self
     }
 }
@@ -152,29 +137,13 @@ impl Append for Syslog {
                 const EMPTY_MSGID: Option<&str> = None;
                 const EMPTY_STRUCTURED_DATA: Vec<SDElement> = Vec::new();
 
-                let elements = if self.kvs_to_elements {
-                    let kvs = collect_kvs(record.key_values());
-                    if !kvs.is_empty() {
-                        let mut element =
-                            SDElement::new("LOGFORTH@KVS").map_err(|e| anyhow::anyhow!(e))?;
-                        for (k, v) in kvs {
-                            element.add_param(k, v).map_err(|e| anyhow::anyhow!(e))?;
-                        }
-                        vec![element]
-                    } else {
-                        EMPTY_STRUCTURED_DATA
-                    }
-                } else {
-                    EMPTY_STRUCTURED_DATA
-                };
-
                 match self.layout {
                     None => format!(
                         "{}",
                         self.context.format_rfc5424(
                             severity,
                             EMPTY_MSGID,
-                            elements,
+                            EMPTY_STRUCTURED_DATA,
                             Some(record.args())
                         )
                     ),
@@ -186,7 +155,7 @@ impl Append for Syslog {
                             self.context.format_rfc5424(
                                 severity,
                                 EMPTY_MSGID,
-                                elements,
+                                EMPTY_STRUCTURED_DATA,
                                 Some(message)
                             )
                         )
