@@ -24,6 +24,7 @@ use crossbeam_channel::Sender;
 
 use super::worker::Worker;
 use super::Message;
+use super::Writer;
 
 /// A guard that flushes log records associated with a [`NonBlocking`] writer on drop.
 ///
@@ -125,50 +126,48 @@ impl NonBlocking {
 
 /// A builder for configuring [`NonBlocking`].
 #[derive(Debug)]
-pub struct NonBlockingBuilder {
+pub struct NonBlockingBuilder<T: Writer> {
     thread_name: String,
     buffered_lines_limit: Option<usize>,
     shutdown_timeout: Option<Duration>,
+    marker: std::marker::PhantomData<T>,
 }
 
-impl NonBlockingBuilder {
+impl<T: Writer> NonBlockingBuilder<T> {
+    pub fn new(thread_name: impl Into<String>) -> Self {
+        Self {
+            thread_name: thread_name.into(),
+            buffered_lines_limit: None,
+            shutdown_timeout: None,
+            marker: std::marker::PhantomData,
+        }
+    }
+
     /// Sets the number of lines to buffer before dropping logs or exerting backpressure on senders.
-    pub fn buffered_lines_limit(mut self, buffered_lines_limit: usize) -> NonBlockingBuilder {
+    pub fn buffered_lines_limit(mut self, buffered_lines_limit: usize) -> Self {
         self.buffered_lines_limit = Some(buffered_lines_limit);
         self
     }
 
     /// Sets the shutdown timeout before the worker guard dropped.
-    pub fn shutdown_timeout(mut self, shutdown_timeout: Duration) -> NonBlockingBuilder {
+    pub fn shutdown_timeout(mut self, shutdown_timeout: Duration) -> Self {
         self.shutdown_timeout = Some(shutdown_timeout);
         self
     }
 
     /// Override the worker thread's name.
-    ///
-    /// The default worker thread name is "logforth-rolling-file".
-    pub fn thread_name(mut self, name: impl Into<String>) -> NonBlockingBuilder {
+    pub fn thread_name(mut self, name: impl Into<String>) -> Self {
         self.thread_name = name.into();
         self
     }
 
     /// Completes the builder, returning the configured `NonBlocking`.
-    pub fn finish<T: Write + Send + 'static>(self, writer: T) -> (NonBlocking, WorkerGuard) {
+    pub fn finish(self, writer: T) -> (NonBlocking, WorkerGuard) {
         NonBlocking::create(
             writer,
             self.thread_name,
             self.buffered_lines_limit,
             self.shutdown_timeout,
         )
-    }
-}
-
-impl Default for NonBlockingBuilder {
-    fn default() -> Self {
-        NonBlockingBuilder {
-            thread_name: "logforth-rolling-file".to_string(),
-            buffered_lines_limit: None,
-            shutdown_timeout: None,
-        }
     }
 }

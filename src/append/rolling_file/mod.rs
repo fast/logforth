@@ -17,11 +17,12 @@
 //! # Example
 //!
 //!```
-//! use logforth::non_blocking::NonBlockingBuilder;
+//! use logforth::append::rolling_file;
 //! use logforth::append::rolling_file::RollingFile;
 //! use logforth::append::rolling_file::RollingFileWriter;
 //! use logforth::append::rolling_file::Rotation;
 //! use logforth::layout::JsonLayout;
+//! use logforth::non_blocking::NonBlockingBuilder;
 //!
 //! let rolling_writer = RollingFileWriter::builder()
 //!     .rotation(Rotation::Daily)
@@ -29,7 +30,7 @@
 //!     .build("logs")
 //!     .unwrap();
 //!
-//! let (non_blocking, _guard) = NonBlockingBuilder::default().finish(rolling_writer);
+//! let (non_blocking, _guard) = rolling_file::non_blocking_builder().finish(rolling_writer);
 //!
 //! logforth::builder()
 //!     .dispatch(|d| {
@@ -46,7 +47,14 @@ pub use rolling::RollingFileWriter;
 pub use rolling::RollingFileWriterBuilder;
 pub use rotation::Rotation;
 
+use crate::non_blocking::NonBlockingBuilder;
+
 mod append;
 mod clock;
 mod rolling;
 mod rotation;
+
+/// Create a non-blocking builder for rolling file writers.
+pub fn non_blocking_builder() -> NonBlockingBuilder<RollingFileWriter> {
+    NonBlockingBuilder::new("logforth-rolling-file")
+}

@@ -22,9 +22,9 @@ mod fastrace;
 pub mod opentelemetry;
 #[cfg(feature = "rolling-file")]
 pub mod rolling_file;
+mod stdio;
 #[cfg(feature = "syslog")]
 pub mod syslog;
-mod stdio;
 
 #[cfg(feature = "fastrace")]
 pub use self::fastrace::FastraceEvent;

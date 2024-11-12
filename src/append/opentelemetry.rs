@@ -24,7 +24,6 @@ use opentelemetry::logs::AnyValue;
 use opentelemetry::logs::LogRecord as _;
 use opentelemetry::logs::Logger;
 use opentelemetry::logs::LoggerProvider as ILoggerProvider;
-use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationLibrary;
 use opentelemetry_otlp::Protocol;
 use opentelemetry_otlp::WithExportConfig;
@@ -297,12 +296,12 @@ impl Append for OpentelemetryLog {
     }
 }
 
-fn log_level_to_otel_severity(level: log::Level) -> Severity {
+fn log_level_to_otel_severity(level: log::Level) -> opentelemetry::logs::Severity {
     match level {
-        log::Level::Error => Severity::Error,
-        log::Level::Warn => Severity::Warn,
-        log::Level::Info => Severity::Info,
-        log::Level::Debug => Severity::Debug,
-        log::Level::Trace => Severity::Trace,
+        log::Level::Error => opentelemetry::logs::Severity::Error,
+        log::Level::Warn => opentelemetry::logs::Severity::Warn,
+        log::Level::Info => opentelemetry::logs::Severity::Info,
+        log::Level::Debug => opentelemetry::logs::Severity::Debug,
+        log::Level::Trace => opentelemetry::logs::Severity::Trace,
     }
 }

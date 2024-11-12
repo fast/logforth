@@ -21,7 +21,22 @@ use crossbeam_channel::TryRecvError;
 
 use super::Message;
 
-pub(crate) struct Worker<T: Write + Send + 'static> {
+pub(crate) trait Writer {
+    fn write_all(&mut self, buf: &[u8]) -> io::Result<()>;
+    fn flush(&mut self) -> io::Result<()>;
+}
+
+impl<T: Write> Writer for T {
+    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
+        Write::write_all(self, buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Write::flush(self)
+    }
+}
+
+pub(crate) struct Worker<T: Writer> {
     writer: T,
     receiver: Receiver<Message>,
     shutdown: Receiver<()>,
