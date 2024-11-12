@@ -2,6 +2,56 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.0] 2024-11-12
+
+### New features
+
+* Add `syslog` feature to support syslog appenders ([#72](https://github.com/fast/logforth/pull/72))
+
+### Breaking changes
+
+Two breaking changes in [#72](https://github.com/fast/logforth/pull/72):
+
+1. `rolling_file` feature flag is renamed to `rolling-file`.
+2. `NonBlocking` related structures and methods are relocated, now you'd construct a non-blocking like:
+
+```rust
+fn main() {
+    let rolling_writer = RollingFileWriter::builder()
+        .rotation(Rotation::Daily)
+        .filename_prefix("app_log")
+        .build("logs")
+        .unwrap();
+
+    let (non_blocking, _guard) = rolling_file::non_blocking(rolling_writer).finish();
+
+    logforth::builder()
+        .dispatch(|d| {
+            d.filter(log::LevelFilter::Trace)
+                .append(RollingFile::new(non_blocking).with_layout(JsonLayout::default()))
+        })
+        .apply();
+}
+```
+
+or:
+
+```rust
+fn main() {
+    let syslog_writer = SyslogWriter::tcp_well_known().unwrap();
+    let (non_blocking, _guard) = syslog::non_blocking(syslog_writer).finish();
+
+    logforth::builder()
+        .dispatch(|d| {
+            d.filter(log::LevelFilter::Trace)
+                .append(Syslog::new(non_blocking))
+        })
+        .apply();
+}
+```
+
+Note that each `NonBlocking` now has a type parameter to ensure that they match the corresponding appenders.
+
 ## [0.16.0] 2024-10-30
 
 ### Breaking changes
@@ -25,8 +75,9 @@ use logforth::append;
 use logforth::layout::JsonLayout;
 
 fn main() {
-    logforth::dispatch(|b| b.filter(LevelFilter::Debug).append(append::Stderr::default().with_layout(JsonLayout::default())))
-        .and_dispatch(|b| b.filter(LevelFilter::Info).append(append::Stdout::default().with_layout(JsonLayout::default())))
+    logforth::builder()
+        .dispatch(|b| b.filter(LevelFilter::Debug).append(append::Stderr::default().with_layout(JsonLayout::default())))
+        .dispatch(|b| b.filter(LevelFilter::Info).append(append::Stdout::default().with_layout(JsonLayout::default())))
         .apply();
 }
 ```
