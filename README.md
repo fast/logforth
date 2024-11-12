@@ -87,6 +87,19 @@ The policy is that the minimum Rust version required to use this crate can be in
 
 After one year of practicing the interfaces, if there are no further blockers, I'll release a 1.0 version. So consequently, it can be as early as 2025-08.
 
+### Stabilize targets
+
+To release a 1.0 version, it's essential to declare what targets this crate wants to stabilize. Even beyond 1.0, it's helpful to distinguish different portions of this crate to allow unstable modules to make breaking changes to improve their quality, just as how rust-lang's stabilization mechanism works.
+
+Basically, this crate contains:
+
+* Fundamental logging APIs (Appender, Layout, Filter, Dispatch, Logger, etc.): these MUST BE stabilized before 1.0.
+* Basic layouts and filters (all current existing): these SHOULD BE stabilized before 1.0.
+* Basic appenders (Stdout, Stderr, RollingFile): these SHOULD BE stabilized before 1.0.
+* Advanced appenders (Fastrace, OpentelemetryLog, Syslog, etc.): to-be-determined how to stabilize them.
+
+Generally, there are known usage for Fastrace and OpentelemetryLog, so we can confidently announce their stable version; others are still waiting for feedback.
+
 ## License and Origin
 
 This project is licensed under [Apache License, Version 2.0](LICENSE).
