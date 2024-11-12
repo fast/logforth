@@ -29,7 +29,7 @@
 //!     .build("logs")
 //!     .unwrap();
 //!
-//! let (non_blocking, _guard) = rolling_file::non_blocking_builder().finish(rolling_writer);
+//! let (non_blocking, _guard) = rolling_file::non_blocking(rolling_writer).finish();
 //!
 //! logforth::builder()
 //!     .dispatch(|d| {
@@ -54,6 +54,6 @@ mod rolling;
 mod rotation;
 
 /// Create a non-blocking builder for rolling file writers.
-pub fn non_blocking_builder() -> NonBlockingBuilder<RollingFileWriter> {
-    NonBlockingBuilder::new("logforth-rolling-file")
+pub fn non_blocking(writer: RollingFileWriter) -> NonBlockingBuilder<RollingFileWriter> {
+    NonBlockingBuilder::new("logforth-rolling-file", writer)
 }

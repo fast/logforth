@@ -22,7 +22,7 @@
 //! use logforth::append::syslog::SyslogWriter;
 //!
 //! let syslog_writer = SyslogWriter::tcp_well_known().unwrap();
-//! let (non_blocking, _guard) = syslog::non_blocking_builder().finish(syslog_writer);
+//! let (non_blocking, _guard) = syslog::non_blocking(syslog_writer).finish();
 //!
 //! logforth::builder()
 //!     .dispatch(|d| {
@@ -168,8 +168,8 @@ impl Append for Syslog {
 }
 
 /// Create a non-blocking builder for syslog writers.
-pub fn non_blocking_builder() -> NonBlockingBuilder<SyslogWriter> {
-    NonBlockingBuilder::new("logforth-syslog")
+pub fn non_blocking(writer: SyslogWriter) -> NonBlockingBuilder<SyslogWriter> {
+    NonBlockingBuilder::new("logforth-syslog", writer)
 }
 
 /// A writer that writes formatted log records to syslog.
