@@ -135,7 +135,7 @@ pub struct NonBlockingBuilder<T: Writer + Send + 'static> {
 }
 
 impl<T: Writer + Send + 'static> NonBlockingBuilder<T> {
-    pub fn new(thread_name: impl Into<String>) -> Self {
+    pub(crate) fn new(thread_name: impl Into<String>) -> Self {
         Self {
             thread_name: thread_name.into(),
             buffered_lines_limit: None,
