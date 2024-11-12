@@ -36,7 +36,7 @@ impl<T: Write> Writer for T {
     }
 }
 
-pub(crate) struct Worker<T: Writer> {
+pub(crate) struct Worker<T: Writer + Send + 'static> {
     writer: T,
     receiver: Receiver<Message>,
     shutdown: Receiver<()>,
@@ -50,7 +50,7 @@ pub(crate) enum WorkerState {
     Shutdown,
 }
 
-impl<T: Write + Send + 'static> Worker<T> {
+impl<T: Writer + Send + 'static> Worker<T> {
     pub(crate) fn new(writer: T, receiver: Receiver<Message>, shutdown: Receiver<()>) -> Worker<T> {
         Self {
             writer,

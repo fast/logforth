@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::Write;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
@@ -93,7 +92,7 @@ pub struct NonBlocking {
 }
 
 impl NonBlocking {
-    fn create<T: Write + Send + 'static>(
+    fn create<T: Writer + Send + 'static>(
         writer: T,
         thread_name: String,
         buffered_lines_limit: Option<usize>,
@@ -126,14 +125,14 @@ impl NonBlocking {
 
 /// A builder for configuring [`NonBlocking`].
 #[derive(Debug)]
-pub struct NonBlockingBuilder<T: Writer> {
+pub struct NonBlockingBuilder<T: Writer + Send + 'static> {
     thread_name: String,
     buffered_lines_limit: Option<usize>,
     shutdown_timeout: Option<Duration>,
     marker: std::marker::PhantomData<T>,
 }
 
-impl<T: Writer> NonBlockingBuilder<T> {
+impl<T: Writer + Send + 'static> NonBlockingBuilder<T> {
     pub fn new(thread_name: impl Into<String>) -> Self {
         Self {
             thread_name: thread_name.into(),

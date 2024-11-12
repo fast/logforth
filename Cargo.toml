@@ -76,23 +76,34 @@ tokio = { version = "1", features = ["rt-multi-thread"] }
 
 ## Examples
 [[example]]
+doc-scrape-examples = true
 name = "simple_stdout"
 path = "examples/simple_stdout.rs"
 
 [[example]]
+doc-scrape-examples = true
 name = "json_stdout"
 path = "examples/json_stdout.rs"
 required-features = ["json"]
 
 [[example]]
+doc-scrape-examples = true
 name = "multiple_dispatches"
 path = "examples/multiple_dispatches.rs"
 
 [[example]]
+doc-scrape-examples = true
 name = "rolling_file"
 path = "examples/rolling_file.rs"
 required-features = ["rolling-file", "json"]
 
 [[example]]
+doc-scrape-examples = true
 name = "custom_layout_filter"
 path = "examples/custom_layout_filter.rs"
+
+[[example]]
+doc-scrape-examples = true
+name = "syslog"
+path = "examples/syslog.rs"
+required-features = ["syslog"]
