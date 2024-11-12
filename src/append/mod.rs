@@ -20,15 +20,17 @@ use std::fmt;
 mod fastrace;
 #[cfg(feature = "opentelemetry")]
 pub mod opentelemetry;
-#[cfg(feature = "rolling_file")]
+#[cfg(feature = "rolling-file")]
 pub mod rolling_file;
 mod stdio;
+#[cfg(feature = "syslog")]
+pub mod syslog;
 
 #[cfg(feature = "fastrace")]
 pub use self::fastrace::FastraceEvent;
 #[cfg(feature = "opentelemetry")]
 pub use self::opentelemetry::OpentelemetryLog;
-#[cfg(feature = "rolling_file")]
+#[cfg(feature = "rolling-file")]
 pub use self::rolling_file::RollingFile;
 pub use self::stdio::Stderr;
 pub use self::stdio::Stdout;

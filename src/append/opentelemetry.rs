@@ -15,7 +15,6 @@
 //! Appenders and utilities for integrating with OpenTelemetry.
 
 use std::borrow::Cow;
-use std::sync::Arc;
 use std::time::Duration;
 use std::time::SystemTime;
 
@@ -24,8 +23,8 @@ use opentelemetry::logs::AnyValue;
 use opentelemetry::logs::LogRecord as _;
 use opentelemetry::logs::Logger;
 use opentelemetry::logs::LoggerProvider as ILoggerProvider;
-use opentelemetry::logs::Severity;
-use opentelemetry::InstrumentationLibrary;
+use opentelemetry::InstrumentationScope;
+use opentelemetry_otlp::LogExporter;
 use opentelemetry_otlp::Protocol;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::logs::LogRecord;
@@ -165,7 +164,7 @@ impl OpentelemetryLogBuilder {
     ///     .unwrap()
     ///     .block_on(async { builder.build().unwrap() });
     /// ```
-    pub fn build(self) -> Result<OpentelemetryLog, opentelemetry::logs::LogError> {
+    pub fn build(self) -> Result<OpentelemetryLog, opentelemetry_sdk::logs::LogError> {
         let OpentelemetryLogBuilder {
             name,
             endpoint,
@@ -177,36 +176,35 @@ impl OpentelemetryLogBuilder {
         let collector_timeout =
             Duration::from_secs(opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT);
         let exporter = match protocol {
-            Protocol::Grpc => opentelemetry_otlp::new_exporter()
-                .tonic()
+            Protocol::Grpc => LogExporter::builder()
+                .with_tonic()
                 .with_endpoint(endpoint)
                 .with_protocol(protocol)
                 .with_timeout(collector_timeout)
-                .build_log_exporter(),
-            Protocol::HttpBinary | Protocol::HttpJson => opentelemetry_otlp::new_exporter()
-                .http()
+                .build(),
+            Protocol::HttpBinary | Protocol::HttpJson => LogExporter::builder()
+                .with_http()
                 .with_endpoint(endpoint)
                 .with_protocol(protocol)
                 .with_timeout(collector_timeout)
-                .build_log_exporter(),
+                .build(),
         }?;
 
         let provider = LoggerProvider::builder()
             .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
-            .with_resource(opentelemetry_sdk::Resource::new(labels.into_iter().map(
-                |(key, value)| opentelemetry::KeyValue {
-                    key: key.into(),
-                    value: value.into(),
-                },
-            )))
+            .with_resource(opentelemetry_sdk::Resource::new(
+                labels
+                    .into_iter()
+                    .map(|(key, value)| opentelemetry::KeyValue::new(key, value)),
+            ))
             .build();
 
-        let library = Arc::new(InstrumentationLibrary::builder(name.clone()).build());
-
+        let library = InstrumentationScope::builder(name.clone()).build();
+        let logger = provider.logger_with_scope(library);
         Ok(OpentelemetryLog {
             name,
             layout,
-            library,
+            logger,
             provider,
         })
     }
@@ -231,15 +229,12 @@ impl OpentelemetryLogBuilder {
 pub struct OpentelemetryLog {
     name: String,
     layout: Option<Layout>,
-    library: Arc<InstrumentationLibrary>,
+    logger: opentelemetry_sdk::logs::Logger,
     provider: LoggerProvider,
 }
 
 impl Append for OpentelemetryLog {
     fn append(&self, record: &Record) -> anyhow::Result<()> {
-        let provider = self.provider.clone();
-        let logger = provider.library_logger(self.library.clone());
-
         let mut log_record_ = LogRecord::default();
         log_record_.observed_timestamp = Some(SystemTime::now());
         log_record_.severity_number = Some(log_level_to_otel_severity(record.level()));
@@ -281,7 +276,7 @@ impl Append for OpentelemetryLog {
         };
         record.key_values().visit(&mut extractor).ok();
 
-        logger.emit(log_record_);
+        self.logger.emit(log_record_);
         Ok(())
     }
 
@@ -297,12 +292,12 @@ impl Append for OpentelemetryLog {
     }
 }
 
-fn log_level_to_otel_severity(level: log::Level) -> Severity {
+fn log_level_to_otel_severity(level: log::Level) -> opentelemetry::logs::Severity {
     match level {
-        log::Level::Error => Severity::Error,
-        log::Level::Warn => Severity::Warn,
-        log::Level::Info => Severity::Info,
-        log::Level::Debug => Severity::Debug,
-        log::Level::Trace => Severity::Trace,
+        log::Level::Error => opentelemetry::logs::Severity::Error,
+        log::Level::Warn => opentelemetry::logs::Severity::Warn,
+        log::Level::Info => opentelemetry::logs::Severity::Info,
+        log::Level::Debug => opentelemetry::logs::Severity::Debug,
+        log::Level::Trace => opentelemetry::logs::Severity::Trace,
     }
 }

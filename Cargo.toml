@@ -35,83 +35,75 @@ rustdoc-args = ["--cfg", "docsrs"]
 fastrace = ["dep:fastrace"]
 json = ["dep:serde_json", "dep:serde", "jiff/serde"]
 no-color = ["colored/no-color"]
+non-blocking = ["dep:crossbeam-channel"]
 opentelemetry = [
   "dep:opentelemetry",
   "dep:opentelemetry-otlp",
   "dep:opentelemetry_sdk",
 ]
-rolling_file = ["dep:crossbeam-channel", "dep:parking_lot"]
+rolling-file = ["non-blocking"]
+syslog = ["non-blocking", "dep:fasyslog"]
 
 [dependencies]
 anyhow = { version = "1.0" }
 colored = { version = "2.1" }
 env_filter = { version = "0.1" }
-jiff = { version = "0.1.13" }
+jiff = { version = "0.1.14" }
 log = { version = "0.4", features = ["std", "kv_unstable"] }
+
+# Optional dependencies
+crossbeam-channel = { version = "0.5", optional = true }
+fastrace = { version = "0.7", optional = true }
+fasyslog = { version = "0.1.1", optional = true }
+opentelemetry = { version = "0.27", features = ["logs"], optional = true }
+opentelemetry-otlp = { version = "0.27", features = [
+  "logs",
+  "grpc-tonic",
+  "http-json",
+  "http-proto",
+], optional = true }
+opentelemetry_sdk = { version = "0.27", features = [
+  "logs",
+  "rt-tokio",
+], optional = true }
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
 
 [dev-dependencies]
 rand = "0.8"
 tempfile = "3.13"
 tokio = { version = "1", features = ["rt-multi-thread"] }
 
-## Serde dependencies
-[dependencies.serde]
-features = ["derive"]
-optional = true
-version = "1.0"
-
-[dependencies.serde_json]
-optional = true
-version = "1.0"
-
-## Rolling file dependencies
-[dependencies.crossbeam-channel]
-optional = true
-version = "0.5"
-
-[dependencies.parking_lot]
-optional = true
-version = "0.12"
-
-## Fastrace dependencies
-[dependencies.fastrace]
-optional = true
-version = "0.7"
-
-## Opentelemetry dependencies
-[dependencies.opentelemetry]
-features = ["logs"]
-optional = true
-version = "0.26"
-
-[dependencies.opentelemetry-otlp]
-features = ["logs", "grpc-tonic", "http-json", "http-proto"]
-optional = true
-version = "0.26"
-
-[dependencies.opentelemetry_sdk]
-features = ["logs", "rt-tokio"]
-optional = true
-version = "0.26"
-
 ## Examples
 [[example]]
+doc-scrape-examples = true
 name = "simple_stdout"
 path = "examples/simple_stdout.rs"
 
 [[example]]
+doc-scrape-examples = true
 name = "json_stdout"
 path = "examples/json_stdout.rs"
+required-features = ["json"]
 
 [[example]]
+doc-scrape-examples = true
 name = "multiple_dispatches"
 path = "examples/multiple_dispatches.rs"
 
 [[example]]
+doc-scrape-examples = true
 name = "rolling_file"
 path = "examples/rolling_file.rs"
-required-features = ["rolling_file", "json"]
+required-features = ["rolling-file", "json"]
 
 [[example]]
+doc-scrape-examples = true
 name = "custom_layout_filter"
 path = "examples/custom_layout_filter.rs"
+
+[[example]]
+doc-scrape-examples = true
+name = "syslog"
+path = "examples/syslog.rs"
+required-features = ["syslog"]

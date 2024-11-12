@@ -31,33 +31,35 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.number || github.run_id }}
   cancel-in-progress: true
-
 jobs:
   check:
     name: Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - uses: korandoru/hawkeye@v5
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt,clippy
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@v2
         with:
-          tool: typos-cli,taplo-cli
-      - name: Check Format
-        run: cargo fmt --all
-      - name: Check Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-      - name: Check Toml
-        run: taplo format --check
-      - name: Check Typos
-        run: typos
+          tool: typos-cli,taplo-cli,hawkeye
+      - name: Check all
+        run: |
+          hawkeye check
+          taplo format --check
+          typos
+          cargo +nightly fmt --all
+          cargo +nightly clippy --all-targets --all-features -- -D warnings
 
   test:
     name: Run tests
-    runs-on: ubuntu-latest
     strategy:
       matrix:
+        os: [ ubuntu-22.04, macos-14, windows-2022 ]
         rust-version: [ "1.75.0", "stable" ]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -67,20 +69,24 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust-version }}
+      - name: Build
+        run: cargo build --workspace --all-features --bins --tests --examples --benches --lib
       - name: Run unit tests
+        shell: bash
         run: cargo test --all-features -- --nocapture
       - name: Run examples
+        shell: bash
         run: |
           cargo run --example simple_stdout
           cargo run --example multiple_dispatches
           cargo run --example custom_layout_filter
           cargo run --features="no-color" --example simple_stdout
           cargo run --features="json" --example json_stdout
-          cargo run --features="json,rolling_file" --example rolling_file
+          cargo run --features="json,rolling-file" --example rolling_file
 
   required:
     name: Required
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     if: ${{ always() }}
     needs:
       - check

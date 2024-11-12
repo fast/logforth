@@ -19,23 +19,41 @@ use crossbeam_channel::Receiver;
 use crossbeam_channel::RecvError;
 use crossbeam_channel::TryRecvError;
 
-use crate::append::rolling_file::Message;
+use super::Message;
 
-pub(super) struct Worker<T: Write + Send + 'static> {
+/// A trait for the writer used in non-blocking background thread.
+pub trait Writer {
+    /// Write all the formatted record bytes to the writer.
+    fn write_all(&mut self, buf: &[u8]) -> io::Result<()>;
+    /// Flush the writer.
+    fn flush(&mut self) -> io::Result<()>;
+}
+
+impl<T: Write> Writer for T {
+    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
+        Write::write_all(self, buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Write::flush(self)
+    }
+}
+
+pub(crate) struct Worker<T: Writer + Send + 'static> {
     writer: T,
     receiver: Receiver<Message>,
     shutdown: Receiver<()>,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub(super) enum WorkerState {
+pub(crate) enum WorkerState {
     Empty,
     Disconnected,
     Continue,
     Shutdown,
 }
 
-impl<T: Write + Send + 'static> Worker<T> {
+impl<T: Writer + Send + 'static> Worker<T> {
     pub(crate) fn new(writer: T, receiver: Receiver<Message>, shutdown: Receiver<()>) -> Worker<T> {
         Self {
             writer,
@@ -67,7 +85,7 @@ impl<T: Write + Send + 'static> Worker<T> {
         }
     }
 
-    pub(super) fn work(&mut self) -> io::Result<WorkerState> {
+    pub(crate) fn work(&mut self) -> io::Result<WorkerState> {
         let mut worker_state = self.recv()?;
 
         while worker_state == WorkerState::Continue {
@@ -78,7 +96,7 @@ impl<T: Write + Send + 'static> Worker<T> {
         Ok(worker_state)
     }
 
-    pub(super) fn make_thread(mut self, name: String) -> std::thread::JoinHandle<()> {
+    pub(crate) fn make_thread(mut self, name: String) -> std::thread::JoinHandle<()> {
         std::thread::Builder::new()
             .name(name)
             .spawn(move || {

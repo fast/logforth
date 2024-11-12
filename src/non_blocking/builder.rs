@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::Write;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
@@ -22,8 +21,9 @@ use crossbeam_channel::unbounded;
 use crossbeam_channel::SendTimeoutError;
 use crossbeam_channel::Sender;
 
-use crate::append::rolling_file::worker::Worker;
-use crate::append::rolling_file::Message;
+use super::worker::Worker;
+use super::Message;
+use super::Writer;
 
 /// A guard that flushes log records associated with a [`NonBlocking`] writer on drop.
 ///
@@ -87,17 +87,18 @@ impl Drop for WorkerGuard {
 
 /// A non-blocking writer for rolling files.
 #[derive(Clone, Debug)]
-pub struct NonBlocking {
+pub struct NonBlocking<T: Writer + Send + 'static> {
     sender: Sender<Message>,
+    marker: std::marker::PhantomData<T>,
 }
 
-impl NonBlocking {
-    fn create<T: Write + Send + 'static>(
+impl<T: Writer + Send + 'static> NonBlocking<T> {
+    fn create(
         writer: T,
         thread_name: String,
         buffered_lines_limit: Option<usize>,
         shutdown_timeout: Option<Duration>,
-    ) -> (NonBlocking, WorkerGuard) {
+    ) -> (Self, WorkerGuard) {
         let (sender, receiver) = match buffered_lines_limit {
             Some(cap) => bounded(cap),
             None => unbounded(),
@@ -113,10 +114,11 @@ impl NonBlocking {
             shutdown_timeout,
         );
 
-        (Self { sender }, worker_guard)
+        let marker = std::marker::PhantomData;
+        (Self { sender, marker }, worker_guard)
     }
 
-    pub(super) fn send(&self, record: Vec<u8>) -> anyhow::Result<()> {
+    pub(crate) fn send(&self, record: Vec<u8>) -> anyhow::Result<()> {
         self.sender
             .send(Message::Record(record))
             .context("failed to send log message")
@@ -125,50 +127,48 @@ impl NonBlocking {
 
 /// A builder for configuring [`NonBlocking`].
 #[derive(Debug)]
-pub struct NonBlockingBuilder {
+pub struct NonBlockingBuilder<T: Writer + Send + 'static> {
     thread_name: String,
     buffered_lines_limit: Option<usize>,
     shutdown_timeout: Option<Duration>,
+    marker: std::marker::PhantomData<T>,
 }
 
-impl NonBlockingBuilder {
+impl<T: Writer + Send + 'static> NonBlockingBuilder<T> {
+    pub(crate) fn new(thread_name: impl Into<String>) -> Self {
+        Self {
+            thread_name: thread_name.into(),
+            buffered_lines_limit: None,
+            shutdown_timeout: None,
+            marker: std::marker::PhantomData,
+        }
+    }
+
     /// Sets the number of lines to buffer before dropping logs or exerting backpressure on senders.
-    pub fn buffered_lines_limit(mut self, buffered_lines_limit: usize) -> NonBlockingBuilder {
+    pub fn buffered_lines_limit(mut self, buffered_lines_limit: usize) -> Self {
         self.buffered_lines_limit = Some(buffered_lines_limit);
         self
     }
 
     /// Sets the shutdown timeout before the worker guard dropped.
-    pub fn shutdown_timeout(mut self, shutdown_timeout: Duration) -> NonBlockingBuilder {
+    pub fn shutdown_timeout(mut self, shutdown_timeout: Duration) -> Self {
         self.shutdown_timeout = Some(shutdown_timeout);
         self
     }
 
     /// Override the worker thread's name.
-    ///
-    /// The default worker thread name is "logforth-rolling-file".
-    pub fn thread_name(mut self, name: impl Into<String>) -> NonBlockingBuilder {
+    pub fn thread_name(mut self, name: impl Into<String>) -> Self {
         self.thread_name = name.into();
         self
     }
 
     /// Completes the builder, returning the configured `NonBlocking`.
-    pub fn finish<T: Write + Send + 'static>(self, writer: T) -> (NonBlocking, WorkerGuard) {
+    pub fn finish(self, writer: T) -> (NonBlocking<T>, WorkerGuard) {
         NonBlocking::create(
             writer,
             self.thread_name,
             self.buffered_lines_limit,
             self.shutdown_timeout,
         )
-    }
-}
-
-impl Default for NonBlockingBuilder {
-    fn default() -> Self {
-        NonBlockingBuilder {
-            thread_name: "logforth-rolling-file".to_string(),
-            buffered_lines_limit: None,
-            shutdown_timeout: None,
-        }
     }
 }

@@ -17,7 +17,7 @@
 //! # Example
 //!
 //!```
-//! use logforth::append::rolling_file::NonBlockingBuilder;
+//! use logforth::append::rolling_file;
 //! use logforth::append::rolling_file::RollingFile;
 //! use logforth::append::rolling_file::RollingFileWriter;
 //! use logforth::append::rolling_file::Rotation;
@@ -29,7 +29,7 @@
 //!     .build("logs")
 //!     .unwrap();
 //!
-//! let (non_blocking, _guard) = NonBlockingBuilder::default().finish(rolling_writer);
+//! let (non_blocking, _guard) = rolling_file::non_blocking_builder().finish(rolling_writer);
 //!
 //! logforth::builder()
 //!     .dispatch(|d| {
@@ -42,22 +42,18 @@
 //! ```
 
 pub use append::RollingFile;
-pub use non_blocking::NonBlocking;
-pub use non_blocking::NonBlockingBuilder;
-pub use non_blocking::WorkerGuard;
 pub use rolling::RollingFileWriter;
 pub use rolling::RollingFileWriterBuilder;
 pub use rotation::Rotation;
 
+use crate::non_blocking::NonBlockingBuilder;
+
 mod append;
 mod clock;
-mod non_blocking;
 mod rolling;
 mod rotation;
-mod worker;
 
-#[derive(Debug)]
-enum Message {
-    Record(Vec<u8>),
-    Shutdown,
+/// Create a non-blocking builder for rolling file writers.
+pub fn non_blocking_builder() -> NonBlockingBuilder<RollingFileWriter> {
+    NonBlockingBuilder::new("logforth-rolling-file")
 }
