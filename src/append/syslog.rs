@@ -36,6 +36,7 @@
 
 use std::io;
 
+use fasyslog::format::SyslogContext;
 use fasyslog::sender::SyslogSender;
 use fasyslog::SDElement;
 use log::Record;
@@ -46,12 +47,7 @@ use crate::non_blocking::Writer;
 use crate::Append;
 use crate::Layout;
 
-// re-exports to avoid version conflicts
-mod exported {
-    pub use fasyslog::format::SyslogContext;
-    pub use fasyslog::Facility;
-}
-pub use exported::*;
+pub extern crate fasyslog;
 
 /// The format of the syslog message.
 #[derive(Debug, Copy, Clone)]
@@ -179,25 +175,30 @@ pub struct SyslogWriter {
 }
 
 impl SyslogWriter {
+    /// Create a new syslog writer that sends messages to the given syslog sender.
+    pub fn new(sender: SyslogSender) -> Self {
+        Self { sender }
+    }
+
     /// Create a new syslog writer that sends messages to the well-known TCP port (514).
     pub fn tcp_well_known() -> io::Result<SyslogWriter> {
-        fasyslog::sender::tcp_well_known().map(|sender| Self {
-            sender: SyslogSender::Tcp(sender),
-        })
+        fasyslog::sender::tcp_well_known()
+            .map(SyslogSender::Tcp)
+            .map(Self::new)
     }
 
     /// Create a new syslog writer that sends messages to the given TCP address.
     pub fn tcp<A: std::net::ToSocketAddrs>(addr: A) -> io::Result<SyslogWriter> {
-        fasyslog::sender::tcp(addr).map(|sender| Self {
-            sender: SyslogSender::Tcp(sender),
-        })
+        fasyslog::sender::tcp(addr)
+            .map(SyslogSender::Tcp)
+            .map(Self::new)
     }
 
     /// Create a new syslog writer that sends messages to the well-known UDP port (514).
     pub fn udp_well_known() -> io::Result<SyslogWriter> {
-        fasyslog::sender::udp_well_known().map(|sender| Self {
-            sender: SyslogSender::Udp(sender),
-        })
+        fasyslog::sender::udp_well_known()
+            .map(SyslogSender::Udp)
+            .map(Self::new)
     }
 
     /// Create a new syslog writer that sends messages to the given UDP address.
@@ -205,25 +206,25 @@ impl SyslogWriter {
         local: L,
         remote: R,
     ) -> io::Result<SyslogWriter> {
-        fasyslog::sender::udp(local, remote).map(|sender| Self {
-            sender: SyslogSender::Udp(sender),
-        })
+        fasyslog::sender::udp(local, remote)
+            .map(SyslogSender::Udp)
+            .map(Self::new)
     }
 
     /// Create a new syslog writer that sends messages to the given Unix stream socket.
     #[cfg(unix)]
     pub fn unix_stream(path: impl AsRef<std::path::Path>) -> io::Result<SyslogWriter> {
-        fasyslog::sender::unix_stream(path).map(|sender| Self {
-            sender: SyslogSender::UnixStream(sender),
-        })
+        fasyslog::sender::unix_stream(path)
+            .map(SyslogSender::UnixStream)
+            .map(Self::new)
     }
 
     /// Create a new syslog writer that sends messages to the given Unix datagram socket.
     #[cfg(unix)]
     pub fn unix_datagram(path: impl AsRef<std::path::Path>) -> io::Result<SyslogWriter> {
-        fasyslog::sender::unix_datagram(path).map(|sender| Self {
-            sender: SyslogSender::UnixDatagram(sender),
-        })
+        fasyslog::sender::unix_datagram(path)
+            .map(SyslogSender::UnixDatagram)
+            .map(Self::new)
     }
 
     /// Create a new syslog writer that sends messages to the given Unix socket.
@@ -232,7 +233,7 @@ impl SyslogWriter {
     /// path.
     #[cfg(unix)]
     pub fn unix(path: impl AsRef<std::path::Path>) -> io::Result<SyslogWriter> {
-        fasyslog::sender::unix(path).map(|sender| Self { sender })
+        fasyslog::sender::unix(path).map(Self::new)
     }
 }
 

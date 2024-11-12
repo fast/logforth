@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.1] 2024-11-12
+
+### Refactors
+
+* Change the re-export of `syslog` to `logforth::syslog::fasyslog` ([#74](https://github.com/fast/logforth/pull/74))
+
 ## [0.17.0] 2024-11-12
 
 ### New features
