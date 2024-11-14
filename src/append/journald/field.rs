@@ -14,7 +14,7 @@
 
 // This field is derived from https://github.com/swsnr/systemd-journal-logger.rs/blob/v2.2.0/src/fields.rs.
 
-//! Write well-formated journal fields to buffers.
+//! Write well-formatted journal fields to buffers.
 
 use std::fmt::Arguments;
 use std::io::Write;
