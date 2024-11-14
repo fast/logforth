@@ -211,6 +211,20 @@ impl SyslogWriter {
             .map(Self::new)
     }
 
+    /// Create a new syslog writer that broadcast messages to the well-known UDP port (514).
+    pub fn broadcast_well_known() -> io::Result<SyslogWriter> {
+        fasyslog::sender::broadcast_well_known()
+            .map(SyslogSender::Broadcast)
+            .map(Self::new)
+    }
+
+    /// Create a new syslog writer that broadcast messages to the given UDP address.
+    pub fn broadcast(port: u16) -> io::Result<SyslogWriter> {
+        fasyslog::sender::broadcast(port)
+            .map(SyslogSender::Broadcast)
+            .map(Self::new)
+    }
+
     /// Create a new syslog writer that sends messages to the given Unix stream socket.
     #[cfg(unix)]
     pub fn unix_stream(path: impl AsRef<std::path::Path>) -> io::Result<SyslogWriter> {
