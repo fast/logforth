@@ -30,7 +30,7 @@ use std::os::unix::net::UnixDatagram;
 use std::path::Path;
 use std::ptr;
 
-fn send_large_payload(socket: &UnixDatagram, payload: &[u8]) -> io::Result<usize> {
+pub(super) fn send_large_payload(socket: &UnixDatagram, payload: &[u8]) -> io::Result<usize> {
     // If the payload's too large for a single datagram, send it through a memfd, see
     // https://systemd.io/JOURNAL_NATIVE_PROTOCOL/
     use std::os::unix::prelude::AsRawFd;
