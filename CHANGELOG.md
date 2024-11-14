@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.18.0] 2024-11-14
+
+### Breaking changes
+
+* The mapping between syslog severity and log's level is changed.
+  * `log::Level::Error` is mapped to `syslog::Severity::Error` (unchanged).
+  * `log::Level::Warn` is mapped to `syslog::Severity::Warning` (unchanged).
+  * `log::Level::Info` is mapped to `syslog::Severity::Notice` (changed).
+  * `log::Level::Debug` is mapped to `syslog::Severity::Info` (changed).
+  * `log::Level::Trace` is mapped to `syslog::Severity::Debug` (unchanged).
+
+### New features
+
+* Add `journald` feature to support journald appenders ([#80](https://github.com/fast/logforth/pull/80)).
+
 ## [0.17.1] 2024-11-12
 
 ### Refactors
