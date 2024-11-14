@@ -18,6 +18,8 @@ use std::fmt;
 
 #[cfg(feature = "fastrace")]
 mod fastrace;
+#[cfg(all(unix, feature = "journald"))]
+mod journald;
 #[cfg(feature = "opentelemetry")]
 pub mod opentelemetry;
 #[cfg(feature = "rolling-file")]
@@ -28,6 +30,8 @@ pub mod syslog;
 
 #[cfg(feature = "fastrace")]
 pub use self::fastrace::FastraceEvent;
+#[cfg(all(unix, feature = "journald"))]
+pub use self::journald::Journald;
 #[cfg(feature = "opentelemetry")]
 pub use self::opentelemetry::OpentelemetryLog;
 #[cfg(feature = "rolling-file")]
