@@ -109,3 +109,9 @@ doc-scrape-examples = true
 name = "syslog"
 path = "examples/syslog.rs"
 required-features = ["syslog"]
+
+[[example]]
+doc-scrape-examples = true
+name = "journald"
+path = "examples/journald.rs"
+required-features = ["journald"]
