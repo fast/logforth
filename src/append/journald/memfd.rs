@@ -30,10 +30,9 @@ use std::os::unix::net::UnixDatagram;
 use std::path::Path;
 use std::ptr;
 
+// If the payload's too large for a single datagram, send it through a memfd, see
+// https://systemd.io/JOURNAL_NATIVE_PROTOCOL/
 pub(super) fn send_large_payload(socket: &UnixDatagram, payload: &[u8]) -> io::Result<usize> {
-    // If the payload's too large for a single datagram, send it through a memfd, see
-    // https://systemd.io/JOURNAL_NATIVE_PROTOCOL/
-    use std::os::unix::prelude::AsRawFd;
     // Write the whole payload to a memfd
     let mut mem = create_sealable()?;
     mem.write_all(payload)?;
@@ -92,7 +91,7 @@ union AlignedBuffer<T: Copy + Clone> {
 }
 
 fn assert_cmsg_bufsize() {
-    let space_one_fd = unsafe { libc::CMSG_SPACE(size_of::<RawFd>() as u32) };
+    let space_one_fd = unsafe { libc::CMSG_SPACE(mem::size_of::<RawFd>() as u32) };
     assert!(
         space_one_fd <= CMSG_BUFSIZE as u32,
         "cmsghdr buffer too small (< {}) to hold a single fd",
@@ -122,7 +121,7 @@ fn send_one_fd_to<P: AsRef<Path>>(socket: &UnixDatagram, fd: RawFd, path: P) -> 
     let mut msg: libc::msghdr = unsafe { mem::zeroed() };
     // Set the target address.
     msg.msg_name = &mut addr as *mut _ as *mut libc::c_void;
-    msg.msg_namelen = size_of::<libc::sockaddr_un>() as libc::socklen_t;
+    msg.msg_namelen = mem::size_of::<libc::sockaddr_un>() as libc::socklen_t;
 
     // We send no data body with this message.
     msg.msg_iov = ptr::null_mut();
@@ -133,14 +132,14 @@ fn send_one_fd_to<P: AsRef<Path>>(socket: &UnixDatagram, fd: RawFd, path: P) -> 
         buffer: [0u8; CMSG_BUFSIZE],
     };
     msg.msg_control = unsafe { cmsg_buffer.buffer.as_mut_ptr() as _ };
-    msg.msg_controllen = unsafe { libc::CMSG_SPACE(size_of::<RawFd>() as _) as _ };
+    msg.msg_controllen = unsafe { libc::CMSG_SPACE(mem::size_of::<RawFd>() as _) as _ };
 
     let cmsg: &mut libc::cmsghdr =
         unsafe { libc::CMSG_FIRSTHDR(&msg).as_mut() }.expect("Control message buffer exhausted");
 
     cmsg.cmsg_level = libc::SOL_SOCKET;
     cmsg.cmsg_type = libc::SCM_RIGHTS;
-    cmsg.cmsg_len = unsafe { libc::CMSG_LEN(size_of::<RawFd>() as _) as _ };
+    cmsg.cmsg_len = unsafe { libc::CMSG_LEN(mem::size_of::<RawFd>() as _) as _ };
 
     unsafe { ptr::write(libc::CMSG_DATA(cmsg) as *mut RawFd, fd) };
 
