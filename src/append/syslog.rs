@@ -107,8 +107,8 @@ fn log_level_to_otel_severity(level: log::Level) -> fasyslog::Severity {
     match level {
         log::Level::Error => fasyslog::Severity::ERROR,
         log::Level::Warn => fasyslog::Severity::WARNING,
-        log::Level::Info => fasyslog::Severity::INFORMATIONAL,
-        log::Level::Debug => fasyslog::Severity::DEBUG,
+        log::Level::Info => fasyslog::Severity::NOTICE,
+        log::Level::Debug => fasyslog::Severity::INFORMATIONAL,
         log::Level::Trace => fasyslog::Severity::DEBUG,
     }
 }
