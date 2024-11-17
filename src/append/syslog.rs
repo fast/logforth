@@ -211,6 +211,51 @@ impl SyslogWriter {
             .map(Self::new)
     }
 
+    /// Create a new syslog writer that broadcast messages to the well-known UDP port (514).
+    pub fn broadcast_well_known() -> io::Result<SyslogWriter> {
+        fasyslog::sender::broadcast_well_known()
+            .map(SyslogSender::Udp)
+            .map(Self::new)
+    }
+
+    /// Create a new syslog writer that broadcast messages to the given UDP address.
+    pub fn broadcast(port: u16) -> io::Result<SyslogWriter> {
+        fasyslog::sender::broadcast(port)
+            .map(SyslogSender::Udp)
+            .map(Self::new)
+    }
+
+    /// Create a TLS sender that sends messages to the well-known port (6514).
+    #[cfg(feature = "native-tls")]
+    pub fn native_tls_well_known<S: AsRef<str>>(domain: S) -> io::Result<SyslogWriter> {
+        fasyslog::sender::native_tls_well_known(domain)
+            .map(SyslogSender::NativeTlsSender)
+            .map(Self::new)
+    }
+
+    /// Create a TLS sender that sends messages to the given address.
+    #[cfg(feature = "native-tls")]
+    pub fn native_tls<A: std::net::ToSocketAddrs, S: AsRef<str>>(
+        addr: A,
+        domain: S,
+    ) -> io::Result<SyslogWriter> {
+        fasyslog::sender::native_tls(addr, domain)
+            .map(SyslogSender::NativeTlsSender)
+            .map(Self::new)
+    }
+
+    /// Create a TLS sender that sends messages to the given address with certificate builder.
+    #[cfg(feature = "native-tls")]
+    pub fn native_tls_with<A: std::net::ToSocketAddrs, S: AsRef<str>>(
+        addr: A,
+        domain: S,
+        builder: native_tls::TlsConnectorBuilder,
+    ) -> io::Result<SyslogWriter> {
+        fasyslog::sender::native_tls_with(addr, domain, builder)
+            .map(SyslogSender::NativeTlsSender)
+            .map(Self::new)
+    }
+
     /// Create a new syslog writer that sends messages to the given Unix stream socket.
     #[cfg(unix)]
     pub fn unix_stream(path: impl AsRef<std::path::Path>) -> io::Result<SyslogWriter> {
