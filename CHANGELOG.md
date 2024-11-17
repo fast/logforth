@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.18.1] 2024-11-17
+
+### New features
+
+* Re-export `broadcast` and `native_tls` constructors from fasyslog ([#81](https://github.com/fast/logforth/pull/81)).
+
 ## [0.18.0] 2024-11-14
 
 ### Breaking changes
