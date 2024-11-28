@@ -176,12 +176,12 @@ impl TextLayout {
             };
             ColoredString::from(record.level().to_string()).color(color)
         };
-        let module = record.module_path().unwrap_or_default();
+        let target = record.target();
         let file = filename(record);
         let line = record.line().unwrap_or_default();
         let message = record.args();
         let kvs = KvDisplay::new(record.key_values());
-        Ok(format!("{time:.6} {level:>5} {module}: {file}:{line} {message}{kvs}").into_bytes())
+        Ok(format!("{time:.6} {level:>5} {target}: {file}:{line} {message}{kvs}").into_bytes())
     }
 }
 
