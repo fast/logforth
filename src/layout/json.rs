@@ -87,7 +87,7 @@ pub(crate) struct RecordLine<'a> {
     #[serde(serialize_with = "serialize_time_zone")]
     timestamp: Zoned,
     level: &'a str,
-    module_path: &'a str,
+    target: &'a str,
     file: &'a str,
     line: u32,
     #[serde(serialize_with = "serialize_args")]
@@ -121,7 +121,7 @@ impl JsonLayout {
                 None => Zoned::now(),
             },
             level: record.level().as_str(),
-            module_path: record.module_path().unwrap_or_default(),
+            target: record.target(),
             file: record.file().unwrap_or_default(),
             line: record.line().unwrap_or_default(),
             message: record.args(),
