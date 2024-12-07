@@ -122,7 +122,7 @@ fn handle_error(record: &Record, error: anyhow::Error) {
 Error perform logging.
     Attempted to log: {args}
     Record: {record:?}
-    Error: {error}
+    Error: {error:?}
 "###,
         args = record.args(),
         record = record,
@@ -136,7 +136,7 @@ Error perform logging.
 Error performing stderr logging after error occurred during regular logging.
     Attempted to log: {args}
     Record: {record:?}
-    Error: {error}
+    Error: {error:?}
     Fallback error: {fallback_error}
 "###,
         args = record.args(),
