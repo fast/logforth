@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## [0.19.0] 2024-12-07
 
 * `module_path` is replaced by `target` in `JsonLayout` and `TextLayout` ([#82](https://github.com/fast/logforth/pull/82)).
 * Error perform logging now prints error in Debug format ([#84](https://github.com/fast/logforth/pull/84))
