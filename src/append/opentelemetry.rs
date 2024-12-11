@@ -259,7 +259,7 @@ impl Append for OpentelemetryLog {
             record: &'a mut LogRecord,
         }
 
-        impl<'kvs> log::kv::Visitor<'kvs> for KvExtractor<'_> {
+        impl<'kvs> log::kv::VisitSource<'kvs> for KvExtractor<'_> {
             fn visit_pair(
                 &mut self,
                 key: log::kv::Key<'kvs>,

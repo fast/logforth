@@ -51,7 +51,7 @@ anyhow = { version = "1.0" }
 colored = { version = "2.1" }
 env_filter = { version = "0.1" }
 jiff = { version = "0.1.14" }
-log = { version = "0.4", features = ["std", "kv_unstable"] }
+log = { version = "0.4", features = ["std", "kv"] }
 
 # Optional dependencies
 crossbeam-channel = { version = "0.5", optional = true }
