@@ -37,7 +37,7 @@ struct KvWriter<'a, 'kvs> {
     writer: &'kvs mut std::fmt::Formatter<'a>,
 }
 
-impl<'kvs> log::kv::Visitor<'kvs> for KvWriter<'_, 'kvs> {
+impl<'kvs> log::kv::VisitSource<'kvs> for KvWriter<'_, 'kvs> {
     fn visit_pair(
         &mut self,
         key: log::kv::Key<'kvs>,
@@ -61,7 +61,7 @@ struct KvCollector {
     kv: Vec<(String, String)>,
 }
 
-impl<'kvs> log::kv::Visitor<'kvs> for KvCollector {
+impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector {
     fn visit_pair(
         &mut self,
         key: log::kv::Key<'kvs>,

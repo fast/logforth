@@ -231,7 +231,7 @@ impl Journald {
 
 struct WriteKeyValues<'a>(&'a mut Vec<u8>);
 
-impl<'kvs> log::kv::Visitor<'kvs> for WriteKeyValues<'_> {
+impl<'kvs> log::kv::VisitSource<'kvs> for WriteKeyValues<'_> {
     fn visit_pair(
         &mut self,
         key: log::kv::Key<'kvs>,
