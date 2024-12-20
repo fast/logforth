@@ -2,7 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.19.1] 2024-12-20
+
+## Refactor
+
+* Migrate from `log`'s `kv_unstable` feature to `kv` feature ([#85](https://github.com/fast/logforth/pull/85)).
+
 ## [0.19.0] 2024-12-07
+
+### Breaking Changes
 
 * `module_path` is replaced by `target` in `JsonLayout` and `TextLayout` ([#82](https://github.com/fast/logforth/pull/82)).
 * Error perform logging now prints error in Debug format ([#84](https://github.com/fast/logforth/pull/84))
