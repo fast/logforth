@@ -2,9 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.19.2] 2025-01-03
+
+### Fixes
+
+* Fix minimum version required for env_filter should be 0.1.1 ([#87](https://github.com/fast/logforth/pull/87)).
+
 ## [0.19.1] 2024-12-20
 
-## Refactor
+### Refactor
 
 * Migrate from `log`'s `kv_unstable` feature to `kv` feature ([#85](https://github.com/fast/logforth/pull/85)).
 
