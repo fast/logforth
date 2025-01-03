@@ -49,7 +49,7 @@ syslog = ["non-blocking", "dep:fasyslog"]
 [dependencies]
 anyhow = { version = "1.0" }
 colored = { version = "2.1" }
-env_filter = { version = "0.1" }
+env_filter = { version = "0.1.1" }
 jiff = { version = "0.1.14" }
 log = { version = "0.4", features = ["std", "kv"] }
 
