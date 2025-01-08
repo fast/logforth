@@ -57,6 +57,7 @@
 pub mod append;
 pub mod filter;
 pub mod layout;
+pub mod marker;
 
 #[cfg(feature = "non-blocking")]
 pub mod non_blocking;
@@ -64,6 +65,7 @@ pub mod non_blocking;
 pub use append::Append;
 pub use filter::Filter;
 pub use layout::Layout;
+pub use marker::Marker;
 
 mod logger;
 pub use logger::*;

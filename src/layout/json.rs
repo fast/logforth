@@ -23,6 +23,7 @@ use serde_json::Map;
 use serde_json::Value;
 
 use crate::layout::Layout;
+use crate::Marker;
 
 /// A JSON layout for formatting log records.
 ///
@@ -110,10 +111,20 @@ where
 }
 
 impl JsonLayout {
-    pub(crate) fn format(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
+    pub(crate) fn format(
+        &self,
+        record: &Record,
+        marker: Option<&Marker>,
+    ) -> anyhow::Result<Vec<u8>> {
         let mut kvs = Map::new();
         let mut visitor = KvCollector { kvs: &mut kvs };
         record.key_values().visit(&mut visitor)?;
+
+        if let Some(marker) = marker {
+            marker.mark(|key, value| {
+                kvs.insert(key.to_string(), value.into());
+            });
+        }
 
         let record_line = RecordLine {
             timestamp: match self.tz.clone() {

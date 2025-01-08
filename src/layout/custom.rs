@@ -18,10 +18,12 @@ use std::fmt::Formatter;
 use log::Record;
 
 use crate::layout::Layout;
+use crate::Marker;
 
 // TODO(tisonkun): use trait alias when it's stable - https://github.com/rust-lang/rust/issues/41517
 //  then we can use the alias for both `dyn` and `impl`.
-type FormatFunction = dyn Fn(&Record) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static;
+type FormatFunction =
+    dyn Fn(&Record, Option<&Marker>) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static;
 
 /// A layout that you can pass the custom layout function.
 ///
@@ -32,7 +34,7 @@ type FormatFunction = dyn Fn(&Record) -> anyhow::Result<Vec<u8>> + Send + Sync +
 /// use log::Record;
 /// use logforth::layout::CustomLayout;
 ///
-/// let layout = CustomLayout::new(|record: &Record| {
+/// let layout = CustomLayout::new(|record: &Record, _| {
 ///     Ok(format!("{} - {}", record.level(), record.args()).into_bytes())
 /// });
 /// ```
@@ -48,15 +50,19 @@ impl Debug for CustomLayout {
 
 impl CustomLayout {
     pub fn new(
-        layout: impl Fn(&Record) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static,
+        layout: impl Fn(&Record, Option<&Marker>) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static,
     ) -> Self {
         CustomLayout {
             f: Box::new(layout),
         }
     }
 
-    pub(crate) fn format(&self, record: &Record) -> anyhow::Result<Vec<u8>> {
-        (self.f)(record)
+    pub(crate) fn format(
+        &self,
+        record: &Record,
+        marker: Option<&Marker>,
+    ) -> anyhow::Result<Vec<u8>> {
+        (self.f)(record, marker)
     }
 }
 

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::borrow::Cow;
+use std::fmt::Write;
 
 use colored::Color;
 use colored::ColoredString;
@@ -24,6 +25,7 @@ use log::Level;
 
 use crate::layout::KvDisplay;
 use crate::layout::Layout;
+use crate::Marker;
 
 /// A layout that formats log record as text.
 ///
@@ -53,7 +55,7 @@ use crate::layout::Layout;
 ///
 /// let text_layout = TextLayout::default();
 /// ```
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TextLayout {
     colors: LevelColor,
     no_color: bool,
@@ -159,7 +161,11 @@ impl Default for LevelColor {
 }
 
 impl TextLayout {
-    pub(crate) fn format(&self, record: &log::Record) -> anyhow::Result<Vec<u8>> {
+    pub(crate) fn format(
+        &self,
+        record: &log::Record,
+        marker: Option<&Marker>,
+    ) -> anyhow::Result<Vec<u8>> {
         let time = match self.tz.clone() {
             Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),
@@ -181,7 +187,16 @@ impl TextLayout {
         let line = record.line().unwrap_or_default();
         let message = record.args();
         let kvs = KvDisplay::new(record.key_values());
-        Ok(format!("{time:.6} {level:>5} {target}: {file}:{line} {message}{kvs}").into_bytes())
+
+        let mut text = format!("{time:.6} {level:>5} {target}: {file}:{line} {message}{kvs}");
+
+        if let Some(marker) = marker {
+            marker.mark(|key, value| {
+                write!(&mut text, " {key}={value}").unwrap();
+            });
+        }
+
+        Ok(text.into_bytes())
     }
 }
 

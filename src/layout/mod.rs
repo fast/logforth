@@ -22,6 +22,8 @@ pub use kv::KvDisplay;
 pub use text::LevelColor;
 pub use text::TextLayout;
 
+use crate::Marker;
+
 mod custom;
 #[cfg(feature = "json")]
 mod json;
@@ -38,12 +40,16 @@ pub enum Layout {
 }
 
 impl Layout {
-    pub(crate) fn format(&self, record: &log::Record) -> anyhow::Result<Vec<u8>> {
+    pub(crate) fn format(
+        &self,
+        record: &log::Record,
+        marker: Option<&Marker>,
+    ) -> anyhow::Result<Vec<u8>> {
         match self {
-            Layout::Custom(layout) => layout.format(record),
-            Layout::Text(layout) => layout.format(record),
+            Layout::Custom(layout) => layout.format(record, marker),
+            Layout::Text(layout) => layout.format(record, marker),
             #[cfg(feature = "json")]
-            Layout::Json(layout) => layout.format(record),
+            Layout::Json(layout) => layout.format(record, marker),
         }
     }
 }

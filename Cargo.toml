@@ -22,7 +22,7 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/fast/logforth"
 rust-version = "1.75.0"
-version = "0.19.2"
+version = "0.20.0"
 
 categories = ["development-tools::debugging"]
 keywords = ["logging", "log", "opentelemetry", "fastrace"]
@@ -79,6 +79,7 @@ tempfile = "3.13"
 tokio = { version = "1", features = ["rt-multi-thread"] }
 
 ## Examples
+
 [[example]]
 doc-scrape-examples = true
 name = "simple_stdout"
@@ -117,3 +118,9 @@ doc-scrape-examples = true
 name = "journald"
 path = "examples/journald.rs"
 required-features = ["journald"]
+
+[[example]]
+doc-scrape-examples = true
+name = "fastrace"
+path = "examples/fastrace.rs"
+required-features = ["fastrace", "fastrace/enable"]
