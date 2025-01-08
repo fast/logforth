@@ -32,6 +32,7 @@ use opentelemetry_sdk::logs::LoggerProvider;
 
 use crate::append::Append;
 use crate::Layout;
+use crate::Marker;
 
 /// Specifies the wire protocol to use when sending logs to OpenTelemetry.
 ///
@@ -55,6 +56,7 @@ pub struct OpentelemetryLogBuilder {
     protocol: Protocol,
     labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
     layout: Option<Layout>,
+    marker: Option<Marker>,
 }
 
 impl OpentelemetryLogBuilder {
@@ -74,6 +76,7 @@ impl OpentelemetryLogBuilder {
             protocol: Protocol::Grpc,
             labels: vec![],
             layout: None,
+            marker: None,
         }
     }
 
@@ -152,6 +155,22 @@ impl OpentelemetryLogBuilder {
         self
     }
 
+    /// Sets the marker for the logs.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
+    /// use logforth::marker::TraceIdMarker;
+    /// 
+    /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
+    /// builder.marker(TraceIdMarker::default());
+    /// ```
+    pub fn marker(mut self, marker: impl Into<Marker>) -> Self {
+        self.marker = Some(marker.into());
+        self
+    }
+
     /// Builds the [`OpentelemetryLog`] appender.
     ///
     /// # Examples
@@ -171,6 +190,7 @@ impl OpentelemetryLogBuilder {
             protocol,
             labels,
             layout,
+            marker,
         } = self;
 
         let collector_timeout =
@@ -204,6 +224,7 @@ impl OpentelemetryLogBuilder {
         Ok(OpentelemetryLog {
             name,
             layout,
+            marker,
             logger,
             provider,
         })
@@ -229,6 +250,7 @@ impl OpentelemetryLogBuilder {
 pub struct OpentelemetryLog {
     name: String,
     layout: Option<Layout>,
+    marker: Option<Marker>,
     logger: opentelemetry_sdk::logs::Logger,
     provider: LoggerProvider,
 }
@@ -242,7 +264,7 @@ impl Append for OpentelemetryLog {
         log_record_.target = Some(record.target().to_string().into());
         log_record_.body = Some(AnyValue::Bytes(Box::new(match self.layout.as_ref() {
             None => record.args().to_string().into_bytes(),
-            Some(layout) => layout.format(record)?,
+            Some(layout) => layout.format(record, self.marker.as_ref())?,
         })));
 
         if let Some(module_path) = record.module_path() {
@@ -275,6 +297,12 @@ impl Append for OpentelemetryLog {
             record: &mut log_record_,
         };
         record.key_values().visit(&mut extractor).ok();
+
+        if let Some(marker) = &self.marker {
+            marker.mark(|key, value| {
+                log_record_.add_attribute(key.to_string(), value.to_string());
+            });
+        }
 
         self.logger.emit(log_record_);
         Ok(())

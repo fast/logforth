@@ -46,6 +46,7 @@ use crate::non_blocking::NonBlockingBuilder;
 use crate::non_blocking::Writer;
 use crate::Append;
 use crate::Layout;
+use crate::Marker;
 
 pub extern crate fasyslog;
 
@@ -69,6 +70,7 @@ pub struct Syslog {
     format: SyslogFormat,
     context: SyslogContext,
     layout: Option<Layout>,
+    marker: Option<Marker>,
 }
 
 impl Syslog {
@@ -79,6 +81,7 @@ impl Syslog {
             format: SyslogFormat::RFC3164,
             context: SyslogContext::default(),
             layout: None,
+            marker: None,
         }
     }
 
@@ -99,6 +102,14 @@ impl Syslog {
     /// Default to `None`, only the args will be logged.
     pub fn with_layout(mut self, layout: impl Into<Layout>) -> Self {
         self.layout = Some(layout.into());
+        self
+    }
+
+    /// Set the marker of the [`Syslog`] appender.
+    ///
+    /// Default to `None`, no marker will be logged.
+    pub fn with_marker(mut self, marker: impl Into<Marker>) -> Self {
+        self.marker = Some(marker.into());
         self
     }
 }
@@ -123,7 +134,7 @@ impl Append for Syslog {
                     self.context.format_rfc3164(severity, Some(record.args()))
                 ),
                 Some(ref layout) => {
-                    let message = layout.format(record)?;
+                    let message = layout.format(record, self.marker.as_ref())?;
                     let message = String::from_utf8_lossy(&message);
                     format!("{}", self.context.format_rfc3164(severity, Some(message)))
                 }
@@ -143,7 +154,7 @@ impl Append for Syslog {
                         )
                     ),
                     Some(ref layout) => {
-                        let message = layout.format(record)?;
+                        let message = layout.format(record, self.marker.as_ref())?;
                         let message = String::from_utf8_lossy(&message);
                         format!(
                             "{}",

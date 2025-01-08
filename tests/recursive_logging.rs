@@ -32,7 +32,7 @@ fn test_meta_logging_in_format_works() {
     let (writer, _guard) = rolling_file::non_blocking(rolling).finish();
 
     let layout = |src: &'static str| {
-        layout::CustomLayout::new(move |record| {
+        layout::CustomLayout::new(move |record, _| {
             Ok(format!("{src} [{}] {}", record.level(), record.args()).into_bytes())
         })
     };

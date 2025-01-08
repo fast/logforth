@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt;
+
 /// A helper struct to format log's key-value pairs.
 ///
 /// This is useful when you want to display log's key-value pairs in a log message.
@@ -25,8 +27,8 @@ impl<'kvs> KvDisplay<'kvs> {
     }
 }
 
-impl std::fmt::Display for KvDisplay<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for KvDisplay<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut visitor = KvWriter { writer: f };
         self.kv.visit(&mut visitor).ok();
         Ok(())
@@ -34,7 +36,7 @@ impl std::fmt::Display for KvDisplay<'_> {
 }
 
 struct KvWriter<'a, 'kvs> {
-    writer: &'kvs mut std::fmt::Formatter<'a>,
+    writer: &'kvs mut fmt::Formatter<'a>,
 }
 
 impl<'kvs> log::kv::VisitSource<'kvs> for KvWriter<'_, 'kvs> {

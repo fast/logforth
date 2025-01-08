@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.20.0] 2025-01-08
+
+### New features
+
+* Add logforth::marker::TraceIdMarker to support attaching trace id to log's kv.
+
 ## [0.19.2] 2025-01-03
 
 ### Fixes
