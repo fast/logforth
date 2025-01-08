@@ -22,7 +22,7 @@ mod custom;
 #[cfg(feature = "fastrace")]
 mod fastrace;
 
-/// Represents a layout for formatting log records.
+/// A marker that enriches log records with additional information.
 #[derive(Debug)]
 pub enum Marker {
     Custom(CustomMarker),
