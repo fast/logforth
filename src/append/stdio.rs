@@ -64,10 +64,13 @@ impl Stdout {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(not(feature = "fastrace"))] fn main() {}
+    /// # #[cfg(feature = "fastrace")] fn main() {
     /// use logforth::append::Stdout;
     /// use logforth::marker::TraceIdMarker;
     ///
     /// let stdout_appender = Stdout::default().with_marker(TraceIdMarker::default());
+    /// # }
     /// ```
     pub fn with_marker(mut self, marker: impl Into<Marker>) -> Self {
         self.makrer = Some(marker.into());
@@ -118,10 +121,13 @@ impl Stderr {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(not(feature = "json"))] fn main() {}
+    /// # #[cfg(feature = "json")] fn main() {
     /// use logforth::append::Stderr;
     /// use logforth::layout::JsonLayout;
     ///
     /// let stderr_appender = Stderr::default().with_layout(JsonLayout::default());
+    /// # }
     /// ```
     pub fn with_layout(mut self, encoder: impl Into<Layout>) -> Self {
         self.layout = encoder.into();
@@ -133,10 +139,13 @@ impl Stderr {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(not(feature = "fastrace"))] fn main() {}
+    /// # #[cfg(feature = "fastrace")] fn main() {
     /// use logforth::append::Stderr;
     /// use logforth::marker::TraceIdMarker;
     ///
     /// let stderr_appender = Stderr::default().with_marker(TraceIdMarker::default());
+    /// # }
     /// ```
     pub fn with_marker(mut self, marker: impl Into<Marker>) -> Self {
         self.marker = Some(marker.into());
