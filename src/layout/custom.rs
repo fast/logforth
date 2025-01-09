@@ -23,7 +23,7 @@ use crate::Diagnostic;
 // TODO(tisonkun): use trait alias when it's stable - https://github.com/rust-lang/rust/issues/41517
 //  then we can use the alias for both `dyn` and `impl`.
 type FormatFunction =
-    dyn Fn(&Record, Option<&Diagnostic>) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static;
+    dyn Fn(&Record, &[Diagnostic]) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static;
 
 /// A layout that you can pass the custom layout function.
 ///
@@ -50,7 +50,7 @@ impl Debug for CustomLayout {
 
 impl CustomLayout {
     pub fn new(
-        layout: impl Fn(&Record, Option<&Diagnostic>) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static,
+        layout: impl Fn(&Record, &[Diagnostic]) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static,
     ) -> Self {
         CustomLayout {
             f: Box::new(layout),
@@ -60,9 +60,9 @@ impl CustomLayout {
     pub(crate) fn format(
         &self,
         record: &Record,
-        marker: Option<&Diagnostic>,
+        diagnostics: &[Diagnostic],
     ) -> anyhow::Result<Vec<u8>> {
-        (self.f)(record, marker)
+        (self.f)(record, diagnostics)
     }
 }
 

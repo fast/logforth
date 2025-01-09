@@ -19,7 +19,7 @@ use std::os::unix::net::UnixDatagram;
 use log::Level;
 use log::Record;
 
-use crate::Append;
+use crate::{Append, Diagnostic};
 
 mod field;
 #[cfg(target_os = "linux")]
@@ -249,7 +249,7 @@ impl<'kvs> log::kv::VisitSource<'kvs> for WriteKeyValues<'_> {
 impl Append for Journald {
     /// Extract all fields (standard and custom) from `record`, append all `extra_fields` given
     /// to this appender, and send the result to journald.
-    fn append(&self, record: &Record) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
         use field::*;
 
         let mut buffer = vec![];
@@ -302,6 +302,9 @@ impl Append for Journald {
         record
             .key_values()
             .visit(&mut WriteKeyValues(&mut buffer))?;
+        for d in diagnostics {
+            d.visit(&mut WriteKeyValues(&mut buffer))?;
+        }
         // Put all extra fields of the appender
         buffer.extend_from_slice(&self.extra_fields);
         self.send_payload(&buffer)?;

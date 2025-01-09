@@ -114,16 +114,13 @@ impl JsonLayout {
     pub(crate) fn format(
         &self,
         record: &Record,
-        marker: Option<&Diagnostic>,
+        diagnostics: &[Diagnostic],
     ) -> anyhow::Result<Vec<u8>> {
         let mut kvs = Map::new();
         let mut visitor = KvCollector { kvs: &mut kvs };
         record.key_values().visit(&mut visitor)?;
-
-        if let Some(marker) = marker {
-            marker.mark(|key, value| {
-                kvs.insert(key.to_string(), value.into());
-            });
+        for d in diagnostics {
+            d.visit(&visitor)?
         }
 
         let record_line = RecordLine {

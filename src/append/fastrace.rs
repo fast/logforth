@@ -58,3 +58,18 @@ impl Append for FastraceEvent {
         fastrace::flush();
     }
 }
+
+struct KvCollector {
+    kv: Vec<(String, String)>,
+}
+
+impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector {
+    fn visit_pair(
+        &mut self,
+        key: log::kv::Key<'kvs>,
+        value: log::kv::Value<'kvs>,
+    ) -> Result<(), log::kv::Error> {
+        self.kv.push((key.to_string(), value.to_string()));
+        Ok(())
+    }
+}
