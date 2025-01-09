@@ -55,17 +55,17 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 pub mod append;
+pub mod diagnostic;
 pub mod filter;
 pub mod layout;
-pub mod diagnostic;
 
 #[cfg(feature = "non-blocking")]
 pub mod non_blocking;
 
 pub use append::Append;
+pub use diagnostic::Diagnostic;
 pub use filter::Filter;
 pub use layout::Layout;
-pub use diagnostic::Diagnostic;
 
 mod logger;
 pub use logger::*;

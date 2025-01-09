@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::Diagnostic;
-use log::kv::{Error, VisitSource};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
+
+use log::kv::Error;
+use log::kv::VisitSource;
+
+use crate::Diagnostic;
 
 thread_local! {
     static CONTEXT: RefCell<BTreeMap<String, String>> = RefCell::new(BTreeMap::new());

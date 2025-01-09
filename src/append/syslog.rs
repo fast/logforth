@@ -45,8 +45,8 @@ use crate::non_blocking::NonBlocking;
 use crate::non_blocking::NonBlockingBuilder;
 use crate::non_blocking::Writer;
 use crate::Append;
-use crate::Layout;
 use crate::Diagnostic;
+use crate::Layout;
 
 pub extern crate fasyslog;
 

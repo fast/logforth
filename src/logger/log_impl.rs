@@ -19,6 +19,7 @@ use log::Record;
 
 use crate::filter::FilterResult;
 use crate::Append;
+use crate::Diagnostic;
 use crate::Filter;
 
 /// A logger facade that dispatches log records to one or more [`Dispatch`] instances.
@@ -68,17 +69,26 @@ impl log::Log for Logger {
 #[derive(Debug)]
 pub(super) struct Dispatch {
     filters: Vec<Filter>,
+    diagnostics: Vec<Diagnostic>,
     appends: Vec<Box<dyn Append>>,
 }
 
 impl Dispatch {
-    pub(super) fn new(filters: Vec<Filter>, appends: Vec<Box<dyn Append>>) -> Self {
+    pub(super) fn new(
+        filters: Vec<Filter>,
+        diagnostics: Vec<Diagnostic>,
+        appends: Vec<Box<dyn Append>>,
+    ) -> Self {
         debug_assert!(
             !appends.is_empty(),
             "A Dispatch must have at least one filter"
         );
 
-        Self { filters, appends }
+        Self {
+            filters,
+            diagnostics,
+            appends,
+        }
     }
 
     fn enabled(&self, metadata: &Metadata) -> bool {
@@ -102,8 +112,9 @@ impl Dispatch {
             }
         }
 
+        let diagnostics = &self.diagnostics;
         for append in &self.appends {
-            append.append(record)?;
+            append.append(record, diagnostics)?;
         }
         Ok(())
     }

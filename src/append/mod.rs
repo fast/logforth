@@ -16,6 +16,8 @@
 
 use std::fmt;
 
+use crate::Diagnostic;
+
 #[cfg(feature = "fastrace")]
 mod fastrace;
 #[cfg(all(unix, feature = "journald"))]
@@ -46,7 +48,7 @@ pub use self::syslog::Syslog;
 /// Implementors of this trait can handle log records in custom ways.
 pub trait Append: fmt::Debug + Send + Sync + 'static {
     /// Dispatches a log record to the append target.
-    fn append(&self, record: &log::Record) -> anyhow::Result<()>;
+    fn append(&self, record: &log::Record, diagnostic: &[Diagnostic]) -> anyhow::Result<()>;
 
     /// Flushes any buffered records.
     fn flush(&self) {}

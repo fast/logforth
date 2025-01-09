@@ -31,8 +31,8 @@ use opentelemetry_sdk::logs::LogRecord;
 use opentelemetry_sdk::logs::LoggerProvider;
 
 use crate::append::Append;
-use crate::Layout;
 use crate::Diagnostic;
+use crate::Layout;
 
 /// Specifies the wire protocol to use when sending logs to OpenTelemetry.
 ///

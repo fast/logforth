@@ -18,8 +18,8 @@ use crate::append::rolling_file::RollingFileWriter;
 use crate::append::Append;
 use crate::layout::TextLayout;
 use crate::non_blocking::NonBlocking;
-use crate::Layout;
 use crate::Diagnostic;
+use crate::Layout;
 
 /// An appender that writes log records to rolling files.
 #[derive(Debug)]
@@ -44,12 +44,6 @@ impl RollingFile {
     /// Sets the layout used to format log records.
     pub fn with_layout(mut self, layout: impl Into<Layout>) -> Self {
         self.layout = layout.into();
-        self
-    }
-
-    /// Sets the marker used to add additional fields to log records.
-    pub fn with_marker(mut self, marker: impl Into<Diagnostic>) -> Self {
-        self.marker = Some(marker.into());
         self
     }
 }

@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use log::kv::Error;
+use log::kv::Key;
+use log::kv::Value;
+use log::kv::VisitSource;
+
 use crate::Diagnostic;
-use log::kv::{Error, Key, Value, VisitSource};
 
 #[derive(Default, Debug, Clone, Copy)]
 #[non_exhaustive]
