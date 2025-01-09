@@ -17,6 +17,7 @@ use std::fmt::Arguments;
 use jiff::tz::TimeZone;
 use jiff::Timestamp;
 use jiff::Zoned;
+use log::kv::Source;
 use log::Record;
 use serde::Serialize;
 use serde_json::Map;
@@ -120,7 +121,7 @@ impl JsonLayout {
         let mut visitor = KvCollector { kvs: &mut kvs };
         record.key_values().visit(&mut visitor)?;
         for d in diagnostics {
-            d.visit(&visitor)?
+            d.visit(&mut visitor)?
         }
 
         let record_line = RecordLine {

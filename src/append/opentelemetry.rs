@@ -18,6 +18,7 @@ use std::borrow::Cow;
 use std::time::Duration;
 use std::time::SystemTime;
 
+use log::kv::Source;
 use log::Record;
 use opentelemetry::logs::AnyValue;
 use opentelemetry::logs::LogRecord as _;

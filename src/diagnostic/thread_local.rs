@@ -16,6 +16,8 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 
 use log::kv::Error;
+use log::kv::ToKey;
+use log::kv::Value;
 use log::kv::VisitSource;
 
 use crate::Diagnostic;
@@ -52,7 +54,12 @@ impl ThreadLocalDiagnostic {
 
 impl log::kv::Source for ThreadLocalDiagnostic {
     fn visit<'kvs>(&'kvs self, visitor: &mut dyn VisitSource<'kvs>) -> Result<(), Error> {
-        CONTEXT.with(|map| map.borrow().visit(visitor))
+        CONTEXT.with(|map| {
+            for (key, value) in map.borrow().iter() {
+                visitor.visit_pair(key.to_key(), Value::from_display(value))?;
+            }
+            Ok(())
+        })
     }
 }
 

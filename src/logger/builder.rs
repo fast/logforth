@@ -17,9 +17,9 @@ use log::LevelFilter;
 use super::log_impl::Dispatch;
 use super::log_impl::Logger;
 use crate::append;
-use crate::diagnostic;
 use crate::filter::EnvFilter;
 use crate::Append;
+use crate::Diagnostic;
 use crate::Filter;
 
 /// Creates a new empty [`Builder`] instance for configuring log dispatching.
@@ -194,7 +194,7 @@ impl Builder {
 #[derive(Debug)]
 pub struct DispatchBuilder<const APPEND: bool> {
     filters: Vec<Filter>,
-    diagnostics: Vec<diagnostic>,
+    diagnostics: Vec<Diagnostic>,
     appends: Vec<Box<dyn Append>>,
 }
 
@@ -242,7 +242,7 @@ impl DispatchBuilder<false> {
     ///     })
     ///     .apply();
     /// ```
-    pub fn diagnostic(mut self, diagnostic: impl Into<diagnostic>) -> Self {
+    pub fn diagnostic(mut self, diagnostic: impl Into<Diagnostic>) -> Self {
         self.diagnostics.push(diagnostic.into());
         self
     }

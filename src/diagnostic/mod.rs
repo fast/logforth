@@ -14,7 +14,9 @@
 
 //! Markers to enrich log records with additional information.
 
+use log::kv::Error;
 use log::kv::Source;
+use log::kv::VisitSource;
 
 #[cfg(feature = "fastrace")]
 pub use self::fastrace::FastraceDiagnostic;
@@ -40,11 +42,10 @@ impl Diagnostic {
             Diagnostic::ThreadLocal(diagnostic) => diagnostic.name(),
         }
     }
+}
 
-    pub fn visit<'kvs>(
-        &self,
-        visitor: &mut dyn log::kv::VisitSource<'kvs>,
-    ) -> Result<(), log::kv::Error> {
+impl Source for Diagnostic {
+    fn visit<'kvs>(&'kvs self, visitor: &mut dyn VisitSource<'kvs>) -> Result<(), Error> {
         match self {
             #[cfg(feature = "fastrace")]
             Diagnostic::Fastrace(diagnostic) => diagnostic.visit(visitor),

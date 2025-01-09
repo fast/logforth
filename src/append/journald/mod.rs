@@ -16,6 +16,7 @@ use std::io;
 use std::io::Write;
 use std::os::unix::net::UnixDatagram;
 
+use log::kv::Source;
 use log::Level;
 use log::Record;
 
