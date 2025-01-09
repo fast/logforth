@@ -60,13 +60,13 @@ impl Stdout {
     }
 
     /// Sets the marker for the [`Stdout`] appender.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use logforth::append::Stdout;
     /// use logforth::marker::TraceIdMarker;
-    /// 
+    ///
     /// let stdout_appender = Stdout::default().with_marker(TraceIdMarker::default());
     /// ```
     pub fn with_marker(mut self, marker: impl Into<Marker>) -> Self {
@@ -131,11 +131,11 @@ impl Stderr {
     /// Sets the marker for the [`Stderr`] appender.
     ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use logforth::append::Stderr;
     /// use logforth::marker::TraceIdMarker;
-    /// 
+    ///
     /// let stderr_appender = Stderr::default().with_marker(TraceIdMarker::default());
     /// ```
     pub fn with_marker(mut self, marker: impl Into<Marker>) -> Self {

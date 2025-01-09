@@ -156,13 +156,13 @@ impl OpentelemetryLogBuilder {
     }
 
     /// Sets the marker for the logs.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
     /// use logforth::marker::TraceIdMarker;
-    /// 
+    ///
     /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
     /// builder.marker(TraceIdMarker::default());
     /// ```
