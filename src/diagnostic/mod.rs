@@ -14,8 +14,8 @@
 
 //! Markers to enrich log records with additional information.
 
-use log::kv::Error;
-use log::kv::Source;
+use std::borrow::Cow;
+
 use log::kv::VisitSource;
 
 #[cfg(feature = "fastrace")]
@@ -26,7 +26,32 @@ pub use self::thread_local::ThreadLocalDiagnostic;
 mod fastrace;
 mod thread_local;
 
-/// A marker that enriches log records with additional information.
+/// A visitor to walk through diagnostic key-value pairs.
+pub trait Visitor {
+    /// Visits a key-value pair.
+    fn visit<K, V>(&mut self, key: K, value: V)
+    where
+        K: Into<Cow<'static, str>>,
+        V: Into<Cow<'static, str>>;
+}
+
+impl<T: for<'a> VisitSource<'a>> Visitor for T {
+    fn visit<K, V>(&mut self, key: K, value: V)
+    where
+        K: Into<Cow<'static, str>>,
+        V: Into<Cow<'static, str>>,
+    {
+        self.visit_pair(
+            log::kv::Key::from_str(key.into().as_ref()),
+            log::kv::Value::from_display(&value.into()),
+        )
+        .unwrap();
+    }
+}
+
+/// Mapped Diagnostic Context (MDC).
+///
+/// A lighter technique consists of uniquely stamping each log request.
 #[derive(Debug)]
 pub enum Diagnostic {
     #[cfg(feature = "fastrace")]
@@ -42,10 +67,8 @@ impl Diagnostic {
             Diagnostic::ThreadLocal(diagnostic) => diagnostic.name(),
         }
     }
-}
 
-impl Source for Diagnostic {
-    fn visit<'kvs>(&'kvs self, visitor: &mut dyn VisitSource<'kvs>) -> Result<(), Error> {
+    pub fn visit<V: Visitor>(&self, visitor: &mut V) {
         match self {
             #[cfg(feature = "fastrace")]
             Diagnostic::Fastrace(diagnostic) => diagnostic.visit(visitor),

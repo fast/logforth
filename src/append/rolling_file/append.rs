@@ -25,7 +25,6 @@ use crate::Layout;
 #[derive(Debug)]
 pub struct RollingFile {
     layout: Layout,
-    marker: Option<Diagnostic>,
     writer: NonBlocking<RollingFileWriter>,
 }
 
@@ -36,7 +35,6 @@ impl RollingFile {
     pub fn new(writer: NonBlocking<RollingFileWriter>) -> Self {
         Self {
             layout: TextLayout::default().no_color().into(),
-            marker: None,
             writer,
         }
     }

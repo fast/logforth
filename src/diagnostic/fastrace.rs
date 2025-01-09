@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::kv::Error;
-use log::kv::Key;
-use log::kv::Value;
-use log::kv::VisitSource;
-
+use crate::diagnostic::Visitor;
 use crate::Diagnostic;
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -27,15 +23,12 @@ impl FastraceDiagnostic {
     pub fn name(&self) -> &'static str {
         "fastrace"
     }
-}
 
-impl log::kv::Source for FastraceDiagnostic {
-    fn visit<'kvs>(&'kvs self, visitor: &mut dyn VisitSource<'kvs>) -> Result<(), Error> {
+    pub fn visit<V: Visitor>(&self, visitor: &mut V) {
         if let Some(span) = fastrace::collector::SpanContext::current_local_parent() {
             let trace_id = format!("{:016x}", span.trace_id.0);
-            visitor.visit_pair(Key::from_str("trace_id"), Value::from_display(&trace_id))?;
+            visitor.visit("trace_id", trace_id);
         }
-        Ok(())
     }
 }
 

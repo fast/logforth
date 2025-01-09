@@ -15,15 +15,11 @@
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 
-use log::kv::Error;
-use log::kv::ToKey;
-use log::kv::Value;
-use log::kv::VisitSource;
-
+use crate::diagnostic::Visitor;
 use crate::Diagnostic;
 
 thread_local! {
-    static CONTEXT: RefCell<BTreeMap<String, String>> = RefCell::new(BTreeMap::new());
+    static CONTEXT: RefCell<BTreeMap<String, String>> = const { RefCell::new(BTreeMap::new()) };
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -50,15 +46,13 @@ impl ThreadLocalDiagnostic {
             map.borrow_mut().remove(key);
         });
     }
-}
 
-impl log::kv::Source for ThreadLocalDiagnostic {
-    fn visit<'kvs>(&'kvs self, visitor: &mut dyn VisitSource<'kvs>) -> Result<(), Error> {
+    pub fn visit<V: Visitor>(&self, visitor: &mut V) {
         CONTEXT.with(|map| {
-            for (key, value) in map.borrow().iter() {
-                visitor.visit_pair(key.to_key(), Value::from_display(value))?;
+            let map = map.borrow();
+            for (key, value) in map.iter() {
+                visitor.visit(key.to_string(), value.to_string());
             }
-            Ok(())
         })
     }
 }

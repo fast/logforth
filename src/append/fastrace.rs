@@ -39,6 +39,13 @@ pub struct FastraceEvent {
 impl Append for FastraceEvent {
     fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
         let message = format!("{}", record.args());
+
+        let mut collector = KvCollector { kv: Vec::new() };
+        record.key_values().visit(&mut collector).ok();
+        for d in diagnostics {
+            d.visit(&mut collector);
+        }
+
         fastrace::Event::add_to_local_parent(message, || {
             [
                 (Cow::from("level"), Cow::from(record.level().as_str())),
@@ -46,15 +53,9 @@ impl Append for FastraceEvent {
             ]
             .into_iter()
             .chain(
-                collect_kvs(record.key_values())
+                collector
+                    .kv
                     .into_iter()
-                    .map(|(k, v)| (Cow::from(k), Cow::from(v))),
-            )
-            .chain(
-                diagnostics
-                    .iter()
-                    .filter(|d| d.name() != "fastrace")
-                    .flat_map(|d| collect_kvs(&d))
                     .map(|(k, v)| (Cow::from(k), Cow::from(v))),
             )
         });
@@ -64,12 +65,6 @@ impl Append for FastraceEvent {
     fn flush(&self) {
         fastrace::flush();
     }
-}
-
-fn collect_kvs(kv: &dyn log::kv::Source) -> Vec<(String, String)> {
-    let mut collector = KvCollector { kv: Vec::new() };
-    kv.visit(&mut collector).ok();
-    collector.kv
 }
 
 struct KvCollector {

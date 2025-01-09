@@ -16,7 +16,6 @@ use std::io;
 use std::io::Write;
 use std::os::unix::net::UnixDatagram;
 
-use log::kv::Source;
 use log::Level;
 use log::Record;
 
@@ -305,7 +304,7 @@ impl Append for Journald {
             .key_values()
             .visit(&mut WriteKeyValues(&mut buffer))?;
         for d in diagnostics {
-            d.visit(&mut WriteKeyValues(&mut buffer))?;
+            d.visit(&mut WriteKeyValues(&mut buffer));
         }
         // Put all extra fields of the appender
         buffer.extend_from_slice(&self.extra_fields);

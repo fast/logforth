@@ -21,7 +21,6 @@ use colored::Colorize;
 use jiff::tz::TimeZone;
 use jiff::Timestamp;
 use jiff::Zoned;
-use log::kv::Source;
 use log::Level;
 
 use crate::layout::Layout;
@@ -192,7 +191,7 @@ impl TextLayout {
         };
         record.key_values().visit(&mut visitor)?;
         for d in diagnostics {
-            d.visit(&mut visitor)?;
+            d.visit(&mut visitor);
         }
 
         Ok(visitor.text.into_bytes())

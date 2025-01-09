@@ -18,7 +18,6 @@ use std::borrow::Cow;
 use std::time::Duration;
 use std::time::SystemTime;
 
-use log::kv::Source;
 use log::Record;
 use opentelemetry::logs::AnyValue;
 use opentelemetry::logs::LogRecord as _;
@@ -279,7 +278,7 @@ impl Append for OpentelemetryLog {
         };
         record.key_values().visit(&mut extractor).ok();
         for d in diagnostics {
-            d.visit(&mut extractor).ok();
+            d.visit(&mut extractor);
         }
 
         self.logger.emit(log_record);
