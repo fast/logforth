@@ -26,7 +26,7 @@ impl TraceIdMarker {
 
     pub(crate) fn mark(&self, mut f: impl FnMut(&str, String)) {
         if let Some(span) = fastrace::collector::SpanContext::current_local_parent() {
-            f("trace_id", span.trace_id.0.to_string());
+            f("trace_id", format!("{:016x}", span.trace_id.0));
         }
     }
 }
