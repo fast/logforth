@@ -161,7 +161,7 @@ impl OpentelemetryLogBuilder {
     ///
     /// ```
     /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
-    /// use logforth::marker::TraceIdMarker;
+    /// use logforth::diagnostic::TraceIdMarker;
     ///
     /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
     /// builder.marker(TraceIdMarker::default());

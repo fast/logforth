@@ -65,7 +65,7 @@ impl Stdout {
     ///
     /// ```
     /// use logforth::append::Stdout;
-    /// use logforth::marker::TraceIdMarker;
+    /// use logforth::diagnostic::TraceIdMarker;
     ///
     /// let stdout_appender = Stdout::default().with_marker(TraceIdMarker::default());
     /// ```
@@ -134,7 +134,7 @@ impl Stderr {
     ///
     /// ```
     /// use logforth::append::Stderr;
-    /// use logforth::marker::TraceIdMarker;
+    /// use logforth::diagnostic::TraceIdMarker;
     ///
     /// let stderr_appender = Stderr::default().with_marker(TraceIdMarker::default());
     /// ```
