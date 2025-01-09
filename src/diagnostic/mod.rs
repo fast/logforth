@@ -14,28 +14,41 @@
 
 //! Markers to enrich log records with additional information.
 
-pub use custom::CustomDiagnostic;
-#[cfg(feature = "fastrace")]
-pub use fastrace::FastraceDiagnostic;
+use log::kv::Source;
 
-mod custom;
+#[cfg(feature = "fastrace")]
+pub use self::fastrace::FastraceDiagnostic;
+pub use self::thread_local::ThreadLocalDiagnostic;
+
 #[cfg(feature = "fastrace")]
 mod fastrace;
+mod thread_local;
 
 /// A marker that enriches log records with additional information.
 #[derive(Debug)]
-pub enum Marker {
-    Custom(CustomDiagnostic),
+pub enum Diagnostic {
     #[cfg(feature = "fastrace")]
-    TraceId(FastraceDiagnostic),
+    Fastrace(FastraceDiagnostic),
+    ThreadLocal(ThreadLocalDiagnostic),
 }
 
-impl Marker {
-    pub(crate) fn mark(&self, f: impl FnMut(&str, String)) {
+impl Diagnostic {
+    pub fn name(&self) -> &'static str {
         match self {
-            Marker::Custom(marker) => marker.mark(f),
             #[cfg(feature = "fastrace")]
-            Marker::TraceId(marker) => marker.mark(f),
+            Diagnostic::Fastrace(diagnostic) => diagnostic.name(),
+            Diagnostic::ThreadLocal(diagnostic) => diagnostic.name(),
+        }
+    }
+
+    pub fn visit<'kvs>(
+        &self,
+        visitor: &mut dyn log::kv::VisitSource<'kvs>,
+    ) -> Result<(), log::kv::Error> {
+        match self {
+            #[cfg(feature = "fastrace")]
+            Diagnostic::Fastrace(diagnostic) => diagnostic.visit(visitor),
+            Diagnostic::ThreadLocal(diagnostic) => diagnostic.visit(visitor),
         }
     }
 }

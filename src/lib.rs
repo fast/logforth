@@ -65,7 +65,7 @@ pub mod non_blocking;
 pub use append::Append;
 pub use filter::Filter;
 pub use layout::Layout;
-pub use diagnostic::Marker;
+pub use diagnostic::Diagnostic;
 
 mod logger;
 pub use logger::*;

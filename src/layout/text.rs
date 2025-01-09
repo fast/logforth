@@ -25,7 +25,7 @@ use log::Level;
 
 use crate::layout::KvDisplay;
 use crate::layout::Layout;
-use crate::Marker;
+use crate::Diagnostic;
 
 /// A layout that formats log record as text.
 ///
@@ -164,7 +164,7 @@ impl TextLayout {
     pub(crate) fn format(
         &self,
         record: &log::Record,
-        marker: Option<&Marker>,
+        marker: Option<&Diagnostic>,
     ) -> anyhow::Result<Vec<u8>> {
         let time = match self.tz.clone() {
             Some(tz) => Timestamp::now().to_zoned(tz),

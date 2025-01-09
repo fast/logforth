@@ -22,7 +22,7 @@ pub use kv::KvDisplay;
 pub use text::LevelColor;
 pub use text::TextLayout;
 
-use crate::Marker;
+use crate::Diagnostic;
 
 mod custom;
 #[cfg(feature = "json")]
@@ -43,7 +43,7 @@ impl Layout {
     pub(crate) fn format(
         &self,
         record: &log::Record,
-        marker: Option<&Marker>,
+        marker: Option<&Diagnostic>,
     ) -> anyhow::Result<Vec<u8>> {
         match self {
             Layout::Custom(layout) => layout.format(record, marker),

@@ -32,7 +32,7 @@ use opentelemetry_sdk::logs::LoggerProvider;
 
 use crate::append::Append;
 use crate::Layout;
-use crate::Marker;
+use crate::Diagnostic;
 
 /// Specifies the wire protocol to use when sending logs to OpenTelemetry.
 ///
@@ -56,7 +56,7 @@ pub struct OpentelemetryLogBuilder {
     protocol: Protocol,
     labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
     layout: Option<Layout>,
-    marker: Option<Marker>,
+    marker: Option<Diagnostic>,
 }
 
 impl OpentelemetryLogBuilder {
@@ -166,7 +166,7 @@ impl OpentelemetryLogBuilder {
     /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
     /// builder.marker(FastraceDiagnostic::default());
     /// ```
-    pub fn marker(mut self, marker: impl Into<Marker>) -> Self {
+    pub fn marker(mut self, marker: impl Into<Diagnostic>) -> Self {
         self.marker = Some(marker.into());
         self
     }
@@ -250,7 +250,7 @@ impl OpentelemetryLogBuilder {
 pub struct OpentelemetryLog {
     name: String,
     layout: Option<Layout>,
-    marker: Option<Marker>,
+    marker: Option<Diagnostic>,
     logger: opentelemetry_sdk::logs::Logger,
     provider: LoggerProvider,
 }

@@ -17,7 +17,7 @@ use std::io::Write;
 use crate::append::Append;
 use crate::layout::TextLayout;
 use crate::Layout;
-use crate::Marker;
+use crate::Diagnostic;
 
 /// An appender that writes log records to standard output.
 ///
@@ -31,7 +31,7 @@ use crate::Marker;
 #[derive(Debug)]
 pub struct Stdout {
     layout: Layout,
-    makrer: Option<Marker>,
+    makrer: Option<Diagnostic>,
 }
 
 impl Default for Stdout {
@@ -69,7 +69,7 @@ impl Stdout {
     ///
     /// let stdout_appender = Stdout::default().with_marker(FastraceDiagnostic::default());
     /// ```
-    pub fn with_marker(mut self, marker: impl Into<Marker>) -> Self {
+    pub fn with_marker(mut self, marker: impl Into<Diagnostic>) -> Self {
         self.makrer = Some(marker.into());
         self
     }
@@ -100,7 +100,7 @@ impl Append for Stdout {
 #[derive(Debug)]
 pub struct Stderr {
     layout: Layout,
-    marker: Option<Marker>,
+    marker: Option<Diagnostic>,
 }
 
 impl Default for Stderr {
@@ -138,7 +138,7 @@ impl Stderr {
     ///
     /// let stderr_appender = Stderr::default().with_marker(FastraceDiagnostic::default());
     /// ```
-    pub fn with_marker(mut self, marker: impl Into<Marker>) -> Self {
+    pub fn with_marker(mut self, marker: impl Into<Diagnostic>) -> Self {
         self.marker = Some(marker.into());
         self
     }

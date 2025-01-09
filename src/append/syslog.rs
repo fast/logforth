@@ -46,7 +46,7 @@ use crate::non_blocking::NonBlockingBuilder;
 use crate::non_blocking::Writer;
 use crate::Append;
 use crate::Layout;
-use crate::Marker;
+use crate::Diagnostic;
 
 pub extern crate fasyslog;
 
@@ -70,7 +70,7 @@ pub struct Syslog {
     format: SyslogFormat,
     context: SyslogContext,
     layout: Option<Layout>,
-    marker: Option<Marker>,
+    marker: Option<Diagnostic>,
 }
 
 impl Syslog {
@@ -108,7 +108,7 @@ impl Syslog {
     /// Set the marker of the [`Syslog`] appender.
     ///
     /// Default to `None`, no marker will be logged.
-    pub fn with_marker(mut self, marker: impl Into<Marker>) -> Self {
+    pub fn with_marker(mut self, marker: impl Into<Diagnostic>) -> Self {
         self.marker = Some(marker.into());
         self
     }

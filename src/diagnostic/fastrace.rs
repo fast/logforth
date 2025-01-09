@@ -12,27 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::Marker;
+use crate::Diagnostic;
+use log::kv::{Error, Key, Value, VisitSource};
 
-#[derive(Debug, Clone, Default)]
-pub struct FastraceDiagnostic {
-    _private: (),
-}
+#[derive(Default, Debug, Clone, Copy)]
+#[non_exhaustive]
+pub struct FastraceDiagnostic {}
 
 impl FastraceDiagnostic {
-    pub fn new() -> Self {
-        Self { _private: () }
-    }
-
-    pub(crate) fn mark(&self, mut f: impl FnMut(&str, String)) {
-        if let Some(span) = fastrace::collector::SpanContext::current_local_parent() {
-            f("trace_id", format!("{:016x}", span.trace_id.0));
-        }
+    pub fn name(&self) -> &'static str {
+        "fastrace"
     }
 }
 
-impl From<FastraceDiagnostic> for Marker {
-    fn from(marker: FastraceDiagnostic) -> Self {
-        Marker::TraceId(marker)
+impl log::kv::Source for FastraceDiagnostic {
+    fn visit<'kvs>(&'kvs self, visitor: &mut dyn VisitSource<'kvs>) -> Result<(), Error> {
+        if let Some(span) = fastrace::collector::SpanContext::current_local_parent() {
+            let trace_id = format!("{:016x}", span.trace_id.0);
+            visitor.visit_pair(Key::from_str("trace_id"), Value::from_display(&trace_id))?;
+        }
+        Ok(())
+    }
+}
+
+impl From<FastraceDiagnostic> for Diagnostic {
+    fn from(diagnostic: FastraceDiagnostic) -> Self {
+        Diagnostic::Fastrace(diagnostic)
     }
 }

@@ -23,7 +23,7 @@ use serde_json::Map;
 use serde_json::Value;
 
 use crate::layout::Layout;
-use crate::Marker;
+use crate::Diagnostic;
 
 /// A JSON layout for formatting log records.
 ///
@@ -114,7 +114,7 @@ impl JsonLayout {
     pub(crate) fn format(
         &self,
         record: &Record,
-        marker: Option<&Marker>,
+        marker: Option<&Diagnostic>,
     ) -> anyhow::Result<Vec<u8>> {
         let mut kvs = Map::new();
         let mut visitor = KvCollector { kvs: &mut kvs };
