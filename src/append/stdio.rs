@@ -14,6 +14,8 @@
 
 use std::io::Write;
 
+use log::Record;
+
 use crate::append::Append;
 use crate::layout::TextLayout;
 use crate::Diagnostic;
@@ -31,14 +33,12 @@ use crate::Layout;
 #[derive(Debug)]
 pub struct Stdout {
     layout: Layout,
-    makrer: Option<Diagnostic>,
 }
 
 impl Default for Stdout {
     fn default() -> Self {
         Self {
             layout: TextLayout::default().into(),
-            makrer: None,
         }
     }
 }
@@ -58,26 +58,11 @@ impl Stdout {
         self.layout = layout.into();
         self
     }
-
-    /// Sets the marker for the [`Stdout`] appender.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use logforth::append::Stdout;
-    /// use logforth::diagnostic::FastraceDiagnostic;
-    ///
-    /// let stdout_appender = Stdout::default().with_marker(FastraceDiagnostic::default());
-    /// ```
-    pub fn with_marker(mut self, marker: impl Into<Diagnostic>) -> Self {
-        self.makrer = Some(marker.into());
-        self
-    }
 }
 
 impl Append for Stdout {
-    fn append(&self, record: &log::Record) -> anyhow::Result<()> {
-        let mut bytes = self.layout.format(record, self.makrer.as_ref())?;
+    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+        let mut bytes = self.layout.format(record, diagnostics)?;
         bytes.push(b'\n');
         std::io::stdout().write_all(&bytes)?;
         Ok(())
@@ -100,14 +85,12 @@ impl Append for Stdout {
 #[derive(Debug)]
 pub struct Stderr {
     layout: Layout,
-    marker: Option<Diagnostic>,
 }
 
 impl Default for Stderr {
     fn default() -> Self {
         Self {
             layout: TextLayout::default().into(),
-            marker: None,
         }
     }
 }
@@ -127,26 +110,11 @@ impl Stderr {
         self.layout = encoder.into();
         self
     }
-
-    /// Sets the marker for the [`Stderr`] appender.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use logforth::append::Stderr;
-    /// use logforth::diagnostic::FastraceDiagnostic;
-    ///
-    /// let stderr_appender = Stderr::default().with_marker(FastraceDiagnostic::default());
-    /// ```
-    pub fn with_marker(mut self, marker: impl Into<Diagnostic>) -> Self {
-        self.marker = Some(marker.into());
-        self
-    }
 }
 
 impl Append for Stderr {
-    fn append(&self, record: &log::Record) -> anyhow::Result<()> {
-        let mut bytes = self.layout.format(record, self.marker.as_ref())?;
+    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+        let mut bytes = self.layout.format(record, diagnostics)?;
         bytes.push(b'\n');
         std::io::stderr().write_all(&bytes)?;
         Ok(())

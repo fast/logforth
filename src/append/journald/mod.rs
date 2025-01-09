@@ -19,7 +19,8 @@ use std::os::unix::net::UnixDatagram;
 use log::Level;
 use log::Record;
 
-use crate::{Append, Diagnostic};
+use crate::Append;
+use crate::Diagnostic;
 
 mod field;
 #[cfg(target_os = "linux")]

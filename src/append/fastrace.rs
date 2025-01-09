@@ -21,6 +21,7 @@ use log::Record;
 
 use crate::append::Append;
 use crate::layout::collect_kvs;
+use crate::Diagnostic;
 
 /// An appender that adds log records to fastrace as an event associated to the current span.
 ///
@@ -37,7 +38,7 @@ pub struct FastraceEvent {
 }
 
 impl Append for FastraceEvent {
-    fn append(&self, record: &Record) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
         let message = format!("{}", record.args());
         fastrace::Event::add_to_local_parent(message, || {
             [
@@ -50,6 +51,13 @@ impl Append for FastraceEvent {
                     .into_iter()
                     .map(|(k, v)| (Cow::from(k), Cow::from(v))),
             )
+            .chain(
+                diagnostics
+                    .iter()
+                    .filter(|d| d.name() != "fastrace")
+                    .flat_map(|d| collect_kvs(&d))
+                    .map(|(k, v)| (Cow::from(k), Cow::from(v))),
+            )
         });
         Ok(())
     }
@@ -57,6 +65,12 @@ impl Append for FastraceEvent {
     fn flush(&self) {
         fastrace::flush();
     }
+}
+
+fn collect_kvs(kv: &dyn log::kv::Source) -> Vec<(String, String)> {
+    let mut collector = KvCollector { kv: Vec::new() };
+    kv.visit(&mut collector).ok();
+    collector.kv
 }
 
 struct KvCollector {

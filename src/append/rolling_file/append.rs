@@ -49,8 +49,8 @@ impl RollingFile {
 }
 
 impl Append for RollingFile {
-    fn append(&self, record: &Record, diagnostic: &[Diagnostic]) -> anyhow::Result<()> {
-        let mut bytes = self.layout.format(record, diagnostic)?;
+    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+        let mut bytes = self.layout.format(record, diagnostics)?;
         bytes.push(b'\n');
         self.writer.send(bytes)?;
         Ok(())
