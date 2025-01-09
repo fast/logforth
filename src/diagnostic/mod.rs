@@ -14,9 +14,9 @@
 
 //! Markers to enrich log records with additional information.
 
-pub use custom::CustomMarker;
+pub use custom::CustomDiagnostic;
 #[cfg(feature = "fastrace")]
-pub use fastrace::TraceIdMarker;
+pub use fastrace::FastraceDiagnostic;
 
 mod custom;
 #[cfg(feature = "fastrace")]
@@ -25,9 +25,9 @@ mod fastrace;
 /// A marker that enriches log records with additional information.
 #[derive(Debug)]
 pub enum Marker {
-    Custom(CustomMarker),
+    Custom(CustomDiagnostic),
     #[cfg(feature = "fastrace")]
-    TraceId(TraceIdMarker),
+    TraceId(FastraceDiagnostic),
 }
 
 impl Marker {

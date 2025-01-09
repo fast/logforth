@@ -21,19 +21,19 @@ use crate::Marker;
 //  then we can use the alias for both `dyn` and `impl`.
 type MarkerFunction = dyn Fn(&dyn FnMut(&str, String)) + Send + Sync + 'static;
 
-pub struct CustomMarker {
+pub struct CustomDiagnostic {
     f: Box<MarkerFunction>,
 }
 
-impl Debug for CustomMarker {
+impl Debug for CustomDiagnostic {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "CustomMarker {{ ... }}")
     }
 }
 
-impl CustomMarker {
+impl CustomDiagnostic {
     pub fn new(marker: impl Fn(&dyn FnMut(&str, String)) + Send + Sync + 'static) -> Self {
-        CustomMarker {
+        CustomDiagnostic {
             f: Box::new(marker),
         }
     }
@@ -43,8 +43,8 @@ impl CustomMarker {
     }
 }
 
-impl From<CustomMarker> for Marker {
-    fn from(marker: CustomMarker) -> Self {
+impl From<CustomDiagnostic> for Marker {
+    fn from(marker: CustomDiagnostic) -> Self {
         Marker::Custom(marker)
     }
 }

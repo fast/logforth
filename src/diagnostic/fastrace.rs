@@ -15,11 +15,11 @@
 use crate::Marker;
 
 #[derive(Debug, Clone, Default)]
-pub struct TraceIdMarker {
+pub struct FastraceDiagnostic {
     _private: (),
 }
 
-impl TraceIdMarker {
+impl FastraceDiagnostic {
     pub fn new() -> Self {
         Self { _private: () }
     }
@@ -31,8 +31,8 @@ impl TraceIdMarker {
     }
 }
 
-impl From<TraceIdMarker> for Marker {
-    fn from(marker: TraceIdMarker) -> Self {
+impl From<FastraceDiagnostic> for Marker {
+    fn from(marker: FastraceDiagnostic) -> Self {
         Marker::TraceId(marker)
     }
 }

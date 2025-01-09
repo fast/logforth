@@ -161,10 +161,10 @@ impl OpentelemetryLogBuilder {
     ///
     /// ```
     /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
-    /// use logforth::diagnostic::TraceIdMarker;
+    /// use logforth::diagnostic::FastraceDiagnostic;
     ///
     /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
-    /// builder.marker(TraceIdMarker::default());
+    /// builder.marker(FastraceDiagnostic::default());
     /// ```
     pub fn marker(mut self, marker: impl Into<Marker>) -> Self {
         self.marker = Some(marker.into());

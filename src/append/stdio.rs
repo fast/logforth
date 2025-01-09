@@ -65,9 +65,9 @@ impl Stdout {
     ///
     /// ```
     /// use logforth::append::Stdout;
-    /// use logforth::diagnostic::TraceIdMarker;
+    /// use logforth::diagnostic::FastraceDiagnostic;
     ///
-    /// let stdout_appender = Stdout::default().with_marker(TraceIdMarker::default());
+    /// let stdout_appender = Stdout::default().with_marker(FastraceDiagnostic::default());
     /// ```
     pub fn with_marker(mut self, marker: impl Into<Marker>) -> Self {
         self.makrer = Some(marker.into());
@@ -134,9 +134,9 @@ impl Stderr {
     ///
     /// ```
     /// use logforth::append::Stderr;
-    /// use logforth::diagnostic::TraceIdMarker;
+    /// use logforth::diagnostic::FastraceDiagnostic;
     ///
-    /// let stderr_appender = Stderr::default().with_marker(TraceIdMarker::default());
+    /// let stderr_appender = Stderr::default().with_marker(FastraceDiagnostic::default());
     /// ```
     pub fn with_marker(mut self, marker: impl Into<Marker>) -> Self {
         self.marker = Some(marker.into());
