@@ -18,14 +18,13 @@ use crate::append::rolling_file::RollingFileWriter;
 use crate::append::Append;
 use crate::layout::TextLayout;
 use crate::non_blocking::NonBlocking;
+use crate::Diagnostic;
 use crate::Layout;
-use crate::Marker;
 
 /// An appender that writes log records to rolling files.
 #[derive(Debug)]
 pub struct RollingFile {
     layout: Layout,
-    marker: Option<Marker>,
     writer: NonBlocking<RollingFileWriter>,
 }
 
@@ -36,7 +35,6 @@ impl RollingFile {
     pub fn new(writer: NonBlocking<RollingFileWriter>) -> Self {
         Self {
             layout: TextLayout::default().no_color().into(),
-            marker: None,
             writer,
         }
     }
@@ -46,17 +44,11 @@ impl RollingFile {
         self.layout = layout.into();
         self
     }
-
-    /// Sets the marker used to add additional fields to log records.
-    pub fn with_marker(mut self, marker: impl Into<Marker>) -> Self {
-        self.marker = Some(marker.into());
-        self
-    }
 }
 
 impl Append for RollingFile {
-    fn append(&self, record: &Record) -> anyhow::Result<()> {
-        let mut bytes = self.layout.format(record, self.marker.as_ref())?;
+    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+        let mut bytes = self.layout.format(record, diagnostics)?;
         bytes.push(b'\n');
         self.writer.send(bytes)?;
         Ok(())

@@ -31,8 +31,9 @@ use opentelemetry_sdk::logs::LogRecord;
 use opentelemetry_sdk::logs::LoggerProvider;
 
 use crate::append::Append;
+use crate::diagnostic::Visitor;
+use crate::Diagnostic;
 use crate::Layout;
-use crate::Marker;
 
 /// Specifies the wire protocol to use when sending logs to OpenTelemetry.
 ///
@@ -56,7 +57,6 @@ pub struct OpentelemetryLogBuilder {
     protocol: Protocol,
     labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
     layout: Option<Layout>,
-    marker: Option<Marker>,
 }
 
 impl OpentelemetryLogBuilder {
@@ -76,7 +76,6 @@ impl OpentelemetryLogBuilder {
             protocol: Protocol::Grpc,
             labels: vec![],
             layout: None,
-            marker: None,
         }
     }
 
@@ -155,22 +154,6 @@ impl OpentelemetryLogBuilder {
         self
     }
 
-    /// Sets the marker for the logs.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
-    /// use logforth::marker::TraceIdMarker;
-    ///
-    /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
-    /// builder.marker(TraceIdMarker::default());
-    /// ```
-    pub fn marker(mut self, marker: impl Into<Marker>) -> Self {
-        self.marker = Some(marker.into());
-        self
-    }
-
     /// Builds the [`OpentelemetryLog`] appender.
     ///
     /// # Examples
@@ -190,7 +173,6 @@ impl OpentelemetryLogBuilder {
             protocol,
             labels,
             layout,
-            marker,
         } = self;
 
         let collector_timeout =
@@ -224,7 +206,6 @@ impl OpentelemetryLogBuilder {
         Ok(OpentelemetryLog {
             name,
             layout,
-            marker,
             logger,
             provider,
         })
@@ -250,61 +231,41 @@ impl OpentelemetryLogBuilder {
 pub struct OpentelemetryLog {
     name: String,
     layout: Option<Layout>,
-    marker: Option<Marker>,
     logger: opentelemetry_sdk::logs::Logger,
     provider: LoggerProvider,
 }
 
 impl Append for OpentelemetryLog {
-    fn append(&self, record: &Record) -> anyhow::Result<()> {
-        let mut log_record_ = LogRecord::default();
-        log_record_.observed_timestamp = Some(SystemTime::now());
-        log_record_.severity_number = Some(log_level_to_otel_severity(record.level()));
-        log_record_.severity_text = Some(record.level().as_str());
-        log_record_.target = Some(record.target().to_string().into());
-        log_record_.body = Some(AnyValue::Bytes(Box::new(match self.layout.as_ref() {
+    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+        let mut log_record = LogRecord::default();
+        log_record.observed_timestamp = Some(SystemTime::now());
+        log_record.severity_number = Some(log_level_to_otel_severity(record.level()));
+        log_record.severity_text = Some(record.level().as_str());
+        log_record.target = Some(record.target().to_string().into());
+        log_record.body = Some(AnyValue::Bytes(Box::new(match self.layout.as_ref() {
             None => record.args().to_string().into_bytes(),
-            Some(layout) => layout.format(record, self.marker.as_ref())?,
+            Some(layout) => layout.format(record, diagnostics)?,
         })));
 
         if let Some(module_path) = record.module_path() {
-            log_record_.add_attribute("module_path", module_path.to_string());
+            log_record.add_attribute("module_path", module_path.to_string());
         }
         if let Some(file) = record.file() {
-            log_record_.add_attribute("file", file.to_string());
+            log_record.add_attribute("file", file.to_string());
         }
         if let Some(line) = record.line() {
-            log_record_.add_attribute("line", line);
-        }
-
-        struct KvExtractor<'a> {
-            record: &'a mut LogRecord,
-        }
-
-        impl<'kvs> log::kv::VisitSource<'kvs> for KvExtractor<'_> {
-            fn visit_pair(
-                &mut self,
-                key: log::kv::Key<'kvs>,
-                value: log::kv::Value<'kvs>,
-            ) -> Result<(), log::kv::Error> {
-                self.record
-                    .add_attribute(key.to_string(), value.to_string());
-                Ok(())
-            }
+            log_record.add_attribute("line", line);
         }
 
         let mut extractor = KvExtractor {
-            record: &mut log_record_,
+            record: &mut log_record,
         };
-        record.key_values().visit(&mut extractor).ok();
-
-        if let Some(marker) = &self.marker {
-            marker.mark(|key, value| {
-                log_record_.add_attribute(key.to_string(), value.to_string());
-            });
+        record.key_values().visit(&mut extractor)?;
+        for d in diagnostics {
+            d.visit(&mut extractor);
         }
 
-        self.logger.emit(log_record_);
+        self.logger.emit(log_record);
         Ok(())
     }
 
@@ -327,5 +288,34 @@ fn log_level_to_otel_severity(level: log::Level) -> opentelemetry::logs::Severit
         log::Level::Info => opentelemetry::logs::Severity::Info,
         log::Level::Debug => opentelemetry::logs::Severity::Debug,
         log::Level::Trace => opentelemetry::logs::Severity::Trace,
+    }
+}
+
+struct KvExtractor<'a> {
+    record: &'a mut LogRecord,
+}
+
+impl<'kvs> log::kv::VisitSource<'kvs> for KvExtractor<'_> {
+    fn visit_pair(
+        &mut self,
+        key: log::kv::Key<'kvs>,
+        value: log::kv::Value<'kvs>,
+    ) -> Result<(), log::kv::Error> {
+        let key = key.to_string();
+        let value = value.to_string();
+        self.record.add_attribute(key, value);
+        Ok(())
+    }
+}
+
+impl Visitor for KvExtractor<'_> {
+    fn visit<'k, 'v, K, V>(&mut self, key: K, value: V)
+    where
+        K: Into<Cow<'k, str>>,
+        V: Into<Cow<'v, str>>,
+    {
+        let key = key.into().into_owned();
+        let value = value.into().into_owned();
+        self.record.add_attribute(key, value);
     }
 }

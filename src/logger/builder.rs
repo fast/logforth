@@ -19,6 +19,7 @@ use super::log_impl::Logger;
 use crate::append;
 use crate::filter::EnvFilter;
 use crate::Append;
+use crate::Diagnostic;
 use crate::Filter;
 
 /// Creates a new empty [`Builder`] instance for configuring log dispatching.
@@ -193,6 +194,7 @@ impl Builder {
 #[derive(Debug)]
 pub struct DispatchBuilder<const APPEND: bool> {
     filters: Vec<Filter>,
+    diagnostics: Vec<Diagnostic>,
     appends: Vec<Box<dyn Append>>,
 }
 
@@ -200,6 +202,7 @@ impl DispatchBuilder<false> {
     fn new() -> Self {
         DispatchBuilder {
             filters: vec![],
+            diagnostics: vec![],
             appends: vec![],
         }
     }
@@ -222,11 +225,32 @@ impl DispatchBuilder<false> {
         self.filters.push(filter.into());
         self
     }
+
+    /// Add a diagnostic to this dispatch.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth::append;
+    /// use logforth::diagnostic;
+    ///
+    /// logforth::builder()
+    ///     .dispatch(|d| {
+    ///         d.filter(log::LevelFilter::Error)
+    ///             .diagnostic(diagnostic::ThreadLocalDiagnostic::default())
+    ///             .append(append::Stderr::default())
+    ///     })
+    ///     .apply();
+    /// ```
+    pub fn diagnostic(mut self, diagnostic: impl Into<Diagnostic>) -> Self {
+        self.diagnostics.push(diagnostic.into());
+        self
+    }
 }
 
 impl DispatchBuilder<true> {
     fn build(self) -> Dispatch {
-        Dispatch::new(self.filters, self.appends)
+        Dispatch::new(self.filters, self.diagnostics, self.appends)
     }
 }
 
@@ -246,6 +270,7 @@ impl<const APPEND: bool> DispatchBuilder<APPEND> {
         self.appends.push(Box::new(append));
         DispatchBuilder {
             filters: self.filters,
+            diagnostics: self.diagnostics,
             appends: self.appends,
         }
     }

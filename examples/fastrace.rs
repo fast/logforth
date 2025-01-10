@@ -26,7 +26,7 @@ fn main() {
         .dispatch(|d| {
             d.append(
                 logforth::append::Stderr::default()
-                    .with_marker(logforth::marker::TraceIdMarker::default()),
+                    .with_marker(logforth::diagnostic::FastraceDiagnostic::default()),
             )
         })
         .apply();

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Cow;
 use std::io;
 use std::io::Write;
 use std::os::unix::net::UnixDatagram;
@@ -19,7 +20,9 @@ use std::os::unix::net::UnixDatagram;
 use log::Level;
 use log::Record;
 
+use crate::diagnostic::Visitor;
 use crate::Append;
+use crate::Diagnostic;
 
 mod field;
 #[cfg(target_os = "linux")]
@@ -237,19 +240,30 @@ impl<'kvs> log::kv::VisitSource<'kvs> for WriteKeyValues<'_> {
         key: log::kv::Key<'kvs>,
         value: log::kv::Value<'kvs>,
     ) -> Result<(), log::kv::Error> {
-        field::put_field_length_encoded(
-            self.0,
-            field::FieldName::WriteEscaped(key.as_str()),
-            value,
-        );
+        let key = key.as_str();
+        field::put_field_length_encoded(self.0, field::FieldName::WriteEscaped(key), value);
         Ok(())
+    }
+}
+
+impl Visitor for WriteKeyValues<'_> {
+    fn visit<'k, 'v, K, V>(&mut self, key: K, value: V)
+    where
+        K: Into<Cow<'k, str>>,
+        V: Into<Cow<'v, str>>,
+    {
+        let key = key.into();
+        let value = value.into();
+        let key = key.as_ref();
+        let value = value.as_bytes();
+        field::put_field_length_encoded(self.0, field::FieldName::WriteEscaped(key), value);
     }
 }
 
 impl Append for Journald {
     /// Extract all fields (standard and custom) from `record`, append all `extra_fields` given
     /// to this appender, and send the result to journald.
-    fn append(&self, record: &Record) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
         use field::*;
 
         let mut buffer = vec![];
@@ -299,9 +313,11 @@ impl Append for Journald {
             record.target().as_bytes(),
         );
         // Put all structured values of the record
-        record
-            .key_values()
-            .visit(&mut WriteKeyValues(&mut buffer))?;
+        let mut visitor = WriteKeyValues(&mut buffer);
+        record.key_values().visit(&mut visitor)?;
+        for d in diagnostics {
+            d.visit(&mut visitor);
+        }
         // Put all extra fields of the appender
         buffer.extend_from_slice(&self.extra_fields);
         self.send_payload(&buffer)?;

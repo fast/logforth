@@ -23,9 +23,9 @@ use jiff::Timestamp;
 use jiff::Zoned;
 use log::Level;
 
-use crate::layout::KvDisplay;
+use crate::diagnostic::Visitor;
 use crate::layout::Layout;
-use crate::Marker;
+use crate::Diagnostic;
 
 /// A layout that formats log record as text.
 ///
@@ -164,7 +164,7 @@ impl TextLayout {
     pub(crate) fn format(
         &self,
         record: &log::Record,
-        marker: Option<&Marker>,
+        diagnostics: &[Diagnostic],
     ) -> anyhow::Result<Vec<u8>> {
         let time = match self.tz.clone() {
             Some(tz) => Timestamp::now().to_zoned(tz),
@@ -186,17 +186,16 @@ impl TextLayout {
         let file = filename(record);
         let line = record.line().unwrap_or_default();
         let message = record.args();
-        let kvs = KvDisplay::new(record.key_values());
 
-        let mut text = format!("{time:.6} {level:>5} {target}: {file}:{line} {message}{kvs}");
-
-        if let Some(marker) = marker {
-            marker.mark(|key, value| {
-                write!(&mut text, " {key}={value}").unwrap();
-            });
+        let mut visitor = KvWriter {
+            text: format!("{time:.6} {level:>5} {target}: {file}:{line} {message}"),
+        };
+        record.key_values().visit(&mut visitor)?;
+        for d in diagnostics {
+            d.visit(&mut visitor);
         }
 
-        Ok(text.into_bytes())
+        Ok(visitor.text.into_bytes())
     }
 }
 
@@ -215,4 +214,37 @@ fn filename<'a>(record: &'a log::Record<'a>) -> Cow<'a, str> {
         .and_then(std::path::Path::file_name)
         .map(std::ffi::OsStr::to_string_lossy)
         .unwrap_or_default()
+}
+
+struct KvWriter {
+    text: String,
+}
+
+impl<'kvs> log::kv::VisitSource<'kvs> for KvWriter {
+    fn visit_pair(
+        &mut self,
+        key: log::kv::Key<'kvs>,
+        value: log::kv::Value<'kvs>,
+    ) -> Result<(), log::kv::Error> {
+        write!(&mut self.text, " {key}={value}")?;
+        Ok(())
+    }
+}
+
+impl Visitor for KvWriter {
+    fn visit<'k, 'v, K, V>(&mut self, key: K, value: V)
+    where
+        K: Into<Cow<'k, str>>,
+        V: Into<Cow<'v, str>>,
+    {
+        // SAFETY: no more than an allocate-less version
+        //  self.text.push_str(&format!(" {key}={value}"))
+        write!(
+            &mut self.text,
+            " {key}={value}",
+            key = key.into(),
+            value = value.into()
+        )
+        .unwrap();
+    }
 }

@@ -17,17 +17,14 @@
 pub use custom::CustomLayout;
 #[cfg(feature = "json")]
 pub use json::JsonLayout;
-pub use kv::collect_kvs;
-pub use kv::KvDisplay;
 pub use text::LevelColor;
 pub use text::TextLayout;
 
-use crate::Marker;
+use crate::Diagnostic;
 
 mod custom;
 #[cfg(feature = "json")]
 mod json;
-mod kv;
 mod text;
 
 /// Represents a layout for formatting log records.
@@ -43,13 +40,13 @@ impl Layout {
     pub(crate) fn format(
         &self,
         record: &log::Record,
-        marker: Option<&Marker>,
+        diagnostics: &[Diagnostic],
     ) -> anyhow::Result<Vec<u8>> {
         match self {
-            Layout::Custom(layout) => layout.format(record, marker),
-            Layout::Text(layout) => layout.format(record, marker),
+            Layout::Custom(layout) => layout.format(record, diagnostics),
+            Layout::Text(layout) => layout.format(record, diagnostics),
             #[cfg(feature = "json")]
-            Layout::Json(layout) => layout.format(record, marker),
+            Layout::Json(layout) => layout.format(record, diagnostics),
         }
     }
 }

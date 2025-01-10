@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Cow;
 use std::fmt::Arguments;
 
 use jiff::tz::TimeZone;
@@ -22,8 +23,9 @@ use serde::Serialize;
 use serde_json::Map;
 use serde_json::Value;
 
+use crate::diagnostic::Visitor;
 use crate::layout::Layout;
-use crate::Marker;
+use crate::Diagnostic;
 
 /// A JSON layout for formatting log records.
 ///
@@ -83,6 +85,18 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'_> {
     }
 }
 
+impl Visitor for KvCollector<'_> {
+    fn visit<'k, 'v, K, V>(&mut self, key: K, value: V)
+    where
+        K: Into<Cow<'k, str>>,
+        V: Into<Cow<'v, str>>,
+    {
+        let key = key.into().into_owned();
+        let value = value.into().into_owned();
+        self.kvs.insert(key, value.into());
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct RecordLine<'a> {
     #[serde(serialize_with = "serialize_time_zone")]
@@ -114,16 +128,13 @@ impl JsonLayout {
     pub(crate) fn format(
         &self,
         record: &Record,
-        marker: Option<&Marker>,
+        diagnostics: &[Diagnostic],
     ) -> anyhow::Result<Vec<u8>> {
         let mut kvs = Map::new();
         let mut visitor = KvCollector { kvs: &mut kvs };
         record.key_values().visit(&mut visitor)?;
-
-        if let Some(marker) = marker {
-            marker.mark(|key, value| {
-                kvs.insert(key.to_string(), value.into());
-            });
+        for d in diagnostics {
+            d.visit(&mut visitor);
         }
 
         let record_line = RecordLine {
