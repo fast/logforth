@@ -42,15 +42,6 @@ pub enum Diagnostic {
 }
 
 impl Diagnostic {
-    /// The name of the diagnostic.
-    pub fn name(&self) -> &'static str {
-        match self {
-            #[cfg(feature = "fastrace")]
-            Diagnostic::Fastrace(diagnostic) => diagnostic.name(),
-            Diagnostic::ThreadLocal(diagnostic) => diagnostic.name(),
-        }
-    }
-
     /// Visits the diagnostic key-value pairs.
     pub fn visit<V: Visitor>(&self, visitor: &mut V) {
         match self {

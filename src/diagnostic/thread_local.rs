@@ -29,19 +29,14 @@ thread_local! {
 /// ```rust
 /// use logforth::diagnostic::ThreadLocalDiagnostic;
 ///
-/// let diagnostic = ThreadLocalDiagnostic::default();
-/// diagnostic.insert("key", "value");
+/// ThreadLocalDiagnostic::insert("key", "value");
 /// ```
 #[derive(Default, Debug, Clone, Copy)]
 #[non_exhaustive]
 pub struct ThreadLocalDiagnostic {}
 
 impl ThreadLocalDiagnostic {
-    pub fn name(&self) -> &'static str {
-        "thread-local"
-    }
-
-    pub fn insert<K, V>(&self, key: K, value: V)
+    pub fn insert<K, V>(key: K, value: V)
     where
         K: Into<String>,
         V: Into<String>,
@@ -51,7 +46,7 @@ impl ThreadLocalDiagnostic {
         });
     }
 
-    pub fn remove(&self, key: &str) {
+    pub fn remove(key: &str) {
         CONTEXT.with(|map| {
             map.borrow_mut().remove(key);
         });
