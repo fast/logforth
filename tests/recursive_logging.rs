@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![cfg(feature = "rolling-file")]
+
 use logforth::append;
 use logforth::append::rolling_file;
 use logforth::append::rolling_file::RollingFileWriter;
