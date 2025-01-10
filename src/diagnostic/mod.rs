@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Markers to enrich log records with additional information.
+//! Mapped Diagnostic Context (MDC).
 
 use std::borrow::Cow;
 
