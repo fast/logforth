@@ -16,6 +16,7 @@ use fastrace::collector::Config;
 use fastrace::collector::ConsoleReporter;
 use fastrace::collector::SpanContext;
 use fastrace::Span;
+use logforth::diagnostic;
 
 fn main() {
     logforth::builder()
@@ -24,10 +25,8 @@ fn main() {
                 .append(logforth::append::FastraceEvent::default())
         })
         .dispatch(|d| {
-            d.append(
-                logforth::append::Stderr::default()
-                    .with_marker(logforth::diagnostic::FastraceDiagnostic::default()),
-            )
+            d.diagnostic(diagnostic::FastraceDiagnostic::default())
+                .append(logforth::append::Stderr::default())
         })
         .apply();
 

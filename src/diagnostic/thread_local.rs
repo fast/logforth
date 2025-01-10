@@ -22,6 +22,16 @@ thread_local! {
     static CONTEXT: RefCell<BTreeMap<String, String>> = const { RefCell::new(BTreeMap::new()) };
 }
 
+/// A diagnostic that stores key-value pairs in a thread-local map.
+///
+/// ## Example
+///
+/// ```rust
+/// use logforth::diagnostic::ThreadLocalDiagnostic;
+///
+/// let diagnostic = ThreadLocalDiagnostic::default();
+/// diagnostic.insert("key", "value");
+/// ```
 #[derive(Default, Debug, Clone, Copy)]
 #[non_exhaustive]
 pub struct ThreadLocalDiagnostic {}

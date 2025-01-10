@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Mapped Diagnostic Context (MDC).
+//! Mapped Diagnostic Context (MDC). A lighter technique consists of uniquely stamping each log request.
 
 use std::borrow::Cow;
 
@@ -33,9 +33,7 @@ pub trait Visitor {
         V: Into<Cow<'v, str>>;
 }
 
-/// Mapped Diagnostic Context (MDC).
-///
-/// A lighter technique consists of uniquely stamping each log request.
+/// Represent a Mapped Diagnostic Context (MDC) that provides diagnostic key-values.
 #[derive(Debug)]
 pub enum Diagnostic {
     #[cfg(feature = "fastrace")]
@@ -44,6 +42,7 @@ pub enum Diagnostic {
 }
 
 impl Diagnostic {
+    /// The name of the diagnostic.
     pub fn name(&self) -> &'static str {
         match self {
             #[cfg(feature = "fastrace")]
@@ -52,6 +51,7 @@ impl Diagnostic {
         }
     }
 
+    /// Visits the diagnostic key-value pairs.
     pub fn visit<V: Visitor>(&self, visitor: &mut V) {
         match self {
             #[cfg(feature = "fastrace")]
