@@ -11,7 +11,8 @@ All notable changes to this project will be documented in this file.
 
 ### New features
 
-* Add logforth::diagnostic::FastraceDiagnostic to support attaching trace id to as key-value context.
+* Add `logforth::diagnostic::FastraceDiagnostic` to support attaching trace id to as key-value context.
+* Add `logforth::diagnostic::ThreadLocalDiagnostic` to support attaching thread local key-value context.
 
 ## [0.19.2] 2025-01-03
 
