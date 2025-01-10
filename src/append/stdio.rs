@@ -101,10 +101,13 @@ impl Stderr {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(not(feature = "json"))] fn main() {}
+    /// # #[cfg(feature = "json")] fn main() {
     /// use logforth::append::Stderr;
     /// use logforth::layout::JsonLayout;
     ///
     /// let stderr_appender = Stderr::default().with_layout(JsonLayout::default());
+    /// # }
     /// ```
     pub fn with_layout(mut self, encoder: impl Into<Layout>) -> Self {
         self.layout = encoder.into();
