@@ -91,8 +91,8 @@ impl Visitor for KvCollector<'_> {
         K: Into<Cow<'k, str>>,
         V: Into<Cow<'v, str>>,
     {
-        let key = key.into().to_string();
-        let value = value.into().to_string();
+        let key = key.into().into_owned();
+        let value = value.into().into_owned();
         self.kvs.insert(key, value.into());
     }
 }
