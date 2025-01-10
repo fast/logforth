@@ -40,10 +40,6 @@ use crate::Diagnostic;
 pub struct FastraceDiagnostic {}
 
 impl FastraceDiagnostic {
-    pub fn name(&self) -> &'static str {
-        "fastrace"
-    }
-
     pub fn visit<V: Visitor>(&self, visitor: &mut V) {
         if let Some(span) = fastrace::collector::SpanContext::current_local_parent() {
             let trace_id = format!("{:016x}", span.trace_id.0);
