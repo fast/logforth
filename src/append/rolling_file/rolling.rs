@@ -62,10 +62,9 @@ impl Write for RollingFileWriter {
             self.state.refresh_writer(&now, cnt, writer);
         }
 
-        writer.write(buf).map(|n| {
-            self.state.current_filesize += n;
-            n
-        })
+        writer
+            .write(buf)
+            .inspect(|&n| self.state.current_filesize += n)
     }
 
     fn flush(&mut self) -> io::Result<()> {

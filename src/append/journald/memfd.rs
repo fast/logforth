@@ -61,7 +61,7 @@ fn memfd_create_syscall(flags: libc::c_uint) -> libc::c_int {
     unsafe {
         libc::syscall(
             libc::SYS_memfd_create,
-            "logforth-journald\0".as_ptr() as *const libc::c_char,
+            c"logforth-journald".as_ptr() as *const libc::c_char,
             flags,
         ) as libc::c_int
     }

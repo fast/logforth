@@ -4,9 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [0.20.0] 2025-01-08
 
+### Breaking changes
+
+* Bump MSRV to 1.80 for upgrading `colored` to 3.0.
+* Layout and Appender now accept a new argument `diagnostics: &[Diagnostic]` to retrieve the mapped diagnostics context. Users can use `logforth::diagnostic::Visitor` to visit the diagnostics context.
+
 ### New features
 
-* Add logforth::marker::TraceIdMarker to support attaching trace id to log's kv.
+* Add `logforth::diagnostic::FastraceDiagnostic` to support attaching trace id to as key-value context.
+* Add `logforth::diagnostic::ThreadLocalDiagnostic` to support attaching thread local key-value context.
 
 ## [0.19.2] 2025-01-03
 

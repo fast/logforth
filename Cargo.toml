@@ -21,7 +21,7 @@ homepage = "https://github.com/fast/logforth"
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/fast/logforth"
-rust-version = "1.75.0"
+rust-version = "1.80.0"
 version = "0.20.0"
 
 categories = ["development-tools::debugging"]
@@ -48,7 +48,7 @@ syslog = ["non-blocking", "dep:fasyslog"]
 
 [dependencies]
 anyhow = { version = "1.0" }
-colored = { version = "2.1" }
+colored = { version = "3.0" }
 env_filter = { version = "0.1.1" }
 jiff = { version = "0.1.14" }
 log = { version = "0.4", features = ["std", "kv"] }
