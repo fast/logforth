@@ -1,8 +1,2 @@
 /target
-/Cargo.lock
-
-logs
-
-# IDE and editor
-.vscode
-.idea
+/logs
