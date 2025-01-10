@@ -31,6 +31,7 @@ use opentelemetry_sdk::logs::LogRecord;
 use opentelemetry_sdk::logs::LoggerProvider;
 
 use crate::append::Append;
+use crate::diagnostic::Visitor;
 use crate::Diagnostic;
 use crate::Layout;
 
@@ -256,27 +257,10 @@ impl Append for OpentelemetryLog {
             log_record.add_attribute("line", line);
         }
 
-        struct KvExtractor<'a> {
-            record: &'a mut LogRecord,
-        }
-
-        impl<'kvs> log::kv::VisitSource<'kvs> for KvExtractor<'_> {
-            fn visit_pair(
-                &mut self,
-                key: log::kv::Key<'kvs>,
-                value: log::kv::Value<'kvs>,
-            ) -> Result<(), log::kv::Error> {
-                let key = key.to_string();
-                let value = value.to_string();
-                self.record.add_attribute(key, value);
-                Ok(())
-            }
-        }
-
         let mut extractor = KvExtractor {
             record: &mut log_record,
         };
-        record.key_values().visit(&mut extractor).ok();
+        record.key_values().visit(&mut extractor)?;
         for d in diagnostics {
             d.visit(&mut extractor);
         }
@@ -304,5 +288,34 @@ fn log_level_to_otel_severity(level: log::Level) -> opentelemetry::logs::Severit
         log::Level::Info => opentelemetry::logs::Severity::Info,
         log::Level::Debug => opentelemetry::logs::Severity::Debug,
         log::Level::Trace => opentelemetry::logs::Severity::Trace,
+    }
+}
+
+struct KvExtractor<'a> {
+    record: &'a mut LogRecord,
+}
+
+impl<'kvs> log::kv::VisitSource<'kvs> for KvExtractor<'_> {
+    fn visit_pair(
+        &mut self,
+        key: log::kv::Key<'kvs>,
+        value: log::kv::Value<'kvs>,
+    ) -> Result<(), log::kv::Error> {
+        let key = key.to_string();
+        let value = value.to_string();
+        self.record.add_attribute(key, value);
+        Ok(())
+    }
+}
+
+impl Visitor for KvExtractor<'_> {
+    fn visit<'k, 'v, K, V>(&mut self, key: K, value: V)
+    where
+        K: Into<Cow<'k, str>>,
+        V: Into<Cow<'v, str>>,
+    {
+        let key = key.into().to_string();
+        let value = value.into().to_string();
+        self.record.add_attribute(key, value);
     }
 }

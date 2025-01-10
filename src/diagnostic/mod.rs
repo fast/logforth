@@ -16,8 +16,6 @@
 
 use std::borrow::Cow;
 
-use log::kv::VisitSource;
-
 #[cfg(feature = "fastrace")]
 pub use self::fastrace::FastraceDiagnostic;
 pub use self::thread_local::ThreadLocalDiagnostic;
@@ -29,24 +27,10 @@ mod thread_local;
 /// A visitor to walk through diagnostic key-value pairs.
 pub trait Visitor {
     /// Visits a key-value pair.
-    fn visit<K, V>(&mut self, key: K, value: V)
+    fn visit<'k, 'v, K, V>(&mut self, key: K, value: V)
     where
-        K: Into<Cow<'static, str>>,
-        V: Into<Cow<'static, str>>;
-}
-
-impl<T: for<'a> VisitSource<'a>> Visitor for T {
-    fn visit<K, V>(&mut self, key: K, value: V)
-    where
-        K: Into<Cow<'static, str>>,
-        V: Into<Cow<'static, str>>,
-    {
-        self.visit_pair(
-            log::kv::Key::from_str(key.into().as_ref()),
-            log::kv::Value::from_display(&value.into()),
-        )
-        .unwrap();
-    }
+        K: Into<Cow<'k, str>>,
+        V: Into<Cow<'v, str>>;
 }
 
 /// Mapped Diagnostic Context (MDC).

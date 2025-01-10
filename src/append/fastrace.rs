@@ -20,6 +20,7 @@ use jiff::Zoned;
 use log::Record;
 
 use crate::append::Append;
+use crate::diagnostic::Visitor;
 use crate::Diagnostic;
 
 /// An appender that adds log records to fastrace as an event associated to the current span.
@@ -41,7 +42,7 @@ impl Append for FastraceEvent {
         let message = format!("{}", record.args());
 
         let mut collector = KvCollector { kv: Vec::new() };
-        record.key_values().visit(&mut collector).ok();
+        record.key_values().visit(&mut collector)?;
         for d in diagnostics {
             d.visit(&mut collector);
         }
@@ -79,5 +80,17 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector {
     ) -> Result<(), log::kv::Error> {
         self.kv.push((key.to_string(), value.to_string()));
         Ok(())
+    }
+}
+
+impl Visitor for KvCollector {
+    fn visit<'k, 'v, K, V>(&mut self, key: K, value: V)
+    where
+        K: Into<Cow<'k, str>>,
+        V: Into<Cow<'v, str>>,
+    {
+        let key = key.into().to_string();
+        let value = value.into().to_string();
+        self.kv.push((key, value));
     }
 }

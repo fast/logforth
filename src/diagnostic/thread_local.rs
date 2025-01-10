@@ -51,7 +51,7 @@ impl ThreadLocalDiagnostic {
         CONTEXT.with(|map| {
             let map = map.borrow();
             for (key, value) in map.iter() {
-                visitor.visit(key.to_string(), value.to_string());
+                visitor.visit(key, value);
             }
         })
     }

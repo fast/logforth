@@ -23,6 +23,7 @@ use jiff::Timestamp;
 use jiff::Zoned;
 use log::Level;
 
+use crate::diagnostic::Visitor;
 use crate::layout::Layout;
 use crate::Diagnostic;
 
@@ -227,5 +228,23 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvWriter {
     ) -> Result<(), log::kv::Error> {
         write!(&mut self.text, " {key}={value}")?;
         Ok(())
+    }
+}
+
+impl Visitor for KvWriter {
+    fn visit<'k, 'v, K, V>(&mut self, key: K, value: V)
+    where
+        K: Into<Cow<'k, str>>,
+        V: Into<Cow<'v, str>>,
+    {
+        // SAFETY: no more than an allocate-less version
+        //  self.text.push_str(&format!(" {key}={value}"))
+        write!(
+            &mut self.text,
+            " {key}={value}",
+            key = key.into(),
+            value = value.into()
+        )
+        .unwrap();
     }
 }
