@@ -17,7 +17,6 @@
 pub use custom::CustomLayout;
 #[cfg(feature = "json")]
 pub use json::JsonLayout;
-pub use text::LevelColor;
 pub use text::TextLayout;
 
 use crate::Diagnostic;
