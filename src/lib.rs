@@ -54,6 +54,11 @@
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
+#[cfg(feature = "colored")]
+pub extern crate colored;
+#[cfg(feature = "colored")]
+pub mod color;
+
 pub mod append;
 pub mod diagnostic;
 pub mod filter;

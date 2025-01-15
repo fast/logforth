@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.21.0] 2025-01-15
+
+### Breaking changes
+
+* Re-export `colored` to decouple the dependency. In addition, replace the `no-color` feature flag with the `colored` feature flag.
+
 ## [0.20.0] 2025-01-08
 
 ### Breaking changes
