@@ -27,8 +27,8 @@ use opentelemetry::InstrumentationScope;
 use opentelemetry_otlp::LogExporter;
 use opentelemetry_otlp::Protocol;
 use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::logs::LogRecord;
-use opentelemetry_sdk::logs::LoggerProvider;
+use opentelemetry_sdk::logs::SdkLogRecord;
+use opentelemetry_sdk::logs::SdkLoggerProvider;
 
 use crate::append::Append;
 use crate::diagnostic::Visitor;
@@ -192,13 +192,17 @@ impl OpentelemetryLogBuilder {
                 .build(),
         }?;
 
-        let provider = LoggerProvider::builder()
-            .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
-            .with_resource(opentelemetry_sdk::Resource::new(
+        let resource = opentelemetry_sdk::Resource::builder()
+            .with_attributes(
                 labels
                     .into_iter()
                     .map(|(key, value)| opentelemetry::KeyValue::new(key, value)),
-            ))
+            )
+            .build();
+
+        let provider = SdkLoggerProvider::builder()
+            .with_batch_exporter(exporter)
+            .with_resource(resource)
             .build();
 
         let library = InstrumentationScope::builder(name.clone()).build();
@@ -231,18 +235,18 @@ impl OpentelemetryLogBuilder {
 pub struct OpentelemetryLog {
     name: String,
     layout: Option<Layout>,
-    logger: opentelemetry_sdk::logs::Logger,
-    provider: LoggerProvider,
+    logger: opentelemetry_sdk::logs::SdkLogger,
+    provider: SdkLoggerProvider,
 }
 
 impl Append for OpentelemetryLog {
     fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
-        let mut log_record = LogRecord::default();
-        log_record.observed_timestamp = Some(SystemTime::now());
-        log_record.severity_number = Some(log_level_to_otel_severity(record.level()));
-        log_record.severity_text = Some(record.level().as_str());
-        log_record.target = Some(record.target().to_string().into());
-        log_record.body = Some(AnyValue::Bytes(Box::new(match self.layout.as_ref() {
+        let mut log_record = self.logger.create_log_record();
+        log_record.set_observed_timestamp(SystemTime::now());
+        log_record.set_severity_number(log_level_to_otel_severity(record.level()));
+        log_record.set_severity_text(record.level().as_str());
+        log_record.set_target(record.target().to_string());
+        log_record.set_body(AnyValue::Bytes(Box::new(match self.layout.as_ref() {
             None => record.args().to_string().into_bytes(),
             Some(layout) => layout.format(record, diagnostics)?,
         })));
@@ -270,12 +274,7 @@ impl Append for OpentelemetryLog {
     }
 
     fn flush(&self) {
-        for err in self
-            .provider
-            .force_flush()
-            .into_iter()
-            .filter_map(|r| r.err())
-        {
+        if let Err(err) = self.provider.force_flush() {
             eprintln!("failed to flush logger {}: {}", self.name, err);
         }
     }
@@ -292,7 +291,7 @@ fn log_level_to_otel_severity(level: log::Level) -> opentelemetry::logs::Severit
 }
 
 struct KvExtractor<'a> {
-    record: &'a mut LogRecord,
+    record: &'a mut SdkLogRecord,
 }
 
 impl<'kvs> log::kv::VisitSource<'kvs> for KvExtractor<'_> {

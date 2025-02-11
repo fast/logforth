@@ -360,7 +360,7 @@ mod tests {
 
     use jiff::Span;
     use jiff::Zoned;
-    use rand::distributions::Alphanumeric;
+    use rand::distr::Alphanumeric;
     use rand::Rng;
     use tempfile::TempDir;
 
@@ -552,8 +552,8 @@ mod tests {
     }
 
     fn generate_random_string() -> String {
-        let mut rng = rand::thread_rng();
-        let len = rng.gen_range(50..=100);
+        let mut rng = rand::rng();
+        let len = rng.random_range(50..=100);
         let random_string: String = std::iter::repeat(())
             .map(|()| rng.sample(Alphanumeric))
             .map(char::from)

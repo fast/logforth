@@ -14,7 +14,9 @@
 
 //! Color utilities.
 
-use colored::{Color, ColoredString, Colorize};
+use colored::Color;
+use colored::ColoredString;
+use colored::Colorize;
 use log::Level;
 
 /// Colors for different log levels.
