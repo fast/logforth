@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## [0.22.0] 2025-02-13
+
 ### Breaking changes
 
 * Upgrade `jiff` to 0.2.0 and `opentelemetry` to 0.28.0.
