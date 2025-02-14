@@ -118,7 +118,7 @@ impl<T: Writer + Send + 'static> NonBlocking<T> {
         (Self { sender, marker }, worker_guard)
     }
 
-    pub(crate) fn send(&self, record: Vec<u8>) -> anyhow::Result<()> {
+    pub fn send(&self, record: Vec<u8>) -> anyhow::Result<()> {
         self.sender
             .send(Message::Record(record))
             .context("failed to send log message")
@@ -135,7 +135,7 @@ pub struct NonBlockingBuilder<T: Writer + Send + 'static> {
 }
 
 impl<T: Writer + Send + 'static> NonBlockingBuilder<T> {
-    pub(crate) fn new(thread_name: impl Into<String>, writer: T) -> Self {
+    pub fn new(thread_name: impl Into<String>, writer: T) -> Self {
         Self {
             thread_name: thread_name.into(),
             buffered_lines_limit: None,

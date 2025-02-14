@@ -85,7 +85,7 @@ impl<T: Writer + Send + 'static> Worker<T> {
         }
     }
 
-    pub(crate) fn work(&mut self) -> io::Result<WorkerState> {
+    fn work(&mut self) -> io::Result<WorkerState> {
         let mut worker_state = self.recv()?;
 
         while worker_state == WorkerState::Continue {

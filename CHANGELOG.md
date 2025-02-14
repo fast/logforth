@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### Refactor
+
+* Revisit all `pub(crate)` methods:
+  * Expose `Layout::format` and all layout impls `format` method.
+  * Expose `Nonblocking` methods to make it usable outside this crate.
+
 ## [0.22.0] 2025-02-13
 
 ### Breaking changes

@@ -36,7 +36,7 @@ pub enum Layout {
 }
 
 impl Layout {
-    pub(crate) fn format(
+    pub fn format(
         &self,
         record: &log::Record,
         diagnostics: &[Diagnostic],

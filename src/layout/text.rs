@@ -19,6 +19,7 @@ use jiff::tz::TimeZone;
 use jiff::Timestamp;
 use jiff::Zoned;
 use log::Level;
+use log::Record;
 
 use crate::diagnostic::Visitor;
 use crate::layout::Layout;
@@ -29,7 +30,6 @@ mod colored {
     use super::*;
     use crate::color::LevelColor;
     use crate::colored::Color;
-    use crate::colored::ColoredString;
 
     impl TextLayout {
         /// Customize the color of each log level.
@@ -78,10 +78,6 @@ mod colored {
         pub fn trace_color(mut self, color: Color) -> Self {
             self.colors.trace = color;
             self
-        }
-
-        pub(crate) fn format_record_level(&self, level: Level) -> ColoredString {
-            self.colors.colorize_record_level(self.no_color, level)
         }
     }
 }
@@ -145,17 +141,18 @@ impl TextLayout {
     }
 
     #[cfg(not(feature = "colored"))]
-    pub(crate) fn format_record_level(&self, level: Level) -> String {
+    fn format_record_level(&self, level: Level) -> String {
         level.to_string()
+    }
+
+    #[cfg(feature = "colored")]
+    fn format_record_level(&self, level: Level) -> crate::colored::ColoredString {
+        self.colors.colorize_record_level(self.no_color, level)
     }
 }
 
 impl TextLayout {
-    pub(crate) fn format(
-        &self,
-        record: &log::Record,
-        diagnostics: &[Diagnostic],
-    ) -> anyhow::Result<Vec<u8>> {
+    pub fn format(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<Vec<u8>> {
         let time = match self.tz.clone() {
             Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),
@@ -186,7 +183,7 @@ impl From<TextLayout> for Layout {
 
 // obtain filename only from record's full file path
 // reason: the module is already logged + full file path is noisy for text layout
-fn filename<'a>(record: &'a log::Record<'a>) -> Cow<'a, str> {
+fn filename<'a>(record: &'a Record<'a>) -> Cow<'a, str> {
     record
         .file()
         .map(std::path::Path::new)
