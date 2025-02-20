@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## [0.22.1] 2025-02-20
+
 ### Refactor
 
 * Revisit all `pub(crate)` methods:
