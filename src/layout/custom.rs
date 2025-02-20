@@ -57,11 +57,7 @@ impl CustomLayout {
         }
     }
 
-    pub(crate) fn format(
-        &self,
-        record: &Record,
-        diagnostics: &[Diagnostic],
-    ) -> anyhow::Result<Vec<u8>> {
+    pub fn format(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<Vec<u8>> {
         (self.f)(record, diagnostics)
     }
 }

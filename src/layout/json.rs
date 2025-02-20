@@ -98,7 +98,7 @@ impl Visitor for KvCollector<'_> {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub(crate) struct RecordLine<'a> {
+struct RecordLine<'a> {
     #[serde(serialize_with = "serialize_time_zone")]
     timestamp: Zoned,
     level: &'a str,
@@ -125,11 +125,7 @@ where
 }
 
 impl JsonLayout {
-    pub(crate) fn format(
-        &self,
-        record: &Record,
-        diagnostics: &[Diagnostic],
-    ) -> anyhow::Result<Vec<u8>> {
+    pub fn format(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<Vec<u8>> {
         let mut kvs = Map::new();
         let mut visitor = KvCollector { kvs: &mut kvs };
         record.key_values().visit(&mut visitor)?;
