@@ -14,38 +14,20 @@
 
 //! Layouts for formatting log records.
 
-pub use custom::CustomLayout;
-#[cfg(feature = "json")]
-pub use json::JsonLayout;
-pub use text::TextLayout;
+use std::fmt;
 
 use crate::Diagnostic;
 
-mod custom;
 #[cfg(feature = "json")]
 mod json;
+#[cfg(feature = "json")]
+pub use json::JsonLayout;
+
 mod text;
+pub use text::TextLayout;
 
-/// Represents a layout for formatting log records.
-#[derive(Debug)]
-pub enum Layout {
-    Custom(CustomLayout),
-    Text(TextLayout),
-    #[cfg(feature = "json")]
-    Json(JsonLayout),
-}
-
-impl Layout {
-    pub fn format(
-        &self,
-        record: &log::Record,
-        diagnostics: &[Diagnostic],
-    ) -> anyhow::Result<Vec<u8>> {
-        match self {
-            Layout::Custom(layout) => layout.format(record, diagnostics),
-            Layout::Text(layout) => layout.format(record, diagnostics),
-            #[cfg(feature = "json")]
-            Layout::Json(layout) => layout.format(record, diagnostics),
-        }
-    }
+/// A layout for formatting log records.
+pub trait Layout: fmt::Debug + Send + Sync + 'static {
+    /// Formats a log record with optional diagnostics.
+    fn format(&self, record: &log::Record, diagnostics: &[Diagnostic]) -> anyhow::Result<Vec<u8>>;
 }

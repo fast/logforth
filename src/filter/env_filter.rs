@@ -129,8 +129,10 @@ impl EnvFilter {
             EnvFilter::new(builder.parse(&default))
         }
     }
+}
 
-    pub(crate) fn enabled(&self, metadata: &Metadata) -> FilterResult {
+impl Filter for EnvFilter {
+    fn enabled(&self, metadata: &Metadata) -> FilterResult {
         if self.0.enabled(metadata) {
             FilterResult::Neutral
         } else {
@@ -138,18 +140,12 @@ impl EnvFilter {
         }
     }
 
-    pub(crate) fn matches(&self, record: &log::Record) -> FilterResult {
+    fn matches(&self, record: &log::Record) -> FilterResult {
         if self.0.matches(record) {
             FilterResult::Neutral
         } else {
             FilterResult::Reject
         }
-    }
-}
-
-impl From<EnvFilter> for Filter {
-    fn from(filter: EnvFilter) -> Self {
-        Filter::Env(filter)
     }
 }
 

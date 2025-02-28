@@ -151,8 +151,8 @@ impl TextLayout {
     }
 }
 
-impl TextLayout {
-    pub fn format(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<Vec<u8>> {
+impl Layout for TextLayout {
+    fn format(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<Vec<u8>> {
         let time = match self.tz.clone() {
             Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),
@@ -172,12 +172,6 @@ impl TextLayout {
         }
 
         Ok(visitor.text.into_bytes())
-    }
-}
-
-impl From<TextLayout> for Layout {
-    fn from(layout: TextLayout) -> Self {
-        Layout::Text(layout)
     }
 }
 

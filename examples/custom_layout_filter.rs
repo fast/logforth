@@ -12,26 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use log::Metadata;
+use log::Record;
 use logforth::append;
-use logforth::filter::CustomFilter;
 use logforth::filter::FilterResult;
-use logforth::layout::CustomLayout;
+use logforth::Diagnostic;
+use logforth::Filter;
+use logforth::Layout;
+
+#[derive(Debug)]
+struct CustomFilter;
+
+impl Filter for CustomFilter {
+    fn enabled(&self, metadata: &Metadata) -> FilterResult {
+        if metadata.level() < log::Level::Info {
+            FilterResult::Accept
+        } else {
+            FilterResult::Reject
+        }
+    }
+}
+
+#[derive(Debug)]
+struct CustomLayout;
+
+impl Layout for CustomLayout {
+    fn format(&self, record: &Record, _: &[Diagnostic]) -> anyhow::Result<Vec<u8>> {
+        Ok(format!("[Alert] {}", record.args()).into_bytes())
+    }
+}
 
 fn main() {
     logforth::builder()
         .dispatch(|d| {
-            d.filter(CustomFilter::new(|metadata| {
-                if metadata.level() < log::Level::Info {
-                    FilterResult::Accept
-                } else {
-                    FilterResult::Reject
-                }
-            }))
-            .append(
-                append::Stdout::default().with_layout(CustomLayout::new(|record, _| {
-                    Ok(format!("[Alert] {}", record.args()).into_bytes())
-                })),
-            )
+            d.filter(CustomFilter)
+                .append(append::Stdout::default().with_layout(CustomLayout))
         })
         .apply();
 

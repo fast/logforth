@@ -32,13 +32,13 @@ use crate::Layout;
 /// ```
 #[derive(Debug)]
 pub struct Stdout {
-    layout: Layout,
+    layout: Box<dyn Layout>,
 }
 
 impl Default for Stdout {
     fn default() -> Self {
         Self {
-            layout: TextLayout::default().into(),
+            layout: Box::new(TextLayout::default()),
         }
     }
 }
@@ -54,8 +54,8 @@ impl Stdout {
     ///
     /// let stdout_appender = Stdout::default().with_layout(TextLayout::default());
     /// ```
-    pub fn with_layout(mut self, layout: impl Into<Layout>) -> Self {
-        self.layout = layout.into();
+    pub fn with_layout(mut self, layout: impl Layout) -> Self {
+        self.layout = Box::new(layout);
         self
     }
 }
@@ -84,13 +84,13 @@ impl Append for Stdout {
 /// ```
 #[derive(Debug)]
 pub struct Stderr {
-    layout: Layout,
+    layout: Box<dyn Layout>,
 }
 
 impl Default for Stderr {
     fn default() -> Self {
         Self {
-            layout: TextLayout::default().into(),
+            layout: Box::new(TextLayout::default()),
         }
     }
 }
@@ -101,16 +101,13 @@ impl Stderr {
     /// # Examples
     ///
     /// ```
-    /// # #[cfg(not(feature = "json"))] fn main() {}
-    /// # #[cfg(feature = "json")] fn main() {
     /// use logforth::append::Stderr;
-    /// use logforth::layout::JsonLayout;
+    /// use logforth::layout::TextLayout;
     ///
-    /// let stderr_appender = Stderr::default().with_layout(JsonLayout::default());
-    /// # }
+    /// let stderr_appender = Stderr::default().with_layout(TextLayout::default());
     /// ```
-    pub fn with_layout(mut self, encoder: impl Into<Layout>) -> Self {
-        self.layout = encoder.into();
+    pub fn with_layout(mut self, layout: impl Layout) -> Self {
+        self.layout = Box::new(layout);
         self
     }
 }

@@ -24,7 +24,7 @@ use crate::Layout;
 /// An appender that writes log records to rolling files.
 #[derive(Debug)]
 pub struct RollingFile {
-    layout: Layout,
+    layout: Box<dyn Layout>,
     writer: NonBlocking<RollingFileWriter>,
 }
 
@@ -34,14 +34,14 @@ impl RollingFile {
     /// This appender by default uses [`TextLayout`] to format log records.
     pub fn new(writer: NonBlocking<RollingFileWriter>) -> Self {
         Self {
-            layout: TextLayout::default().no_color().into(),
+            layout: Box::new(TextLayout::default().no_color()),
             writer,
         }
     }
 
     /// Sets the layout used to format log records.
-    pub fn with_layout(mut self, layout: impl Into<Layout>) -> Self {
-        self.layout = layout.into();
+    pub fn with_layout(mut self, layout: impl Layout) -> Self {
+        self.layout = Box::new(layout);
         self
     }
 }

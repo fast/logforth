@@ -44,8 +44,6 @@ pub use self::stdio::Stdout;
 pub use self::syslog::Syslog;
 
 /// A trait representing an appender that can process log records.
-///
-/// Implementors of this trait can handle log records in custom ways.
 pub trait Append: fmt::Debug + Send + Sync + 'static {
     /// Dispatches a log record to the append target.
     fn append(&self, record: &log::Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()>;

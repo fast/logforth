@@ -68,14 +68,14 @@ impl log::Log for Logger {
 /// `appends` are used to write log records to a destination.
 #[derive(Debug)]
 pub(super) struct Dispatch {
-    filters: Vec<Filter>,
+    filters: Vec<Box<dyn Filter>>,
     diagnostics: Vec<Diagnostic>,
     appends: Vec<Box<dyn Append>>,
 }
 
 impl Dispatch {
     pub(super) fn new(
-        filters: Vec<Filter>,
+        filters: Vec<Box<dyn Filter>>,
         diagnostics: Vec<Diagnostic>,
         appends: Vec<Box<dyn Append>>,
     ) -> Self {

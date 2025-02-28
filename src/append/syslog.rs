@@ -69,7 +69,7 @@ pub struct Syslog {
     writer: NonBlocking<SyslogWriter>,
     format: SyslogFormat,
     context: SyslogContext,
-    layout: Option<Layout>,
+    layout: Option<Box<dyn Layout>>,
 }
 
 impl Syslog {
@@ -98,8 +98,8 @@ impl Syslog {
     /// Set the layout of the [`Syslog`] appender.
     ///
     /// Default to `None`, only the args will be logged.
-    pub fn with_layout(mut self, layout: impl Into<Layout>) -> Self {
-        self.layout = Some(layout.into());
+    pub fn with_layout(mut self, layout: impl Layout) -> Self {
+        self.layout = Some(Box::new(layout));
         self
     }
 }
