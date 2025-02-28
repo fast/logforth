@@ -56,7 +56,7 @@ pub struct OpentelemetryLogBuilder {
     endpoint: String,
     protocol: Protocol,
     labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
-    layout: Option<Layout>,
+    layout: Option<Box<dyn Layout>>,
 }
 
 impl OpentelemetryLogBuilder {
@@ -149,8 +149,8 @@ impl OpentelemetryLogBuilder {
     /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
     /// builder.layout(JsonLayout::default());
     /// ```
-    pub fn layout(mut self, layout: impl Into<Layout>) -> Self {
-        self.layout = Some(layout.into());
+    pub fn layout(mut self, layout: impl Layout) -> Self {
+        self.layout = Some(Box::new(layout));
         self
     }
 
@@ -234,7 +234,7 @@ impl OpentelemetryLogBuilder {
 #[derive(Debug)]
 pub struct OpentelemetryLog {
     name: String,
-    layout: Option<Layout>,
+    layout: Option<Box<dyn Layout>>,
     logger: opentelemetry_sdk::logs::SdkLogger,
     provider: SdkLoggerProvider,
 }

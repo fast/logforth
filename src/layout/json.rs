@@ -124,8 +124,8 @@ where
     serializer.collect_str(args)
 }
 
-impl JsonLayout {
-    pub fn format(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<Vec<u8>> {
+impl Layout for JsonLayout {
+    fn format(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<Vec<u8>> {
         let mut kvs = Map::new();
         let mut visitor = KvCollector { kvs: &mut kvs };
         record.key_values().visit(&mut visitor)?;
@@ -147,11 +147,5 @@ impl JsonLayout {
         };
 
         Ok(serde_json::to_vec(&record_line)?)
-    }
-}
-
-impl From<JsonLayout> for Layout {
-    fn from(layout: JsonLayout) -> Self {
-        Layout::Json(layout)
     }
 }

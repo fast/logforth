@@ -14,15 +14,10 @@
 
 //! Filters for log records.
 
-use std::str::FromStr;
+use std::fmt;
 
-use log::LevelFilter;
-
-pub use self::custom::CustomFilter;
-pub use self::env_filter::EnvFilter;
-
-mod custom;
 pub mod env_filter;
+pub use self::env_filter::EnvFilter;
 
 /// The result of a filter check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,47 +30,23 @@ pub enum FilterResult {
     Neutral,
 }
 
-/// Represents a filter that can be applied to log records.
-#[derive(Debug)]
-pub enum Filter {
-    /// An env_logger filter.
-    Env(EnvFilter),
-    /// A custom filter.
-    Custom(CustomFilter),
+/// A trait representing a filter that can be applied to log records.
+pub trait Filter: fmt::Debug + Send + Sync + 'static {
+    /// Returns whether the record is filtered by its given metadata.
+    fn enabled(&self, metadata: &log::Metadata) -> FilterResult;
+
+    /// Returns whether the record is filtered.
+    fn matches(&self, record: &log::Record) -> FilterResult {
+        self.enabled(record.metadata())
+    }
 }
 
-impl Filter {
-    pub(crate) fn enabled(&self, metadata: &log::Metadata) -> FilterResult {
-        match self {
-            Filter::Env(filter) => filter.enabled(metadata),
-            Filter::Custom(filter) => filter.enabled(metadata),
+impl Filter for log::LevelFilter {
+    fn enabled(&self, metadata: &log::Metadata) -> FilterResult {
+        if metadata.level() <= *self {
+            FilterResult::Neutral
+        } else {
+            FilterResult::Reject
         }
-    }
-
-    pub(crate) fn matches(&self, record: &log::Record) -> FilterResult {
-        match self {
-            Filter::Env(filter) => filter.matches(record),
-            Filter::Custom(filter) => filter.enabled(record.metadata()),
-        }
-    }
-}
-
-impl From<LevelFilter> for Filter {
-    fn from(filter: LevelFilter) -> Self {
-        EnvFilter::from(filter).into()
-    }
-}
-
-impl<'a> From<&'a str> for Filter {
-    fn from(filter: &'a str) -> Self {
-        EnvFilter::from(filter).into()
-    }
-}
-
-impl FromStr for Filter {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        EnvFilter::from_str(s).map(Into::into)
     }
 }

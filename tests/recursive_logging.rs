@@ -14,11 +14,22 @@
 
 #![cfg(feature = "rolling-file")]
 
+use log::Record;
 use logforth::append;
 use logforth::append::rolling_file;
 use logforth::append::rolling_file::RollingFileWriter;
 use logforth::append::rolling_file::Rotation;
-use logforth::layout;
+use logforth::Diagnostic;
+use logforth::Layout;
+
+#[derive(Debug)]
+struct CustomLayout(&'static str);
+
+impl Layout for CustomLayout {
+    fn format(&self, record: &Record, _: &[Diagnostic]) -> anyhow::Result<Vec<u8>> {
+        Ok(format!("{} [{}] {}", self.0, record.level(), record.args()).into_bytes())
+    }
+}
 
 // ensure logforth's impl doesn't properly handle recursive logging
 #[test]
@@ -33,16 +44,10 @@ fn test_meta_logging_in_format_works() {
         .unwrap();
     let (writer, _guard) = rolling_file::non_blocking(rolling).finish();
 
-    let layout = |src: &'static str| {
-        layout::CustomLayout::new(move |record, _| {
-            Ok(format!("{src} [{}] {}", record.level(), record.args()).into_bytes())
-        })
-    };
-
     logforth::builder()
-        .dispatch(|d| d.append(append::Stdout::default().with_layout(layout("out"))))
-        .dispatch(|d| d.append(append::Stderr::default().with_layout(layout("err"))))
-        .dispatch(|d| d.append(append::RollingFile::new(writer).with_layout(layout("file"))))
+        .dispatch(|d| d.append(append::Stdout::default().with_layout(CustomLayout("out"))))
+        .dispatch(|d| d.append(append::Stderr::default().with_layout(CustomLayout("err"))))
+        .dispatch(|d| d.append(append::RollingFile::new(writer).with_layout(CustomLayout("file"))))
         .apply();
 
     struct Thing<'a>(&'a str);
