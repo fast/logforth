@@ -328,9 +328,9 @@ checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
 name = "fasyslog"
-version = "0.3.2"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51152cab065c5e043e6a548711015a162dbf39f957c76ab005480db48adaf86f"
+checksum = "d1347a22d141c0c2ac2ed1acef6809f1bb2bd42de43bd228c891199c3375d64e"
 dependencies = [
  "cfg-if",
  "jiff",

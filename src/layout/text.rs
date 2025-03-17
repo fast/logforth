@@ -110,6 +110,8 @@ mod colored {
 ///
 /// let text_layout = TextLayout::default();
 /// ```
+///
+/// [`LevelColor`]: crate::color::LevelColor
 #[derive(Debug, Clone, Default)]
 pub struct TextLayout {
     #[cfg(feature = "colored")]

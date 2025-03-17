@@ -32,7 +32,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["colored"]
+default = []
 
 colored = ["dep:colored"]
 fastrace = ["dep:fastrace"]
@@ -58,7 +58,7 @@ log = { version = "0.4", features = ["std", "kv"] }
 colored = { version = "3.0", optional = true }
 crossbeam-channel = { version = "0.5", optional = true }
 fastrace = { version = "0.7", optional = true }
-fasyslog = { version = "0.3", optional = true }
+fasyslog = { version = "1.0.0", optional = true }
 libc = { version = "0.2.162", optional = true }
 native-tls = { version = "0.2", optional = true }
 opentelemetry = { version = "0.28.0", features = ["logs"], optional = true }
