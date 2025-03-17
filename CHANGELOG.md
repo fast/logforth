@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### Breaking changes
+
+* `Layout` and `Filter` as traits
+* Default features are now empty; no more `colored` in default.
+
+### New features
+
+* Add `StaticDiagnostic` for globally configuring context.
+
 ## [0.22.1] 2025-02-20
 
 ### Refactor

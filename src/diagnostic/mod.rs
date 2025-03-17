@@ -19,10 +19,12 @@ use std::borrow::Cow;
 
 #[cfg(feature = "fastrace")]
 pub use self::fastrace::FastraceDiagnostic;
+pub use self::static_global::StaticDiagnostic;
 pub use self::thread_local::ThreadLocalDiagnostic;
 
 #[cfg(feature = "fastrace")]
 mod fastrace;
+mod static_global;
 mod thread_local;
 
 /// A visitor to walk through diagnostic key-value pairs.
@@ -39,6 +41,7 @@ pub trait Visitor {
 pub enum Diagnostic {
     #[cfg(feature = "fastrace")]
     Fastrace(FastraceDiagnostic),
+    Static(StaticDiagnostic),
     ThreadLocal(ThreadLocalDiagnostic),
 }
 
@@ -48,6 +51,7 @@ impl Diagnostic {
         match self {
             #[cfg(feature = "fastrace")]
             Diagnostic::Fastrace(diagnostic) => diagnostic.visit(visitor),
+            Diagnostic::Static(diagnostic) => diagnostic.visit(visitor),
             Diagnostic::ThreadLocal(diagnostic) => diagnostic.visit(visitor),
         }
     }
