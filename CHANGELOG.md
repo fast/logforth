@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## [0.23.0] 2025-03-17
+
 ### Breaking changes
 
 * `Layout` and `Filter` as traits

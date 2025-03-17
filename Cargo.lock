@@ -868,7 +868,7 @@ checksum = "04cbf5b083de1c7e0222a7a51dbfdba1cbe1c6ab0b15e29fff3f6c077fd9cd9f"
 
 [[package]]
 name = "logforth"
-version = "0.22.1"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "colored",
