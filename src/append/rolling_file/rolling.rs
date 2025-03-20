@@ -245,11 +245,15 @@ impl State {
     fn create_log_writer(&self, now: &Zoned, cnt: usize) -> anyhow::Result<File> {
         fs::create_dir_all(&self.log_dir).context("failed to create log directory")?;
         let filename = self.join_date(now, cnt);
+
+        // Always manage the global file count if max_files is set,
+        // regardless of the current date pattern
         if let Some(max_files) = self.max_files {
             if let Err(err) = self.delete_oldest_logs(max_files) {
                 eprintln!("failed to delete oldest logs: {err}");
             }
         }
+
         OpenOptions::new()
             .append(true)
             .create(true)
@@ -261,37 +265,57 @@ impl State {
         let read_dir = fs::read_dir(&self.log_dir)
             .with_context(|| format!("failed to read log dir: {}", self.log_dir.display()))?;
 
+        // Determine the base prefix to match against all log files
+        let base_prefix = if let Some(prefix) = &self.log_filename_prefix {
+            // Extract the base part of the prefix (before any date components)
+            // For example, from "databend-query-default.2025-03-20", extract "databend-query-default"
+            if let Some(dot_pos) = prefix.find('.') {
+                // If there's a dot (likely separating prefix from date), use the part before it
+                prefix[..dot_pos].to_string()
+            } else {
+                // Otherwise use the full prefix
+                prefix.clone()
+            }
+        } else {
+            // If no prefix is set, we'll rely on date format check
+            String::new()
+        };
+
+        // Collect ALL files that match our base prefix, regardless of date format
         let mut files = read_dir
             .filter_map(|entry| {
                 let entry = entry.ok()?;
                 let metadata = entry.metadata().ok()?;
 
-                // the appender only creates files, not directories or symlinks,
+                // The appender only creates files, not directories or symlinks,
                 // so we should never delete a dir or symlink.
                 if !metadata.is_file() {
                     return None;
                 }
 
                 let filename = entry.file_name();
-                // if the filename is not a UTF-8 string, skip it.
+                // If the filename is not a UTF-8 string, skip it.
                 let filename = filename.to_str()?;
-                if let Some(prefix) = &self.log_filename_prefix {
-                    if !filename.starts_with(prefix) {
-                        return None;
-                    }
+
+                // Check if the file matches our base prefix
+                if !base_prefix.is_empty() && !filename.starts_with(&base_prefix) {
+                    return None;
                 }
 
+                // Check suffix if specified
                 if let Some(suffix) = &self.log_filename_suffix {
                     if !filename.ends_with(suffix) {
                         return None;
                     }
                 }
 
-                if self.log_filename_prefix.is_none()
-                    && self.log_filename_suffix.is_none()
-                    && jiff::civil::DateTime::strptime(self.date_format, filename).is_err()
-                {
-                    return None;
+                // If no prefix or suffix is specified, use date format check
+                // to avoid including non-log files
+                if base_prefix.is_empty() && self.log_filename_suffix.is_none() {
+                    // Only perform date format check if we don't have other criteria
+                    if jiff::civil::DateTime::strptime(self.date_format, filename).is_err() {
+                        return None;
+                    }
                 }
 
                 let created = metadata.created().ok()?;
@@ -299,15 +323,23 @@ impl State {
             })
             .collect::<Vec<_>>();
 
+        // If we don't have enough files to exceed the limit, we're done
+        // We need to ensure we have strictly less than max_files
+        // because we're about to create a new one
         if files.len() < max_files {
             return Ok(());
         }
 
-        // sort the files by their creation timestamps.
+        // Sort the files by their creation timestamps (oldest first)
         files.sort_by_key(|(_, created_at)| *created_at);
 
-        // delete files, so that (n-1) files remain, because we will create another log file
-        for (file, _) in files.iter().take(files.len() - (max_files - 1)) {
+        // Calculate how many files to delete to stay under the limit
+        // We need to keep (max_files - 1) files because we're about to create a new one
+        // This ensures we'll have exactly max_files files after creating the new one
+        let files_to_delete = files.len() - (max_files - 1);
+
+        // Delete the oldest files to stay under the limit
+        for (file, _) in files.iter().take(files_to_delete) {
             fs::remove_file(file.path()).with_context(|| {
                 format!("Failed to remove old log file {}", file.path().display())
             })?;
