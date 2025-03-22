@@ -15,7 +15,6 @@
 //! Appenders and utilities for integrating with OpenTelemetry.
 
 use std::borrow::Cow;
-use std::time::Duration;
 use std::time::SystemTime;
 
 use log::Record;
@@ -166,7 +165,7 @@ impl OpentelemetryLogBuilder {
     ///     .unwrap()
     ///     .block_on(async { builder.build().unwrap() });
     /// ```
-    pub fn build(self) -> Result<OpentelemetryLog, opentelemetry_sdk::logs::LogError> {
+    pub fn build(self) -> Result<OpentelemetryLog, opentelemetry_otlp::ExporterBuildError> {
         let OpentelemetryLogBuilder {
             name,
             endpoint,
@@ -175,8 +174,7 @@ impl OpentelemetryLogBuilder {
             layout,
         } = self;
 
-        let collector_timeout =
-            Duration::from_secs(opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT);
+        let collector_timeout = opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT;
         let exporter = match protocol {
             Protocol::Grpc => LogExporter::builder()
                 .with_tonic()
