@@ -47,19 +47,22 @@ impl Append for FastraceEvent {
             d.visit(&mut collector);
         }
 
-        fastrace::Event::add_to_local_parent(message, || {
-            [
-                (Cow::from("level"), Cow::from(record.level().as_str())),
-                (Cow::from("timestamp"), Cow::from(Zoned::now().to_string())),
-            ]
-            .into_iter()
-            .chain(
-                collector
-                    .kv
-                    .into_iter()
-                    .map(|(k, v)| (Cow::from(k), Cow::from(v))),
-            )
-        });
+        fastrace::local::LocalSpan::add_event(fastrace::Event::new(message).with_properties(
+            || {
+                [
+                    (Cow::from("level"), Cow::from(record.level().as_str())),
+                    (Cow::from("timestamp"), Cow::from(Zoned::now().to_string())),
+                ]
+                .into_iter()
+                .chain(
+                    collector
+                        .kv
+                        .into_iter()
+                        .map(|(k, v)| (Cow::from(k), Cow::from(v))),
+                )
+            },
+        ));
+
         Ok(())
     }
 

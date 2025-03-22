@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ## [0.23.0] 2025-03-17
 
+### Improvements
+
+* Upgrade to opentelemetry 0.29.0 to avoid transitive dependency to axum.
+
+## [0.23.0] 2025-03-17
+
 ### Breaking changes
 
 * `Layout` and `Filter` as traits
