@@ -19,9 +19,9 @@ use std::time::SystemTime;
 
 use log::Record;
 use opentelemetry::logs::AnyValue;
-use opentelemetry::logs::LogRecord as _;
+use opentelemetry::logs::LogRecord;
 use opentelemetry::logs::Logger;
-use opentelemetry::logs::LoggerProvider as ILoggerProvider;
+use opentelemetry::logs::LoggerProvider;
 use opentelemetry::InstrumentationScope;
 use opentelemetry_otlp::LogExporter;
 use opentelemetry_otlp::Protocol;
@@ -174,19 +174,16 @@ impl OpentelemetryLogBuilder {
             layout,
         } = self;
 
-        let collector_timeout = opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT;
         let exporter = match protocol {
             Protocol::Grpc => LogExporter::builder()
                 .with_tonic()
                 .with_endpoint(endpoint)
                 .with_protocol(protocol)
-                .with_timeout(collector_timeout)
                 .build(),
             Protocol::HttpBinary | Protocol::HttpJson => LogExporter::builder()
                 .with_http()
                 .with_endpoint(endpoint)
                 .with_protocol(protocol)
-                .with_timeout(collector_timeout)
                 .build(),
         }?;
 
