@@ -81,22 +81,22 @@ Read the online documents at https://docs.rs/logforth.
 
 This crate is built against the latest stable release, and its minimum supported rustc version is 1.80.0.
 
-The policy is that the minimum Rust version required to use this crate can be increased in minor version updates. For example, if Logforth 1.0 requires Rust 1.20.0, then Logforth 1.0.z for all values of z will also require Rust 1.20.0 or newer. However, Logforth 1.y for y > 0 may require a newer minimum version of Rust.
+The policy is that the minimum Rust version required to use this crate can be increased in minor version updates. For example, if Logforth 1.0 requires Rust 1.80.0, then Logforth 1.0.z for all values of z will also require Rust 1.80.0 or newer. However, Logforth 1.y for y > 0 may require a newer minimum version of Rust.
 
-## When to release a 1.0 version
+## When to release version 1.0
 
-After one year of practicing the interfaces, if there are no further blockers, I'll release a 1.0 version. So consequently, it can be as early as 2025-08.
+After one year of practicing the interfaces, if there are no further blockers, I'll release version 1.0. So consequently, it can be as early as 2025-08.
 
 ### Stabilize targets
 
-To release a 1.0 version, it's essential to declare what targets this crate wants to stabilize. Even beyond 1.0, it's helpful to distinguish different portions of this crate to allow unstable modules to make breaking changes to improve their quality, just as how rust-lang's stabilization mechanism works.
+To release version 1.0, it's essential to declare what targets this crate wants to stabilize. Even after 1.0, it's helpful to distinguish different portions of this crate to allow unstable modules to make breaking changes to improve their quality, just as how rust-lang's stabilization mechanism works.
 
 Basically, this crate contains:
 
-* Fundamental logging APIs (Appender, Layout, Filter, Dispatch, Logger, etc.): these MUST BE stabilized before 1.0.
-* Basic layouts and filters (all current existing): these SHOULD BE stabilized before 1.0.
-* Basic appenders (Stdout, Stderr, RollingFile): these SHOULD BE stabilized before 1.0.
-* Advanced appenders (Fastrace, OpentelemetryLog, Syslog, etc.): to-be-determined how to stabilize them.
+* Fundamental logging APIs (Appender, Layout, Filter, Dispatch, Logger, etc.) MUST be stabilized before 1.0.
+* Basic layouts and filters (all current existing) SHOULD be stabilized before 1.0.
+* Basic appenders (Stdout, Stderr, RollingFile) SHOULD be stabilized before 1.0.
+* Advanced appenders (Fastrace, OpentelemetryLog, Syslog, etc.) to-be-determined how to stabilize them.
 
 Generally, there are known usage for Fastrace and OpentelemetryLog, so we can confidently announce their stable version; others are still waiting for feedback.
 
@@ -104,4 +104,4 @@ Generally, there are known usage for Fastrace and OpentelemetryLog, so we can co
 
 This project is licensed under [Apache License, Version 2.0](LICENSE).
 
-The name `Logforth` comes from an antonym to the [`Logback`](https://logback.qos.ch/) project.
+The name `Logforth` comes from an antonym to the [`Logback`](https://logback.qos.ch/) project, and may also be read as a homophone of "log force".
