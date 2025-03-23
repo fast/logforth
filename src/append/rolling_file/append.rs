@@ -40,14 +40,14 @@ impl RollingFile {
     }
 
     /// Sets the layout used to format log records.
-    pub fn with_layout(mut self, layout: impl Layout) -> Self {
-        self.layout = Box::new(layout);
+    pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
+        self.layout = layout.into();
         self
     }
 }
 
 impl Append for RollingFile {
-    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
         let mut bytes = self.layout.format(record, diagnostics)?;
         bytes.push(b'\n');
         self.writer.send(bytes)?;

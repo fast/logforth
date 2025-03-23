@@ -54,14 +54,14 @@ impl Stdout {
     ///
     /// let stdout_appender = Stdout::default().with_layout(TextLayout::default());
     /// ```
-    pub fn with_layout(mut self, layout: impl Layout) -> Self {
-        self.layout = Box::new(layout);
+    pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
+        self.layout = layout.into();
         self
     }
 }
 
 impl Append for Stdout {
-    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
         let mut bytes = self.layout.format(record, diagnostics)?;
         bytes.push(b'\n');
         std::io::stdout().write_all(&bytes)?;
@@ -106,14 +106,14 @@ impl Stderr {
     ///
     /// let stderr_appender = Stderr::default().with_layout(TextLayout::default());
     /// ```
-    pub fn with_layout(mut self, layout: impl Layout) -> Self {
-        self.layout = Box::new(layout);
+    pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
+        self.layout = layout.into();
         self
     }
 }
 
 impl Append for Stderr {
-    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
         let mut bytes = self.layout.format(record, diagnostics)?;
         bytes.push(b'\n');
         std::io::stderr().write_all(&bytes)?;

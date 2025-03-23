@@ -34,6 +34,10 @@ pub struct StaticDiagnostic {
 }
 
 impl StaticDiagnostic {
+    pub fn new(kvs: BTreeMap<String, String>) -> Self {
+        Self { kvs }
+    }
+
     pub fn insert<K, V>(&mut self, key: K, value: V)
     where
         K: Into<String>,
@@ -45,16 +49,12 @@ impl StaticDiagnostic {
     pub fn remove(&mut self, key: &str) {
         self.kvs.remove(key);
     }
+}
 
-    pub fn visit<V: Visitor>(&self, visitor: &mut V) {
+impl Diagnostic for StaticDiagnostic {
+    fn visit<V: Visitor>(&self, visitor: &mut V) {
         for (key, value) in self.kvs.iter() {
             visitor.visit(key, value);
         }
-    }
-}
-
-impl From<StaticDiagnostic> for Diagnostic {
-    fn from(diagnostic: StaticDiagnostic) -> Self {
-        Diagnostic::Static(diagnostic)
     }
 }

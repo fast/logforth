@@ -98,8 +98,8 @@ impl Syslog {
     /// Set the layout of the [`Syslog`] appender.
     ///
     /// Default to `None`, only the args will be logged.
-    pub fn with_layout(mut self, layout: impl Layout) -> Self {
-        self.layout = Some(Box::new(layout));
+    pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
+        self.layout = Some(layout.into());
         self
     }
 }
@@ -115,7 +115,7 @@ fn log_level_to_otel_severity(level: log::Level) -> fasyslog::Severity {
 }
 
 impl Append for Syslog {
-    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
         let severity = log_level_to_otel_severity(record.level());
         let message = match self.format {
             SyslogFormat::RFC3164 => match self.layout {

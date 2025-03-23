@@ -148,8 +148,8 @@ impl OpentelemetryLogBuilder {
     /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
     /// builder.layout(JsonLayout::default());
     /// ```
-    pub fn layout(mut self, layout: impl Layout) -> Self {
-        self.layout = Some(Box::new(layout));
+    pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
+        self.layout = Some(layout.into());
         self
     }
 
@@ -235,7 +235,7 @@ pub struct OpentelemetryLog {
 }
 
 impl Append for OpentelemetryLog {
-    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
         let mut log_record = self.logger.create_log_record();
         log_record.set_observed_timestamp(SystemTime::now());
         log_record.set_severity_number(log_level_to_otel_severity(record.level()));

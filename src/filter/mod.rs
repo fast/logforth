@@ -50,3 +50,9 @@ impl Filter for log::LevelFilter {
         }
     }
 }
+
+impl<T: Filter> From<T> for Box<dyn Filter> {
+    fn from(value: T) -> Self {
+        Box::new(value)
+    }
+}
