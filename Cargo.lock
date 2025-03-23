@@ -789,7 +789,7 @@ checksum = "30bde2b3dc3671ae49d8e2e9f044c7c005836e7a023ee57cffa25ab82764bb9e"
 
 [[package]]
 name = "logforth"
-version = "0.23.0"
+version = "0.23.1"
 dependencies = [
  "anyhow",
  "colored",
