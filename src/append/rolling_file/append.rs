@@ -40,8 +40,8 @@ impl RollingFile {
     }
 
     /// Sets the layout used to format log records.
-    pub fn with_layout(mut self, layout: impl Layout) -> Self {
-        self.layout = Box::new(layout);
+    pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
+        self.layout = layout.into();
         self
     }
 }

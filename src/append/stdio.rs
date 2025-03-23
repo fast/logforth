@@ -54,8 +54,8 @@ impl Stdout {
     ///
     /// let stdout_appender = Stdout::default().with_layout(TextLayout::default());
     /// ```
-    pub fn with_layout(mut self, layout: impl Layout) -> Self {
-        self.layout = Box::new(layout);
+    pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
+        self.layout = layout.into();
         self
     }
 }
@@ -106,8 +106,8 @@ impl Stderr {
     ///
     /// let stderr_appender = Stderr::default().with_layout(TextLayout::default());
     /// ```
-    pub fn with_layout(mut self, layout: impl Layout) -> Self {
-        self.layout = Box::new(layout);
+    pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
+        self.layout = layout.into();
         self
     }
 }

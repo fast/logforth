@@ -221,8 +221,8 @@ impl DispatchBuilder<false> {
     ///     })
     ///     .apply();
     /// ```
-    pub fn filter(mut self, filter: impl Filter) -> Self {
-        self.filters.push(Box::new(filter));
+    pub fn filter(mut self, filter: impl Into<Box<dyn Filter>>) -> Self {
+        self.filters.push(filter.into());
         self
     }
 
@@ -266,8 +266,8 @@ impl<const APPEND: bool> DispatchBuilder<APPEND> {
     ///     .dispatch(|d| d.append(append::Stdout::default()))
     ///     .apply();
     /// ```
-    pub fn append(mut self, append: impl Append) -> DispatchBuilder<true> {
-        self.appends.push(Box::new(append));
+    pub fn append(mut self, append: impl Into<Box<dyn Append>>) -> DispatchBuilder<true> {
+        self.appends.push(append.into());
         DispatchBuilder {
             filters: self.filters,
             diagnostics: self.diagnostics,

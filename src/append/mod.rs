@@ -51,3 +51,9 @@ pub trait Append: fmt::Debug + Send + Sync + 'static {
     /// Flushes any buffered records.
     fn flush(&self) {}
 }
+
+impl<T: Append> From<T> for Box<dyn Append> {
+    fn from(value: T) -> Self {
+        Box::new(value)
+    }
+}

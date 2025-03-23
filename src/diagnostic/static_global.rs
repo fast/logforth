@@ -34,6 +34,10 @@ pub struct StaticDiagnostic {
 }
 
 impl StaticDiagnostic {
+    pub fn new(kvs: BTreeMap<String, String>) -> Self {
+        Self { kvs }
+    }
+
     pub fn insert<K, V>(&mut self, key: K, value: V)
     where
         K: Into<String>,

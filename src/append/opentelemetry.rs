@@ -148,8 +148,8 @@ impl OpentelemetryLogBuilder {
     /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
     /// builder.layout(JsonLayout::default());
     /// ```
-    pub fn layout(mut self, layout: impl Layout) -> Self {
-        self.layout = Some(Box::new(layout));
+    pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
+        self.layout = Some(layout.into());
         self
     }
 
