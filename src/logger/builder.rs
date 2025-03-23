@@ -194,7 +194,7 @@ impl Builder {
 #[derive(Debug)]
 pub struct DispatchBuilder<const APPEND: bool> {
     filters: Vec<Box<dyn Filter>>,
-    diagnostics: Vec<Box<dyn Diagnostic>>,
+    diagnostics: Vec<Diagnostic>,
     appends: Vec<Box<dyn Append>>,
 }
 
@@ -242,7 +242,7 @@ impl DispatchBuilder<false> {
     ///     })
     ///     .apply();
     /// ```
-    pub fn diagnostic(mut self, diagnostic: impl Into<Box<dyn Diagnostic>>) -> Self {
+    pub fn diagnostic(mut self, diagnostic: impl Into<Diagnostic>) -> Self {
         self.diagnostics.push(diagnostic.into());
         self
     }

@@ -29,11 +29,7 @@ pub use text::TextLayout;
 /// A layout for formatting log records.
 pub trait Layout: fmt::Debug + Send + Sync + 'static {
     /// Formats a log record with optional diagnostics.
-    fn format(
-        &self,
-        record: &log::Record,
-        diagnostics: &[Box<dyn Diagnostic>],
-    ) -> anyhow::Result<Vec<u8>>;
+    fn format(&self, record: &log::Record, diagnostics: &[Diagnostic]) -> anyhow::Result<Vec<u8>>;
 }
 
 impl<T: Layout> From<T> for Box<dyn Layout> {

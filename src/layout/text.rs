@@ -154,11 +154,7 @@ impl TextLayout {
 }
 
 impl Layout for TextLayout {
-    fn format(
-        &self,
-        record: &Record,
-        diagnostics: &[Box<dyn Diagnostic>],
-    ) -> anyhow::Result<Vec<u8>> {
+    fn format(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<Vec<u8>> {
         let time = match self.tz.clone() {
             Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),

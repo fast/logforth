@@ -125,11 +125,7 @@ where
 }
 
 impl Layout for JsonLayout {
-    fn format(
-        &self,
-        record: &Record,
-        diagnostics: &[Box<dyn Diagnostic>],
-    ) -> anyhow::Result<Vec<u8>> {
+    fn format(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<Vec<u8>> {
         let mut kvs = Map::new();
         let mut visitor = KvCollector { kvs: &mut kvs };
         record.key_values().visit(&mut visitor)?;

@@ -15,12 +15,12 @@
 //! Mapped Diagnostic Context (MDC). A lighter technique consists of uniquely stamping each log
 //! request.
 
+use std::borrow::Cow;
+
 #[cfg(feature = "fastrace")]
 pub use self::fastrace::FastraceDiagnostic;
 pub use self::static_global::StaticDiagnostic;
 pub use self::thread_local::ThreadLocalDiagnostic;
-use std::borrow::Cow;
-use std::fmt;
 
 #[cfg(feature = "fastrace")]
 mod fastrace;
@@ -36,14 +36,23 @@ pub trait Visitor {
         V: Into<Cow<'v, str>>;
 }
 
-/// A trait representing a Mapped Diagnostic Context (MDC) that provides diagnostic key-values.
-pub trait Diagnostic: fmt::Debug + Send + Sync + 'static {
-    /// Visits the diagnostic key-value pairs.
-    fn visit<V: Visitor>(&self, visitor: &mut V);
+/// Represent a Mapped Diagnostic Context (MDC) that provides diagnostic key-values.
+#[derive(Debug)]
+pub enum Diagnostic {
+    #[cfg(feature = "fastrace")]
+    Fastrace(FastraceDiagnostic),
+    Static(StaticDiagnostic),
+    ThreadLocal(ThreadLocalDiagnostic),
 }
 
-impl<T: Diagnostic> From<T> for Box<dyn Diagnostic> {
-    fn from(value: T) -> Self {
-        Box::new(value)
+impl Diagnostic {
+    /// Visits the diagnostic key-value pairs.
+    pub fn visit<V: Visitor>(&self, visitor: &mut V) {
+        match self {
+            #[cfg(feature = "fastrace")]
+            Diagnostic::Fastrace(diagnostic) => diagnostic.visit(visitor),
+            Diagnostic::Static(diagnostic) => diagnostic.visit(visitor),
+            Diagnostic::ThreadLocal(diagnostic) => diagnostic.visit(visitor),
+        }
     }
 }

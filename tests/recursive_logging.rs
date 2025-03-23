@@ -26,7 +26,7 @@ use logforth::Layout;
 struct CustomLayout(&'static str);
 
 impl Layout for CustomLayout {
-    fn format(&self, record: &Record, _: &[Box<dyn Diagnostic>]) -> anyhow::Result<Vec<u8>> {
+    fn format(&self, record: &Record, _: &[Diagnostic]) -> anyhow::Result<Vec<u8>> {
         Ok(format!("{} [{}] {}", self.0, record.level(), record.args()).into_bytes())
     }
 }

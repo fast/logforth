@@ -263,7 +263,7 @@ impl Visitor for WriteKeyValues<'_> {
 impl Append for Journald {
     /// Extract all fields (standard and custom) from `record`, append all `extra_fields` given
     /// to this appender, and send the result to journald.
-    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
         use field::*;
 
         let mut buffer = vec![];

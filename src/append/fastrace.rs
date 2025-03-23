@@ -38,7 +38,7 @@ pub struct FastraceEvent {
 }
 
 impl Append for FastraceEvent {
-    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
         let message = format!("{}", record.args());
 
         let mut collector = KvCollector { kv: Vec::new() };

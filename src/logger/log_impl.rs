@@ -69,14 +69,14 @@ impl log::Log for Logger {
 #[derive(Debug)]
 pub(super) struct Dispatch {
     filters: Vec<Box<dyn Filter>>,
-    diagnostics: Vec<Box<dyn Diagnostic>>,
+    diagnostics: Vec<Diagnostic>,
     appends: Vec<Box<dyn Append>>,
 }
 
 impl Dispatch {
     pub(super) fn new(
         filters: Vec<Box<dyn Filter>>,
-        diagnostics: Vec<Box<dyn Diagnostic>>,
+        diagnostics: Vec<Diagnostic>,
         appends: Vec<Box<dyn Append>>,
     ) -> Self {
         debug_assert!(

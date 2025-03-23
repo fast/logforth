@@ -115,7 +115,7 @@ fn log_level_to_otel_severity(level: log::Level) -> fasyslog::Severity {
 }
 
 impl Append for Syslog {
-    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
         let severity = log_level_to_otel_severity(record.level());
         let message = match self.format {
             SyslogFormat::RFC3164 => match self.layout {
