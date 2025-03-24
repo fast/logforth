@@ -35,6 +35,7 @@
 //! ```
 
 use std::io;
+use std::sync::Mutex;
 
 use fasyslog::format::SyslogContext;
 use fasyslog::sender::SyslogSender;
@@ -67,9 +68,7 @@ pub enum SyslogFormat {
 #[derive(Debug)]
 pub struct Syslog {
     writer: NonBlocking<SyslogWriter>,
-    format: SyslogFormat,
-    context: SyslogContext,
-    layout: Option<Box<dyn Layout>>,
+    formatter: SyslogFormatter,
 }
 
 impl Syslog {
@@ -77,21 +76,23 @@ impl Syslog {
     pub fn new(writer: NonBlocking<SyslogWriter>) -> Self {
         Self {
             writer,
-            format: SyslogFormat::RFC3164,
-            context: SyslogContext::default(),
-            layout: None,
+            formatter: SyslogFormatter {
+                format: SyslogFormat::RFC3164,
+                context: SyslogContext::default(),
+                layout: None,
+            },
         }
     }
 
     /// Set the format of the [`Syslog`] appender.
     pub fn with_format(mut self, format: SyslogFormat) -> Self {
-        self.format = format;
+        self.formatter.format = format;
         self
     }
 
     /// Set the context of the [`Syslog`] appender.
     pub fn with_context(mut self, context: SyslogContext) -> Self {
-        self.context = context;
+        self.formatter.context = context;
         self
     }
 
@@ -99,9 +100,81 @@ impl Syslog {
     ///
     /// Default to `None`, only the args will be logged.
     pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
-        self.layout = Some(layout.into());
+        self.formatter.layout = Some(layout.into());
         self
     }
+}
+
+impl Append for Syslog {
+    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+        let message = self.formatter.format_message(record, diagnostics)?;
+        self.writer.send(message)?;
+        Ok(())
+    }
+}
+
+/// An appender that blocking writes log records to syslog.
+#[derive(Debug)]
+pub struct BlockingSyslog {
+    writer: Mutex<SyslogWriter>,
+    formatter: SyslogFormatter,
+}
+
+impl BlockingSyslog {
+    /// Creates a new [`Syslog`] appender.
+    pub fn new(writer: SyslogWriter) -> Self {
+        Self {
+            writer: Mutex::new(writer),
+            formatter: SyslogFormatter {
+                format: SyslogFormat::RFC3164,
+                context: SyslogContext::default(),
+                layout: None,
+            },
+        }
+    }
+
+    /// Set the format of the [`Syslog`] appender.
+    pub fn with_format(mut self, format: SyslogFormat) -> Self {
+        self.formatter.format = format;
+        self
+    }
+
+    /// Set the context of the [`Syslog`] appender.
+    pub fn with_context(mut self, context: SyslogContext) -> Self {
+        self.formatter.context = context;
+        self
+    }
+
+    /// Set the layout of the [`Syslog`] appender.
+    ///
+    /// Default to `None`, only the args will be logged.
+    pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
+        self.formatter.layout = Some(layout.into());
+        self
+    }
+}
+
+impl Append for BlockingSyslog {
+    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+        let message = self.formatter.format_message(record, diagnostics)?;
+        let mut writer = self.writer.lock().unwrap_or_else(|e| e.into_inner());
+        writer.write_all(message.as_slice())?;
+        Ok(())
+    }
+
+    fn flush(&self) {
+        let mut writer = self.writer.lock().unwrap_or_else(|e| e.into_inner());
+        if let Err(err) = writer.flush() {
+            eprintln!("failed to flush writer: {err}");
+        }
+    }
+}
+
+#[derive(Debug)]
+struct SyslogFormatter {
+    format: SyslogFormat,
+    context: SyslogContext,
+    layout: Option<Box<dyn Layout>>,
 }
 
 fn log_level_to_otel_severity(level: log::Level) -> fasyslog::Severity {
@@ -114,9 +187,14 @@ fn log_level_to_otel_severity(level: log::Level) -> fasyslog::Severity {
     }
 }
 
-impl Append for Syslog {
-    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+impl SyslogFormatter {
+    fn format_message(
+        &self,
+        record: &Record,
+        diagnostics: &[Diagnostic],
+    ) -> anyhow::Result<Vec<u8>> {
         let severity = log_level_to_otel_severity(record.level());
+
         let message = match self.format {
             SyslogFormat::RFC3164 => match self.layout {
                 None => format!(
@@ -159,8 +237,8 @@ impl Append for Syslog {
                 }
             }
         };
-        self.writer.send(message.into_bytes())?;
-        Ok(())
+
+        Ok(message.into_bytes())
     }
 }
 
