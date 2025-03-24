@@ -179,7 +179,7 @@ impl Layout for TextLayout {
 
 // obtain filename only from record's full file path
 // reason: the module is already logged + full file path is noisy for text layout
-fn filename<'a>(record: &'a Record<'a>) -> Cow<'a, str> {
+pub(crate) fn filename<'a>(record: &'a Record<'a>) -> Cow<'a, str> {
     record
         .file()
         .map(std::path::Path::new)
@@ -188,8 +188,8 @@ fn filename<'a>(record: &'a Record<'a>) -> Cow<'a, str> {
         .unwrap_or_default()
 }
 
-struct KvWriter {
-    text: String,
+pub(crate) struct KvWriter {
+    pub(crate) text: String,
 }
 
 impl<'kvs> log::kv::VisitSource<'kvs> for KvWriter {

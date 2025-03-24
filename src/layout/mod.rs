@@ -23,6 +23,9 @@ mod json;
 #[cfg(feature = "json")]
 pub use json::JsonLayout;
 
+mod logfmt;
+pub use logfmt::LogfmtLayout;
+
 mod text;
 pub use text::TextLayout;
 
