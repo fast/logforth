@@ -43,6 +43,8 @@ pub use self::rolling_file::RollingFile;
 pub use self::stdio::Stderr;
 pub use self::stdio::Stdout;
 #[cfg(feature = "syslog")]
+pub use self::syslog::BlockingSyslog;
+#[cfg(feature = "syslog")]
 pub use self::syslog::Syslog;
 
 /// A trait representing an appender that can process log records.

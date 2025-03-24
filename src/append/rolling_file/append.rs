@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::Record;
 use std::io::Write;
 use std::sync::Mutex;
+
+use log::Record;
 
 use crate::append::rolling_file::RollingFileWriter;
 use crate::append::Append;
@@ -23,6 +24,7 @@ use crate::non_blocking::NonBlocking;
 use crate::Diagnostic;
 use crate::Layout;
 
+/// An appender that blocking writes log records to rolling files.
 #[derive(Debug)]
 pub struct BlockingRollingFile {
     layout: Box<dyn Layout>,
@@ -49,9 +51,9 @@ impl BlockingRollingFile {
 
 impl Append for BlockingRollingFile {
     fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
-        let mut writer = self.writer.lock().unwrap_or_else(|e| e.into_inner());
         let mut bytes = self.layout.format(record, diagnostics)?;
         bytes.push(b'\n');
+        let mut writer = self.writer.lock().unwrap_or_else(|e| e.into_inner());
         Write::write_all(&mut *writer, bytes.as_slice())?;
         Ok(())
     }
