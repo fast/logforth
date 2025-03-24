@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### New features
+
+* Add `BlockingRollingFile` and `BlockingSyslog` appenders. They would lock the inner appender and log synchronously. In some lower rate logging scenarios, this would be more efficient than the non-blocking version.
+
 ## [0.23.1] 2025-03-23
 
 ### Improvements

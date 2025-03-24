@@ -41,6 +41,7 @@
 //! log::info!("This log will be written to a rolling file.");
 //! ```
 
+pub use append::BlockingRollingFile;
 pub use append::RollingFile;
 pub use rolling::RollingFileWriter;
 pub use rolling::RollingFileWriterBuilder;

@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::Write;
+use std::sync::Mutex;
+
 use log::Record;
 
 use crate::append::rolling_file::RollingFileWriter;
@@ -20,6 +23,48 @@ use crate::layout::TextLayout;
 use crate::non_blocking::NonBlocking;
 use crate::Diagnostic;
 use crate::Layout;
+
+/// An appender that blocking writes log records to rolling files.
+#[derive(Debug)]
+pub struct BlockingRollingFile {
+    layout: Box<dyn Layout>,
+    writer: Mutex<RollingFileWriter>,
+}
+
+impl BlockingRollingFile {
+    /// Creates a new [`BlockingRollingFile`] appender.
+    ///
+    /// This appender by default uses [`TextLayout`] to format log records.
+    pub fn new(writer: RollingFileWriter) -> Self {
+        Self {
+            layout: Box::new(TextLayout::default().no_color()),
+            writer: Mutex::new(writer),
+        }
+    }
+
+    /// Sets the layout used to format log records.
+    pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
+        self.layout = layout.into();
+        self
+    }
+}
+
+impl Append for BlockingRollingFile {
+    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+        let mut bytes = self.layout.format(record, diagnostics)?;
+        bytes.push(b'\n');
+        let mut writer = self.writer.lock().unwrap_or_else(|e| e.into_inner());
+        Write::write_all(&mut *writer, bytes.as_slice())?;
+        Ok(())
+    }
+
+    fn flush(&self) {
+        let mut writer = self.writer.lock().unwrap_or_else(|e| e.into_inner());
+        if let Err(err) = Write::flush(&mut *writer) {
+            eprintln!("failed to flush writer: {err}");
+        }
+    }
+}
 
 /// An appender that writes log records to rolling files.
 #[derive(Debug)]
