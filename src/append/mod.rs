@@ -37,6 +37,8 @@ pub use self::journald::Journald;
 #[cfg(feature = "opentelemetry")]
 pub use self::opentelemetry::OpentelemetryLog;
 #[cfg(feature = "rolling-file")]
+pub use self::rolling_file::BlockingRollingFile;
+#[cfg(feature = "rolling-file")]
 pub use self::rolling_file::RollingFile;
 pub use self::stdio::Stderr;
 pub use self::stdio::Stdout;
