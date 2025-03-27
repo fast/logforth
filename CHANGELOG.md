@@ -50,7 +50,7 @@ All notable changes to this project will be documented in this file.
 ### Breaking changes
 
 * Bump MSRV to 1.80 for upgrading `colored` to 3.0.
-* Layout and Appender now accept a new argument `diagnostics: &[Diagnostic]` to retrieve the mapped diagnostics context. Users can use `logforth::diagnostic::Visitor` to visit the diagnostics context.
+* Layout and Appender now accept a new argument `diagnostics: &[Box<dyn Diagnostic>]` to retrieve the mapped diagnostics context. Users can use `logforth::diagnostic::Visitor` to visit the diagnostics context.
 
 ### New features
 

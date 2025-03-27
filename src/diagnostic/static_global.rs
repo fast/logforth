@@ -49,16 +49,12 @@ impl StaticDiagnostic {
     pub fn remove(&mut self, key: &str) {
         self.kvs.remove(key);
     }
-
-    pub fn visit<V: Visitor>(&self, visitor: &mut V) {
-        for (key, value) in self.kvs.iter() {
-            visitor.visit(key, value);
-        }
-    }
 }
 
-impl From<StaticDiagnostic> for Diagnostic {
-    fn from(diagnostic: StaticDiagnostic) -> Self {
-        Diagnostic::Static(diagnostic)
+impl Diagnostic for StaticDiagnostic {
+    fn visit(&self, visitor: &mut dyn Visitor) {
+        for (key, value) in self.kvs.iter() {
+            visitor.visit(key.into(), value.into());
+        }
     }
 }
