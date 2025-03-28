@@ -47,14 +47,16 @@ impl log::Log for Logger {
     fn log(&self, record: &Record) {
         for dispatch in &self.dispatches {
             if let Err(err) = dispatch.log(record) {
-                handle_error(record, err);
+                handle_log_error(record, err);
             }
         }
     }
 
     fn flush(&self) {
         for dispatch in &self.dispatches {
-            dispatch.flush();
+            if let Err(err) = dispatch.flush() {
+                handle_flush_error(err);
+            }
         }
     }
 }
@@ -119,14 +121,15 @@ impl Dispatch {
         Ok(())
     }
 
-    fn flush(&self) {
+    fn flush(&self) -> anyhow::Result<()> {
         for append in &self.appends {
-            append.flush();
+            append.flush()?;
         }
+        Ok(())
     }
 }
 
-fn handle_error(record: &Record, error: anyhow::Error) {
+fn handle_log_error(record: &Record, error: anyhow::Error) {
     let Err(fallback_error) = write!(
         std::io::stderr(),
         r###"
@@ -152,6 +155,29 @@ Error performing stderr logging after error occurred during regular logging.
 "###,
         args = record.args(),
         record = record,
+        error = error,
+        fallback_error = fallback_error,
+    );
+}
+
+fn handle_flush_error(error: anyhow::Error) {
+    let Err(fallback_error) = write!(
+        std::io::stderr(),
+        r###"
+Error perform flush.
+    Error: {error:?}
+"###,
+        error = error,
+    ) else {
+        return;
+    };
+
+    panic!(
+        r###"
+Error performing stderr logging after error occurred during regular flush.
+    Error: {error:?}
+    Fallback error: {fallback_error}
+"###,
         error = error,
         fallback_error = fallback_error,
     );

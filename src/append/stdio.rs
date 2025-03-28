@@ -68,8 +68,9 @@ impl Append for Stdout {
         Ok(())
     }
 
-    fn flush(&self) {
-        let _ = std::io::stdout().flush();
+    fn flush(&self) -> anyhow::Result<()> {
+        std::io::stdout().flush()?;
+        Ok(())
     }
 }
 
@@ -120,7 +121,8 @@ impl Append for Stderr {
         Ok(())
     }
 
-    fn flush(&self) {
-        let _ = std::io::stderr().flush();
+    fn flush(&self) -> anyhow::Result<()> {
+        std::io::stderr().flush()?;
+        Ok(())
     }
 }

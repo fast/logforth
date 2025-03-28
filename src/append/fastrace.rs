@@ -66,8 +66,9 @@ impl Append for FastraceEvent {
         Ok(())
     }
 
-    fn flush(&self) {
+    fn flush(&self) -> anyhow::Result<()> {
         fastrace::flush();
+        Ok(())
     }
 }
 
