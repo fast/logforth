@@ -200,10 +200,9 @@ impl OpentelemetryLogBuilder {
             .with_resource(resource)
             .build();
 
-        let library = InstrumentationScope::builder(name.clone()).build();
+        let library = InstrumentationScope::builder(name).build();
         let logger = provider.logger_with_scope(library);
         Ok(OpentelemetryLog {
-            name,
             layout,
             logger,
             provider,
@@ -228,7 +227,6 @@ impl OpentelemetryLogBuilder {
 /// ```
 #[derive(Debug)]
 pub struct OpentelemetryLog {
-    name: String,
     layout: Option<Box<dyn Layout>>,
     logger: opentelemetry_sdk::logs::SdkLogger,
     provider: SdkLoggerProvider,
@@ -268,10 +266,9 @@ impl Append for OpentelemetryLog {
         Ok(())
     }
 
-    fn flush(&self) {
-        if let Err(err) = self.provider.force_flush() {
-            eprintln!("failed to flush logger {}: {}", self.name, err);
-        }
+    fn flush(&self) -> anyhow::Result<()> {
+        self.provider.force_flush()?;
+        Ok(())
     }
 }
 

@@ -57,7 +57,11 @@ pub trait Append: fmt::Debug + Send + Sync + 'static {
     ) -> anyhow::Result<()>;
 
     /// Flushes any buffered records.
-    fn flush(&self) {}
+    ///
+    /// Default to a no-op.
+    fn flush(&self) -> anyhow::Result<()> {
+        Ok(())
+    }
 }
 
 impl<T: Append> From<T> for Box<dyn Append> {

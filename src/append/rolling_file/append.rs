@@ -58,11 +58,10 @@ impl Append for BlockingRollingFile {
         Ok(())
     }
 
-    fn flush(&self) {
+    fn flush(&self) -> anyhow::Result<()> {
         let mut writer = self.writer.lock().unwrap_or_else(|e| e.into_inner());
-        if let Err(err) = Write::flush(&mut *writer) {
-            eprintln!("failed to flush writer: {err}");
-        }
+        Write::flush(&mut *writer)?;
+        Ok(())
     }
 }
 

@@ -162,11 +162,10 @@ impl Append for BlockingSyslog {
         Ok(())
     }
 
-    fn flush(&self) {
+    fn flush(&self) -> anyhow::Result<()> {
         let mut writer = self.writer.lock().unwrap_or_else(|e| e.into_inner());
-        if let Err(err) = writer.flush() {
-            eprintln!("failed to flush writer: {err}");
-        }
+        writer.flush()?;
+        Ok(())
     }
 }
 
