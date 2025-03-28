@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::Cow;
-use std::fmt::Write;
-
 use jiff::tz::TimeZone;
 use jiff::Timestamp;
 use jiff::Zoned;
 use log::Level;
 use log::Record;
 
-use crate::diagnostic::Visitor;
+use crate::layout;
+use crate::layout::KvWriter;
 use crate::layout::Layout;
 use crate::Diagnostic;
 
@@ -165,7 +163,7 @@ impl Layout for TextLayout {
         };
         let level = self.format_record_level(record.level());
         let target = record.target();
-        let file = filename(record);
+        let file = layout::filename(record);
         let line = record.line().unwrap_or_default();
         let message = record.args();
 
@@ -178,39 +176,5 @@ impl Layout for TextLayout {
         }
 
         Ok(visitor.text.into_bytes())
-    }
-}
-
-// obtain filename only from record's full file path
-// reason: the module is already logged + full file path is noisy for text layout
-pub(crate) fn filename<'a>(record: &'a Record<'a>) -> Cow<'a, str> {
-    record
-        .file()
-        .map(std::path::Path::new)
-        .and_then(std::path::Path::file_name)
-        .map(std::ffi::OsStr::to_string_lossy)
-        .unwrap_or_default()
-}
-
-pub(crate) struct KvWriter {
-    pub(crate) text: String,
-}
-
-impl<'kvs> log::kv::VisitSource<'kvs> for KvWriter {
-    fn visit_pair(
-        &mut self,
-        key: log::kv::Key<'kvs>,
-        value: log::kv::Value<'kvs>,
-    ) -> Result<(), log::kv::Error> {
-        write!(&mut self.text, " {key}={value}")?;
-        Ok(())
-    }
-}
-
-impl Visitor for KvWriter {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) {
-        // SAFETY: no more than an allocate-less version
-        //  self.text.push_str(&format!(" {key}={value}"))
-        write!(&mut self.text, " {key}={value}").unwrap();
     }
 }

@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Cow;
+
 use jiff::tz::TimeZone;
 use jiff::Timestamp;
 use jiff::Zoned;
 
 use crate::diagnostic::Visitor;
-use crate::layout::text::filename;
-use crate::layout::text::KvWriter;
+use crate::layout::filename;
+use crate::layout::KvWriter;
 use crate::layout::Layout;
 use crate::Diagnostic;
 
@@ -69,7 +71,11 @@ impl LogfmtLayout {
 }
 
 impl Layout for LogfmtLayout {
-    fn format(&self, record: &log::Record, diagnostics: &[Diagnostic]) -> anyhow::Result<Vec<u8>> {
+    fn format(
+        &self,
+        record: &log::Record,
+        diagnostics: &[Box<dyn Diagnostic>],
+    ) -> anyhow::Result<Vec<u8>> {
         let time = match self.tz.clone() {
             Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),
@@ -84,11 +90,13 @@ impl Layout for LogfmtLayout {
             text: format!("timestamp={time:.6}"),
         };
 
-        visitor.visit("level", level);
-        visitor.visit("module", target);
-        visitor.visit("position", format!("{}:{}", file, line));
-        // quote the message
-        visitor.visit("msg", format!(r#""{message}""#));
+        visitor.visit(Cow::Borrowed("level"), level.into());
+        visitor.visit(Cow::Borrowed("module"), target.into());
+        visitor.visit(
+            Cow::Borrowed("position"),
+            format!("{}:{}", file, line).into(),
+        );
+        visitor.visit(Cow::Borrowed("msg"), format!("\"{message}\"").into());
 
         record.key_values().visit(&mut visitor)?;
         for d in diagnostics {

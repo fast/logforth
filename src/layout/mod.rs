@@ -22,12 +22,17 @@ use crate::Diagnostic;
 mod json;
 #[cfg(feature = "json")]
 pub use json::JsonLayout;
+use log::Record;
 
 mod logfmt;
+use std::borrow::Cow;
+
 pub use logfmt::LogfmtLayout;
 
 mod text;
 pub use text::TextLayout;
+
+use crate::diagnostic::Visitor;
 
 /// A layout for formatting log records.
 pub trait Layout: fmt::Debug + Send + Sync + 'static {
@@ -42,5 +47,43 @@ pub trait Layout: fmt::Debug + Send + Sync + 'static {
 impl<T: Layout> From<T> for Box<dyn Layout> {
     fn from(value: T) -> Self {
         Box::new(value)
+    }
+}
+
+// obtain filename only from record's full file path
+// reason: the module is already logged + full file path is noisy for text layout
+fn filename<'a>(record: &'a Record<'a>) -> Cow<'a, str> {
+    record
+        .file()
+        .map(std::path::Path::new)
+        .and_then(std::path::Path::file_name)
+        .map(std::ffi::OsStr::to_string_lossy)
+        .unwrap_or_default()
+}
+
+struct KvWriter {
+    text: String,
+}
+
+impl<'kvs> log::kv::VisitSource<'kvs> for KvWriter {
+    fn visit_pair(
+        &mut self,
+        key: log::kv::Key<'kvs>,
+        value: log::kv::Value<'kvs>,
+    ) -> Result<(), log::kv::Error> {
+        use std::fmt::Write;
+
+        write!(&mut self.text, " {key}={value}")?;
+        Ok(())
+    }
+}
+
+impl Visitor for KvWriter {
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) {
+        use std::fmt::Write;
+
+        // SAFETY: no more than an allocate-less version
+        //  self.text.push_str(&format!(" {key}={value}"))
+        write!(&mut self.text, " {key}={value}").unwrap();
     }
 }
