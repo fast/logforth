@@ -106,7 +106,7 @@ impl Syslog {
 }
 
 impl Append for Syslog {
-    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
         let message = self.formatter.format_message(record, diagnostics)?;
         self.writer.send(message)?;
         Ok(())
@@ -155,7 +155,7 @@ impl BlockingSyslog {
 }
 
 impl Append for BlockingSyslog {
-    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
         let message = self.formatter.format_message(record, diagnostics)?;
         let mut writer = self.writer.lock().unwrap_or_else(|e| e.into_inner());
         writer.write_all(message.as_slice())?;
@@ -191,7 +191,7 @@ impl SyslogFormatter {
     fn format_message(
         &self,
         record: &Record,
-        diagnostics: &[Diagnostic],
+        diagnostics: &[Box<dyn Diagnostic>],
     ) -> anyhow::Result<Vec<u8>> {
         let severity = log_level_to_otel_severity(record.level());
 

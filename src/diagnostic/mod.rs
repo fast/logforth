@@ -16,6 +16,7 @@
 //! request.
 
 use std::borrow::Cow;
+use std::fmt;
 
 #[cfg(feature = "fastrace")]
 pub use self::fastrace::FastraceDiagnostic;
@@ -30,29 +31,16 @@ mod thread_local;
 /// A visitor to walk through diagnostic key-value pairs.
 pub trait Visitor {
     /// Visits a key-value pair.
-    fn visit<'k, 'v, K, V>(&mut self, key: K, value: V)
-    where
-        K: Into<Cow<'k, str>>,
-        V: Into<Cow<'v, str>>;
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>);
 }
 
-/// Represent a Mapped Diagnostic Context (MDC) that provides diagnostic key-values.
-#[derive(Debug)]
-pub enum Diagnostic {
-    #[cfg(feature = "fastrace")]
-    Fastrace(FastraceDiagnostic),
-    Static(StaticDiagnostic),
-    ThreadLocal(ThreadLocalDiagnostic),
+/// A trait representing a Mapped Diagnostic Context (MDC) that provides diagnostic key-values.
+pub trait Diagnostic: fmt::Debug + Send + Sync + 'static {
+    fn visit(&self, visitor: &mut dyn Visitor);
 }
 
-impl Diagnostic {
-    /// Visits the diagnostic key-value pairs.
-    pub fn visit<V: Visitor>(&self, visitor: &mut V) {
-        match self {
-            #[cfg(feature = "fastrace")]
-            Diagnostic::Fastrace(diagnostic) => diagnostic.visit(visitor),
-            Diagnostic::Static(diagnostic) => diagnostic.visit(visitor),
-            Diagnostic::ThreadLocal(diagnostic) => diagnostic.visit(visitor),
-        }
+impl<T: Diagnostic> From<T> for Box<dyn Diagnostic> {
+    fn from(value: T) -> Self {
+        Box::new(value)
     }
 }

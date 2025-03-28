@@ -51,19 +51,15 @@ impl ThreadLocalDiagnostic {
             map.borrow_mut().remove(key);
         });
     }
+}
 
-    pub fn visit<V: Visitor>(&self, visitor: &mut V) {
+impl Diagnostic for ThreadLocalDiagnostic {
+    fn visit(&self, visitor: &mut dyn Visitor) {
         CONTEXT.with(|map| {
             let map = map.borrow();
             for (key, value) in map.iter() {
-                visitor.visit(key, value);
+                visitor.visit(key.into(), value.into());
             }
         })
-    }
-}
-
-impl From<ThreadLocalDiagnostic> for Diagnostic {
-    fn from(diagnostic: ThreadLocalDiagnostic) -> Self {
-        Diagnostic::ThreadLocal(diagnostic)
     }
 }

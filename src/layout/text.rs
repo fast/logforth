@@ -154,7 +154,11 @@ impl TextLayout {
 }
 
 impl Layout for TextLayout {
-    fn format(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<Vec<u8>> {
+    fn format(
+        &self,
+        record: &Record,
+        diagnostics: &[Box<dyn Diagnostic>],
+    ) -> anyhow::Result<Vec<u8>> {
         let time = match self.tz.clone() {
             Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),
@@ -204,19 +208,9 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvWriter {
 }
 
 impl Visitor for KvWriter {
-    fn visit<'k, 'v, K, V>(&mut self, key: K, value: V)
-    where
-        K: Into<Cow<'k, str>>,
-        V: Into<Cow<'v, str>>,
-    {
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) {
         // SAFETY: no more than an allocate-less version
         //  self.text.push_str(&format!(" {key}={value}"))
-        write!(
-            &mut self.text,
-            " {key}={value}",
-            key = key.into(),
-            value = value.into()
-        )
-        .unwrap();
+        write!(&mut self.text, " {key}={value}").unwrap();
     }
 }
