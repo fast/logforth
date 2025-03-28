@@ -247,13 +247,7 @@ impl<'kvs> log::kv::VisitSource<'kvs> for WriteKeyValues<'_> {
 }
 
 impl Visitor for WriteKeyValues<'_> {
-    fn visit<'k, 'v, K, V>(&mut self, key: K, value: V)
-    where
-        K: Into<Cow<'k, str>>,
-        V: Into<Cow<'v, str>>,
-    {
-        let key = key.into();
-        let value = value.into();
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) {
         let key = key.as_ref();
         let value = value.as_bytes();
         field::put_field_length_encoded(self.0, field::FieldName::WriteEscaped(key), value);
@@ -263,7 +257,7 @@ impl Visitor for WriteKeyValues<'_> {
 impl Append for Journald {
     /// Extract all fields (standard and custom) from `record`, append all `extra_fields` given
     /// to this appender, and send the result to journald.
-    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
         use field::*;
 
         let mut buffer = vec![];

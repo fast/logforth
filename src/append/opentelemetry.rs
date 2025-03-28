@@ -235,7 +235,7 @@ pub struct OpentelemetryLog {
 }
 
 impl Append for OpentelemetryLog {
-    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
         let mut log_record = self.logger.create_log_record();
         log_record.set_observed_timestamp(SystemTime::now());
         log_record.set_severity_number(log_level_to_otel_severity(record.level()));
@@ -303,13 +303,9 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvExtractor<'_> {
 }
 
 impl Visitor for KvExtractor<'_> {
-    fn visit<'k, 'v, K, V>(&mut self, key: K, value: V)
-    where
-        K: Into<Cow<'k, str>>,
-        V: Into<Cow<'v, str>>,
-    {
-        let key = key.into().into_owned();
-        let value = value.into().into_owned();
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) {
+        let key = key.into_owned();
+        let value = value.into_owned();
         self.record.add_attribute(key, value);
     }
 }

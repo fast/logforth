@@ -61,7 +61,7 @@ impl Stdout {
 }
 
 impl Append for Stdout {
-    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
         let mut bytes = self.layout.format(record, diagnostics)?;
         bytes.push(b'\n');
         std::io::stdout().write_all(&bytes)?;
@@ -113,7 +113,7 @@ impl Stderr {
 }
 
 impl Append for Stderr {
-    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
         let mut bytes = self.layout.format(record, diagnostics)?;
         bytes.push(b'\n');
         std::io::stderr().write_all(&bytes)?;

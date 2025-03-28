@@ -37,7 +37,7 @@ impl Filter for CustomFilter {
 struct CustomLayout;
 
 impl Layout for CustomLayout {
-    fn format(&self, record: &Record, _: &[Diagnostic]) -> anyhow::Result<Vec<u8>> {
+    fn format(&self, record: &Record, _: &[Box<dyn Diagnostic>]) -> anyhow::Result<Vec<u8>> {
         Ok(format!("[Alert] {}", record.args()).into_bytes())
     }
 }

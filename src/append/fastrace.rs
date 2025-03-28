@@ -38,7 +38,7 @@ pub struct FastraceEvent {
 }
 
 impl Append for FastraceEvent {
-    fn append(&self, record: &Record, diagnostics: &[Diagnostic]) -> anyhow::Result<()> {
+    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
         let message = format!("{}", record.args());
 
         let mut collector = KvCollector { kv: Vec::new() };
@@ -87,13 +87,9 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector {
 }
 
 impl Visitor for KvCollector {
-    fn visit<'k, 'v, K, V>(&mut self, key: K, value: V)
-    where
-        K: Into<Cow<'k, str>>,
-        V: Into<Cow<'v, str>>,
-    {
-        let key = key.into().into_owned();
-        let value = value.into().into_owned();
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) {
+        let key = key.into_owned();
+        let value = value.into_owned();
         self.kv.push((key, value));
     }
 }

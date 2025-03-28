@@ -39,17 +39,11 @@ use crate::Diagnostic;
 #[non_exhaustive]
 pub struct FastraceDiagnostic {}
 
-impl FastraceDiagnostic {
-    pub fn visit<V: Visitor>(&self, visitor: &mut V) {
+impl Diagnostic for FastraceDiagnostic {
+    fn visit(&self, visitor: &mut dyn Visitor) {
         if let Some(span) = fastrace::collector::SpanContext::current_local_parent() {
             let trace_id = format!("{:016x}", span.trace_id.0);
-            visitor.visit("trace_id", trace_id);
+            visitor.visit("trace_id".into(), trace_id.into());
         }
-    }
-}
-
-impl From<FastraceDiagnostic> for Diagnostic {
-    fn from(diagnostic: FastraceDiagnostic) -> Self {
-        Diagnostic::Fastrace(diagnostic)
     }
 }
