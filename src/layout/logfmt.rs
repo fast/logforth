@@ -20,7 +20,6 @@ use jiff::Zoned;
 
 use crate::diagnostic::Visitor;
 use crate::layout::filename;
-use crate::layout::KvWriter;
 use crate::layout::Layout;
 use crate::Diagnostic;
 
@@ -49,11 +48,11 @@ impl LogfmtLayout {
     /// Output format:
     ///
     /// ```text
-    /// timestamp=2025-03-24T23:38:29.117934+08:00 level=TRACE module=rs_log position=main.rs:13 msg="Hello trace!"
-    /// timestamp=2025-03-24T23:38:29.127089+08:00 level=DEBUG module=rs_log position=main.rs:14 msg="Hello debug!"
-    /// timestamp=2025-03-24T23:38:29.127094+08:00 level=INFO module=rs_log position=main.rs:15 msg="Hello info!"
-    /// timestamp=2025-03-24T23:38:29.127094+08:00 level=INFO module=rs_log position=main.rs:15 msg="Hello info!"
-    /// timestamp=2025-03-24T23:38:29.127094+08:00 level=INFO module=rs_log position=main.rs:15 msg="Hello info!"
+    /// timestamp=2025-03-31T21:04:28.986032+08:00 level=TRACE module=rs_log position=main.rs:22 message="Hello trace!"
+    /// timestamp=2025-03-31T21:04:28.991233+08:00 level=DEBUG module=rs_log position=main.rs:23 message="Hello debug!"
+    /// timestamp=2025-03-31T21:04:28.991239+08:00 level=INFO module=rs_log position=main.rs:24 message="Hello info!"
+    /// timestamp=2025-03-31T21:04:28.991273+08:00 level=WARN module=rs_log position=main.rs:25 message="Hello warn!"
+    /// timestamp=2025-03-31T21:04:28.991277+08:00 level=ERROR module=rs_log position=main.rs:26 message="Hello err!"
     /// ```
     ///
     /// # Examples
@@ -67,6 +66,43 @@ impl LogfmtLayout {
     pub fn timezone(mut self, tz: TimeZone) -> Self {
         self.tz = Some(tz);
         self
+    }
+}
+
+/// The idea is borrowed from https://github.com/go-logfmt/logfmt/
+fn escape(s: &str) -> Cow<str> {
+    match s.contains([' ', '=', '"']) {
+        true => format!("\"{}\"", s.escape_debug()).into(),
+        false => s.into(),
+    }
+}
+
+struct KvFormatter {
+    text: String,
+}
+
+impl<'kvs> log::kv::VisitSource<'kvs> for KvFormatter {
+    fn visit_pair(
+        &mut self,
+        key: log::kv::Key<'kvs>,
+        value: log::kv::Value<'kvs>,
+    ) -> Result<(), log::kv::Error> {
+        use std::fmt::Write;
+
+        // `key` received from `log` does not need escaping
+        write!(&mut self.text, " {}={}", key, escape(&value.to_string()))?;
+        Ok(())
+    }
+}
+
+impl Visitor for KvFormatter {
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) {
+        use std::fmt::Write;
+
+        // `key` received from `log` does not need escaping
+        // SAFETY: no more than an allocate-less version
+        //  self.text.push_str(&format!(" {key}={value}"))
+        write!(&mut self.text, " {}={}", key, escape(&value)).unwrap();
     }
 }
 
@@ -86,7 +122,7 @@ impl Layout for LogfmtLayout {
         let line = record.line().unwrap_or_default();
         let message = record.args();
 
-        let mut visitor = KvWriter {
+        let mut visitor = KvFormatter {
             text: format!("timestamp={time:.6}"),
         };
 
@@ -96,7 +132,7 @@ impl Layout for LogfmtLayout {
             Cow::Borrowed("position"),
             format!("{}:{}", file, line).into(),
         );
-        visitor.visit(Cow::Borrowed("msg"), format!("\"{message}\"").into());
+        visitor.visit(Cow::Borrowed("message"), message.to_string().into());
 
         record.key_values().visit(&mut visitor)?;
         for d in diagnostics {
