@@ -23,6 +23,9 @@ mod json;
 #[cfg(feature = "json")]
 pub use json::JsonLayout;
 
+mod logfmt;
+pub use logfmt::LogfmtLayout;
+
 mod text;
 pub use text::TextLayout;
 
@@ -40,4 +43,15 @@ impl<T: Layout> From<T> for Box<dyn Layout> {
     fn from(value: T) -> Self {
         Box::new(value)
     }
+}
+
+// obtain filename only from record's full file path
+// reason: the module is already logged + full file path is noisy for text layout
+fn filename<'a>(record: &'a log::Record<'a>) -> std::borrow::Cow<'a, str> {
+    record
+        .file()
+        .map(std::path::Path::new)
+        .and_then(std::path::Path::file_name)
+        .map(std::ffi::OsStr::to_string_lossy)
+        .unwrap_or_default()
 }
