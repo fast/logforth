@@ -69,11 +69,20 @@ impl LogfmtLayout {
     }
 }
 
-/// The idea is borrowed from https://github.com/go-logfmt/logfmt/
-fn escape(s: &str) -> Cow<str> {
-    match s.contains([' ', '=', '"']) {
-        true => format!("\"{}\"", s.escape_debug()).into(),
-        false => s.into(),
+// The encode logic is copied from https://github.com/go-logfmt/logfmt/blob/76262ea7/encode.go.
+fn encode_key_value(result: &mut String, key: &str, value: &str) {
+    use std::fmt::Write;
+
+    if key.contains([' ', '=', '"']) {
+        // omit keys contain special chars
+        return;
+    }
+
+    // SAFETY: extend a string is always possible
+    if value.contains([' ', '=', '"']) {
+        write!(result, " {key}=\"{}\"", value.escape_debug()).unwrap();
+    } else {
+        write!(result, " {key}={value}").unwrap();
     }
 }
 
@@ -87,22 +96,14 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvFormatter {
         key: log::kv::Key<'kvs>,
         value: log::kv::Value<'kvs>,
     ) -> Result<(), log::kv::Error> {
-        use std::fmt::Write;
-
-        // `key` received from `log` does not need escaping
-        write!(&mut self.text, " {}={}", key, escape(&value.to_string()))?;
+        encode_key_value(&mut self.text, key.as_str(), value.to_string().as_str());
         Ok(())
     }
 }
 
 impl Visitor for KvFormatter {
     fn visit(&mut self, key: Cow<str>, value: Cow<str>) {
-        use std::fmt::Write;
-
-        // `key` received from `log` does not need escaping
-        // SAFETY: no more than an allocate-less version
-        //  self.text.push_str(&format!(" {key}={value}"))
-        write!(&mut self.text, " {}={}", key, escape(&value)).unwrap();
+        encode_key_value(&mut self.text, key.as_ref(), value.as_ref());
     }
 }
 

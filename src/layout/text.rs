@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Cow;
+
 use jiff::tz::TimeZone;
 use jiff::Timestamp;
 use jiff::Zoned;
 use log::Level;
 use log::Record;
 
-use crate::layout;
-use crate::layout::KvWriter;
+use crate::diagnostic::Visitor;
+use crate::layout::filename;
 use crate::layout::Layout;
 use crate::Diagnostic;
 
@@ -151,6 +153,33 @@ impl TextLayout {
     }
 }
 
+struct KvWriter {
+    text: String,
+}
+
+impl<'kvs> log::kv::VisitSource<'kvs> for KvWriter {
+    fn visit_pair(
+        &mut self,
+        key: log::kv::Key<'kvs>,
+        value: log::kv::Value<'kvs>,
+    ) -> Result<(), log::kv::Error> {
+        use std::fmt::Write;
+
+        write!(&mut self.text, " {key}={value}")?;
+        Ok(())
+    }
+}
+
+impl Visitor for KvWriter {
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) {
+        use std::fmt::Write;
+
+        // SAFETY: no more than an allocate-less version
+        //  self.text.push_str(&format!(" {key}={value}"))
+        write!(&mut self.text, " {key}={value}").unwrap();
+    }
+}
+
 impl Layout for TextLayout {
     fn format(
         &self,
@@ -163,7 +192,7 @@ impl Layout for TextLayout {
         };
         let level = self.format_record_level(record.level());
         let target = record.target();
-        let file = layout::filename(record);
+        let file = filename(record);
         let line = record.line().unwrap_or_default();
         let message = record.args();
 
