@@ -18,6 +18,11 @@ use std::fmt;
 
 use crate::Diagnostic;
 
+#[cfg(feature = "google_structured_log")]
+mod google_structured_log;
+#[cfg(feature = "google_structured_log")]
+pub use google_structured_log::GoogleStructuredLogLayout;
+
 #[cfg(feature = "json")]
 mod json;
 #[cfg(feature = "json")]
