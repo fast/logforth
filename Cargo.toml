@@ -32,10 +32,11 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = []
+default = ["google_structured_log"]
 
 colored = ["dep:colored"]
 fastrace = ["dep:fastrace"]
+google_structured_log = ["json", "log/kv_serde"]
 journald = ["dep:libc"]
 json = ["dep:serde_json", "dep:serde", "jiff/serde"]
 native-tls = ["dep:native-tls", "fasyslog?/native-tls"]
@@ -126,3 +127,9 @@ doc-scrape-examples = true
 name = "fastrace"
 path = "examples/fastrace.rs"
 required-features = ["fastrace", "fastrace/enable"]
+
+[[example]]
+doc-scrape-examples = true
+name = "google_structured_log"
+path = "examples/google_structured_log.rs"
+required-features = ["fastrace", "fastrace/enable", "google_structured_log"]
