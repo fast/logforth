@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 * `Diagnostic` is now a trait. `Visitor`'s method signature is simplified.
 * `Append::flush` is now fallible.
+* `Diagnostic`'s and `Visitor`'s `visit` methods are fallible.
 
 ## [0.23.1] 2025-03-23
 

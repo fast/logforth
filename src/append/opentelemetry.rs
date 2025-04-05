@@ -259,7 +259,7 @@ impl Append for OpentelemetryLog {
         };
         record.key_values().visit(&mut extractor)?;
         for d in diagnostics {
-            d.visit(&mut extractor);
+            d.visit(&mut extractor)?;
         }
 
         self.logger.emit(log_record);
@@ -300,9 +300,10 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvExtractor<'_> {
 }
 
 impl Visitor for KvExtractor<'_> {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) {
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
         let key = key.into_owned();
         let value = value.into_owned();
         self.record.add_attribute(key, value);
+        Ok(())
     }
 }
