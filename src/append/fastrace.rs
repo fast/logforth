@@ -44,7 +44,7 @@ impl Append for FastraceEvent {
         let mut collector = KvCollector { kv: Vec::new() };
         record.key_values().visit(&mut collector)?;
         for d in diagnostics {
-            d.visit(&mut collector);
+            d.visit(&mut collector)?;
         }
 
         fastrace::local::LocalSpan::add_event(fastrace::Event::new(message).with_properties(
@@ -88,9 +88,8 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector {
 }
 
 impl Visitor for KvCollector {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) {
-        let key = key.into_owned();
-        let value = value.into_owned();
-        self.kv.push((key, value));
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
+        self.kv.push((key.into_owned(), value.into_owned()));
+        Ok(())
     }
 }
