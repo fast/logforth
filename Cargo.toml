@@ -32,11 +32,11 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["google_structured_log"]
+default = []
 
 colored = ["dep:colored"]
 fastrace = ["dep:fastrace"]
-google_structured_log = ["json", "log/kv_serde"]
+google_structured_log = ["dep:serde_json", "dep:serde", "jiff/serde"]
 journald = ["dep:libc"]
 json = ["dep:serde_json", "dep:serde", "jiff/serde"]
 native-tls = ["dep:native-tls", "fasyslog?/native-tls"]

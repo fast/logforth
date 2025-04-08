@@ -13,14 +13,11 @@
 // limitations under the License.
 
 use std::borrow::Cow;
-use std::collections::BTreeMap;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Arguments;
 
-use jiff::Timestamp;
 use log::Record;
 use serde::Serialize;
-use serde_json::Value;
 
 use crate::diagnostic::Visitor;
 use crate::layout::Layout;
@@ -56,7 +53,7 @@ use crate::Diagnostic;
 #[derive(Default, Debug, Clone)]
 pub struct GoogleStructuredLogLayout {
     trace_project_id: Option<String>,
-    label_keys: Option<HashSet<String>>,
+    label_keys: BTreeSet<String>,
 }
 
 impl GoogleStructuredLogLayout {
@@ -78,7 +75,7 @@ impl GoogleStructuredLogLayout {
         self
     }
 
-    /// Sets the set of keys that should be treated as labels.
+    /// Extends the set of keys that should be treated as labels.
     ///
     /// Any key found in a log entry, and referenced here, will be stored in the labels field rather
     /// than the payload. Labels are indexed by default, but can only store strings.
@@ -92,16 +89,17 @@ impl GoogleStructuredLogLayout {
     ///     GoogleStructuredLogLayout::default().label_keys(["label1", "label2"]);
     /// ```
     pub fn label_keys(mut self, label_keys: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        self.label_keys = Some(label_keys.into_iter().map(Into::into).collect());
+        let label_keys = label_keys.into_iter().map(Into::into);
+        self.label_keys.extend(label_keys);
         self
     }
 }
 
 struct KvCollector<'a> {
     trace_project_id: Option<&'a str>,
-    label_keys: Option<&'a HashSet<String>>,
-    payload_fields: &'a mut BTreeMap<Cow<'a, str>, Value>,
-    labels: &'a mut BTreeMap<Cow<'a, str>, Cow<'a, str>>,
+    label_keys: &'a BTreeSet<String>,
+    payload_fields: &'a mut BTreeMap<String, String>,
+    labels: &'a mut BTreeMap<String, String>,
     trace: &'a mut Option<String>,
     span_id: &'a mut Option<String>,
     trace_sampled: &'a mut Option<bool>,
@@ -113,21 +111,13 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'kvs> {
         key: log::kv::Key<'kvs>,
         value: log::kv::Value<'kvs>,
     ) -> Result<(), log::kv::Error> {
-        let k = key
-            .to_borrowed_str()
-            .map_or_else(|| key.to_string().into(), Cow::Borrowed);
+        let key = key.to_string();
+        let value = value.to_string();
 
-        if self
-            .label_keys
-            .as_ref()
-            .is_some_and(|keys| keys.contains(k.as_ref()))
-        {
-            self.labels.insert(k, value.to_string().into());
+        if self.label_keys.contains(&key) {
+            self.labels.insert(key, value);
         } else {
-            self.payload_fields.insert(
-                k,
-                serde_json::to_value(&value).unwrap_or(value.to_string().into()),
-            );
+            self.payload_fields.insert(key, value);
         }
 
         Ok(())
@@ -155,16 +145,12 @@ impl Visitor for KvCollector<'_> {
             }
         }
 
-        if self
-            .label_keys
-            .as_ref()
-            .is_some_and(|keys| keys.contains(value.as_ref()))
-        {
-            self.labels
-                .insert(key.into_owned().into(), value.into_owned().into());
+        let key = key.into_owned();
+        let value = value.into_owned();
+        if self.label_keys.contains(&key) {
+            self.labels.insert(key, value);
         } else {
-            self.payload_fields
-                .insert(key.into_owned().into(), value.into_owned().into());
+            self.payload_fields.insert(key, value);
         }
 
         Ok(())
@@ -184,14 +170,14 @@ struct SourceLocation<'a> {
 #[derive(Debug, Clone, Serialize)]
 struct RecordLine<'a> {
     #[serde(flatten)]
-    extra_fields: &'a BTreeMap<Cow<'a, str>, Value>,
+    extra_fields: &'a BTreeMap<String, String>,
     severity: &'a str,
-    timestamp: Timestamp,
+    timestamp: jiff::Timestamp,
     #[serde(serialize_with = "serialize_args")]
     message: &'a Arguments<'a>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     #[serde(rename = "logging.googleapis.com/labels")]
-    labels: &'a BTreeMap<Cow<'a, str>, Cow<'a, str>>,
+    labels: &'a BTreeMap<String, String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "logging.googleapis.com/trace")]
     trace: Option<&'a str>,
@@ -223,7 +209,7 @@ impl Layout for GoogleStructuredLogLayout {
         let mut labels = BTreeMap::new();
         let mut visitor = KvCollector {
             trace_project_id: self.trace_project_id.as_deref(),
-            label_keys: self.label_keys.as_ref(),
+            label_keys: &self.label_keys,
             payload_fields: &mut payload_fields,
             labels: &mut labels,
             trace: &mut None,
@@ -238,7 +224,7 @@ impl Layout for GoogleStructuredLogLayout {
 
         let record_line = RecordLine {
             extra_fields: visitor.payload_fields,
-            timestamp: Timestamp::now(),
+            timestamp: jiff::Timestamp::now(),
             severity: record.level().as_str(),
             message: record.args(),
             labels: visitor.labels,
