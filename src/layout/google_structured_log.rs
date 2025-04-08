@@ -1,4 +1,4 @@
-// Copyright 2025 FastLabs Developers
+// Copyright 2024 FastLabs Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,16 +13,18 @@
 // limitations under the License.
 
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::fmt::Arguments;
 
-use crate::diagnostic::Visitor;
-use crate::layout::Layout;
-use crate::Diagnostic;
 use jiff::Timestamp;
 use log::Record;
 use serde::Serialize;
 use serde_json::Value;
+
+use crate::diagnostic::Visitor;
+use crate::layout::Layout;
+use crate::Diagnostic;
 
 /// A layout for Google Cloud structured JSON logging.
 ///
@@ -30,6 +32,7 @@ use serde_json::Value;
 /// information about the structure of the format.
 ///
 /// Example format:
+///
 /// ```json
 /// {"severity":"INFO","timestamp":"2025-04-02T10:34:33.225602Z","message":"Hello label value!","logging.googleapis.com/labels":{"label1":"this is a label value"},"logging.googleapis.com/trace":"projects/project-id/traces/612b91406b684ece2c4137ce0f3fd668", "logging.googleapis.com/sourceLocation":{"file":"examples/google_structured_log.rs","line":64,"function":"google_structured_log"}}
 /// ```
@@ -59,15 +62,16 @@ pub struct GoogleStructuredLogLayout {
 impl GoogleStructuredLogLayout {
     /// Sets the trace project ID for traces.
     ///
-    /// If set, the trace_id, span_id, and trace_sampled fields will be set in the log record, in such
-    /// a way that they can be linked to traces in the Google Cloud Trace service.
+    /// If set, the trace_id, span_id, and trace_sampled fields will be set in the log record, in
+    /// such a way that they can be linked to traces in the Google Cloud Trace service.
     ///
     /// # Examples
     ///
     /// ```
     /// use logforth::layout::GoogleStructuredLogLayout;
     ///
-    /// let structured_json_layout = GoogleStructuredLogLayout::default().trace_project_id("project-id");
+    /// let structured_json_layout =
+    ///     GoogleStructuredLogLayout::default().trace_project_id("project-id");
     /// ```
     pub fn trace_project_id(mut self, project_id: impl Into<String>) -> Self {
         self.trace_project_id = Some(project_id.into());
@@ -76,15 +80,16 @@ impl GoogleStructuredLogLayout {
 
     /// Sets the set of keys that should be treated as labels.
     ///
-    /// Any key found in a log entry, and referenced here, will be stored in the labels field rather than
-    /// the payload. Labels are indexed by default, but can only store strings.
+    /// Any key found in a log entry, and referenced here, will be stored in the labels field rather
+    /// than the payload. Labels are indexed by default, but can only store strings.
     ///
     /// # Examples
     ///
     /// ```
     /// use logforth::layout::GoogleStructuredLogLayout;
     ///
-    /// let structured_json_layout = GoogleStructuredLogLayout::default().label_keys(["label1", "label2"]);
+    /// let structured_json_layout =
+    ///     GoogleStructuredLogLayout::default().label_keys(["label1", "label2"]);
     /// ```
     pub fn label_keys(mut self, label_keys: impl IntoIterator<Item = impl Into<String>>) -> Self {
         self.label_keys = Some(label_keys.into_iter().map(Into::into).collect());
@@ -115,7 +120,7 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'kvs> {
         if self
             .label_keys
             .as_ref()
-            .map_or(false, |keys| keys.contains(k.as_ref()))
+            .is_some_and(|keys| keys.contains(k.as_ref()))
         {
             self.labels.insert(k, value.to_string().into());
         } else {
@@ -130,30 +135,30 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'kvs> {
 }
 
 impl Visitor for KvCollector<'_> {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) {
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
         if let Some(trace_project_id) = self.trace_project_id.as_ref() {
             if key == "trace_id" {
                 *self.trace = Some(format!("projects/{}/traces/{}", trace_project_id, value));
-                return;
+                return Ok(());
             }
 
             if key == "span_id" {
                 *self.span_id = Some(value.into_owned());
-                return;
+                return Ok(());
             }
 
             if key == "trace_sampled" {
-                if let Some(v) = value.parse().ok() {
+                if let Ok(v) = value.parse() {
                     *self.trace_sampled = Some(v);
                 }
-                return;
+                return Ok(());
             }
         }
 
         if self
             .label_keys
             .as_ref()
-            .map_or(false, |keys| keys.contains(value.as_ref()))
+            .is_some_and(|keys| keys.contains(value.as_ref()))
         {
             self.labels
                 .insert(key.into_owned().into(), value.into_owned().into());
@@ -161,6 +166,8 @@ impl Visitor for KvCollector<'_> {
             self.payload_fields
                 .insert(key.into_owned().into(), value.into_owned().into());
         }
+
+        Ok(())
     }
 }
 
@@ -226,7 +233,7 @@ impl Layout for GoogleStructuredLogLayout {
 
         record.key_values().visit(&mut visitor)?;
         for d in diagnostics {
-            d.visit(&mut visitor);
+            d.visit(&mut visitor)?;
         }
 
         let record_line = RecordLine {
@@ -237,7 +244,7 @@ impl Layout for GoogleStructuredLogLayout {
             labels: visitor.labels,
             trace: visitor.trace.as_deref(),
             span_id: visitor.span_id.as_deref(),
-            trace_sampled: visitor.trace_sampled.clone(),
+            trace_sampled: *visitor.trace_sampled,
             source_location: Some(SourceLocation {
                 file: record.file(),
                 line: record.line(),

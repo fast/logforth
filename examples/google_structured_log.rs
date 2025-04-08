@@ -1,4 +1,4 @@
-// Copyright 2025 FastLabs Developers
+// Copyright 2024 FastLabs Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,10 +15,12 @@
 use fastrace::collector::Config;
 use fastrace::collector::ConsoleReporter;
 use fastrace::collector::SpanContext;
-use fastrace::prelude::{SpanId, TraceId};
+use fastrace::prelude::SpanId;
+use fastrace::prelude::TraceId;
 use fastrace::Span;
+use logforth::append;
+use logforth::diagnostic;
 use logforth::layout::GoogleStructuredLogLayout;
-use logforth::{append, diagnostic};
 use serde::Serialize;
 
 #[derive(Serialize)]
