@@ -78,9 +78,11 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'_> {
         key: log::kv::Key<'kvs>,
         value: log::kv::Value<'kvs>,
     ) -> Result<(), log::kv::Error> {
-        let k = key.to_string();
-        let v = value.to_string();
-        self.kvs.insert(k, v.into());
+        let key = key.to_string();
+        match serde_json::to_value(&value) {
+            Ok(value) => self.kvs.insert(key, value),
+            Err(_) => self.kvs.insert(key, value.to_string().into()),
+        };
         Ok(())
     }
 }
