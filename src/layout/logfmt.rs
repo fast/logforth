@@ -70,20 +70,21 @@ impl LogfmtLayout {
 }
 
 // The encode logic is copied from https://github.com/go-logfmt/logfmt/blob/76262ea7/encode.go.
-fn encode_key_value(result: &mut String, key: &str, value: &str) {
+fn encode_key_value(result: &mut String, key: &str, value: &str) -> anyhow::Result<()> {
     use std::fmt::Write;
 
     if key.contains([' ', '=', '"']) {
         // omit keys contain special chars
-        return;
+        anyhow::bail!("key contains special chars: {key}");
     }
 
-    // SAFETY: extend a string is always possible
     if value.contains([' ', '=', '"']) {
-        write!(result, " {key}=\"{}\"", value.escape_debug()).unwrap();
+        write!(result, " {key}=\"{}\"", value.escape_debug())?;
     } else {
-        write!(result, " {key}={value}").unwrap();
+        write!(result, " {key}={value}")?;
     }
+
+    Ok(())
 }
 
 struct KvFormatter {
@@ -96,14 +97,17 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvFormatter {
         key: log::kv::Key<'kvs>,
         value: log::kv::Value<'kvs>,
     ) -> Result<(), log::kv::Error> {
-        encode_key_value(&mut self.text, key.as_str(), value.to_string().as_str());
-        Ok(())
+        match encode_key_value(&mut self.text, key.as_str(), value.to_string().as_str()) {
+            Ok(()) => Ok(()),
+            Err(err) => Err(log::kv::Error::boxed(err)),
+        }
     }
 }
 
 impl Visitor for KvFormatter {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) {
-        encode_key_value(&mut self.text, key.as_ref(), value.as_ref());
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
+        encode_key_value(&mut self.text, key.as_ref(), value.as_ref())?;
+        Ok(())
     }
 }
 
@@ -127,17 +131,17 @@ impl Layout for LogfmtLayout {
             text: format!("timestamp={time:.6}"),
         };
 
-        visitor.visit(Cow::Borrowed("level"), level.into());
-        visitor.visit(Cow::Borrowed("module"), target.into());
+        visitor.visit(Cow::Borrowed("level"), level.into())?;
+        visitor.visit(Cow::Borrowed("module"), target.into())?;
         visitor.visit(
             Cow::Borrowed("position"),
             format!("{}:{}", file, line).into(),
-        );
-        visitor.visit(Cow::Borrowed("message"), message.to_string().into());
+        )?;
+        visitor.visit(Cow::Borrowed("message"), message.to_string().into())?;
 
         record.key_values().visit(&mut visitor)?;
         for d in diagnostics {
-            d.visit(&mut visitor);
+            d.visit(&mut visitor)?;
         }
 
         Ok(visitor.text.into_bytes())

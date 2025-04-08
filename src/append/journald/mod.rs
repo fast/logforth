@@ -247,10 +247,11 @@ impl<'kvs> log::kv::VisitSource<'kvs> for WriteKeyValues<'_> {
 }
 
 impl Visitor for WriteKeyValues<'_> {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) {
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
         let key = key.as_ref();
         let value = value.as_bytes();
         field::put_field_length_encoded(self.0, field::FieldName::WriteEscaped(key), value);
+        Ok(())
     }
 }
 
@@ -310,7 +311,7 @@ impl Append for Journald {
         let mut visitor = WriteKeyValues(&mut buffer);
         record.key_values().visit(&mut visitor)?;
         for d in diagnostics {
-            d.visit(&mut visitor);
+            d.visit(&mut visitor)?;
         }
         // Put all extra fields of the appender
         buffer.extend_from_slice(&self.extra_fields);

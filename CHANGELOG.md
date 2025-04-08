@@ -6,12 +6,9 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking changes
 
-* `Diagnosic` is now a trait. `Visitor`'s method signature is simplified.
+* `Diagnostic` is now a trait. `Visitor`'s method signature is simplified.
 * `Append::flush` is now fallible.
-
-### New features
-
-* Add `BlockingRollingFile` and `BlockingSyslog` appenders. They would lock the inner appender and log synchronously. In some lower rate logging scenarios, this would be more efficient than the non-blocking version.
+* `Diagnostic`'s and `Visitor`'s `visit` methods are fallible.
 
 ## [0.23.1] 2025-03-23
 

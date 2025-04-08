@@ -54,12 +54,13 @@ impl ThreadLocalDiagnostic {
 }
 
 impl Diagnostic for ThreadLocalDiagnostic {
-    fn visit(&self, visitor: &mut dyn Visitor) {
+    fn visit(&self, visitor: &mut dyn Visitor) -> anyhow::Result<()> {
         CONTEXT.with(|map| {
             let map = map.borrow();
             for (key, value) in map.iter() {
-                visitor.visit(key.into(), value.into());
+                visitor.visit(key.into(), value.into())?;
             }
+            Ok(())
         })
     }
 }

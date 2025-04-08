@@ -171,12 +171,11 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvWriter {
 }
 
 impl Visitor for KvWriter {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) {
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
         use std::fmt::Write;
 
-        // SAFETY: no more than an allocate-less version
-        //  self.text.push_str(&format!(" {key}={value}"))
-        write!(&mut self.text, " {key}={value}").unwrap();
+        write!(&mut self.text, " {key}={value}")?;
+        Ok(())
     }
 }
 
@@ -201,7 +200,7 @@ impl Layout for TextLayout {
         };
         record.key_values().visit(&mut visitor)?;
         for d in diagnostics {
-            d.visit(&mut visitor);
+            d.visit(&mut visitor)?;
         }
 
         Ok(visitor.text.into_bytes())

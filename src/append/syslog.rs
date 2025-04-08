@@ -35,7 +35,6 @@
 //! ```
 
 use std::io;
-use std::sync::Mutex;
 
 use fasyslog::format::SyslogContext;
 use fasyslog::sender::SyslogSender;
@@ -109,62 +108,6 @@ impl Append for Syslog {
     fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
         let message = self.formatter.format_message(record, diagnostics)?;
         self.writer.send(message)?;
-        Ok(())
-    }
-}
-
-/// An appender that blocking writes log records to syslog.
-#[derive(Debug)]
-pub struct BlockingSyslog {
-    writer: Mutex<SyslogWriter>,
-    formatter: SyslogFormatter,
-}
-
-impl BlockingSyslog {
-    /// Creates a new [`Syslog`] appender.
-    pub fn new(writer: SyslogWriter) -> Self {
-        Self {
-            writer: Mutex::new(writer),
-            formatter: SyslogFormatter {
-                format: SyslogFormat::RFC3164,
-                context: SyslogContext::default(),
-                layout: None,
-            },
-        }
-    }
-
-    /// Set the format of the [`Syslog`] appender.
-    pub fn with_format(mut self, format: SyslogFormat) -> Self {
-        self.formatter.format = format;
-        self
-    }
-
-    /// Set the context of the [`Syslog`] appender.
-    pub fn with_context(mut self, context: SyslogContext) -> Self {
-        self.formatter.context = context;
-        self
-    }
-
-    /// Set the layout of the [`Syslog`] appender.
-    ///
-    /// Default to `None`, only the args will be logged.
-    pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
-        self.formatter.layout = Some(layout.into());
-        self
-    }
-}
-
-impl Append for BlockingSyslog {
-    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
-        let message = self.formatter.format_message(record, diagnostics)?;
-        let mut writer = self.writer.lock().unwrap_or_else(|e| e.into_inner());
-        writer.write_all(message.as_slice())?;
-        Ok(())
-    }
-
-    fn flush(&self) -> anyhow::Result<()> {
-        let mut writer = self.writer.lock().unwrap_or_else(|e| e.into_inner());
-        writer.flush()?;
         Ok(())
     }
 }

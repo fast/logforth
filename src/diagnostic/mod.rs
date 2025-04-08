@@ -31,12 +31,12 @@ mod thread_local;
 /// A visitor to walk through diagnostic key-value pairs.
 pub trait Visitor {
     /// Visits a key-value pair.
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>);
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()>;
 }
 
 /// A trait representing a Mapped Diagnostic Context (MDC) that provides diagnostic key-values.
 pub trait Diagnostic: fmt::Debug + Send + Sync + 'static {
-    fn visit(&self, visitor: &mut dyn Visitor);
+    fn visit(&self, visitor: &mut dyn Visitor) -> anyhow::Result<()>;
 }
 
 impl<T: Diagnostic> From<T> for Box<dyn Diagnostic> {

@@ -86,10 +86,11 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'_> {
 }
 
 impl Visitor for KvCollector<'_> {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) {
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
         let key = key.into_owned();
         let value = value.into_owned();
         self.kvs.insert(key, value.into());
+        Ok(())
     }
 }
 
@@ -130,7 +131,7 @@ impl Layout for JsonLayout {
         let mut visitor = KvCollector { kvs: &mut kvs };
         record.key_values().visit(&mut visitor)?;
         for d in diagnostics {
-            d.visit(&mut visitor);
+            d.visit(&mut visitor)?;
         }
 
         let record_line = RecordLine {
