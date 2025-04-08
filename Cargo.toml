@@ -129,10 +129,10 @@ required-features = ["journald"]
 doc-scrape-examples = true
 name = "fastrace"
 path = "examples/fastrace.rs"
-required-features = ["fastrace", "fastrace/enable"]
+required-features = ["fastrace/enable"]
 
 [[example]]
 doc-scrape-examples = true
 name = "google_structured_log"
 path = "examples/google_structured_log.rs"
-required-features = ["fastrace", "fastrace/enable", "google_structured_log"]
+required-features = ["fastrace/enable", "google_structured_log"]
