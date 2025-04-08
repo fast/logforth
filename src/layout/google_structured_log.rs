@@ -19,6 +19,7 @@ use std::fmt::Arguments;
 
 use log::Record;
 use serde::Serialize;
+use serde_json::Value;
 
 use crate::diagnostic::Visitor;
 use crate::layout::Layout;
@@ -99,8 +100,8 @@ impl GoogleStructuredLogLayout {
 struct KvCollector<'a> {
     trace_project_id: Option<&'a str>,
     label_keys: &'a BTreeSet<String>,
-    payload_fields: BTreeMap<String, String>,
-    labels: BTreeMap<String, String>,
+    payload_fields: BTreeMap<String, Value>,
+    labels: BTreeMap<String, Value>,
     trace: Option<String>,
     span_id: Option<String>,
     trace_sampled: Option<bool>,
@@ -113,14 +114,14 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'kvs> {
         value: log::kv::Value<'kvs>,
     ) -> Result<(), log::kv::Error> {
         let key = key.to_string();
-        let value = value.to_string();
-
         if self.label_keys.contains(&key) {
-            self.labels.insert(key, value);
+            self.labels.insert(key, value.to_string().into());
         } else {
-            self.payload_fields.insert(key, value);
+            match serde_json::to_value(&value) {
+                Ok(value) => self.payload_fields.insert(key, value),
+                Err(_) => self.payload_fields.insert(key, value.to_string().into()),
+            };
         }
-
         Ok(())
     }
 }
@@ -149,11 +150,10 @@ impl Visitor for KvCollector<'_> {
         let key = key.into_owned();
         let value = value.into_owned();
         if self.label_keys.contains(&key) {
-            self.labels.insert(key, value);
+            self.labels.insert(key, value.into());
         } else {
-            self.payload_fields.insert(key, value);
+            self.payload_fields.insert(key, value.into());
         }
-
         Ok(())
     }
 }
@@ -171,14 +171,14 @@ struct SourceLocation<'a> {
 #[derive(Debug, Clone, Serialize)]
 struct RecordLine<'a> {
     #[serde(flatten)]
-    extra_fields: BTreeMap<String, String>,
+    extra_fields: BTreeMap<String, Value>,
     severity: &'a str,
     timestamp: jiff::Timestamp,
     #[serde(serialize_with = "serialize_args")]
     message: &'a Arguments<'a>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     #[serde(rename = "logging.googleapis.com/labels")]
-    labels: BTreeMap<String, String>,
+    labels: BTreeMap<String, Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "logging.googleapis.com/trace")]
     trace: Option<String>,

@@ -36,9 +36,9 @@ default = []
 
 colored = ["dep:colored"]
 fastrace = ["dep:fastrace"]
-google_structured_log = ["dep:serde_json", "dep:serde", "jiff/serde"]
+google_structured_log = ["internal-serde", "dep:serde_json"]
 journald = ["dep:libc"]
-json = ["dep:serde_json", "dep:serde", "jiff/serde"]
+json = ["internal-serde", "dep:serde_json"]
 native-tls = ["dep:native-tls", "fasyslog?/native-tls"]
 non-blocking = ["dep:crossbeam-channel"]
 opentelemetry = [
@@ -48,6 +48,9 @@ opentelemetry = [
 ]
 rolling-file = ["non-blocking"]
 syslog = ["non-blocking", "dep:fasyslog"]
+
+# Internal features - not intended for directly public use
+internal-serde = ["dep:serde", "log/kv_serde", "jiff/serde"]
 
 [dependencies]
 anyhow = { version = "1.0" }

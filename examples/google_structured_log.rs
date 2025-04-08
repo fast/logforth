@@ -63,6 +63,10 @@ fn main() {
             },
         };
 
-        log::info!(label1="this is a label value", notLabel:serde=structured_value; "Hello label value!");
+        log::info!(
+            label1 = "this is a label value",
+            notLabel:serde = structured_value;
+            "Hello label value!",
+        );
     }
 }
