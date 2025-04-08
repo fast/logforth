@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::fmt::Arguments;
 
 use log::Record;
@@ -98,11 +99,11 @@ impl GoogleStructuredLogLayout {
 struct KvCollector<'a> {
     trace_project_id: Option<&'a str>,
     label_keys: &'a BTreeSet<String>,
-    payload_fields: &'a mut BTreeMap<String, String>,
-    labels: &'a mut BTreeMap<String, String>,
-    trace: &'a mut Option<String>,
-    span_id: &'a mut Option<String>,
-    trace_sampled: &'a mut Option<bool>,
+    payload_fields: BTreeMap<String, String>,
+    labels: BTreeMap<String, String>,
+    trace: Option<String>,
+    span_id: Option<String>,
+    trace_sampled: Option<bool>,
 }
 
 impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'kvs> {
@@ -128,18 +129,18 @@ impl Visitor for KvCollector<'_> {
     fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
         if let Some(trace_project_id) = self.trace_project_id.as_ref() {
             if key == "trace_id" {
-                *self.trace = Some(format!("projects/{}/traces/{}", trace_project_id, value));
+                self.trace = Some(format!("projects/{}/traces/{}", trace_project_id, value));
                 return Ok(());
             }
 
             if key == "span_id" {
-                *self.span_id = Some(value.into_owned());
+                self.span_id = Some(value.into_owned());
                 return Ok(());
             }
 
             if key == "trace_sampled" {
                 if let Ok(v) = value.parse() {
-                    *self.trace_sampled = Some(v);
+                    self.trace_sampled = Some(v);
                 }
                 return Ok(());
             }
@@ -170,20 +171,20 @@ struct SourceLocation<'a> {
 #[derive(Debug, Clone, Serialize)]
 struct RecordLine<'a> {
     #[serde(flatten)]
-    extra_fields: &'a BTreeMap<String, String>,
+    extra_fields: BTreeMap<String, String>,
     severity: &'a str,
     timestamp: jiff::Timestamp,
     #[serde(serialize_with = "serialize_args")]
     message: &'a Arguments<'a>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     #[serde(rename = "logging.googleapis.com/labels")]
-    labels: &'a BTreeMap<String, String>,
+    labels: BTreeMap<String, String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "logging.googleapis.com/trace")]
-    trace: Option<&'a str>,
+    trace: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "logging.googleapis.com/spanId")]
-    span_id: Option<&'a str>,
+    span_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "logging.googleapis.com/trace_sampled")]
     trace_sampled: Option<bool>,
@@ -205,16 +206,14 @@ impl Layout for GoogleStructuredLogLayout {
         record: &Record,
         diagnostics: &[Box<dyn Diagnostic>],
     ) -> anyhow::Result<Vec<u8>> {
-        let mut payload_fields = BTreeMap::new();
-        let mut labels = BTreeMap::new();
         let mut visitor = KvCollector {
             trace_project_id: self.trace_project_id.as_deref(),
             label_keys: &self.label_keys,
-            payload_fields: &mut payload_fields,
-            labels: &mut labels,
-            trace: &mut None,
-            span_id: &mut None,
-            trace_sampled: &mut None,
+            payload_fields: BTreeMap::new(),
+            labels: BTreeMap::new(),
+            trace: None,
+            span_id: None,
+            trace_sampled: None,
         };
 
         record.key_values().visit(&mut visitor)?;
@@ -228,9 +227,9 @@ impl Layout for GoogleStructuredLogLayout {
             severity: record.level().as_str(),
             message: record.args(),
             labels: visitor.labels,
-            trace: visitor.trace.as_deref(),
-            span_id: visitor.span_id.as_deref(),
-            trace_sampled: *visitor.trace_sampled,
+            trace: visitor.trace,
+            span_id: visitor.span_id,
+            trace_sampled: visitor.trace_sampled,
             source_location: Some(SourceLocation {
                 file: record.file(),
                 line: record.line(),
