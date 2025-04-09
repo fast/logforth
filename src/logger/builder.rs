@@ -22,7 +22,7 @@ use crate::Append;
 use crate::Diagnostic;
 use crate::Filter;
 
-/// Creates a new empty [`Builder`] instance for configuring log dispatching.
+/// Creates a new empty [`LoggerBuilder`] instance for configuring log dispatching.
 ///
 /// # Examples
 ///
@@ -33,11 +33,11 @@ use crate::Filter;
 ///     .dispatch(|d| d.append(append::Stderr::default()))
 ///     .apply();
 /// ```
-pub fn builder() -> Builder {
-    Builder::new()
+pub fn builder() -> LoggerBuilder {
+    LoggerBuilder::new()
 }
 
-/// Creates a [`Builder`] with a default [`append::Stdout`] appender and an [`env_filter`](https://crates.io/crates/env_filter)
+/// Creates a [`LoggerBuilder`] with a default [`append::Stdout`] appender and an [`env_filter`](https://crates.io/crates/env_filter)
 /// respecting `RUST_LOG`.
 ///
 /// # Examples
@@ -46,14 +46,14 @@ pub fn builder() -> Builder {
 /// logforth::stdout().apply();
 /// log::error!("This error will be logged to stdout.");
 /// ```
-pub fn stdout() -> Builder {
+pub fn stdout() -> LoggerBuilder {
     builder().dispatch(|d| {
         d.filter(EnvFilter::from_default_env())
             .append(append::Stdout::default())
     })
 }
 
-/// Creates a [`Builder`] with a default [`append::Stderr`] appender and an [`env_filter`](https://crates.io/crates/env_filter)
+/// Creates a [`LoggerBuilder`] with a default [`append::Stderr`] appender and an [`env_filter`](https://crates.io/crates/env_filter)
 /// respecting `RUST_LOG`.
 ///
 /// # Examples
@@ -62,7 +62,7 @@ pub fn stdout() -> Builder {
 /// logforth::stderr().apply();
 /// log::info!("This info will be logged to stderr.");
 /// ```
-pub fn stderr() -> Builder {
+pub fn stderr() -> LoggerBuilder {
     builder().dispatch(|d| {
         d.filter(EnvFilter::from_default_env())
             .append(append::Stderr::default())
@@ -80,19 +80,19 @@ pub fn stderr() -> Builder {
 ///     .dispatch(|d| d.append(append::Stdout::default()))
 ///     .apply();
 /// ```
-#[must_use = "call `apply` to set the global logger"]
+#[must_use = "call `apply` to set the global logger or `build` to construct a logger instance"]
 #[derive(Debug)]
-pub struct Builder {
+pub struct LoggerBuilder {
     // stashed dispatches
     dispatches: Vec<Dispatch>,
 }
 
-impl Builder {
+impl LoggerBuilder {
     fn new() -> Self {
-        Builder { dispatches: vec![] }
+        LoggerBuilder { dispatches: vec![] }
     }
 
-    /// Registers a new dispatch with the [`Builder`].
+    /// Registers a new dispatch with the [`LoggerBuilder`].
     ///
     /// # Examples
     ///
@@ -112,6 +112,13 @@ impl Builder {
     }
 
     /// Build the [`Logger`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let l = logforth::builder().build();
+    /// log::error!(logger: l, "Hello error!");
+    /// ```
     pub fn build(self) -> Logger {
         Logger::new(self.dispatches)
     }
@@ -122,8 +129,9 @@ impl Builder {
     /// before initialization will be ignored.
     ///
     /// This will set the global maximum log level to [`LevelFilter::Trace`]. To override this,
-    /// call [`log::set_max_level`] after this function. Alternatively, you can obtain a [`Logger`] instance
-    /// by calling [`Builder::build`], and then call [`log::set_boxed_logger`] manually.
+    /// call [`log::set_max_level`] after this function. Alternatively, you can obtain a [`Logger`]
+    /// instance by calling [`LoggerBuilder::build`], and then call [`log::set_boxed_logger`]
+    /// manually.
     ///
     /// # Errors
     ///
@@ -149,9 +157,10 @@ impl Builder {
     /// This function will panic if it is called more than once, or if another library has already
     /// initialized a global logger.
     ///
-    /// This function will set the global maximum log level to [`LevelFilter::Trace`]. To override this,
-    /// call [`log::set_max_level`] after this function. Alternatively, you can obtain a [`Logger`] instance
-    /// by calling [`Builder::build`], and then call [`log::set_boxed_logger`] manually.
+    /// This function will set the global maximum log level to [`LevelFilter::Trace`]. To override
+    /// this, call [`log::set_max_level`] after this function. Alternatively, you can obtain a
+    /// [`Logger`] instance by calling [`LoggerBuilder::build`], and then call
+    /// [`log::set_boxed_logger`] manually.
     ///
     /// # Panics
     ///
