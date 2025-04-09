@@ -65,6 +65,7 @@ pub enum SyslogFormat {
 #[derive(Debug)]
 pub struct SyslogBuilder {
     sender: SyslogSender,
+    formatter: SyslogFormatter,
 
     // non-blocking options
     thread_name: String,
@@ -77,10 +78,51 @@ impl SyslogBuilder {
     pub fn new(sender: SyslogSender) -> Self {
         Self {
             sender,
+            formatter: SyslogFormatter {
+                format: SyslogFormat::RFC3164,
+                context: SyslogContext::default(),
+                layout: None,
+            },
             thread_name: "logforth-syslog".to_string(),
             buffered_lines_limit: None,
             shutdown_timeout: None,
         }
+    }
+
+    /// Build the [`Syslog`] appender.
+    pub fn build(self) -> (Syslog, DropGuard) {
+        let SyslogBuilder {
+            sender,
+            formatter,
+            thread_name,
+            buffered_lines_limit,
+            shutdown_timeout,
+        } = self;
+        let (non_blocking, guard) = NonBlockingBuilder::new(thread_name, SyslogWriter { sender })
+            .buffered_lines_limit(buffered_lines_limit)
+            .shutdown_timeout(shutdown_timeout)
+            .build();
+        (Syslog::new(non_blocking, formatter), Box::new(guard))
+    }
+
+    /// Set the format of the [`Syslog`] appender.
+    pub fn format(mut self, format: SyslogFormat) -> Self {
+        self.formatter.format = format;
+        self
+    }
+
+    /// Set the context of the [`Syslog`] appender.
+    pub fn context(mut self, context: SyslogContext) -> Self {
+        self.formatter.context = context;
+        self
+    }
+
+    /// Set the layout of the [`Syslog`] appender.
+    ///
+    /// Default to `None`, the message will construct with only [`Record::args`].
+    pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
+        self.formatter.layout = Some(layout.into());
+        self
     }
 
     /// Sets the buffer size of pending messages.
@@ -99,21 +141,6 @@ impl SyslogBuilder {
     pub fn thread_name(mut self, thread_name: impl Into<String>) -> Self {
         self.thread_name = thread_name.into();
         self
-    }
-
-    /// Build the [`Syslog`] appender.
-    pub fn build(self) -> (Syslog, DropGuard) {
-        let SyslogBuilder {
-            sender,
-            thread_name,
-            buffered_lines_limit,
-            shutdown_timeout,
-        } = self;
-        let (non_blocking, guard) = NonBlockingBuilder::new(thread_name, SyslogWriter { sender })
-            .buffered_lines_limit(buffered_lines_limit)
-            .shutdown_timeout(shutdown_timeout)
-            .build();
-        (Syslog::new(non_blocking), Box::new(guard))
     }
 
     /// Create a new syslog writer that sends messages to the well-known TCP port (514).
@@ -227,35 +254,8 @@ pub struct Syslog {
 
 impl Syslog {
     /// Creates a new [`Syslog`] appender.
-    fn new(writer: NonBlocking<SyslogWriter>) -> Self {
-        Self {
-            writer,
-            formatter: SyslogFormatter {
-                format: SyslogFormat::RFC3164,
-                context: SyslogContext::default(),
-                layout: None,
-            },
-        }
-    }
-
-    /// Set the format of the [`Syslog`] appender.
-    pub fn with_format(mut self, format: SyslogFormat) -> Self {
-        self.formatter.format = format;
-        self
-    }
-
-    /// Set the context of the [`Syslog`] appender.
-    pub fn with_context(mut self, context: SyslogContext) -> Self {
-        self.formatter.context = context;
-        self
-    }
-
-    /// Set the layout of the [`Syslog`] appender.
-    ///
-    /// Default to `None`, only the args will be logged.
-    pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
-        self.formatter.layout = Some(layout.into());
-        self
+    fn new(writer: NonBlocking<SyslogWriter>, formatter: SyslogFormatter) -> Self {
+        Self { writer, formatter }
     }
 }
 

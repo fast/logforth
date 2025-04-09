@@ -16,8 +16,7 @@
 
 use log::Record;
 use logforth::append;
-use logforth::append::rolling_file;
-use logforth::append::rolling_file::RollingFileWriter;
+use logforth::append::rolling_file::RollingFileBuilder;
 use logforth::append::rolling_file::Rotation;
 use logforth::Diagnostic;
 use logforth::Layout;
@@ -34,20 +33,22 @@ impl Layout for CustomLayout {
 // ensure logforth's impl doesn't properly handle recursive logging
 #[test]
 fn test_meta_logging_in_format_works() {
-    let rolling = RollingFileWriter::builder()
+    let stdout = append::Stdout::default().with_layout(CustomLayout("out"));
+    let stderr = append::Stderr::default().with_layout(CustomLayout("err"));
+    let (rolling, _guard) = RollingFileBuilder::new("logs")
+        .layout(CustomLayout("file"))
         .rotation(Rotation::Minutely)
         .filename_prefix("example")
         .filename_suffix("log")
         .max_log_files(10)
         .max_file_size(1024 * 1024)
-        .build("logs")
+        .build()
         .unwrap();
-    let (writer, _guard) = rolling_file::non_blocking(rolling).build();
 
     logforth::builder()
-        .dispatch(|d| d.append(append::Stdout::default().with_layout(CustomLayout("out"))))
-        .dispatch(|d| d.append(append::Stderr::default().with_layout(CustomLayout("err"))))
-        .dispatch(|d| d.append(append::RollingFile::new(writer).with_layout(CustomLayout("file"))))
+        .dispatch(|d| d.append(stdout))
+        .dispatch(|d| d.append(stderr))
+        .dispatch(|d| d.append(rolling))
         .apply();
 
     struct Thing<'a>(&'a str);

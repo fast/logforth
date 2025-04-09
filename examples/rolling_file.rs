@@ -12,26 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use logforth::append::rolling_file;
-use logforth::append::rolling_file::RollingFile;
-use logforth::append::rolling_file::RollingFileWriter;
+use logforth::append::rolling_file::RollingFileBuilder;
 use logforth::append::rolling_file::Rotation;
 use logforth::layout::JsonLayout;
 
 fn main() {
-    let rolling_writer = RollingFileWriter::builder()
+    let (rolling_writer, _guard) = RollingFileBuilder::new("logs")
+        .layout(JsonLayout::default())
         .rotation(Rotation::Daily)
         .filename_prefix("app_log")
-        .build("logs")
+        .build()
         .unwrap();
 
-    let (non_blocking, _guard) = rolling_file::non_blocking(rolling_writer).build();
-
     logforth::builder()
-        .dispatch(|d| {
-            d.filter(log::LevelFilter::Trace)
-                .append(RollingFile::new(non_blocking).with_layout(JsonLayout::default()))
-        })
+        .dispatch(|d| d.filter(log::LevelFilter::Trace).append(rolling_writer))
         .apply();
 
     let repeat = 1;
