@@ -12,8 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod builder;
-pub use builder::*;
+use log::LevelFilter;
 
-mod log_impl;
-pub use log_impl::Logger;
+fn main() {
+    log::set_max_level(LevelFilter::Trace);
+    let l = logforth::stdout().build();
+
+    log::error!(logger: l, "Hello error!");
+    log::warn!(logger: l, "Hello warn!");
+    log::info!(logger: l, "Hello info!");
+    log::debug!(logger: l, "Hello debug!");
+    log::trace!(logger: l, "Hello trace!");
+}

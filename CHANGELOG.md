@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 * `Append::flush` is now fallible.
 * `Diagnostic`'s and `Visitor`'s `visit` methods are fallible.
 * `NonBlocking` related types and the feature flag are now private.
+* `logforth::Builder` is renamed to `logforth::LoggerBuilder`.
+* `LoggerBuilder` has no longer an option to configure the global `max_level`. Check its documentation for more details.
 * Constructing `RollingFile` and `Syslog` appender is heavily simplified.
 
 Before:
@@ -75,6 +77,7 @@ fn construct_syslog() {
 
 * Add `LogfmtLayout` to support logfmt format.
 * Add `GoogleStructuredLogLayout` to support Google structured log format.
+* `LoggerBuilder` now has a `build` method to construct the `Logger` for use.
 
 ## [0.23.1] 2025-03-23
 

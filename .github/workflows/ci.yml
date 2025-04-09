@@ -79,6 +79,7 @@ jobs:
         run: |
           set -x
           cargo run --example simple_stdout
+          cargo run --example log_with_logger
           cargo run --example multiple_dispatches
           cargo run --example custom_layout_filter
           cargo run --no-default-features --example simple_stdout

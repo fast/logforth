@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![deny(missing_docs)]
+
 //! Logforth is a flexible logging framework for Rust applications, providing easy log dispatching
 //! and configuration.
 //!

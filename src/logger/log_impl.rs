@@ -22,12 +22,12 @@ use crate::Append;
 use crate::Diagnostic;
 use crate::Filter;
 
-/// A logger facade that dispatches log records to one or more [`Dispatch`] instances.
+/// A logger facade that dispatches log records to one or more dispatcher.
 ///
 /// This struct implements [`log::Log`] to bridge Logforth's logging implementations
 /// with the [`log`] crate.
 #[derive(Debug)]
-pub(super) struct Logger {
+pub struct Logger {
     dispatches: Vec<Dispatch>,
 }
 
