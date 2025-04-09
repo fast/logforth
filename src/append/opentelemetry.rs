@@ -24,8 +24,6 @@ use opentelemetry::logs::Logger;
 use opentelemetry::logs::LoggerProvider;
 use opentelemetry::InstrumentationScope;
 use opentelemetry_otlp::LogExporter;
-use opentelemetry_otlp::Protocol;
-use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::logs::SdkLogRecord;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 
@@ -34,27 +32,11 @@ use crate::diagnostic::Visitor;
 use crate::Diagnostic;
 use crate::Layout;
 
-/// Specifies the wire protocol to use when sending logs to OpenTelemetry.
-///
-/// This is a logical re-exported [`Protocol`] to avoid version lock-in to
-/// `opentelemetry_otlp`.
-#[non_exhaustive]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum OpentelemetryWireProtocol {
-    /// GRPC protocol
-    Grpc,
-    /// HTTP protocol with binary protobuf
-    HttpBinary,
-    /// HTTP protocol with JSON payload
-    HttpJson,
-}
-
 /// A builder to configure and create an [`OpentelemetryLog`] appender.
 #[derive(Debug)]
 pub struct OpentelemetryLogBuilder {
     name: String,
-    endpoint: String,
-    protocol: Protocol,
+    log_exporter: LogExporter,
     labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
     layout: Option<Box<dyn Layout>>,
 }
@@ -66,37 +48,22 @@ impl OpentelemetryLogBuilder {
     ///
     /// ```
     /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
+    /// use opentelemetry_otlp::{LogExporter, WithExportConfig};
     ///
-    /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
+    /// let log_exporter = LogExporter::builder()
+    ///     .with_http()
+    ///     .with_endpoint("http://localhost:4317")
+    ///     .build()
+    ///     .unwrap();
+    /// let builder = OpentelemetryLogBuilder::new("my_service", log_exporter);
     /// ```
-    pub fn new(name: impl Into<String>, otlp_endpoint: impl Into<String>) -> Self {
+    pub fn new(name: impl Into<String>, log_exporter: impl Into<LogExporter>) -> Self {
         OpentelemetryLogBuilder {
             name: name.into(),
-            endpoint: otlp_endpoint.into(),
-            protocol: Protocol::Grpc,
+            log_exporter: log_exporter.into(),
             labels: vec![],
             layout: None,
         }
-    }
-
-    /// Sets the wire protocol to use.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
-    /// use logforth::append::opentelemetry::OpentelemetryWireProtocol;
-    ///
-    /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
-    /// builder.protocol(OpentelemetryWireProtocol::HttpJson);
-    /// ```
-    pub fn protocol(mut self, protocol: OpentelemetryWireProtocol) -> Self {
-        self.protocol = match protocol {
-            OpentelemetryWireProtocol::Grpc => Protocol::Grpc,
-            OpentelemetryWireProtocol::HttpBinary => Protocol::HttpBinary,
-            OpentelemetryWireProtocol::HttpJson => Protocol::HttpJson,
-        };
-        self
     }
 
     /// Adds a label to the logs.
@@ -105,8 +72,14 @@ impl OpentelemetryLogBuilder {
     ///
     /// ```
     /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
+    /// use opentelemetry_otlp::{LogExporter, WithExportConfig};
     ///
-    /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
+    /// let log_exporter = LogExporter::builder()
+    ///     .with_http()
+    ///     .with_endpoint("http://localhost:4317")
+    ///     .build()
+    ///     .unwrap();
+    /// let builder = OpentelemetryLogBuilder::new("my_service", log_exporter);
     /// builder.label("env", "production");
     /// ```
     pub fn label(
@@ -124,8 +97,14 @@ impl OpentelemetryLogBuilder {
     ///
     /// ```
     /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
+    /// use opentelemetry_otlp::{LogExporter, WithExportConfig};
     ///
-    /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
+    /// let log_exporter = LogExporter::builder()
+    ///     .with_http()
+    ///     .with_endpoint("http://localhost:4317")
+    ///     .build()
+    ///     .unwrap();
+    /// let builder = OpentelemetryLogBuilder::new("my_service", log_exporter);
     /// builder.labels(vec![("env", "production"), ("version", "1.0")]);
     /// ```
     pub fn labels<K, V>(mut self, labels: impl IntoIterator<Item = (K, V)>) -> Self
@@ -145,8 +124,14 @@ impl OpentelemetryLogBuilder {
     /// ```
     /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
     /// use logforth::layout::JsonLayout;
+    /// use opentelemetry_otlp::{LogExporter, WithExportConfig};
     ///
-    /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
+    /// let log_exporter = LogExporter::builder()
+    ///     .with_http()
+    ///     .with_endpoint("http://localhost:4317")
+    ///     .build()
+    ///     .unwrap();
+    /// let builder = OpentelemetryLogBuilder::new("my_service", log_exporter);
     /// builder.layout(JsonLayout::default());
     /// ```
     pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
@@ -160,33 +145,23 @@ impl OpentelemetryLogBuilder {
     ///
     /// ```
     /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
+    /// use opentelemetry_otlp::{LogExporter, WithExportConfig};
     ///
-    /// let builder = OpentelemetryLogBuilder::new("my_service", "http://localhost:4317");
-    /// let otlp_appender = tokio::runtime::Runtime::new()
-    ///     .unwrap()
-    ///     .block_on(async { builder.build().unwrap() });
+    /// let log_exporter = LogExporter::builder()
+    ///     .with_http()
+    ///     .with_endpoint("http://localhost:4317")
+    ///     .build()
+    ///     .unwrap();
+    /// let builder = OpentelemetryLogBuilder::new("my_service", log_exporter);
+    /// let otlp_appender = builder.build().unwrap();
     /// ```
     pub fn build(self) -> Result<OpentelemetryLog, opentelemetry_otlp::ExporterBuildError> {
         let OpentelemetryLogBuilder {
             name,
-            endpoint,
-            protocol,
+            log_exporter,
             labels,
             layout,
         } = self;
-
-        let exporter = match protocol {
-            Protocol::Grpc => LogExporter::builder()
-                .with_tonic()
-                .with_endpoint(endpoint)
-                .with_protocol(protocol)
-                .build(),
-            Protocol::HttpBinary | Protocol::HttpJson => LogExporter::builder()
-                .with_http()
-                .with_endpoint(endpoint)
-                .with_protocol(protocol)
-                .build(),
-        }?;
 
         let resource = opentelemetry_sdk::Resource::builder()
             .with_attributes(
@@ -197,7 +172,7 @@ impl OpentelemetryLogBuilder {
             .build();
 
         let provider = SdkLoggerProvider::builder()
-            .with_batch_exporter(exporter)
+            .with_batch_exporter(log_exporter)
             .with_resource(resource)
             .build();
 
@@ -217,14 +192,17 @@ impl OpentelemetryLogBuilder {
 ///
 /// ```
 /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
-/// use logforth::append::opentelemetry::OpentelemetryWireProtocol;
+/// use opentelemetry_otlp::{LogExporter, WithExportConfig};
 ///
-/// let otlp_appender = tokio::runtime::Runtime::new().unwrap().block_on(async {
-///     OpentelemetryLogBuilder::new("service_name", "http://localhost:4317")
-///         .protocol(OpentelemetryWireProtocol::Grpc)
+/// let log_exporter = LogExporter::builder()
+///     .with_http()
+///     .with_endpoint("http://localhost:4317")
+///     .build()
+///     .unwrap();
+/// let otlp_appender =
+///     OpentelemetryLogBuilder::new("service_name", log_exporter)
 ///         .build()
 ///         .unwrap();
-/// });
 /// ```
 #[derive(Debug)]
 pub struct OpentelemetryLog {
