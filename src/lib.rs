@@ -64,8 +64,8 @@ pub mod diagnostic;
 pub mod filter;
 pub mod layout;
 
-#[cfg(feature = "non-blocking")]
-pub mod non_blocking;
+#[cfg(feature = "internal-non-blocking")]
+pub(crate) mod non_blocking;
 
 pub use append::Append;
 pub use diagnostic::Diagnostic;

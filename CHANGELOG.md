@@ -9,6 +9,12 @@ All notable changes to this project will be documented in this file.
 * `Diagnostic` is now a trait. `Visitor`'s method signature is simplified.
 * `Append::flush` is now fallible.
 * `Diagnostic`'s and `Visitor`'s `visit` methods are fallible.
+* `NonBlocking` related types and the feature flag are now private.
+
+### New features
+
+* Add `LogfmtLayout` to support logfmt format.
+* Add `GoogleStructuredLogLayout` to support Google structured log format.
 
 ## [0.23.1] 2025-03-23
 
