@@ -19,41 +19,29 @@
 //!```
 //! use logforth::append::rolling_file;
 //! use logforth::append::rolling_file::RollingFile;
-//! use logforth::append::rolling_file::RollingFileWriter;
+//! use logforth::append::rolling_file::RollingFileBuilder;
 //! use logforth::append::rolling_file::Rotation;
 //! use logforth::layout::JsonLayout;
 //!
-//! let rolling_writer = RollingFileWriter::builder()
+//! let (rolling_writer, _guard) = RollingFileBuilder::new("logs")
+//!     .layout(JsonLayout::default())
 //!     .rotation(Rotation::Daily)
 //!     .filename_prefix("app_log")
-//!     .build("logs")
+//!     .build()
 //!     .unwrap();
 //!
-//! let (non_blocking, _guard) = rolling_file::non_blocking(rolling_writer).finish();
-//!
 //! logforth::builder()
-//!     .dispatch(|d| {
-//!         d.filter(log::LevelFilter::Trace)
-//!             .append(RollingFile::new(non_blocking).with_layout(JsonLayout::default()))
-//!     })
+//!     .dispatch(|d| d.filter(log::LevelFilter::Trace).append(rolling_writer))
 //!     .apply();
 //!
 //! log::info!("This log will be written to a rolling file.");
 //! ```
 
 pub use append::RollingFile;
-pub use rolling::RollingFileWriter;
-pub use rolling::RollingFileWriterBuilder;
+pub use append::RollingFileBuilder;
 pub use rotation::Rotation;
-
-use crate::non_blocking::NonBlockingBuilder;
 
 mod append;
 mod clock;
 mod rolling;
 mod rotation;
-
-/// Create a non-blocking builder for rolling file writers.
-pub fn non_blocking(writer: RollingFileWriter) -> NonBlockingBuilder<RollingFileWriter> {
-    NonBlockingBuilder::new("logforth-rolling-file", writer)
-}

@@ -50,6 +50,7 @@ pub enum OpentelemetryWireProtocol {
 }
 
 /// A builder to configure and create an [`OpentelemetryLog`] appender.
+#[derive(Debug)]
 pub struct OpentelemetryLogBuilder {
     name: String,
     endpoint: String,

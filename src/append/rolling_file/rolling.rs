@@ -33,22 +33,6 @@ pub struct RollingFileWriter {
     writer: File,
 }
 
-impl RollingFileWriter {
-    /// Creates a new [`RollingFileWriterBuilder`].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use logforth::append::rolling_file::RollingFileWriter;
-    ///
-    /// let builder = RollingFileWriter::builder();
-    /// ```
-    #[must_use]
-    pub fn builder() -> RollingFileWriterBuilder {
-        RollingFileWriterBuilder::new()
-    }
-}
-
 impl Write for RollingFileWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let now = self.state.clock.now();
@@ -75,6 +59,10 @@ impl Write for RollingFileWriter {
 /// A builder for configuring [`RollingFileWriter`].
 #[derive(Debug)]
 pub struct RollingFileWriterBuilder {
+    // required
+    basedir: PathBuf,
+
+    // has default
     rotation: Rotation,
     prefix: Option<String>,
     suffix: Option<String>,
@@ -83,17 +71,12 @@ pub struct RollingFileWriterBuilder {
     clock: Clock,
 }
 
-impl Default for RollingFileWriterBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl RollingFileWriterBuilder {
     /// Creates a new [`RollingFileWriterBuilder`].
     #[must_use]
-    pub const fn new() -> Self {
+    pub fn new(basedir: impl Into<PathBuf>) -> Self {
         Self {
+            basedir: basedir.into(),
             rotation: Rotation::Never,
             prefix: None,
             suffix: None,
@@ -155,8 +138,9 @@ impl RollingFileWriterBuilder {
     }
 
     /// Builds the [`RollingFileWriter`].
-    pub fn build(self, dir: impl AsRef<Path>) -> anyhow::Result<RollingFileWriter> {
+    pub fn build(self) -> anyhow::Result<RollingFileWriter> {
         let Self {
+            basedir,
             rotation,
             prefix,
             suffix,
@@ -164,9 +148,8 @@ impl RollingFileWriterBuilder {
             max_files,
             clock,
         } = self;
-        let directory = dir.as_ref().to_path_buf();
         let (state, writer) = State::new(
-            rotation, directory, prefix, suffix, max_size, max_files, clock,
+            rotation, basedir, prefix, suffix, max_size, max_files, clock,
         )?;
         Ok(RollingFileWriter { state, writer })
     }
@@ -366,7 +349,7 @@ mod tests {
 
     use crate::append::rolling_file::clock::Clock;
     use crate::append::rolling_file::clock::ManualClock;
-    use crate::append::rolling_file::RollingFileWriterBuilder;
+    use crate::append::rolling_file::rolling::RollingFileWriterBuilder;
     use crate::append::rolling_file::Rotation;
 
     #[test]
@@ -381,13 +364,13 @@ mod tests {
     fn test_file_rolling_for_specific_file_size(max_files: usize, max_size: usize) {
         let temp_dir = TempDir::new().expect("failed to create a temporary directory");
 
-        let mut writer = RollingFileWriterBuilder::new()
+        let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref())
             .rotation(Rotation::Never)
             .filename_prefix("test_prefix")
             .filename_suffix("log")
             .max_log_files(max_files)
             .max_file_size(max_size)
-            .build(&temp_dir)
+            .build()
             .unwrap();
 
         for i in 1..=(max_files * 2) {
@@ -435,14 +418,14 @@ mod tests {
         let max_files = 10;
 
         let start_time = Zoned::from_str("2024-08-10T00:00:00[UTC]").unwrap();
-        let mut writer = RollingFileWriterBuilder::new()
+        let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref())
             .rotation(rotation)
             .filename_prefix("test_prefix")
             .filename_suffix("log")
             .max_log_files(max_files)
             .max_file_size(usize::MAX)
             .clock(Clock::ManualClock(ManualClock::new(start_time.clone())))
-            .build(&temp_dir)
+            .build()
             .unwrap();
 
         let mut cur_time = start_time;
@@ -502,14 +485,14 @@ mod tests {
         let file_size = 500;
 
         let start_time = Zoned::from_str("2024-08-10T00:00:00[UTC]").unwrap();
-        let mut writer = RollingFileWriterBuilder::new()
+        let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref())
             .rotation(rotation)
             .filename_prefix("test_prefix")
             .filename_suffix("log")
             .max_log_files(max_files)
             .max_file_size(file_size)
             .clock(Clock::ManualClock(ManualClock::new(start_time.clone())))
-            .build(&temp_dir)
+            .build()
             .unwrap();
 
         let mut cur_time = start_time;

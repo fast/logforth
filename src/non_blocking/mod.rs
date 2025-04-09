@@ -17,7 +17,6 @@ mod worker;
 
 pub use builder::NonBlocking;
 pub use builder::NonBlockingBuilder;
-pub use builder::WorkerGuard;
 pub use worker::Writer;
 
 #[derive(Debug)]
