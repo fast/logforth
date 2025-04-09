@@ -83,12 +83,6 @@ pub struct RollingFileWriterBuilder {
     clock: Clock,
 }
 
-impl Default for RollingFileWriterBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl RollingFileWriterBuilder {
     /// Creates a new [`RollingFileWriterBuilder`].
     #[must_use]

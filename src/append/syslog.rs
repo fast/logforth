@@ -73,7 +73,7 @@ pub struct SyslogBuilder {
 }
 
 impl SyslogBuilder {
-    /// Create a new syslog writer that sends messages to the given syslog sender.
+    /// Create a new builder.
     pub fn new(sender: SyslogSender) -> Self {
         Self {
             sender,
