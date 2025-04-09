@@ -34,10 +34,12 @@ pub struct StaticDiagnostic {
 }
 
 impl StaticDiagnostic {
+    /// Creates a new [`StaticDiagnostic`] instance with a prebuilt key-value store.
     pub fn new(kvs: BTreeMap<String, String>) -> Self {
         Self { kvs }
     }
 
+    /// Inserts a key-value pair into the static diagnostic .
     pub fn insert<K, V>(&mut self, key: K, value: V)
     where
         K: Into<String>,
@@ -46,6 +48,7 @@ impl StaticDiagnostic {
         self.kvs.insert(key.into(), value.into());
     }
 
+    /// Remove a key-value pair from the static diagnostic.
     pub fn remove(&mut self, key: &str) {
         self.kvs.remove(key);
     }

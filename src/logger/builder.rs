@@ -85,17 +85,11 @@ pub fn stderr() -> Builder {
 pub struct Builder {
     // stashed dispatches
     dispatches: Vec<Dispatch>,
-
-    // default to trace - we need this because the global default is OFF
-    max_level: LevelFilter,
 }
 
 impl Builder {
     fn new() -> Self {
-        Builder {
-            dispatches: vec![],
-            max_level: LevelFilter::Trace,
-        }
+        Builder { dispatches: vec![] }
     }
 
     /// Registers a new dispatch with the [`Builder`].
@@ -117,26 +111,19 @@ impl Builder {
         self
     }
 
-    /// Sets the global maximum log level. Default to [`LevelFilter::Trace`].
-    ///
-    /// This will be passed to `log::set_max_level()`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// logforth::builder()
-    ///     .max_level(log::LevelFilter::Warn)
-    ///     .apply();
-    /// ```
-    pub fn max_level(mut self, max_level: LevelFilter) -> Self {
-        self.max_level = max_level;
-        self
+    /// Build the [`Logger`].
+    pub fn build(self) -> Logger {
+        Logger::new(self.dispatches)
     }
 
     /// Sets up the global logger with all the configured dispatches.
     ///
     /// This should be called early in the execution of a Rust program. Any log events that occur
     /// before initialization will be ignored.
+    ///
+    /// This will set the global maximum log level to [`LevelFilter::Trace`]. To override this,
+    /// call [`log::set_max_level`] after this function. Alternatively, you can obtain a [`Logger`] instance
+    /// by calling [`Builder::build`], and then call [`log::set_boxed_logger`] manually.
     ///
     /// # Errors
     ///
@@ -151,9 +138,9 @@ impl Builder {
     /// }
     /// ```
     pub fn try_apply(self) -> Result<(), log::SetLoggerError> {
-        let logger = Logger::new(self.dispatches);
+        let logger = self.build();
         log::set_boxed_logger(Box::new(logger))?;
-        log::set_max_level(self.max_level);
+        log::set_max_level(LevelFilter::Trace);
         Ok(())
     }
 
@@ -161,6 +148,10 @@ impl Builder {
     ///
     /// This function will panic if it is called more than once, or if another library has already
     /// initialized a global logger.
+    ///
+    /// This function will set the global maximum log level to [`LevelFilter::Trace`]. To override this,
+    /// call [`log::set_max_level`] after this function. Alternatively, you can obtain a [`Logger`] instance
+    /// by calling [`Builder::build`], and then call [`log::set_boxed_logger`] manually.
     ///
     /// # Panics
     ///

@@ -36,6 +36,7 @@ pub trait Visitor {
 
 /// A trait representing a Mapped Diagnostic Context (MDC) that provides diagnostic key-values.
 pub trait Diagnostic: fmt::Debug + Send + Sync + 'static {
+    /// Visits the MDC key-values with the provided visitor.
     fn visit(&self, visitor: &mut dyn Visitor) -> anyhow::Result<()>;
 }
 

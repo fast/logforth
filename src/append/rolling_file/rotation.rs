@@ -32,6 +32,7 @@ pub enum Rotation {
 }
 
 impl Rotation {
+    /// Get the next date timestamp based on the current date and rotation policy.
     pub fn next_date_timestamp(&self, current_date: &Zoned) -> Option<usize> {
         let timestamp_round = ZonedRound::new().mode(RoundMode::Trunc);
 
@@ -50,6 +51,7 @@ impl Rotation {
         Some(next_date.timestamp().as_millisecond() as usize)
     }
 
+    /// Get the date format string for the rotation policy.
     pub fn date_format(&self) -> &'static str {
         match *self {
             Rotation::Minutely => "%F-%H-%M",
