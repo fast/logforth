@@ -10,6 +10,66 @@ All notable changes to this project will be documented in this file.
 * `Append::flush` is now fallible.
 * `Diagnostic`'s and `Visitor`'s `visit` methods are fallible.
 * `NonBlocking` related types and the feature flag are now private.
+* Constructing `RollingFile` and `Syslog` appender is heavily simplified.
+
+Before:
+
+```rust
+fn construct_rolling_file() {
+    let rolling_writer = RollingFileWriter::builder()
+        .rotation(Rotation::Daily)
+        .filename_prefix("app_log")
+        .build("logs")
+        .unwrap();
+
+    let (non_blocking, _guard) = rolling_file::non_blocking(rolling_writer).finish();
+
+    logforth::builder()
+        .dispatch(|d| {
+            d.filter(log::LevelFilter::Trace)
+                .append(RollingFile::new(non_blocking).with_layout(JsonLayout::default()))
+        })
+        .apply();
+}
+
+fn construct_syslog() {
+    let syslog_writer = SyslogWriter::tcp_well_known().unwrap();
+    let (non_blocking, _guard) = syslog::non_blocking(syslog_writer).finish();
+
+    logforth::builder()
+        .dispatch(|d| {
+            d.filter(log::LevelFilter::Trace)
+                .append(Syslog::new(non_blocking))
+        })
+        .apply();
+}
+```
+
+After:
+
+```rust
+fn construct_rolling_file() {
+    let (rolling_writer, _guard) = RollingFileBuilder::new("logs")
+        .layout(JsonLayout::default())
+        .rotation(Rotation::Daily)
+        .filename_prefix("app_log")
+        .build()
+        .unwrap();
+
+    logforth::builder()
+        .dispatch(|d| d.filter(log::LevelFilter::Trace).append(rolling_writer))
+        .apply();
+}
+
+fn construct_syslog() {
+    let (append, _guard) = SyslogBuilder::tcp_well_known().unwrap().build();
+
+    logforth::builder()
+        .dispatch(|d| d.filter(log::LevelFilter::Trace).append(append))
+        .apply();
+}
+```
+
 
 ### New features
 
