@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## [0.24.0] 2025-04-09
+
 ### Breaking changes
 
 * `Diagnostic` is now a trait. `Visitor`'s method signature is simplified.
