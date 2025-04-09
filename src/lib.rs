@@ -74,3 +74,6 @@ pub use layout::Layout;
 
 mod logger;
 pub use logger::*;
+
+/// An RAII guard that can be used to ensure that a resource is held until it goes out of scope.
+pub type DropGuard = Box<dyn Send + Sync + 'static>;

@@ -42,7 +42,7 @@ fn test_meta_logging_in_format_works() {
         .max_file_size(1024 * 1024)
         .build("logs")
         .unwrap();
-    let (writer, _guard) = rolling_file::non_blocking(rolling).finish();
+    let (writer, _guard) = rolling_file::non_blocking(rolling).build();
 
     logforth::builder()
         .dispatch(|d| d.append(append::Stdout::default().with_layout(CustomLayout("out"))))

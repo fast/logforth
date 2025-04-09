@@ -29,7 +29,7 @@
 //!     .build("logs")
 //!     .unwrap();
 //!
-//! let (non_blocking, _guard) = rolling_file::non_blocking(rolling_writer).finish();
+//! let (non_blocking, _guard) = rolling_file::non_blocking(rolling_writer).build();
 //!
 //! logforth::builder()
 //!     .dispatch(|d| {

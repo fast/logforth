@@ -135,6 +135,7 @@ pub struct NonBlockingBuilder<T: Writer + Send + 'static> {
 }
 
 impl<T: Writer + Send + 'static> NonBlockingBuilder<T> {
+    /// Creates a new [`NonBlockingBuilder`] with the specified writer.
     pub fn new(thread_name: impl Into<String>, writer: T) -> Self {
         Self {
             thread_name: thread_name.into(),
@@ -144,26 +145,20 @@ impl<T: Writer + Send + 'static> NonBlockingBuilder<T> {
         }
     }
 
-    /// Sets the number of lines to buffer before dropping logs or exerting backpressure on senders.
-    pub fn buffered_lines_limit(mut self, buffered_lines_limit: usize) -> Self {
-        self.buffered_lines_limit = Some(buffered_lines_limit);
+    /// Sets the buffer size of pending messages.
+    pub fn buffered_lines_limit(mut self, buffered_lines_limit: Option<usize>) -> Self {
+        self.buffered_lines_limit = buffered_lines_limit;
         self
     }
 
     /// Sets the shutdown timeout before the worker guard dropped.
-    pub fn shutdown_timeout(mut self, shutdown_timeout: Duration) -> Self {
-        self.shutdown_timeout = Some(shutdown_timeout);
-        self
-    }
-
-    /// Override the worker thread's name.
-    pub fn thread_name(mut self, name: impl Into<String>) -> Self {
-        self.thread_name = name.into();
+    pub fn shutdown_timeout(mut self, shutdown_timeout: Option<Duration>) -> Self {
+        self.shutdown_timeout = shutdown_timeout;
         self
     }
 
     /// Completes the builder, returning the configured `NonBlocking`.
-    pub fn finish(self) -> (NonBlocking<T>, WorkerGuard) {
+    pub fn build(self) -> (NonBlocking<T>, WorkerGuard) {
         NonBlocking::create(
             self.writer,
             self.thread_name,
