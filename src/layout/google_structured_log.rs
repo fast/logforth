@@ -52,10 +52,32 @@ use crate::Diagnostic;
 ///
 /// let structured_json_layout = GoogleStructuredLogLayout::default();
 /// ```
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct GoogleStructuredLogLayout {
     trace_project_id: Option<String>,
     label_keys: BTreeSet<String>,
+
+    // Heuristic keys to extract trace, spanId and traceSampled info from diagnostics.
+    // These are currently hardcoded but may be customizable in the future.
+    trace_keys: BTreeSet<String>,
+    span_id_keys: BTreeSet<String>,
+    trace_sampled_keys: BTreeSet<String>,
+}
+
+impl Default for GoogleStructuredLogLayout {
+    fn default() -> Self {
+        Self {
+            trace_project_id: None,
+            label_keys: BTreeSet::new(),
+
+            trace_keys: BTreeSet::from(["trace_id".to_string()]),
+            span_id_keys: BTreeSet::from(["span_id".to_string()]),
+            trace_sampled_keys: BTreeSet::from([
+                "sampled".to_string(),
+                "trace_sampled".to_string(),
+            ]),
+        }
+    }
 }
 
 impl GoogleStructuredLogLayout {
@@ -98,8 +120,8 @@ impl GoogleStructuredLogLayout {
 }
 
 struct KvCollector<'a> {
-    trace_project_id: Option<&'a str>,
-    label_keys: &'a BTreeSet<String>,
+    layout: &'a GoogleStructuredLogLayout,
+
     payload_fields: BTreeMap<String, Value>,
     labels: BTreeMap<String, Value>,
     trace: Option<String>,
@@ -114,7 +136,7 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'kvs> {
         value: log::kv::Value<'kvs>,
     ) -> Result<(), log::kv::Error> {
         let key = key.to_string();
-        if self.label_keys.contains(&key) {
+        if self.layout.label_keys.contains(&key) {
             self.labels.insert(key, value.to_string().into());
         } else {
             match serde_json::to_value(&value) {
@@ -128,28 +150,29 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'kvs> {
 
 impl Visitor for KvCollector<'_> {
     fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
-        if let Some(trace_project_id) = self.trace_project_id.as_ref() {
-            if key == "trace_id" {
-                self.trace = Some(format!("projects/{}/traces/{}", trace_project_id, value));
+        if let Some(trace_project_id) = self.layout.trace_project_id.as_ref() {
+            if self.trace.is_none() && self.layout.trace_keys.contains(key.as_ref()) {
+                self.trace = Some(format!("projects/{trace_project_id}/traces/{value}"));
                 return Ok(());
             }
 
-            if key == "span_id" {
+            if self.span_id.is_none() && self.layout.span_id_keys.contains(key.as_ref()) {
                 self.span_id = Some(value.into_owned());
                 return Ok(());
             }
 
-            if key == "trace_sampled" {
+            if self.trace_sampled.is_none() && self.layout.trace_sampled_keys.contains(key.as_ref())
+            {
                 if let Ok(v) = value.parse() {
                     self.trace_sampled = Some(v);
+                    return Ok(());
                 }
-                return Ok(());
             }
         }
 
         let key = key.into_owned();
         let value = value.into_owned();
-        if self.label_keys.contains(&key) {
+        if self.layout.label_keys.contains(&key) {
             self.labels.insert(key, value.into());
         } else {
             self.payload_fields.insert(key, value.into());
@@ -207,8 +230,7 @@ impl Layout for GoogleStructuredLogLayout {
         diagnostics: &[Box<dyn Diagnostic>],
     ) -> anyhow::Result<Vec<u8>> {
         let mut visitor = KvCollector {
-            trace_project_id: self.trace_project_id.as_deref(),
-            label_keys: &self.label_keys,
+            layout: self,
             payload_fields: BTreeMap::new(),
             labels: BTreeMap::new(),
             trace: None,
