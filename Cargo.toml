@@ -46,6 +46,7 @@ opentelemetry = [
   "dep:opentelemetry_sdk",
 ]
 rolling-file = ["internal-non-blocking"]
+rustls = ["dep:rustls", "fasyslog?/rustls"]
 syslog = ["internal-non-blocking", "dep:fasyslog"]
 
 # Internal features - not intended for directly public use
@@ -76,6 +77,7 @@ opentelemetry_sdk = { version = "0.29.0", features = [
   "logs",
   "rt-tokio",
 ], optional = true }
+rustls = { version = "0.23.27", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
 
