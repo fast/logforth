@@ -187,61 +187,124 @@ impl SyslogBuilder {
             .map(SyslogSender::Udp)
             .map(Self::new)
     }
+}
 
-    /// Create a TLS sender that sends messages to the well-known port (6514).
-    #[cfg(feature = "native-tls")]
-    pub fn native_tls_well_known<S: AsRef<str>>(domain: S) -> io::Result<SyslogBuilder> {
-        fasyslog::sender::native_tls_well_known(domain)
-            .map(SyslogSender::NativeTlsSender)
-            .map(Self::new)
+#[cfg(feature = "native-tls")]
+mod rustls_ext {
+    use std::io;
+    use std::net::ToSocketAddrs;
+    use std::sync::Arc;
+
+    use fasyslog::sender::SyslogSender;
+    use rustls::ClientConfig;
+
+    use crate::append::syslog::SyslogBuilder;
+
+    impl SyslogBuilder {
+        /// Create a TLS sender that sends messages to the well-known port (6514).
+        pub fn rustls_well_known<S: Into<String>>(domain: S) -> io::Result<SyslogBuilder> {
+            fasyslog::sender::rustls_well_known(domain)
+                .map(Box::new)
+                .map(SyslogSender::RustlsSender)
+                .map(Self::new)
+        }
+
+        /// Create a TLS sender that sends messages to the given address.
+        pub fn rustls<A: ToSocketAddrs, S: Into<String>>(
+            addr: A,
+            domain: S,
+        ) -> io::Result<SyslogBuilder> {
+            fasyslog::sender::rustls(addr, domain)
+                .map(Box::new)
+                .map(SyslogSender::RustlsSender)
+                .map(Self::new)
+        }
+
+        /// Create a TLS sender that sends messages to the given address with certificate builder.
+        pub fn rustls_with<A: ToSocketAddrs, S: Into<String>>(
+            addr: A,
+            domain: S,
+            config: Arc<ClientConfig>,
+        ) -> io::Result<SyslogBuilder> {
+            fasyslog::sender::rustls_with(addr, domain, config)
+                .map(Box::new)
+                .map(SyslogSender::RustlsSender)
+                .map(Self::new)
+        }
     }
+}
 
-    /// Create a TLS sender that sends messages to the given address.
-    #[cfg(feature = "native-tls")]
-    pub fn native_tls<A: std::net::ToSocketAddrs, S: AsRef<str>>(
-        addr: A,
-        domain: S,
-    ) -> io::Result<SyslogBuilder> {
-        fasyslog::sender::native_tls(addr, domain)
-            .map(SyslogSender::NativeTlsSender)
-            .map(Self::new)
+#[cfg(feature = "native-tls")]
+mod native_tls_ext {
+    use std::io;
+    use std::net::ToSocketAddrs;
+
+    use fasyslog::sender::SyslogSender;
+    use native_tls::TlsConnectorBuilder;
+
+    use crate::append::syslog::SyslogBuilder;
+
+    impl SyslogBuilder {
+        /// Create a TLS sender that sends messages to the well-known port (6514).
+        pub fn native_tls_well_known<S: AsRef<str>>(domain: S) -> io::Result<SyslogBuilder> {
+            fasyslog::sender::native_tls_well_known(domain)
+                .map(SyslogSender::NativeTlsSender)
+                .map(Self::new)
+        }
+
+        /// Create a TLS sender that sends messages to the given address.
+        pub fn native_tls<A: ToSocketAddrs, S: AsRef<str>>(
+            addr: A,
+            domain: S,
+        ) -> io::Result<SyslogBuilder> {
+            fasyslog::sender::native_tls(addr, domain)
+                .map(SyslogSender::NativeTlsSender)
+                .map(Self::new)
+        }
+
+        /// Create a TLS sender that sends messages to the given address with certificate builder.
+        pub fn native_tls_with<A: ToSocketAddrs, S: AsRef<str>>(
+            addr: A,
+            domain: S,
+            builder: TlsConnectorBuilder,
+        ) -> io::Result<SyslogBuilder> {
+            fasyslog::sender::native_tls_with(addr, domain, builder)
+                .map(SyslogSender::NativeTlsSender)
+                .map(Self::new)
+        }
     }
+}
 
-    /// Create a TLS sender that sends messages to the given address with certificate builder.
-    #[cfg(feature = "native-tls")]
-    pub fn native_tls_with<A: std::net::ToSocketAddrs, S: AsRef<str>>(
-        addr: A,
-        domain: S,
-        builder: native_tls::TlsConnectorBuilder,
-    ) -> io::Result<SyslogBuilder> {
-        fasyslog::sender::native_tls_with(addr, domain, builder)
-            .map(SyslogSender::NativeTlsSender)
-            .map(Self::new)
-    }
+#[cfg(unix)]
+mod unix_ext {
+    use std::io;
 
-    /// Create a new syslog writer that sends messages to the given Unix stream socket.
-    #[cfg(unix)]
-    pub fn unix_stream(path: impl AsRef<std::path::Path>) -> io::Result<SyslogBuilder> {
-        fasyslog::sender::unix_stream(path)
-            .map(SyslogSender::UnixStream)
-            .map(Self::new)
-    }
+    use fasyslog::sender::SyslogSender;
 
-    /// Create a new syslog writer that sends messages to the given Unix datagram socket.
-    #[cfg(unix)]
-    pub fn unix_datagram(path: impl AsRef<std::path::Path>) -> io::Result<SyslogBuilder> {
-        fasyslog::sender::unix_datagram(path)
-            .map(SyslogSender::UnixDatagram)
-            .map(Self::new)
-    }
+    use crate::append::syslog::SyslogBuilder;
 
-    /// Create a new syslog writer that sends messages to the given Unix socket.
-    ///
-    /// This method will automatically choose between `unix_stream` and `unix_datagram` based on the
-    /// path.
-    #[cfg(unix)]
-    pub fn unix(path: impl AsRef<std::path::Path>) -> io::Result<SyslogBuilder> {
-        fasyslog::sender::unix(path).map(Self::new)
+    impl SyslogBuilder {
+        /// Create a new syslog writer that sends messages to the given Unix stream socket.
+        pub fn unix_stream(path: impl AsRef<std::path::Path>) -> io::Result<SyslogBuilder> {
+            fasyslog::sender::unix_stream(path)
+                .map(SyslogSender::UnixStream)
+                .map(Self::new)
+        }
+
+        /// Create a new syslog writer that sends messages to the given Unix datagram socket.
+        pub fn unix_datagram(path: impl AsRef<std::path::Path>) -> io::Result<SyslogBuilder> {
+            fasyslog::sender::unix_datagram(path)
+                .map(SyslogSender::UnixDatagram)
+                .map(Self::new)
+        }
+
+        /// Create a new syslog writer that sends messages to the given Unix socket.
+        ///
+        /// This method will automatically choose between `unix_stream` and `unix_datagram` based on
+        /// the path.
+        pub fn unix(path: impl AsRef<std::path::Path>) -> io::Result<SyslogBuilder> {
+            fasyslog::sender::unix(path).map(Self::new)
+        }
     }
 }
 
