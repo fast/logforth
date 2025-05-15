@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## [0.25.0] 2025-05-15
+
+### Breaking changes
+
+* `OpenTelemetryLogBuild::new` now accepts `opentelemetry_otlp::LogExporter`.
+* Bump minimum supported Rust version (MSRV) to 1.85.0.
+
+### Improvements
+
+* `FastraceDiagnostic` now exports `sampled` attribute.
+
 ## [0.24.0] 2025-04-09
 
 ### Breaking changes
