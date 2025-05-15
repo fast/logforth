@@ -133,10 +133,7 @@ impl Layout for LogfmtLayout {
 
         visitor.visit(Cow::Borrowed("level"), level.into())?;
         visitor.visit(Cow::Borrowed("module"), target.into())?;
-        visitor.visit(
-            Cow::Borrowed("position"),
-            format!("{}:{}", file, line).into(),
-        )?;
+        visitor.visit(Cow::Borrowed("position"), format!("{file}:{line}").into())?;
         visitor.visit(Cow::Borrowed("message"), message.to_string().into())?;
 
         record.key_values().visit(&mut visitor)?;

@@ -167,7 +167,6 @@ fn handle_flush_error(error: anyhow::Error) {
 Error perform flush.
     Error: {error:?}
 "###,
-        error = error,
     ) else {
         return;
     };
@@ -178,7 +177,5 @@ Error performing stderr logging after error occurred during regular flush.
     Error: {error:?}
     Fallback error: {fallback_error}
 "###,
-        error = error,
-        fallback_error = fallback_error,
     );
 }

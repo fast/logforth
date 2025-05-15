@@ -44,6 +44,7 @@ impl Diagnostic for FastraceDiagnostic {
         if let Some(span) = fastrace::collector::SpanContext::current_local_parent() {
             visitor.visit("trace_id".into(), span.trace_id.to_string().into())?;
             visitor.visit("span_id".into(), span.span_id.to_string().into())?;
+            visitor.visit("sampled".into(), span.sampled.to_string().into())?;
         }
 
         Ok(())

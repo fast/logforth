@@ -94,8 +94,7 @@ fn assert_cmsg_bufsize() {
     let space_one_fd = unsafe { libc::CMSG_SPACE(mem::size_of::<RawFd>() as u32) };
     assert!(
         space_one_fd <= CMSG_BUFSIZE as u32,
-        "cmsghdr buffer too small (< {}) to hold a single fd",
-        space_one_fd
+        "cmsghdr buffer too small (< {space_one_fd}) to hold a single fd",
     );
 }
 
