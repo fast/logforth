@@ -48,7 +48,8 @@ impl OpentelemetryLogBuilder {
     ///
     /// ```
     /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
-    /// use opentelemetry_otlp::{LogExporter, WithExportConfig};
+    /// use opentelemetry_otlp::LogExporter;
+    /// use opentelemetry_otlp::WithExportConfig;
     ///
     /// let log_exporter = LogExporter::builder()
     ///     .with_http()
@@ -72,7 +73,8 @@ impl OpentelemetryLogBuilder {
     ///
     /// ```
     /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
-    /// use opentelemetry_otlp::{LogExporter, WithExportConfig};
+    /// use opentelemetry_otlp::LogExporter;
+    /// use opentelemetry_otlp::WithExportConfig;
     ///
     /// let log_exporter = LogExporter::builder()
     ///     .with_http()
@@ -97,7 +99,8 @@ impl OpentelemetryLogBuilder {
     ///
     /// ```
     /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
-    /// use opentelemetry_otlp::{LogExporter, WithExportConfig};
+    /// use opentelemetry_otlp::LogExporter;
+    /// use opentelemetry_otlp::WithExportConfig;
     ///
     /// let log_exporter = LogExporter::builder()
     ///     .with_http()
@@ -124,7 +127,8 @@ impl OpentelemetryLogBuilder {
     /// ```
     /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
     /// use logforth::layout::JsonLayout;
-    /// use opentelemetry_otlp::{LogExporter, WithExportConfig};
+    /// use opentelemetry_otlp::LogExporter;
+    /// use opentelemetry_otlp::WithExportConfig;
     ///
     /// let log_exporter = LogExporter::builder()
     ///     .with_http()
@@ -145,7 +149,8 @@ impl OpentelemetryLogBuilder {
     ///
     /// ```
     /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
-    /// use opentelemetry_otlp::{LogExporter, WithExportConfig};
+    /// use opentelemetry_otlp::LogExporter;
+    /// use opentelemetry_otlp::WithExportConfig;
     ///
     /// let log_exporter = LogExporter::builder()
     ///     .with_http()
@@ -153,9 +158,9 @@ impl OpentelemetryLogBuilder {
     ///     .build()
     ///     .unwrap();
     /// let builder = OpentelemetryLogBuilder::new("my_service", log_exporter);
-    /// let otlp_appender = builder.build().unwrap();
+    /// let otlp_appender = builder.build();
     /// ```
-    pub fn build(self) -> Result<OpentelemetryLog, opentelemetry_otlp::ExporterBuildError> {
+    pub fn build(self) -> OpentelemetryLog {
         let OpentelemetryLogBuilder {
             name,
             log_exporter,
@@ -177,12 +182,14 @@ impl OpentelemetryLogBuilder {
             .build();
 
         let library = InstrumentationScope::builder(name).build();
+
         let logger = provider.logger_with_scope(library);
-        Ok(OpentelemetryLog {
+
+        OpentelemetryLog {
             layout,
             logger,
             provider,
-        })
+        }
     }
 }
 
@@ -192,17 +199,15 @@ impl OpentelemetryLogBuilder {
 ///
 /// ```
 /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
-/// use opentelemetry_otlp::{LogExporter, WithExportConfig};
+/// use opentelemetry_otlp::LogExporter;
+/// use opentelemetry_otlp::WithExportConfig;
 ///
 /// let log_exporter = LogExporter::builder()
 ///     .with_http()
 ///     .with_endpoint("http://localhost:4317")
 ///     .build()
 ///     .unwrap();
-/// let otlp_appender =
-///     OpentelemetryLogBuilder::new("service_name", log_exporter)
-///         .build()
-///         .unwrap();
+/// let otlp_appender = OpentelemetryLogBuilder::new("service_name", log_exporter).build();
 /// ```
 #[derive(Debug)]
 pub struct OpentelemetryLog {
