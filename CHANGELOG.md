@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### Breaking changes
+
+* `OpenTelemetryLogBuild::build` is now infallible.
+
 ## [0.25.0] 2025-05-15
 
 ### Breaking changes
