@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Breaking changes
 
 * `OpenTelemetryLogBuild::build` is now infallible.
+* Upgrade to opentelemetry 0.30.0.
 
 ## [0.25.0] 2025-05-15
 
