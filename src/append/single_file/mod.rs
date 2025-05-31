@@ -22,7 +22,7 @@
 //! use logforth::append::single_file::SingleFileBuilder;
 //! use logforth::layout::JsonLayout;
 //!
-//! let (file_writer, _guard) = SingleFileBuilder::new("/path/to/flile.log")
+//! let (file_writer, _guard) = SingleFileBuilder::new("file.log")
 //!     .layout(JsonLayout::default())
 //!     .build()
 //!     .unwrap();
