@@ -47,6 +47,7 @@ opentelemetry = [
 ]
 rolling-file = ["internal-non-blocking"]
 rustls = ["dep:rustls", "fasyslog?/rustls"]
+single-file = ["internal-non-blocking"]
 syslog = ["internal-non-blocking", "dep:fasyslog"]
 
 # Internal features - not intended for directly public use
@@ -111,6 +112,12 @@ doc-scrape-examples = true
 name = "rolling_file"
 path = "examples/rolling_file.rs"
 required-features = ["rolling-file", "json"]
+
+[[example]]
+doc-scrape-examples = true
+name = "single_file"
+path = "examples/single_file.rs"
+required-features = ["single-file", "json"]
 
 [[example]]
 doc-scrape-examples = true

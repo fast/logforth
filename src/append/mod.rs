@@ -26,6 +26,8 @@ mod journald;
 pub mod opentelemetry;
 #[cfg(feature = "rolling-file")]
 pub mod rolling_file;
+#[cfg(feature = "single-file")]
+pub mod single_file;
 mod stdio;
 #[cfg(feature = "syslog")]
 pub mod syslog;
@@ -38,6 +40,8 @@ pub use self::journald::Journald;
 pub use self::opentelemetry::OpentelemetryLog;
 #[cfg(feature = "rolling-file")]
 pub use self::rolling_file::RollingFile;
+#[cfg(feature = "single-file")]
+pub use self::single_file::SingleFile;
 pub use self::stdio::Stderr;
 pub use self::stdio::Stdout;
 #[cfg(feature = "syslog")]
