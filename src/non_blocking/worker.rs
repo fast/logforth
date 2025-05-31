@@ -116,6 +116,6 @@ impl<T: Writer + Send + 'static> Worker<T> {
                     eprintln!("failed to flush: {err}");
                 }
             })
-            .expect("failed to spawn the non-blocking rolling file writer thread")
+            .expect("failed to spawn the non-blocking file writer thread")
     }
 }

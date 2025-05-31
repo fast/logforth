@@ -85,7 +85,7 @@ impl Drop for WorkerGuard {
     }
 }
 
-/// A non-blocking writer for rolling files.
+/// A non-blocking writer for files.
 #[derive(Clone, Debug)]
 pub struct NonBlocking<T: Writer + Send + 'static> {
     sender: Sender<Message>,
