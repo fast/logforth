@@ -18,33 +18,33 @@ use std::fmt;
 
 use crate::Diagnostic;
 
-#[cfg(feature = "fastrace")]
+#[cfg(feature = "append-fastrace")]
 mod fastrace;
-#[cfg(all(unix, feature = "journald"))]
+#[cfg(all(unix, feature = "append-journald"))]
 mod journald;
-#[cfg(feature = "opentelemetry")]
+#[cfg(feature = "append-opentelemetry")]
 pub mod opentelemetry;
-#[cfg(feature = "rolling-file")]
+#[cfg(feature = "append-rolling-file")]
 pub mod rolling_file;
-#[cfg(feature = "single-file")]
+#[cfg(feature = "append-single-file")]
 pub mod single_file;
 mod stdio;
-#[cfg(feature = "syslog")]
+#[cfg(feature = "append-syslog")]
 pub mod syslog;
 
-#[cfg(feature = "fastrace")]
+#[cfg(feature = "append-fastrace")]
 pub use self::fastrace::FastraceEvent;
-#[cfg(all(unix, feature = "journald"))]
+#[cfg(all(unix, feature = "append-journald"))]
 pub use self::journald::Journald;
-#[cfg(feature = "opentelemetry")]
+#[cfg(feature = "append-opentelemetry")]
 pub use self::opentelemetry::OpentelemetryLog;
-#[cfg(feature = "rolling-file")]
+#[cfg(feature = "append-rolling-file")]
 pub use self::rolling_file::RollingFile;
-#[cfg(feature = "single-file")]
+#[cfg(feature = "append-single-file")]
 pub use self::single_file::SingleFile;
 pub use self::stdio::Stderr;
 pub use self::stdio::Stdout;
-#[cfg(feature = "syslog")]
+#[cfg(feature = "append-syslog")]
 pub use self::syslog::Syslog;
 
 /// A trait representing an appender that can process log records.

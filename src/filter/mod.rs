@@ -17,6 +17,7 @@
 use std::fmt;
 
 pub mod env_filter;
+
 pub use self::env_filter::EnvFilter;
 
 /// The result of a filter check.
