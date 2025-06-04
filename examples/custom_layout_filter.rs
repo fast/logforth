@@ -24,7 +24,7 @@ use logforth::Layout;
 struct CustomFilter;
 
 impl Filter for CustomFilter {
-    fn enabled(&self, metadata: &Metadata) -> FilterResult {
+    fn enabled(&self, metadata: &Metadata, _: &[Box<dyn Diagnostic>]) -> FilterResult {
         if metadata.level() < log::Level::Info {
             FilterResult::Accept
         } else {

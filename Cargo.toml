@@ -22,7 +22,7 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/fast/logforth"
 rust-version = "1.85.0"
-version = "0.25.0"
+version = "0.26.0"
 
 categories = ["development-tools::debugging"]
 keywords = ["logging", "log", "opentelemetry", "fastrace"]
@@ -34,21 +34,29 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = []
 
-colored = ["dep:colored"]
-fastrace = ["dep:fastrace"]
-google_structured_log = ["internal-serde", "dep:serde_json"]
-journald = ["dep:libc"]
-json = ["internal-serde", "dep:serde_json"]
-native-tls = ["dep:native-tls", "fasyslog?/native-tls"]
-opentelemetry = [
+# Appenders
+append-fastrace = ["dep:fastrace"]
+append-journald = ["dep:libc"]
+append-opentelemetry = [
   "dep:opentelemetry",
   "dep:opentelemetry-otlp",
   "dep:opentelemetry_sdk",
 ]
-rolling-file = ["internal-non-blocking"]
+append-rolling-file = ["internal-non-blocking"]
+append-single-file = ["internal-non-blocking"]
+append-syslog = ["internal-non-blocking", "dep:fasyslog"]
+
+# Layouts
+layout-google-cloud-logging = ["internal-serde", "dep:serde_json"]
+layout-json = ["internal-serde", "dep:serde_json"]
+
+# Diagnostics
+diagnostic-fastrace = ["dep:fastrace"]
+
+# Standalone features
+colored = ["dep:colored"]
+native-tls = ["dep:native-tls", "fasyslog?/native-tls"]
 rustls = ["dep:rustls", "fasyslog?/rustls"]
-single-file = ["internal-non-blocking"]
-syslog = ["internal-non-blocking", "dep:fasyslog"]
 
 # Internal features - not intended for directly public use
 internal-non-blocking = ["dep:crossbeam-channel"]
@@ -100,7 +108,7 @@ path = "examples/log_with_logger.rs"
 doc-scrape-examples = true
 name = "json_stdout"
 path = "examples/json_stdout.rs"
-required-features = ["json"]
+required-features = ["layout-json"]
 
 [[example]]
 doc-scrape-examples = true
@@ -111,13 +119,13 @@ path = "examples/multiple_dispatches.rs"
 doc-scrape-examples = true
 name = "rolling_file"
 path = "examples/rolling_file.rs"
-required-features = ["rolling-file", "json"]
+required-features = ["append-rolling-file", "layout-json"]
 
 [[example]]
 doc-scrape-examples = true
 name = "single_file"
 path = "examples/single_file.rs"
-required-features = ["single-file", "json"]
+required-features = ["append-single-file", "layout-json"]
 
 [[example]]
 doc-scrape-examples = true
@@ -128,22 +136,30 @@ path = "examples/custom_layout_filter.rs"
 doc-scrape-examples = true
 name = "syslog"
 path = "examples/syslog.rs"
-required-features = ["syslog"]
+required-features = ["append-syslog"]
 
 [[example]]
 doc-scrape-examples = true
 name = "journald"
 path = "examples/journald.rs"
-required-features = ["journald"]
+required-features = ["append-journald"]
 
 [[example]]
 doc-scrape-examples = true
 name = "fastrace"
 path = "examples/fastrace.rs"
-required-features = ["fastrace/enable"]
+required-features = [
+  "fastrace/enable",
+  "append-fastrace",
+  "diagnostic-fastrace",
+]
 
 [[example]]
 doc-scrape-examples = true
-name = "google_structured_log"
-path = "examples/google_structured_log.rs"
-required-features = ["fastrace/enable", "google_structured_log"]
+name = "google_cloud_logging"
+path = "examples/google_cloud_logging.rs"
+required-features = [
+  "fastrace/enable",
+  "diagnostic-fastrace",
+  "layout-google-cloud-logging",
+]

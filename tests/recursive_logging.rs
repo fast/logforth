@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg(feature = "rolling-file")]
+#![cfg(feature = "append-rolling-file")]
 
 use log::Record;
 use logforth::append;

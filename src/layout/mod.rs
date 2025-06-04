@@ -18,21 +18,19 @@ use std::fmt;
 
 use crate::Diagnostic;
 
-#[cfg(feature = "google_structured_log")]
-mod google_structured_log;
-#[cfg(feature = "google_structured_log")]
-pub use google_structured_log::GoogleStructuredLogLayout;
-
-#[cfg(feature = "json")]
+#[cfg(feature = "layout-google-cloud-logging")]
+mod google_cloud_logging;
+#[cfg(feature = "layout-json")]
 mod json;
-#[cfg(feature = "json")]
-pub use json::JsonLayout;
-
 mod logfmt;
-pub use logfmt::LogfmtLayout;
-
 mod text;
-pub use text::TextLayout;
+
+#[cfg(feature = "layout-google-cloud-logging")]
+pub use self::google_cloud_logging::GoogleCloudLoggingLayout;
+#[cfg(feature = "layout-json")]
+pub use self::json::JsonLayout;
+pub use self::logfmt::LogfmtLayout;
+pub use self::text::TextLayout;
 
 /// A layout for formatting log records.
 pub trait Layout: fmt::Debug + Send + Sync + 'static {

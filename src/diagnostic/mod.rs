@@ -18,15 +18,15 @@
 use std::borrow::Cow;
 use std::fmt;
 
-#[cfg(feature = "fastrace")]
-pub use self::fastrace::FastraceDiagnostic;
-pub use self::static_global::StaticDiagnostic;
-pub use self::thread_local::ThreadLocalDiagnostic;
-
-#[cfg(feature = "fastrace")]
+#[cfg(feature = "diagnostic-fastrace")]
 mod fastrace;
 mod static_global;
 mod thread_local;
+
+#[cfg(feature = "diagnostic-fastrace")]
+pub use self::fastrace::FastraceDiagnostic;
+pub use self::static_global::StaticDiagnostic;
+pub use self::thread_local::ThreadLocalDiagnostic;
 
 /// A visitor to walk through diagnostic key-value pairs.
 pub trait Visitor {

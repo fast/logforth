@@ -4,10 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## [0.26.0] 2025-06-04
+
 ### Breaking changes
 
 * `OpenTelemetryLogBuild::build` is now infallible.
 * Upgrade to opentelemetry 0.30.0.
+* Feature flags are renamed with prefix like `append-rolling-file` and `layout-json`.
+* `OpenTelemetryLog` appender now accepts `MakeBody` over `Layout`.
+* `Filter::matches` and `Filter::enabled` now take an extra `&[Box<dyn Diagnostic>]` argument to retrieve the mapped diagnostics context.
 
 ## [0.25.0] 2025-05-15
 

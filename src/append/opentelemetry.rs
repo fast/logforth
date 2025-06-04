@@ -15,6 +15,7 @@
 //! Appenders and utilities for integrating with OpenTelemetry.
 
 use std::borrow::Cow;
+use std::fmt;
 use std::time::SystemTime;
 
 use log::Record;
@@ -38,7 +39,7 @@ pub struct OpentelemetryLogBuilder {
     name: String,
     log_exporter: LogExporter,
     labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
-    layout: Option<Box<dyn Layout>>,
+    make_body: Option<Box<dyn MakeBody>>,
 }
 
 impl OpentelemetryLogBuilder {
@@ -63,7 +64,7 @@ impl OpentelemetryLogBuilder {
             name: name.into(),
             log_exporter: log_exporter.into(),
             labels: vec![],
-            layout: None,
+            make_body: None,
         }
     }
 
@@ -125,6 +126,7 @@ impl OpentelemetryLogBuilder {
     /// # Examples
     ///
     /// ```
+    /// use logforth::append::opentelemetry::MakeBodyLayout;
     /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
     /// use logforth::layout::JsonLayout;
     /// use opentelemetry_otlp::LogExporter;
@@ -136,10 +138,10 @@ impl OpentelemetryLogBuilder {
     ///     .build()
     ///     .unwrap();
     /// let builder = OpentelemetryLogBuilder::new("my_service", log_exporter);
-    /// builder.layout(JsonLayout::default());
+    /// builder.make_body(MakeBodyLayout::new(JsonLayout::default()));
     /// ```
-    pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
-        self.layout = Some(layout.into());
+    pub fn make_body(mut self, make_body: impl Into<Box<dyn MakeBody>>) -> Self {
+        self.make_body = Some(make_body.into());
         self
     }
 
@@ -165,7 +167,7 @@ impl OpentelemetryLogBuilder {
             name,
             log_exporter,
             labels,
-            layout,
+            make_body,
         } = self;
 
         let resource = opentelemetry_sdk::Resource::builder()
@@ -186,7 +188,7 @@ impl OpentelemetryLogBuilder {
         let logger = provider.logger_with_scope(library);
 
         OpentelemetryLog {
-            layout,
+            make_body,
             logger,
             provider,
         }
@@ -211,7 +213,7 @@ impl OpentelemetryLogBuilder {
 /// ```
 #[derive(Debug)]
 pub struct OpentelemetryLog {
-    layout: Option<Box<dyn Layout>>,
+    make_body: Option<Box<dyn MakeBody>>,
     logger: opentelemetry_sdk::logs::SdkLogger,
     provider: SdkLoggerProvider,
 }
@@ -223,10 +225,10 @@ impl Append for OpentelemetryLog {
         log_record.set_severity_number(log_level_to_otel_severity(record.level()));
         log_record.set_severity_text(record.level().as_str());
         log_record.set_target(record.target().to_string());
-        log_record.set_body(AnyValue::Bytes(Box::new(match self.layout.as_ref() {
-            None => record.args().to_string().into_bytes(),
-            Some(layout) => layout.format(record, diagnostics)?,
-        })));
+        log_record.set_body(match self.make_body.as_ref() {
+            None => AnyValue::String(record.args().to_string().into()),
+            Some(make_body) => make_body.create(record, diagnostics)?,
+        });
 
         if let Some(module_path) = record.module_path() {
             log_record.add_attribute("module_path", module_path.to_string());
@@ -263,6 +265,48 @@ fn log_level_to_otel_severity(level: log::Level) -> opentelemetry::logs::Severit
         log::Level::Info => opentelemetry::logs::Severity::Info,
         log::Level::Debug => opentelemetry::logs::Severity::Debug,
         log::Level::Trace => opentelemetry::logs::Severity::Trace,
+    }
+}
+
+/// A trait for formatting log records into a body that can be sent to OpenTelemetry.
+pub trait MakeBody: fmt::Debug + Send + Sync + 'static {
+    /// Creates a log record with optional diagnostics.
+    fn create(
+        &self,
+        record: &Record,
+        diagnostics: &[Box<dyn Diagnostic>],
+    ) -> anyhow::Result<AnyValue>;
+}
+
+impl<T: MakeBody> From<T> for Box<dyn MakeBody> {
+    fn from(value: T) -> Self {
+        Box::new(value)
+    }
+}
+
+/// Make an OpenTelemetry body with the configured [`Layout`].
+#[derive(Debug)]
+pub struct MakeBodyLayout {
+    layout: Box<dyn Layout>,
+}
+
+impl MakeBodyLayout {
+    /// Creates a new `MakeBodyLayout` with the given layout.
+    pub fn new(layout: impl Into<Box<dyn Layout>>) -> Self {
+        MakeBodyLayout {
+            layout: layout.into(),
+        }
+    }
+}
+
+impl MakeBody for MakeBodyLayout {
+    fn create(
+        &self,
+        record: &Record,
+        diagnostics: &[Box<dyn Diagnostic>],
+    ) -> anyhow::Result<AnyValue> {
+        let body = self.layout.format(record, diagnostics)?;
+        Ok(AnyValue::Bytes(Box::new(body)))
     }
 }
 

@@ -85,10 +85,11 @@ jobs:
           cargo run --example multiple_dispatches
           cargo run --example custom_layout_filter
           cargo run --no-default-features --example simple_stdout
-          cargo run --features="json" --example json_stdout
-          cargo run --features="json,rolling-file" --example rolling_file
-          cargo run --features="fastrace/enable,google_structured_log" --example google_structured_log
-          cargo run --features="fastrace/enable" --example fastrace
+          cargo run --features="layout-json" --example json_stdout
+          cargo run --features="layout-json,append-rolling-file" --example rolling_file
+          cargo run --features="layout-json,append-single-file" --example single_file
+          cargo run --features="fastrace/enable,diagnostic-fastrace,layout-google-cloud-logging" --example google_cloud_logging
+          cargo run --features="fastrace/enable,append-fastrace,diagnostic-fastrace" --example fastrace
 
   required:
     name: Required

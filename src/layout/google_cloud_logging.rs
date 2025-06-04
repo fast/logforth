@@ -25,7 +25,7 @@ use crate::diagnostic::Visitor;
 use crate::layout::Layout;
 use crate::Diagnostic;
 
-/// A layout for Google Cloud structured JSON logging.
+/// A layout for Google Cloud Structured Logging.
 ///
 /// See the [Google documentation](https://cloud.google.com/logging/docs/structured-logging) for more
 /// information about the structure of the format.
@@ -33,7 +33,7 @@ use crate::Diagnostic;
 /// Example format:
 ///
 /// ```json
-/// {"severity":"INFO","timestamp":"2025-04-02T10:34:33.225602Z","message":"Hello label value!","logging.googleapis.com/labels":{"label1":"this is a label value"},"logging.googleapis.com/trace":"projects/project-id/traces/612b91406b684ece2c4137ce0f3fd668", "logging.googleapis.com/sourceLocation":{"file":"examples/google_structured_log.rs","line":64,"function":"google_structured_log"}}
+/// {"severity":"INFO","timestamp":"2025-04-02T10:34:33.225602Z","message":"Hello label value!","logging.googleapis.com/labels":{"label1":"this is a label value"},"logging.googleapis.com/trace":"projects/project-id/traces/612b91406b684ece2c4137ce0f3fd668", "logging.googleapis.com/sourceLocation":{"file":"examples/google_cloud_logging","line":64,"function":"main"}}
 /// ```
 ///
 /// If the trace project ID is set, a few keys are treated specially:
@@ -48,12 +48,12 @@ use crate::Diagnostic;
 /// # Examples
 ///
 /// ```
-/// use logforth::layout::GoogleStructuredLogLayout;
+/// use logforth::layout::GoogleCloudLoggingLayout;
 ///
-/// let structured_json_layout = GoogleStructuredLogLayout::default();
+/// let layout = GoogleCloudLoggingLayout::default();
 /// ```
 #[derive(Debug, Clone)]
-pub struct GoogleStructuredLogLayout {
+pub struct GoogleCloudLoggingLayout {
     trace_project_id: Option<String>,
     label_keys: BTreeSet<String>,
 
@@ -64,7 +64,7 @@ pub struct GoogleStructuredLogLayout {
     trace_sampled_keys: BTreeSet<String>,
 }
 
-impl Default for GoogleStructuredLogLayout {
+impl Default for GoogleCloudLoggingLayout {
     fn default() -> Self {
         Self {
             trace_project_id: None,
@@ -80,7 +80,7 @@ impl Default for GoogleStructuredLogLayout {
     }
 }
 
-impl GoogleStructuredLogLayout {
+impl GoogleCloudLoggingLayout {
     /// Sets the trace project ID for traces.
     ///
     /// If set, the trace_id, span_id, and trace_sampled fields will be set in the log record, in
@@ -89,10 +89,9 @@ impl GoogleStructuredLogLayout {
     /// # Examples
     ///
     /// ```
-    /// use logforth::layout::GoogleStructuredLogLayout;
+    /// use logforth::layout::GoogleCloudLoggingLayout;
     ///
-    /// let structured_json_layout =
-    ///     GoogleStructuredLogLayout::default().trace_project_id("project-id");
+    /// let layout = GoogleCloudLoggingLayout::default().trace_project_id("project-id");
     /// ```
     pub fn trace_project_id(mut self, project_id: impl Into<String>) -> Self {
         self.trace_project_id = Some(project_id.into());
@@ -107,10 +106,9 @@ impl GoogleStructuredLogLayout {
     /// # Examples
     ///
     /// ```
-    /// use logforth::layout::GoogleStructuredLogLayout;
+    /// use logforth::layout::GoogleCloudLoggingLayout;
     ///
-    /// let structured_json_layout =
-    ///     GoogleStructuredLogLayout::default().label_keys(["label1", "label2"]);
+    /// let json_layout = GoogleCloudLoggingLayout::default().label_keys(["label1", "label2"]);
     /// ```
     pub fn label_keys(mut self, label_keys: impl IntoIterator<Item = impl Into<String>>) -> Self {
         let label_keys = label_keys.into_iter().map(Into::into);
@@ -120,7 +118,7 @@ impl GoogleStructuredLogLayout {
 }
 
 struct KvCollector<'a> {
-    layout: &'a GoogleStructuredLogLayout,
+    layout: &'a GoogleCloudLoggingLayout,
 
     payload_fields: BTreeMap<String, Value>,
     labels: BTreeMap<String, Value>,
@@ -223,7 +221,7 @@ where
     serializer.collect_str(args)
 }
 
-impl Layout for GoogleStructuredLogLayout {
+impl Layout for GoogleCloudLoggingLayout {
     fn format(
         &self,
         record: &Record,

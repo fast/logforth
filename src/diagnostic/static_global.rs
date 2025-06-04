@@ -54,12 +54,21 @@ impl StaticDiagnostic {
     }
 }
 
+fn do_visit(d: &StaticDiagnostic, visitor: &mut dyn Visitor) -> anyhow::Result<()> {
+    for (key, value) in d.kvs.iter() {
+        visitor.visit(key.into(), value.into())?;
+    }
+    Ok(())
+}
+
 impl Diagnostic for StaticDiagnostic {
     fn visit(&self, visitor: &mut dyn Visitor) -> anyhow::Result<()> {
-        for (key, value) in self.kvs.iter() {
-            visitor.visit(key.into(), value.into())?;
-        }
+        do_visit(self, visitor)
+    }
+}
 
-        Ok(())
+impl Diagnostic for &'static StaticDiagnostic {
+    fn visit(&self, visitor: &mut dyn Visitor) -> anyhow::Result<()> {
+        do_visit(self, visitor)
     }
 }

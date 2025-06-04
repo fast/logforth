@@ -20,7 +20,7 @@ use fastrace::prelude::TraceId;
 use fastrace::Span;
 use logforth::append;
 use logforth::diagnostic;
-use logforth::layout::GoogleStructuredLogLayout;
+use logforth::layout::GoogleCloudLoggingLayout;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -41,7 +41,7 @@ fn main() {
             d.diagnostic(diagnostic::FastraceDiagnostic::default())
                 .append(
                     append::Stdout::default().with_layout(
-                        GoogleStructuredLogLayout::default()
+                        GoogleCloudLoggingLayout::default()
                             .trace_project_id("project-id")
                             .label_keys(["label1"]),
                     ),
