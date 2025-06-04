@@ -96,6 +96,11 @@ tempfile = { version = "3.16" }
 
 [[example]]
 doc-scrape-examples = true
+name = "in_tests"
+path = "examples/in_tests.rs"
+
+[[example]]
+doc-scrape-examples = true
 name = "simple_stdout"
 path = "examples/simple_stdout.rs"
 

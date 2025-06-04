@@ -31,6 +31,7 @@ pub mod single_file;
 mod stdio;
 #[cfg(feature = "append-syslog")]
 pub mod syslog;
+mod testing;
 
 #[cfg(feature = "append-fastrace")]
 pub use self::fastrace::FastraceEvent;
@@ -46,6 +47,7 @@ pub use self::stdio::Stderr;
 pub use self::stdio::Stdout;
 #[cfg(feature = "append-syslog")]
 pub use self::syslog::Syslog;
+pub use self::testing::Test;
 
 /// A trait representing an appender that can process log records.
 pub trait Append: fmt::Debug + Send + Sync + 'static {
