@@ -22,7 +22,7 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/fast/logforth"
 rust-version = "1.85.0"
-version = "0.26.0"
+version = "0.26.1"
 
 categories = ["development-tools::debugging"]
 keywords = ["logging", "log", "opentelemetry", "fastrace"]
@@ -96,8 +96,8 @@ tempfile = { version = "3.16" }
 
 [[example]]
 doc-scrape-examples = true
-name = "in_tests"
-path = "examples/in_tests.rs"
+name = "testing"
+path = "examples/testing.rs"
 
 [[example]]
 doc-scrape-examples = true
