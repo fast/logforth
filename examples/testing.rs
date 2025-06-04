@@ -13,7 +13,15 @@
 // limitations under the License.
 
 fn main() {
-    println!("Run this example with `cargo test --package logforth --example in_tests -- tests --show-output`; compare the output without `--show-output`");
+    println!(
+        r#"Run this example with:
+
+1. `cargo test --example testing -- --show-output`
+2. `cargo test --example testing -- --nocapture`
+3. `cargo test --example testing`
+
+Compare the output of the three commands."#
+    );
 }
 
 #[cfg(test)]
@@ -21,7 +29,7 @@ mod tests {
     use logforth::append::Testing;
 
     #[test]
-    fn test_with_logging() {
+    fn testing() {
         logforth::builder()
             .dispatch(|d| d.filter(log::LevelFilter::Trace).append(Testing::default()))
             .apply();
@@ -31,7 +39,5 @@ mod tests {
         log::info!("Hello info!");
         log::debug!("Hello debug!");
         log::trace!("Hello trace!");
-
-        assert!(true);
     }
 }

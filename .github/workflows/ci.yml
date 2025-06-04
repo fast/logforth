@@ -91,6 +91,10 @@ jobs:
           cargo run --features="fastrace/enable,diagnostic-fastrace,layout-google-cloud-logging" --example google_cloud_logging
           cargo run --features="fastrace/enable,append-fastrace,diagnostic-fastrace" --example fastrace
 
+          cargo test --example testing -- --show-output
+          cargo test --example testing -- --nocapture
+          cargo test --example testing
+
   required:
     name: Required
     runs-on: ubuntu-22.04

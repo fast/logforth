@@ -19,9 +19,8 @@ use crate::layout::TextLayout;
 use crate::Diagnostic;
 use crate::Layout;
 
-/// An appender that writes log records that can be captured by a test
-/// harness such as `cargo test` such that they are suppressed unless
-/// `--nocapture` or `--show-output` is used.
+/// An appender that writes log records that can be captured by a test harness (like `cargo test`),
+/// and thus the outputs are suppressed unless `--nocapture` or `--show-output` is specified.
 ///
 /// # Examples
 ///
@@ -64,10 +63,6 @@ impl Append for Testing {
     fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
         let bytes = self.layout.format(record, diagnostics)?;
         eprintln!("{}", String::from_utf8_lossy(&bytes));
-        Ok(())
-    }
-
-    fn flush(&self) -> anyhow::Result<()> {
         Ok(())
     }
 }
