@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 fn main() {
-    println!("Run this example with `cargo test --package logforth --example in_tests --features append-single-file -- tests --show-output`; compare the output without `--show-output`");
+    println!("Run this example with `cargo test --package logforth --example in_tests -- tests --show-output`; compare the output without `--show-output`");
 }
 
 #[cfg(test)]
