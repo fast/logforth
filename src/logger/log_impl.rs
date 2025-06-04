@@ -94,8 +94,10 @@ impl Dispatch {
     }
 
     fn enabled(&self, metadata: &Metadata) -> bool {
+        let diagnostics = &self.diagnostics;
+
         for filter in &self.filters {
-            match filter.enabled(metadata) {
+            match filter.enabled(metadata, diagnostics) {
                 FilterResult::Reject => return false,
                 FilterResult::Accept => return true,
                 FilterResult::Neutral => {}
@@ -106,15 +108,16 @@ impl Dispatch {
     }
 
     fn log(&self, record: &Record) -> anyhow::Result<()> {
+        let diagnostics = &self.diagnostics;
+
         for filter in &self.filters {
-            match filter.matches(record) {
+            match filter.matches(record, diagnostics) {
                 FilterResult::Reject => return Ok(()),
                 FilterResult::Accept => break,
                 FilterResult::Neutral => {}
             }
         }
 
-        let diagnostics = &self.diagnostics;
         for append in &self.appends {
             append.append(record, diagnostics)?;
         }

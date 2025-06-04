@@ -16,6 +16,8 @@
 
 use std::fmt;
 
+use crate::Diagnostic;
+
 pub mod env_filter;
 
 pub use self::env_filter::EnvFilter;
@@ -34,16 +36,20 @@ pub enum FilterResult {
 /// A trait representing a filter that can be applied to log records.
 pub trait Filter: fmt::Debug + Send + Sync + 'static {
     /// Returns whether the record is filtered by its given metadata.
-    fn enabled(&self, metadata: &log::Metadata) -> FilterResult;
+    fn enabled(
+        &self,
+        metadata: &log::Metadata,
+        diagnostics: &[Box<dyn Diagnostic>],
+    ) -> FilterResult;
 
     /// Returns whether the record is filtered.
-    fn matches(&self, record: &log::Record) -> FilterResult {
-        self.enabled(record.metadata())
+    fn matches(&self, record: &log::Record, diagnostics: &[Box<dyn Diagnostic>]) -> FilterResult {
+        self.enabled(record.metadata(), diagnostics)
     }
 }
 
 impl Filter for log::LevelFilter {
-    fn enabled(&self, metadata: &log::Metadata) -> FilterResult {
+    fn enabled(&self, metadata: &log::Metadata, _: &[Box<dyn Diagnostic>]) -> FilterResult {
         if metadata.level() <= *self {
             FilterResult::Neutral
         } else {

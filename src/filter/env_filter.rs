@@ -21,6 +21,7 @@ use log::LevelFilter;
 use log::Metadata;
 
 use crate::filter::FilterResult;
+use crate::Diagnostic;
 use crate::Filter;
 
 /// The default environment variable for filtering logs.
@@ -132,7 +133,7 @@ impl EnvFilter {
 }
 
 impl Filter for EnvFilter {
-    fn enabled(&self, metadata: &Metadata) -> FilterResult {
+    fn enabled(&self, metadata: &Metadata, _: &[Box<dyn Diagnostic>]) -> FilterResult {
         if self.0.enabled(metadata) {
             FilterResult::Neutral
         } else {
@@ -140,7 +141,7 @@ impl Filter for EnvFilter {
         }
     }
 
-    fn matches(&self, record: &log::Record) -> FilterResult {
+    fn matches(&self, record: &log::Record, _: &[Box<dyn Diagnostic>]) -> FilterResult {
         if self.0.matches(record) {
             FilterResult::Neutral
         } else {

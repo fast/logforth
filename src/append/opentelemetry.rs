@@ -126,7 +126,8 @@ impl OpentelemetryLogBuilder {
     /// # Examples
     ///
     /// ```
-    /// use logforth::append::opentelemetry::{MakeBodyLayout, OpentelemetryLogBuilder};
+    /// use logforth::append::opentelemetry::MakeBodyLayout;
+    /// use logforth::append::opentelemetry::OpentelemetryLogBuilder;
     /// use logforth::layout::JsonLayout;
     /// use opentelemetry_otlp::LogExporter;
     /// use opentelemetry_otlp::WithExportConfig;
