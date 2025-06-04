@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 fn main() {
     println!("Run this example with `cargo test --package logforth --example in_tests -- tests --show-output`; compare the output without `--show-output`");
 }
