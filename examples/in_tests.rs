@@ -18,12 +18,12 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use logforth::append::Test;
+    use logforth::append::Testing;
 
     #[test]
     fn test_with_logging() {
         logforth::builder()
-            .dispatch(|d| d.filter(log::LevelFilter::Trace).append(Test::default()))
+            .dispatch(|d| d.filter(log::LevelFilter::Trace).append(Testing::default()))
             .apply();
 
         log::error!("Hello error!");

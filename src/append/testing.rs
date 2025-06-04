@@ -26,16 +26,16 @@ use crate::Layout;
 /// # Examples
 ///
 /// ```
-/// use logforth::append::Test;
+/// use logforth::append::Testing;
 ///
-/// let test_appender = Test::default();
+/// let test_appender = Testing::default();
 /// ```
 #[derive(Debug)]
-pub struct Test {
+pub struct Testing {
     layout: Box<dyn Layout>,
 }
 
-impl Default for Test {
+impl Default for Testing {
     fn default() -> Self {
         Self {
             layout: Box::new(TextLayout::default()),
@@ -43,16 +43,16 @@ impl Default for Test {
     }
 }
 
-impl Test {
-    /// Sets the layout for the [`Test`] appender.
+impl Testing {
+    /// Sets the layout for the [`Testing`] appender.
     ///
     /// # Examples
     ///
     /// ```
-    /// use logforth::append::Test;
+    /// use logforth::append::Testing;
     /// use logforth::layout::TextLayout;
     ///
-    /// let test_appender = Test::default().with_layout(TextLayout::default());
+    /// let test_appender = Testing::default().with_layout(TextLayout::default());
     /// ```
     pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
         self.layout = layout.into();
@@ -60,7 +60,7 @@ impl Test {
     }
 }
 
-impl Append for Test {
+impl Append for Testing {
     fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
         let bytes = self.layout.format(record, diagnostics)?;
         eprintln!("{}", String::from_utf8_lossy(&bytes));
