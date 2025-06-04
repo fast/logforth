@@ -278,6 +278,12 @@ pub trait MakeBody: fmt::Debug + Send + Sync + 'static {
     ) -> anyhow::Result<AnyValue>;
 }
 
+impl<T: MakeBody> From<T> for Box<dyn MakeBody> {
+    fn from(value: T) -> Self {
+        Box::new(value)
+    }
+}
+
 /// Make an OpenTelemetry body with the configured [`Layout`].
 #[derive(Debug)]
 pub struct MakeBodyLayout {

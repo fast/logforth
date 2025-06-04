@@ -51,7 +51,7 @@ layout-google-cloud-logging = ["internal-serde", "dep:serde_json"]
 layout-json = ["internal-serde", "dep:serde_json"]
 
 # Diagnostics
-diagnostics-fastrace = ["dep:fastrace"]
+diagnostic-fastrace = ["dep:fastrace"]
 
 # Standalone features
 colored = ["dep:colored"]
@@ -148,10 +148,18 @@ required-features = ["append-journald"]
 doc-scrape-examples = true
 name = "fastrace"
 path = "examples/fastrace.rs"
-required-features = ["fastrace/enable", "append-fastrace", "diagnostic-fastrace"]
+required-features = [
+  "fastrace/enable",
+  "append-fastrace",
+  "diagnostic-fastrace",
+]
 
 [[example]]
 doc-scrape-examples = true
 name = "google_cloud_logging"
 path = "examples/google_cloud_logging.rs"
-required-features = ["fastrace/enable", "diagnostic-fastrace", "layout-google-cloud-logging"]
+required-features = [
+  "fastrace/enable",
+  "diagnostic-fastrace",
+  "layout-google-cloud-logging",
+]

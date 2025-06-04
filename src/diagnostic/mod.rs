@@ -18,12 +18,12 @@
 use std::borrow::Cow;
 use std::fmt;
 
-#[cfg(feature = "diagnostics-fastrace")]
+#[cfg(feature = "diagnostic-fastrace")]
 mod fastrace;
 mod static_global;
 mod thread_local;
 
-#[cfg(feature = "diagnostics-fastrace")]
+#[cfg(feature = "diagnostic-fastrace")]
 pub use self::fastrace::FastraceDiagnostic;
 pub use self::static_global::StaticDiagnostic;
 pub use self::thread_local::ThreadLocalDiagnostic;
