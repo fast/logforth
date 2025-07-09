@@ -277,7 +277,9 @@ impl State {
                     return None;
                 }
 
-                let created = metadata.created().ok()?;
+                // On Linux (e.g., CentOS), `metadata.created()` may return an error due to lack of filesystem support.
+                // Fallback to `metadata.modified()` ensures compatibility across platforms.
+                let created = metadata.created().or_else(|_| metadata.modified()).ok()?;
                 Some((entry, created))
             })
             .collect::<Vec<_>>();
