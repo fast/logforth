@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## [0.26.2] 2025-07-13
+
+### Bug fixes
+
+* `RollingFile` appender now correctly delete old files on systems where `create_time` is not available ([#142](https://github.com/fast/logforth/pull/142))
+
+## [0.26.1] 2025-06-05
+
+### New features
+
+* Implement `Testing` appender that sends logs to `eprintln!`.
+
 ## [0.26.0] 2025-06-04
 
 ### Breaking changes
