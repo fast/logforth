@@ -337,16 +337,16 @@ impl State {
 
 #[cfg(test)]
 mod tests {
-    use std::cmp::min;
-    use std::fs;
-    use std::io::Write;
-    use std::ops::Add;
-    use std::str::FromStr;
-
     use jiff::Span;
     use jiff::Zoned;
     use rand::distr::Alphanumeric;
     use rand::Rng;
+    use std::cmp::min;
+    use std::io::Write;
+    use std::ops::Add;
+    use std::str::FromStr;
+    use std::time::Duration;
+    use std::{fs, thread};
     use tempfile::TempDir;
 
     use crate::append::rolling_file::clock::Clock;
@@ -448,6 +448,7 @@ mod tests {
             }
 
             writer.flush().unwrap();
+            thread::sleep(Duration::from_millis(100));
             assert_eq!(
                 fs::read_dir(&writer.state.log_dir).unwrap().count(),
                 min(i, max_files)
