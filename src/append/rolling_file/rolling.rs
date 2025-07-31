@@ -218,9 +218,9 @@ impl State {
                 format!("{filename}.{cnt}.{suffix}")
             }
             (&Rotation::Never, None, Some(suffix)) => format!("{cnt}.{suffix}"),
-            (_, Some(filename), Some(suffix)) => format!("{filename}.{date}.{cnt}.{suffix}"),
+            (_, Some(filename), Some(suffix)) => format!("{filename}.{date}.{suffix}.{cnt}"),
             (_, Some(filename), None) => format!("{filename}.{date}.{cnt}"),
-            (_, None, Some(suffix)) => format!("{date}.{cnt}.{suffix}"),
+            (_, None, Some(suffix)) => format!("{date}.{suffix}.{cnt}"),
             (_, None, None) => format!("{date}.{cnt}"),
         }
     }
