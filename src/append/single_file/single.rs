@@ -75,8 +75,8 @@ impl SingleFileWriterBuilder {
 mod tests {
     use std::io::Write;
 
-    use rand::distr::Alphanumeric;
     use rand::Rng;
+    use rand::distr::Alphanumeric;
     use tempfile::NamedTempFile;
 
     use crate::append::single_file::single::SingleFileWriterBuilder;

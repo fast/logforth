@@ -14,11 +14,11 @@
 
 use log::Metadata;
 use log::Record;
-use logforth::append;
-use logforth::filter::FilterResult;
 use logforth::Diagnostic;
 use logforth::Filter;
 use logforth::Layout;
+use logforth::append;
+use logforth::filter::FilterResult;
 
 #[derive(Debug)]
 struct CustomFilter;

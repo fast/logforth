@@ -14,16 +14,16 @@
 
 use std::borrow::Cow;
 
-use jiff::tz::TimeZone;
 use jiff::Timestamp;
 use jiff::Zoned;
+use jiff::tz::TimeZone;
 use log::Level;
 use log::Record;
 
-use crate::diagnostic::Visitor;
-use crate::layout::filename;
-use crate::layout::Layout;
 use crate::Diagnostic;
+use crate::diagnostic::Visitor;
+use crate::layout::Layout;
+use crate::layout::filename;
 
 #[cfg(feature = "colored")]
 mod colored {

@@ -16,10 +16,10 @@ use std::io::Write;
 
 use log::Record;
 
-use crate::append::Append;
-use crate::layout::TextLayout;
 use crate::Diagnostic;
 use crate::Layout;
+use crate::append::Append;
+use crate::layout::TextLayout;
 
 /// An appender that writes log records to standard output.
 ///

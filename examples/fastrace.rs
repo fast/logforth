@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use fastrace::Span;
 use fastrace::collector::Config;
 use fastrace::collector::ConsoleReporter;
 use fastrace::collector::SpanContext;
-use fastrace::Span;
 use logforth::diagnostic;
 
 fn main() {

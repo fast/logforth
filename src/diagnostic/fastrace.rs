@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::diagnostic::Visitor;
 use crate::Diagnostic;
+use crate::diagnostic::Visitor;
 
 /// A diagnostic that enriches log records with trace ID provided by the Fastrace library.
 ///

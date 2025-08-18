@@ -15,17 +15,17 @@
 use std::borrow::Cow;
 use std::fmt::Arguments;
 
-use jiff::tz::TimeZone;
 use jiff::Timestamp;
 use jiff::Zoned;
+use jiff::tz::TimeZone;
 use log::Record;
 use serde::Serialize;
 use serde_json::Map;
 use serde_json::Value;
 
+use crate::Diagnostic;
 use crate::diagnostic::Visitor;
 use crate::layout::Layout;
-use crate::Diagnostic;
 
 /// A JSON layout for formatting log records.
 ///

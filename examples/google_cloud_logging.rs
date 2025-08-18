@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use fastrace::Span;
 use fastrace::collector::Config;
 use fastrace::collector::ConsoleReporter;
 use fastrace::collector::SpanContext;
 use fastrace::prelude::SpanId;
 use fastrace::prelude::TraceId;
-use fastrace::Span;
 use logforth::append;
 use logforth::diagnostic;
 use logforth::layout::GoogleCloudLoggingLayout;

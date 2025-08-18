@@ -17,10 +17,10 @@ use std::io::Write;
 use log::Metadata;
 use log::Record;
 
-use crate::filter::FilterResult;
 use crate::Append;
 use crate::Diagnostic;
 use crate::Filter;
+use crate::filter::FilterResult;
 
 /// A logger facade that dispatches log records to one or more dispatcher.
 ///

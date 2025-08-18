@@ -33,18 +33,18 @@
 use std::io;
 use std::time::Duration;
 
+use fasyslog::SDElement;
 use fasyslog::format::SyslogContext;
 use fasyslog::sender::SyslogSender;
-use fasyslog::SDElement;
 use log::Record;
 
-use crate::non_blocking::NonBlocking;
-use crate::non_blocking::NonBlockingBuilder;
-use crate::non_blocking::Writer;
 use crate::Append;
 use crate::Diagnostic;
 use crate::DropGuard;
 use crate::Layout;
+use crate::non_blocking::NonBlocking;
+use crate::non_blocking::NonBlockingBuilder;
+use crate::non_blocking::Writer;
 
 pub extern crate fasyslog;
 

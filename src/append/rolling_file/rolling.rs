@@ -23,8 +23,8 @@ use std::path::PathBuf;
 use anyhow::Context;
 use jiff::Zoned;
 
-use crate::append::rolling_file::clock::Clock;
 use crate::append::rolling_file::Rotation;
+use crate::append::rolling_file::clock::Clock;
 
 /// A writer for rolling files.
 #[derive(Debug)]
@@ -277,8 +277,9 @@ impl State {
                     return None;
                 }
 
-                // On Linux (e.g., CentOS), `metadata.created()` may return an error due to lack of filesystem support.
-                // Fallback to `metadata.modified()` ensures compatibility across platforms.
+                // On Linux (e.g., CentOS), `metadata.created()` may return an error due to lack of
+                // filesystem support. Fallback to `metadata.modified()` ensures
+                // compatibility across platforms.
                 let created = metadata.created().or_else(|_| metadata.modified()).ok()?;
                 Some((entry, created))
             })
@@ -345,14 +346,14 @@ mod tests {
 
     use jiff::Span;
     use jiff::Zoned;
-    use rand::distr::Alphanumeric;
     use rand::Rng;
+    use rand::distr::Alphanumeric;
     use tempfile::TempDir;
 
+    use crate::append::rolling_file::Rotation;
     use crate::append::rolling_file::clock::Clock;
     use crate::append::rolling_file::clock::ManualClock;
     use crate::append::rolling_file::rolling::RollingFileWriterBuilder;
-    use crate::append::rolling_file::Rotation;
 
     #[test]
     fn test_file_rolling_via_file_size() {

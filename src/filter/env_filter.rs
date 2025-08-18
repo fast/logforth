@@ -20,9 +20,9 @@ use std::str::FromStr;
 use log::LevelFilter;
 use log::Metadata;
 
-use crate::filter::FilterResult;
 use crate::Diagnostic;
 use crate::Filter;
+use crate::filter::FilterResult;
 
 /// The default environment variable for filtering logs.
 pub const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
