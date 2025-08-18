@@ -91,17 +91,8 @@ This crates has been in development since 2024-08. It is being used in several p
 
 Fundamental logging APIs are stabilized, including:
 
-* Traits: [`Append`][append-url], [`Layout`][layout-url], [`Filter`][filter-url], [`Diagnostic`][diagnostic-url] and its [`Visitor`][diagnostic-visitor-url]
-* Facades: [`DispatchBuilder`][dispatch-builder-url], [`LoggerBuilder`][logger-builder-url], and [`Logger`][logger-url]
-
-[append-url]: https://docs.rs/logforth/*/logforth/append/trait.Append.html
-[layout-url]: https://docs.rs/logforth/*/logforth/layout/trait.Layout.html
-[filter-url]: https://docs.rs/logforth/*/logforth/filter/trait.Filter.html
-[diagnostic-url]: https://docs.rs/logforth/*/logforth/diagnostic/trait.Diagnostic.html
-[diagnostic-visitor-url]: https://docs.rs/logforth/*/logforth/diagnostic/trait.Visitor.html
-[dispatch-builder-url]: https://docs.rs/logforth/*/logforth/struct.DispatchBuilder.html
-[logger-builder-url]: https://docs.rs/logforth/*/logforth/struct.LoggerBuilder.html
-[logger-url]: https://docs.rs/logforth/*/logforth/struct.Logger.html
+* Traits: `Append`, `Layout`, `Filter`, `Diagnostic` and its `Visitor`
+* Facades: `DispatchBuilder`, `LoggerBuilder`, and `Logger`
 
 Core appenders, filters, layouts, and diagnostics are also stabilized, including:
 
