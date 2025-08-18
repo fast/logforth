@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## [0.27.0] 2025-08-18
+
+### Notable changes
+
+* Bump the Rust edition to 2024.
+* Claim stabilize targets for the crate.
+
 ## [0.26.2] 2025-07-13
 
 ### Bug fixes

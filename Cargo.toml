@@ -16,13 +16,13 @@
 name = "logforth"
 
 description = "A versatile and extensible logging implementation."
-edition = "2021"
+edition = "2024"
 homepage = "https://github.com/fast/logforth"
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/fast/logforth"
 rust-version = "1.85.0"
-version = "0.26.2"
+version = "0.27.0"
 
 categories = ["development-tools::debugging"]
 keywords = ["logging", "log", "opentelemetry", "fastrace"]
