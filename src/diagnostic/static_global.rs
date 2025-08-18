@@ -14,8 +14,8 @@
 
 use std::collections::BTreeMap;
 
-use crate::diagnostic::Visitor;
 use crate::Diagnostic;
+use crate::diagnostic::Visitor;
 
 /// A diagnostic that stores key-value pairs in a static global map.
 ///

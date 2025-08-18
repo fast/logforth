@@ -16,11 +16,11 @@ use log::LevelFilter;
 
 use super::log_impl::Dispatch;
 use super::log_impl::Logger;
-use crate::append;
-use crate::filter::EnvFilter;
 use crate::Append;
 use crate::Diagnostic;
 use crate::Filter;
+use crate::append;
+use crate::filter::EnvFilter;
 
 /// Creates a new empty [`LoggerBuilder`] instance for configuring log dispatching.
 ///

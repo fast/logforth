@@ -16,14 +16,14 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 use anyhow::Context;
-use crossbeam_channel::bounded;
-use crossbeam_channel::unbounded;
 use crossbeam_channel::SendTimeoutError;
 use crossbeam_channel::Sender;
+use crossbeam_channel::bounded;
+use crossbeam_channel::unbounded;
 
-use super::worker::Worker;
 use super::Message;
 use super::Writer;
+use super::worker::Worker;
 
 /// A guard that flushes log records associated with a [`NonBlocking`] writer on drop.
 ///

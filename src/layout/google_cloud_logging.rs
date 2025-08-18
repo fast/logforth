@@ -21,9 +21,9 @@ use log::Record;
 use serde::Serialize;
 use serde_json::Value;
 
+use crate::Diagnostic;
 use crate::diagnostic::Visitor;
 use crate::layout::Layout;
-use crate::Diagnostic;
 
 /// A layout for Google Cloud Structured Logging.
 ///

@@ -15,8 +15,8 @@
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 
-use crate::diagnostic::Visitor;
 use crate::Diagnostic;
+use crate::diagnostic::Visitor;
 
 thread_local! {
     static CONTEXT: RefCell<BTreeMap<String, String>> = const { RefCell::new(BTreeMap::new()) };

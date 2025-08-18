@@ -20,9 +20,9 @@ use std::os::unix::net::UnixDatagram;
 use log::Level;
 use log::Record;
 
-use crate::diagnostic::Visitor;
 use crate::Append;
 use crate::Diagnostic;
+use crate::diagnostic::Visitor;
 
 mod field;
 #[cfg(target_os = "linux")]

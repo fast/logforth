@@ -19,9 +19,9 @@ use std::borrow::Cow;
 use jiff::Zoned;
 use log::Record;
 
+use crate::Diagnostic;
 use crate::append::Append;
 use crate::diagnostic::Visitor;
-use crate::Diagnostic;
 
 /// An appender that adds log records to fastrace as an event associated to the current span.
 ///

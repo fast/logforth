@@ -83,22 +83,64 @@ This crate is built against the latest stable release, and its minimum supported
 
 The policy is that the minimum Rust version required to use this crate can be increased in minor version updates. For example, if Logforth 1.0 requires Rust 1.60.0, then Logforth 1.0.z for all values of z will also require Rust 1.60.0 or newer. However, Logforth 1.y for y > 0 may require a newer minimum version of Rust.
 
-## When to release version 1.0
+## Maturity
 
-After one year of practicing the interfaces, if there are no further blockers, I'll release version 1.0. So consequently, it can be as early as 2025-08.
+This crates has been in development since 2024-08. It is being used in several production systems stable enough to be considered mature, but it is still evolving. Read the following sections for what is stabilized and what is planned for the future.
 
 ### Stabilize targets
 
-To release version 1.0, it's essential to declare what targets this crate wants to stabilize. Even after 1.0, it's helpful to distinguish different portions of this crate to allow unstable modules to make breaking changes to improve their quality, just as how rust-lang's stabilization mechanism works.
+Fundamental logging APIs are stabilized, including:
 
-Basically, this crate contains:
+* Traits: [`Append`][append-url], [`Layout`][layout-url], [`Filter`][filter-url], [`Diagnostic`][diagnostic-url] and its [`Visitor`][diagnostic-visitor-url]
+* Facades: [`DispatchBuilder`][dispatch-builder-url], [`LoggerBuilder`][logger-builder-url], and [`Logger`][logger-url]
 
-* Fundamental logging APIs (Appender, Layout, Filter, Dispatch, Logger, etc.) MUST be stabilized before 1.0.
-* Basic layouts and filters (all current existing) SHOULD be stabilized before 1.0.
-* Basic appenders (Stdout, Stderr, RollingFile) SHOULD be stabilized before 1.0.
-* Advanced appenders (Fastrace, OpentelemetryLog, Syslog, etc.) to-be-determined how to stabilize them.
+[append-url]: https://docs.rs/logforth/*/logforth/append/trait.Append.html
+[layout-url]: https://docs.rs/logforth/*/logforth/layout/trait.Layout.html
+[filter-url]: https://docs.rs/logforth/*/logforth/filter/trait.Filter.html
+[diagnostic-url]: https://docs.rs/logforth/*/logforth/diagnostic/trait.Diagnostic.html
+[diagnostic-visitor-url]: https://docs.rs/logforth/*/logforth/diagnostic/trait.Visitor.html
+[dispatch-builder-url]: https://docs.rs/logforth/*/logforth/struct.DispatchBuilder.html
+[logger-builder-url]: https://docs.rs/logforth/*/logforth/struct.LoggerBuilder.html
+[logger-url]: https://docs.rs/logforth/*/logforth/struct.Logger.html
 
-Generally, there are known usage for Fastrace and OpentelemetryLog, so we can confidently announce their stable version; others are still waiting for feedback.
+Core appenders, filters, layouts, and diagnostics are also stabilized, including:
+
+* Appenders: `Stdout`, `Stderr`, and `Testing`
+* Filters: `EnvFilter`
+* Layouts: `TestLayout` and `JsonLayout`
+* Diagnostics: `StaticDiagnostic` and `ThreadLocalDiagnostic`
+
+Other appenders, filters, layouts, and diagnostics are still evolving and may change in future versions.
+
+The following components yet to be unstabilized have known production usage and are considered reliable:
+
+* Appenders: `Fastrace`, `OpentelemetryLog`, `SingleFile`, and `RollingFile`
+* Layouts: `LogfmtLayout` and `GoogleCloudLoggingLayout`
+* Diagnostics: `FastraceDiagnostic`
+
+### Future plans
+
+**What about a 1.0 release?**
+
+The fundamental APIs and core components are stable. It's possible to factor out a separate `logforth-api` (or `logforth-core`) crate that contains only the stable APIs, and then release `logforth-api` 1.0 with the stable APIs and core components. I just don't decide its name and project layout yet.
+
+The rest components, due to their external dependencies and several missing features, are still evolving and may change in future versions. They will be released as `logforth-append-foo`, `logforth-filter-bar`, `logforth-layout-baz`, and `logforth-diagnostic-qux` crates, which will depend on the stable `logforth-api` crate.
+
+**What are the missing features?**
+
+Before stabilize `SingleFile`, `RollingFile` and `Syslog` appenders that depend on the `NonBlocking` utility, I need to decide whether an `AsyncAppend` composition is better (see [#145](https://github.com/fast/logforth/issues/145)).
+
+Otherwise, how to share utilities like `NonBlocking` and `LevelColor` between different separate crates without duplicating code is still an open question.
+
+**What about components that have external dependencies?**
+
+Fastrace's appenders and diagnostic, OpenTelemetry's appender, etc. have external dependencies that are not stable yet. The best option should be to release them as separate crates, such as `logforth-append-fastrace`, `logforth-diagnostic-fastrace`, `logforth-append-opentelemetry`, etc. This way, they can evolve independently and be used in projects that require them without affecting the core logging functionality.
+
+This is blocked by not having a stable `logforth-api` crate yet, as these components depend on the stable APIs.
+
+**What is the future of the `logforth` crate?**
+
+It will continue to be the main crate that assembles all the features and provides a one-for-all dependency.
 
 ## License and Origin
 

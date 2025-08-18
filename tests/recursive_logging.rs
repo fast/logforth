@@ -15,11 +15,11 @@
 #![cfg(feature = "append-rolling-file")]
 
 use log::Record;
+use logforth::Diagnostic;
+use logforth::Layout;
 use logforth::append;
 use logforth::append::rolling_file::RollingFileBuilder;
 use logforth::append::rolling_file::Rotation;
-use logforth::Diagnostic;
-use logforth::Layout;
 
 #[derive(Debug)]
 struct CustomLayout(&'static str);

@@ -14,10 +14,10 @@
 
 use log::Record;
 
-use crate::append::Append;
-use crate::layout::TextLayout;
 use crate::Diagnostic;
 use crate::Layout;
+use crate::append::Append;
+use crate::layout::TextLayout;
 
 /// An appender that writes log records that can be captured by a test harness (like `cargo test`),
 /// and thus the outputs are suppressed unless `--nocapture` or `--show-output` is specified.

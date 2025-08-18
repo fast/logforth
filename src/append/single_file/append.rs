@@ -17,15 +17,15 @@ use std::time::Duration;
 
 use log::Record;
 
-use crate::append::single_file::single::SingleFileWriter;
-use crate::append::single_file::single::SingleFileWriterBuilder;
-use crate::append::Append;
-use crate::layout::TextLayout;
-use crate::non_blocking::NonBlocking;
-use crate::non_blocking::NonBlockingBuilder;
 use crate::Diagnostic;
 use crate::DropGuard;
 use crate::Layout;
+use crate::append::Append;
+use crate::append::single_file::single::SingleFileWriter;
+use crate::append::single_file::single::SingleFileWriterBuilder;
+use crate::layout::TextLayout;
+use crate::non_blocking::NonBlocking;
+use crate::non_blocking::NonBlockingBuilder;
 
 /// A builder to configure and create an [`SingleFile`] appender.
 #[derive(Debug)]

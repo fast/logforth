@@ -19,19 +19,19 @@ use std::fmt;
 use std::time::SystemTime;
 
 use log::Record;
+use opentelemetry::InstrumentationScope;
 use opentelemetry::logs::AnyValue;
 use opentelemetry::logs::LogRecord;
 use opentelemetry::logs::Logger;
 use opentelemetry::logs::LoggerProvider;
-use opentelemetry::InstrumentationScope;
 use opentelemetry_otlp::LogExporter;
 use opentelemetry_sdk::logs::SdkLogRecord;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 
-use crate::append::Append;
-use crate::diagnostic::Visitor;
 use crate::Diagnostic;
 use crate::Layout;
+use crate::append::Append;
+use crate::diagnostic::Visitor;
 
 /// A builder to configure and create an [`OpentelemetryLog`] appender.
 #[derive(Debug)]
