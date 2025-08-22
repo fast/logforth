@@ -50,7 +50,6 @@ fn main() {
 
 By default, all logging except the error level is disabled. You can enable logging at other levels by setting the [`RUST_LOG`](https://docs.rs/env_logger/*/env_logger/#enabling-logging) environment variable. For example, `RUST_LOG=debug cargo run` will print all logs.
 
-
 ## Advanced Usage
 
 Configure multiple dispatches with different filters and appenders:
