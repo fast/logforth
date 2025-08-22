@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::fmt::Arguments;
 
 use jiff::Timestamp;
@@ -87,11 +88,13 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'_> {
     }
 }
 
-impl Visitor for KvCollector<'_> {
+struct DiagsCollector<'a> {
+    diags: &'a mut BTreeMap<String, String>,
+}
+
+impl Visitor for DiagsCollector<'_> {
     fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
-        let key = key.into_owned();
-        let value = value.into_owned();
-        self.kvs.insert(key, value.into());
+        self.diags.insert(key.into_owned(), value.into_owned());
         Ok(())
     }
 }
@@ -107,6 +110,7 @@ struct RecordLine<'a> {
     #[serde(serialize_with = "serialize_args")]
     message: &'a Arguments<'a>,
     kvs: Map<String, Value>,
+    diags: BTreeMap<String, String>,
 }
 
 fn serialize_time_zone<S>(timestamp: &Zoned, serializer: S) -> Result<S::Ok, S::Error>
@@ -130,10 +134,13 @@ impl Layout for JsonLayout {
         diagnostics: &[Box<dyn Diagnostic>],
     ) -> anyhow::Result<Vec<u8>> {
         let mut kvs = Map::new();
-        let mut visitor = KvCollector { kvs: &mut kvs };
-        record.key_values().visit(&mut visitor)?;
+        let mut kvs_visitor = KvCollector { kvs: &mut kvs };
+        record.key_values().visit(&mut kvs_visitor)?;
+
+        let mut diags = BTreeMap::new();
+        let mut diag_visitor = DiagsCollector { diags: &mut diags };
         for d in diagnostics {
-            d.visit(&mut visitor)?;
+            d.visit(&mut diag_visitor)?;
         }
 
         let record_line = RecordLine {
@@ -147,6 +154,7 @@ impl Layout for JsonLayout {
             line: record.line().unwrap_or_default(),
             message: record.args(),
             kvs,
+            diags,
         };
 
         Ok(serde_json::to_vec(&record_line)?)
