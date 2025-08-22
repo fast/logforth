@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::fmt::Arguments;
 
 use jiff::Timestamp;
@@ -32,11 +33,11 @@ use crate::layout::Layout;
 /// Output format:
 ///
 /// ```json
-/// {"timestamp":"2024-08-11T22:44:57.172051+08:00","level":"ERROR","module_path":"rolling_file","file":"examples/rolling_file.rs","line":51,"message":"Hello error!","kvs":{}}
-/// {"timestamp":"2024-08-11T22:44:57.172187+08:00","level":"WARN","module_path":"rolling_file","file":"examples/rolling_file.rs","line":52,"message":"Hello warn!","kvs":{}}
-/// {"timestamp":"2024-08-11T22:44:57.172246+08:00","level":"INFO","module_path":"rolling_file","file":"examples/rolling_file.rs","line":53,"message":"Hello info!","kvs":{}}
-/// {"timestamp":"2024-08-11T22:44:57.172300+08:00","level":"DEBUG","module_path":"rolling_file","file":"examples/rolling_file.rs","line":54,"message":"Hello debug!","kvs":{}}
-/// {"timestamp":"2024-08-11T22:44:57.172353+08:00","level":"TRACE","module_path":"rolling_file","file":"examples/rolling_file.rs","line":55,"message":"Hello trace!","kvs":{}}
+/// {"timestamp":"2024-08-11T22:44:57.172051+08:00","level":"ERROR","module_path":"rolling_file","file":"examples/rolling_file.rs","line":51,"message":"Hello error!"}
+/// {"timestamp":"2024-08-11T22:44:57.172187+08:00","level":"WARN","module_path":"rolling_file","file":"examples/rolling_file.rs","line":52,"message":"Hello warn!"}
+/// {"timestamp":"2024-08-11T22:44:57.172246+08:00","level":"INFO","module_path":"rolling_file","file":"examples/rolling_file.rs","line":53,"message":"Hello info!"}
+/// {"timestamp":"2024-08-11T22:44:57.172300+08:00","level":"DEBUG","module_path":"rolling_file","file":"examples/rolling_file.rs","line":54,"message":"Hello debug!"}
+/// {"timestamp":"2024-08-11T22:44:57.172353+08:00","level":"TRACE","module_path":"rolling_file","file":"examples/rolling_file.rs","line":55,"message":"Hello trace!"}
 /// ```
 ///
 /// # Examples
@@ -87,11 +88,13 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'_> {
     }
 }
 
-impl Visitor for KvCollector<'_> {
+struct DiagsCollector<'a> {
+    diags: &'a mut BTreeMap<String, String>,
+}
+
+impl Visitor for DiagsCollector<'_> {
     fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
-        let key = key.into_owned();
-        let value = value.into_owned();
-        self.kvs.insert(key, value.into());
+        self.diags.insert(key.into_owned(), value.into_owned());
         Ok(())
     }
 }
@@ -106,7 +109,10 @@ struct RecordLine<'a> {
     line: u32,
     #[serde(serialize_with = "serialize_args")]
     message: &'a Arguments<'a>,
+    #[serde(skip_serializing_if = "Map::is_empty")]
     kvs: Map<String, Value>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    diags: BTreeMap<String, String>,
 }
 
 fn serialize_time_zone<S>(timestamp: &Zoned, serializer: S) -> Result<S::Ok, S::Error>
@@ -130,10 +136,13 @@ impl Layout for JsonLayout {
         diagnostics: &[Box<dyn Diagnostic>],
     ) -> anyhow::Result<Vec<u8>> {
         let mut kvs = Map::new();
-        let mut visitor = KvCollector { kvs: &mut kvs };
-        record.key_values().visit(&mut visitor)?;
+        let mut kvs_visitor = KvCollector { kvs: &mut kvs };
+        record.key_values().visit(&mut kvs_visitor)?;
+
+        let mut diags = BTreeMap::new();
+        let mut diags_visitor = DiagsCollector { diags: &mut diags };
         for d in diagnostics {
-            d.visit(&mut visitor)?;
+            d.visit(&mut diags_visitor)?;
         }
 
         let record_line = RecordLine {
@@ -147,6 +156,7 @@ impl Layout for JsonLayout {
             line: record.line().unwrap_or_default(),
             message: record.args(),
             kvs,
+            diags,
         };
 
         Ok(serde_json::to_vec(&record_line)?)

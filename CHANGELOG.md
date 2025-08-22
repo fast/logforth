@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### Breaking changes
+
+* `JsonLayout` now collects diagnostics context into a separate field `diags`.
+
 ## [0.27.0] 2025-08-18
 
 ### Notable changes
