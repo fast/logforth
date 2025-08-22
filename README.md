@@ -47,9 +47,8 @@ fn main() {
     log::debug!("This debug message will not be printed by default.");
 }
 ```
-By default, all logging except the error level is disabled.
-You can enable logging at other levels by setting `RUST_LOG` environment variable.
-For example, `RUST_LOG=debug cargo run` will print all logs there.
+
+By default, all logging except the error level is disabled. You can enable logging at other levels by setting the [`RUST_LOG`](https://docs.rs/env_logger/*/env_logger/#enabling-logging) environment variable. For example, `RUST_LOG=debug cargo run` will print all logs.
 
 
 ## Advanced Usage
