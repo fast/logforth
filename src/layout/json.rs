@@ -33,11 +33,11 @@ use crate::layout::Layout;
 /// Output format:
 ///
 /// ```json
-/// {"timestamp":"2024-08-11T22:44:57.172051+08:00","level":"ERROR","module_path":"rolling_file","file":"examples/rolling_file.rs","line":51,"message":"Hello error!","kvs":{}}
-/// {"timestamp":"2024-08-11T22:44:57.172187+08:00","level":"WARN","module_path":"rolling_file","file":"examples/rolling_file.rs","line":52,"message":"Hello warn!","kvs":{}}
-/// {"timestamp":"2024-08-11T22:44:57.172246+08:00","level":"INFO","module_path":"rolling_file","file":"examples/rolling_file.rs","line":53,"message":"Hello info!","kvs":{}}
-/// {"timestamp":"2024-08-11T22:44:57.172300+08:00","level":"DEBUG","module_path":"rolling_file","file":"examples/rolling_file.rs","line":54,"message":"Hello debug!","kvs":{}}
-/// {"timestamp":"2024-08-11T22:44:57.172353+08:00","level":"TRACE","module_path":"rolling_file","file":"examples/rolling_file.rs","line":55,"message":"Hello trace!","kvs":{}}
+/// {"timestamp":"2024-08-11T22:44:57.172051+08:00","level":"ERROR","module_path":"rolling_file","file":"examples/rolling_file.rs","line":51,"message":"Hello error!"}
+/// {"timestamp":"2024-08-11T22:44:57.172187+08:00","level":"WARN","module_path":"rolling_file","file":"examples/rolling_file.rs","line":52,"message":"Hello warn!"}
+/// {"timestamp":"2024-08-11T22:44:57.172246+08:00","level":"INFO","module_path":"rolling_file","file":"examples/rolling_file.rs","line":53,"message":"Hello info!"}
+/// {"timestamp":"2024-08-11T22:44:57.172300+08:00","level":"DEBUG","module_path":"rolling_file","file":"examples/rolling_file.rs","line":54,"message":"Hello debug!"}
+/// {"timestamp":"2024-08-11T22:44:57.172353+08:00","level":"TRACE","module_path":"rolling_file","file":"examples/rolling_file.rs","line":55,"message":"Hello trace!"}
 /// ```
 ///
 /// # Examples
@@ -109,7 +109,9 @@ struct RecordLine<'a> {
     line: u32,
     #[serde(serialize_with = "serialize_args")]
     message: &'a Arguments<'a>,
+    #[serde(skip_serializing_if = "Map::is_empty")]
     kvs: Map<String, Value>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     diags: BTreeMap<String, String>,
 }
 
@@ -138,9 +140,9 @@ impl Layout for JsonLayout {
         record.key_values().visit(&mut kvs_visitor)?;
 
         let mut diags = BTreeMap::new();
-        let mut diag_visitor = DiagsCollector { diags: &mut diags };
+        let mut diags_visitor = DiagsCollector { diags: &mut diags };
         for d in diagnostics {
-            d.visit(&mut diag_visitor)?;
+            d.visit(&mut diags_visitor)?;
         }
 
         let record_line = RecordLine {
