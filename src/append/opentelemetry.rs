@@ -16,6 +16,7 @@
 
 use std::borrow::Cow;
 use std::fmt;
+use std::time::SystemTime;
 
 use log::Record;
 use opentelemetry::InstrumentationScope;
@@ -219,7 +220,11 @@ pub struct OpentelemetryLog {
 
 impl Append for OpentelemetryLog {
     fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
+        let now = SystemTime::now();
+
         let mut log_record = self.logger.create_log_record();
+        log_record.set_timestamp(now);
+        log_record.set_observed_timestamp(SystemTime::now());
         log_record.set_severity_number(log_level_to_otel_severity(record.level()));
         log_record.set_severity_text(record.level().as_str());
         log_record.set_target(record.target().to_string());
