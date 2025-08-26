@@ -16,9 +16,9 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fmt::Arguments;
 
-use jiff::Timestamp;
-use jiff::Zoned;
-use jiff::tz::TimeZone;
+pub use jiff::Timestamp;
+pub use jiff::Zoned;
+pub use jiff::tz::TimeZone;
 use log::Record;
 use serde::Serialize;
 use serde_json::Map;
