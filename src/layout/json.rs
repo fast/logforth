@@ -16,9 +16,6 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fmt::Arguments;
 
-use jiff::Timestamp;
-use jiff::Zoned;
-use jiff::tz::TimeZone;
 use log::Record;
 use serde::Serialize;
 use serde_json::Map;
@@ -27,6 +24,7 @@ use serde_json::Value;
 use crate::Diagnostic;
 use crate::diagnostic::Visitor;
 use crate::layout::Layout;
+use crate::time::{Timestamp, Zoned, TimeZone};
 
 /// A JSON layout for formatting log records.
 ///
@@ -58,8 +56,8 @@ impl JsonLayout {
     /// # Examples
     ///
     /// ```
-    /// use jiff::tz::TimeZone;
     /// use logforth::layout::JsonLayout;
+    /// use logforth::time::TimeZone;
     ///
     /// let json_layout = JsonLayout::default().timezone(TimeZone::UTC);
     /// ```

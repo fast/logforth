@@ -14,14 +14,11 @@
 
 use std::borrow::Cow;
 
-use jiff::Timestamp;
-use jiff::Zoned;
-use jiff::tz::TimeZone;
-
 use crate::Diagnostic;
 use crate::diagnostic::Visitor;
 use crate::layout::Layout;
 use crate::layout::filename;
+use crate::time::{Timestamp, Zoned, TimeZone};
 
 /// A logfmt layout for formatting log records.
 ///
@@ -58,8 +55,8 @@ impl LogfmtLayout {
     /// # Examples
     ///
     /// ```
-    /// use jiff::tz::TimeZone;
     /// use logforth::layout::LogfmtLayout;
+    /// use logforth::time::TimeZone;
     ///
     /// let logfmt_layout = LogfmtLayout::default().timezone(TimeZone::UTC);
     /// ```

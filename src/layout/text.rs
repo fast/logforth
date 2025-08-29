@@ -14,9 +14,6 @@
 
 use std::borrow::Cow;
 
-use jiff::Timestamp;
-use jiff::Zoned;
-use jiff::tz::TimeZone;
 use log::Level;
 use log::Record;
 
@@ -24,6 +21,7 @@ use crate::Diagnostic;
 use crate::diagnostic::Visitor;
 use crate::layout::Layout;
 use crate::layout::filename;
+use crate::time::{Timestamp, Zoned, TimeZone};
 
 #[cfg(feature = "colored")]
 mod colored {
@@ -132,8 +130,8 @@ impl TextLayout {
     /// # Examples
     ///
     /// ```
-    /// use jiff::tz::TimeZone;
     /// use logforth::layout::TextLayout;
+    /// use logforth::time::TimeZone;
     ///
     /// let text_layout = TextLayout::default().timezone(TimeZone::UTC);
     /// ```

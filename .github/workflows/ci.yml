@@ -15,9 +15,9 @@
 name: CI
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
   push:
-    branches: [ main ]
+    branches: [main]
 
 # Concurrency strategy:
 #   github.workflow: distinguish this workflow from others
@@ -59,8 +59,8 @@ jobs:
     name: Run tests
     strategy:
       matrix:
-        os: [ ubuntu-22.04, macos-14, windows-2022 ]
-        rust-version: [ "1.85.0", "stable" ]
+        os: [ubuntu-22.04, macos-14, windows-2022]
+        rust-version: ["1.85.0", "stable"]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -84,7 +84,7 @@ jobs:
           cargo run --example log_with_logger
           cargo run --example multiple_dispatches
           cargo run --example custom_layout_filter
-          cargo run --no-default-features --example simple_stdout
+          cargo run --features="chrono" --example simple_stdout
           cargo run --features="layout-json" --example json_stdout
           cargo run --features="layout-json,append-rolling-file" --example rolling_file
           cargo run --features="layout-json,append-single-file" --example single_file
