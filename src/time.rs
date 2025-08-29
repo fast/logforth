@@ -204,11 +204,11 @@ mod chrono_impl {
     
     /// Timezone wrapper for chrono.
     #[derive(Debug, Clone)]
-    pub struct TimeZone(pub chrono_tz::Tz);
+    pub struct TimeZone(pub chrono::offset::FixedOffset);
 
     impl TimeZone {
         /// UTC timezone.
-        pub const UTC: Self = Self(chrono_tz::UTC);
+        pub const UTC: Self = Self(chrono::offset::FixedOffset::east_opt(0).unwrap());
     }
 
     /// A timestamp representing a specific moment in time.
@@ -266,31 +266,34 @@ mod chrono_impl {
 
     /// A zoned timestamp with timezone information.
     #[derive(Debug, Clone, PartialEq, PartialOrd)]
-    pub struct Zoned(pub chrono::DateTime<chrono_tz::Tz>);
+    pub struct Zoned(pub chrono::DateTime<chrono::offset::FixedOffset>);
 
     impl Zoned {
         /// Get the current zoned timestamp in the system timezone.
         pub fn now() -> Self {
-            let _local = chrono::Local::now();
-            // Convert to system timezone (approximation using UTC for simplicity)
-            Self(chrono::Utc::now().with_timezone(&chrono_tz::UTC))
+            let local = chrono::Local::now();
+            // Convert to UTC fixed offset
+            Self(local.with_timezone(&chrono::offset::FixedOffset::east_opt(0).unwrap()))
         }
 
         /// Create from a string representation.
         pub fn from_str(s: &str) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
             // Try to handle both jiff and chrono compatible formats
             if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
-                Ok(Self(dt.with_timezone(&chrono_tz::UTC)))
+                // Convert to FixedOffset
+                let fixed_offset = dt.timezone();
+                Ok(Self(dt.with_timezone(&fixed_offset)))
             } else if s.contains("[UTC]") {
                 // Handle jiff-style format like "2024-08-10T00:00:00[UTC]"
                 let s_clean = s.replace("[UTC]", "+00:00");
                 let dt = chrono::DateTime::parse_from_rfc3339(&s_clean)?;
-                Ok(Self(dt.with_timezone(&chrono_tz::UTC)))
+                let fixed_offset = dt.timezone();
+                Ok(Self(dt.with_timezone(&fixed_offset)))
             } else {
                 // Try parsing as a naive datetime and assume UTC
                 let naive = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S")?;
                 let utc_dt = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(naive, chrono::Utc);
-                Ok(Self(utc_dt.with_timezone(&chrono_tz::UTC)))
+                Ok(Self(utc_dt.with_timezone(&chrono::offset::FixedOffset::east_opt(0).unwrap())))
             }
         }
 

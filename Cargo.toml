@@ -36,7 +36,7 @@ default = ["jiff"]
 # default = ["append-rolling-file", "layout-json", "chrono"]
 
 # Time libraries
-chrono = ["dep:chrono", "dep:chrono-tz"]
+chrono = ["dep:chrono"]
 jiff = ["dep:jiff"]
 
 # Appenders
@@ -72,7 +72,6 @@ internal-serde-jiff = ["internal-serde", "jiff/serde"]
 [dependencies]
 anyhow = { version = "1.0" }
 chrono = { version = "0.4", features = ["serde"], optional = true }
-chrono-tz = { version = "0.10", optional = true }
 env_filter = { version = "0.1.1" }
 jiff = { version = "0.2", optional = true }
 log = { version = "0.4.27", features = ["std", "kv"] }
