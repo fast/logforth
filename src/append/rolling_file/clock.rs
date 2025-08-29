@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jiff::Zoned;
+use crate::time::Zoned;
 
 #[derive(Debug)]
 pub enum Clock {
@@ -62,18 +62,22 @@ impl ManualClock {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use super::*;
 
     #[test]
     fn test_manual_clock_adjusting() {
-        let now = Zoned::from_str("2024-08-10T17:12:52+08[+08]").unwrap();
-        let mut clock = ManualClock { now: now.clone() };
-        assert_eq!(clock.now(), now);
+        #[cfg(feature = "jiff")]
+        let _now = Zoned::from_str("2024-08-10T17:12:52+08[+08]").unwrap();
+        #[cfg(not(feature = "jiff"))]
+        let _now = Zoned::from_str("2024-08-10T17:12:52+08:00").unwrap();
+        let mut clock = ManualClock { now: _now.clone() };
+        assert_eq!(clock.now(), _now);
 
-        let now = Zoned::from_str("2024-01-01T12:00:00+08[+08]").unwrap();
-        clock.set_now(now.clone());
-        assert_eq!(clock.now(), now);
+        #[cfg(feature = "jiff")]
+        let _now = Zoned::from_str("2024-01-01T12:00:00+08[+08]").unwrap();
+        #[cfg(not(feature = "jiff"))]
+        let _now = Zoned::from_str("2024-01-01T12:00:00+08:00").unwrap();
+        clock.set_now(_now.clone());
+        assert_eq!(clock.now(), _now);
     }
 }

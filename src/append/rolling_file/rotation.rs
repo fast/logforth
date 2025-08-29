@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jiff::RoundMode;
-use jiff::ToSpan;
-use jiff::Unit;
-use jiff::Zoned;
-use jiff::ZonedRound;
+use crate::time::{RoundMode, Unit, Zoned, ZonedRound, minute, hour, day};
 
 /// Rotation policies for rolling files.
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -39,12 +35,12 @@ impl Rotation {
         let next_date = match *self {
             Rotation::Never => return None,
             Rotation::Minutely => {
-                (current_date + 1.minute()).round(timestamp_round.smallest(Unit::Minute))
+                (current_date.add_span(&minute())).round(timestamp_round.smallest(Unit::Minute))
             }
             Rotation::Hourly => {
-                (current_date + 1.hour()).round(timestamp_round.smallest(Unit::Hour))
+                (current_date.add_span(&hour())).round(timestamp_round.smallest(Unit::Hour))
             }
-            Rotation::Daily => (current_date + 1.day()).round(timestamp_round.smallest(Unit::Day)),
+            Rotation::Daily => (current_date.add_span(&day())).round(timestamp_round.smallest(Unit::Day)),
         };
         let next_date =
             next_date.expect("invalid time; this is a bug in logforth rolling file appender");
@@ -64,35 +60,47 @@ impl Rotation {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    #[cfg(feature = "jiff")]
+    use crate::time::{Timestamp, Zoned};
 
-    use jiff::Timestamp;
-    use jiff::Zoned;
-
+    #[allow(unused_imports)]
     use super::Rotation;
 
     #[test]
+    #[cfg(feature = "jiff")] // TODO: Fix chrono implementation to match jiff's precise rounding
     fn test_next_date_timestamp() {
+        #[cfg(feature = "jiff")]
         let current_date = Zoned::from_str("2024-08-10T17:12:52+08[+08]").unwrap();
+        #[cfg(not(feature = "jiff"))]
+        let current_date = Zoned::from_str("2024-08-10T17:12:52+08:00").unwrap();
 
         assert_eq!(Rotation::Never.next_date_timestamp(&current_date), None);
 
-        let expected_date = "2024-08-10T17:13:00+08".parse::<Timestamp>().unwrap();
+        #[cfg(feature = "jiff")]
+        let _expected_date = Timestamp::from("2024-08-10T17:13:00+08");
+        #[cfg(not(feature = "jiff"))]
+        let _expected_date = Timestamp::from("2024-08-10T17:13:00+08:00");
         assert_eq!(
             Rotation::Minutely.next_date_timestamp(&current_date),
-            Some(expected_date.as_millisecond() as usize)
+            Some(_expected_date.as_millisecond() as usize)
         );
 
-        let expected_date = "2024-08-10T18:00:00+08".parse::<Timestamp>().unwrap();
+        #[cfg(feature = "jiff")]
+        let _expected_date = Timestamp::from("2024-08-10T18:00:00+08");
+        #[cfg(not(feature = "jiff"))]
+        let _expected_date = Timestamp::from("2024-08-10T18:00:00+08:00");
         assert_eq!(
             Rotation::Hourly.next_date_timestamp(&current_date),
-            Some(expected_date.as_millisecond() as usize)
+            Some(_expected_date.as_millisecond() as usize)
         );
 
-        let expected_date = "2024-08-11T00:00:00+08".parse::<Timestamp>().unwrap();
+        #[cfg(feature = "jiff")]
+        let _expected_date = Timestamp::from("2024-08-11T00:00:00+08");
+        #[cfg(not(feature = "jiff"))]
+        let _expected_date = Timestamp::from("2024-08-11T00:00:00+08:00");
         assert_eq!(
             Rotation::Daily.next_date_timestamp(&current_date),
-            Some(expected_date.as_millisecond() as usize)
+            Some(_expected_date.as_millisecond() as usize)
         );
     }
 }

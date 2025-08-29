@@ -32,7 +32,12 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = []
+default = ["jiff"]
+# default = ["append-rolling-file", "layout-json", "chrono"]
+
+# Time libraries
+chrono = ["dep:chrono", "dep:chrono-tz"]
+jiff = ["dep:jiff"]
 
 # Appenders
 append-fastrace = ["dep:fastrace"]
@@ -60,12 +65,16 @@ rustls = ["dep:rustls", "fasyslog?/rustls"]
 
 # Internal features - not intended for directly public use
 internal-non-blocking = ["dep:crossbeam-channel"]
-internal-serde = ["dep:serde", "log/kv_serde", "jiff/serde"]
+internal-serde = ["dep:serde", "log/kv_serde"]
+internal-serde-chrono = ["internal-serde", "chrono/serde"]
+internal-serde-jiff = ["internal-serde", "jiff/serde"]
 
 [dependencies]
 anyhow = { version = "1.0" }
+chrono = { version = "0.4", features = ["serde"], optional = true }
+chrono-tz = { version = "0.10", optional = true }
 env_filter = { version = "0.1.1" }
-jiff = { version = "0.2" }
+jiff = { version = "0.2", optional = true }
 log = { version = "0.4.27", features = ["std", "kv"] }
 
 # Optional dependencies

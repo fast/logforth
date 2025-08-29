@@ -21,10 +21,10 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use jiff::Zoned;
 
 use crate::append::rolling_file::Rotation;
 use crate::append::rolling_file::clock::Clock;
+use crate::time::{Zoned, parse_date};
 
 /// A writer for rolling files.
 #[derive(Debug)]
@@ -272,7 +272,7 @@ impl State {
 
                 if self.log_filename_prefix.is_none()
                     && self.log_filename_suffix.is_none()
-                    && jiff::civil::DateTime::strptime(self.date_format, filename).is_err()
+                    && parse_date(self.date_format, filename).is_err()
                 {
                     return None;
                 }
@@ -341,11 +341,7 @@ mod tests {
     use std::cmp::min;
     use std::fs;
     use std::io::Write;
-    use std::ops::Add;
-    use std::str::FromStr;
 
-    use jiff::Span;
-    use jiff::Zoned;
     use rand::Rng;
     use rand::distr::Alphanumeric;
     use tempfile::TempDir;
@@ -353,6 +349,7 @@ mod tests {
     use crate::append::rolling_file::Rotation;
     use crate::append::rolling_file::clock::Clock;
     use crate::append::rolling_file::clock::ManualClock;
+    use crate::time::{Span, Zoned};
     use crate::append::rolling_file::rolling::RollingFileWriterBuilder;
 
     #[test]
@@ -435,7 +432,7 @@ mod tests {
 
         for i in 1..=(max_files * 2) {
             let mut expected_file_size = 0;
-            let end_time = cur_time.add(rotation_duration);
+            let end_time = cur_time.add(&rotation_duration);
             while cur_time < end_time {
                 writer.state.clock.set_now(cur_time.clone());
 
@@ -445,7 +442,7 @@ mod tests {
                 assert_eq!(writer.write(rand_str.as_bytes()).unwrap(), rand_str.len());
                 assert_eq!(writer.state.current_filesize, expected_file_size);
 
-                cur_time = cur_time.add(write_interval);
+                cur_time = cur_time.add(&write_interval);
             }
 
             writer.flush().unwrap();
@@ -499,7 +496,7 @@ mod tests {
             .unwrap();
 
         let mut cur_time = start_time;
-        let mut end_time = cur_time.add(rotation_duration);
+        let mut end_time = cur_time.add(&rotation_duration);
         let mut time_rotation_trigger = false;
         let mut file_size_rotation_trigger = false;
 
@@ -514,10 +511,10 @@ mod tests {
                 assert_eq!(writer.write(rand_str.as_bytes()).unwrap(), rand_str.len());
                 assert_eq!(writer.state.current_filesize, expected_file_size);
 
-                cur_time = cur_time.add(write_interval);
+                cur_time = cur_time.add(&write_interval);
 
                 if cur_time >= end_time {
-                    end_time = end_time.add(rotation_duration);
+                    end_time = end_time.add(&rotation_duration);
                     time_rotation_trigger = true;
                     break;
                 }

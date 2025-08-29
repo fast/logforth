@@ -65,6 +65,7 @@ pub mod append;
 pub mod diagnostic;
 pub mod filter;
 pub mod layout;
+pub mod time;
 
 #[cfg(feature = "internal-non-blocking")]
 pub(crate) mod non_blocking;

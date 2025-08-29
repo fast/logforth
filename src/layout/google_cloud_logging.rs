@@ -24,6 +24,7 @@ use serde_json::Value;
 use crate::Diagnostic;
 use crate::diagnostic::Visitor;
 use crate::layout::Layout;
+use crate::time::Timestamp;
 
 /// A layout for Google Cloud Structured Logging.
 ///
@@ -194,7 +195,7 @@ struct RecordLine<'a> {
     #[serde(flatten)]
     extra_fields: BTreeMap<String, Value>,
     severity: &'a str,
-    timestamp: jiff::Timestamp,
+    timestamp: Timestamp,
     #[serde(serialize_with = "serialize_args")]
     message: &'a Arguments<'a>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
@@ -243,7 +244,7 @@ impl Layout for GoogleCloudLoggingLayout {
 
         let record_line = RecordLine {
             extra_fields: visitor.payload_fields,
-            timestamp: jiff::Timestamp::now(),
+            timestamp: Timestamp::now(),
             severity: record.level().as_str(),
             message: record.args(),
             labels: visitor.labels,
