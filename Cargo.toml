@@ -43,7 +43,6 @@ append-opentelemetry = [
   "dep:opentelemetry_sdk",
 ]
 append-rolling-file = ["internal-non-blocking"]
-append-single-file = ["internal-non-blocking"]
 append-syslog = ["internal-non-blocking", "dep:fasyslog"]
 
 # Layouts
@@ -125,12 +124,6 @@ doc-scrape-examples = true
 name = "rolling_file"
 path = "examples/rolling_file.rs"
 required-features = ["append-rolling-file", "layout-json"]
-
-[[example]]
-doc-scrape-examples = true
-name = "single_file"
-path = "examples/single_file.rs"
-required-features = ["append-single-file", "layout-json"]
 
 [[example]]
 doc-scrape-examples = true
