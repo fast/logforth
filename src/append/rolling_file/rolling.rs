@@ -21,6 +21,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context;
+use anyhow::ensure;
 use jiff::Zoned;
 
 use crate::append::rolling_file::Rotation;
@@ -61,11 +62,11 @@ impl Write for RollingFileWriter {
 pub struct RollingFileWriterBuilder {
     // required
     basedir: PathBuf,
+    filename: String,
 
     // has default
     rotation: Rotation,
-    prefix: Option<String>,
-    suffix: Option<String>,
+    filename_suffix: Option<String>,
     max_size: usize,
     max_files: Option<usize>,
     clock: Clock,
@@ -74,12 +75,12 @@ pub struct RollingFileWriterBuilder {
 impl RollingFileWriterBuilder {
     /// Creates a new [`RollingFileWriterBuilder`].
     #[must_use]
-    pub fn new(basedir: impl Into<PathBuf>) -> Self {
+    pub fn new(basedir: impl Into<PathBuf>, filename: impl Into<String>) -> Self {
         Self {
             basedir: basedir.into(),
+            filename: filename.into(),
             rotation: Rotation::Never,
-            prefix: None,
-            suffix: None,
+            filename_suffix: None,
             max_size: usize::MAX,
             max_files: None,
             clock: Clock::DefaultClock,
@@ -93,23 +94,11 @@ impl RollingFileWriterBuilder {
         self
     }
 
-    /// Sets the filename prefix.
-    #[must_use]
-    pub fn filename_prefix(mut self, prefix: impl Into<String>) -> Self {
-        let prefix = prefix.into();
-        self.prefix = if prefix.is_empty() {
-            None
-        } else {
-            Some(prefix)
-        };
-        self
-    }
-
     /// Sets the filename suffix.
     #[must_use]
     pub fn filename_suffix(mut self, suffix: impl Into<String>) -> Self {
         let suffix = suffix.into();
-        self.suffix = if suffix.is_empty() {
+        self.filename_suffix = if suffix.is_empty() {
             None
         } else {
             Some(suffix)
@@ -142,15 +131,25 @@ impl RollingFileWriterBuilder {
         let Self {
             basedir,
             rotation,
-            prefix,
-            suffix,
+            filename,
+            filename_suffix,
             max_size,
             max_files,
             clock,
         } = self;
+
+        ensure!(!filename.is_empty(), "filename must not be empty");
+
         let (state, writer) = State::new(
-            rotation, basedir, prefix, suffix, max_size, max_files, clock,
+            rotation,
+            basedir,
+            filename,
+            filename_suffix,
+            max_size,
+            max_files,
+            clock,
         )?;
+
         Ok(RollingFileWriter { state, writer })
     }
 }
@@ -158,7 +157,7 @@ impl RollingFileWriterBuilder {
 #[derive(Debug)]
 struct State {
     log_dir: PathBuf,
-    log_filename_prefix: Option<String>,
+    log_filename: String,
     log_filename_suffix: Option<String>,
     date_format: &'static str,
     rotation: Rotation,
@@ -174,7 +173,7 @@ impl State {
     fn new(
         rotation: Rotation,
         dir: impl AsRef<Path>,
-        log_filename_prefix: Option<String>,
+        log_filename: String,
         log_filename_suffix: Option<String>,
         max_size: usize,
         max_files: Option<usize>,
@@ -190,7 +189,7 @@ impl State {
 
         let state = State {
             log_dir,
-            log_filename_prefix,
+            log_filename,
             log_filename_suffix,
             date_format,
             current_count,
@@ -210,18 +209,15 @@ impl State {
         let date = date.strftime(self.date_format);
         match (
             &self.rotation,
-            &self.log_filename_prefix,
+            &self.log_filename,
             &self.log_filename_suffix,
         ) {
-            (&Rotation::Never, Some(filename), None) => format!("{filename}.{cnt}"),
-            (&Rotation::Never, Some(filename), Some(suffix)) => {
+            (&Rotation::Never, filename, None) => format!("{filename}.{cnt}"),
+            (&Rotation::Never, filename, Some(suffix)) => {
                 format!("{filename}.{cnt}.{suffix}")
             }
-            (&Rotation::Never, None, Some(suffix)) => format!("{cnt}.{suffix}"),
-            (_, Some(filename), Some(suffix)) => format!("{filename}.{date}.{cnt}.{suffix}"),
-            (_, Some(filename), None) => format!("{filename}.{date}.{cnt}"),
-            (_, None, Some(suffix)) => format!("{date}.{cnt}.{suffix}"),
-            (_, None, None) => format!("{date}.{cnt}"),
+            (_, filename, Some(suffix)) => format!("{filename}.{date}.{cnt}.{suffix}"),
+            (_, filename, None) => format!("{filename}.{date}.{cnt}"),
         }
     }
 
@@ -258,23 +254,14 @@ impl State {
                 let filename = entry.file_name();
                 // if the filename is not a UTF-8 string, skip it.
                 let filename = filename.to_str()?;
-                if let Some(prefix) = &self.log_filename_prefix {
-                    if !filename.starts_with(prefix) {
-                        return None;
-                    }
+                if !filename.starts_with(&self.log_filename) {
+                    return None;
                 }
 
                 if let Some(suffix) = &self.log_filename_suffix {
                     if !filename.ends_with(suffix) {
                         return None;
                     }
-                }
-
-                if self.log_filename_prefix.is_none()
-                    && self.log_filename_suffix.is_none()
-                    && jiff::civil::DateTime::strptime(self.date_format, filename).is_err()
-                {
-                    return None;
                 }
 
                 // On Linux (e.g., CentOS), `metadata.created()` may return an error due to lack of
@@ -367,9 +354,8 @@ mod tests {
     fn test_file_rolling_for_specific_file_size(max_files: usize, max_size: usize) {
         let temp_dir = TempDir::new().expect("failed to create a temporary directory");
 
-        let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref())
+        let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref(), "test_file")
             .rotation(Rotation::Never)
-            .filename_prefix("test_prefix")
             .filename_suffix("log")
             .max_log_files(max_files)
             .max_file_size(max_size)
@@ -421,9 +407,8 @@ mod tests {
         let max_files = 10;
 
         let start_time = Zoned::from_str("2024-08-10T00:00:00[UTC]").unwrap();
-        let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref())
+        let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref(), "test_file")
             .rotation(rotation)
-            .filename_prefix("test_prefix")
             .filename_suffix("log")
             .max_log_files(max_files)
             .max_file_size(usize::MAX)
@@ -488,9 +473,8 @@ mod tests {
         let file_size = 500;
 
         let start_time = Zoned::from_str("2024-08-10T00:00:00[UTC]").unwrap();
-        let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref())
+        let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref(), "test_file")
             .rotation(rotation)
-            .filename_prefix("test_prefix")
             .filename_suffix("log")
             .max_log_files(max_files)
             .max_file_size(file_size)

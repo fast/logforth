@@ -35,10 +35,9 @@ impl Layout for CustomLayout {
 fn test_meta_logging_in_format_works() {
     let stdout = append::Stdout::default().with_layout(CustomLayout("out"));
     let stderr = append::Stderr::default().with_layout(CustomLayout("err"));
-    let (rolling, _guard) = RollingFileBuilder::new("logs")
+    let (rolling, _guard) = RollingFileBuilder::new("logs", "example")
         .layout(CustomLayout("file"))
         .rotation(Rotation::Minutely)
-        .filename_prefix("example")
         .filename_suffix("log")
         .max_log_files(10)
         .max_file_size(1024 * 1024)

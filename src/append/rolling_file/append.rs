@@ -42,9 +42,13 @@ pub struct RollingFileBuilder {
 
 impl RollingFileBuilder {
     /// Create a new builder.
-    pub fn new(basedir: impl Into<PathBuf>) -> Self {
+    ///
+    /// # Error
+    ///
+    /// If `filename` is empty, [`RollingFileBuilder::build`] would return an error.
+    pub fn new(basedir: impl Into<PathBuf>, filename: impl Into<String>) -> Self {
         Self {
-            builder: RollingFileWriterBuilder::new(basedir),
+            builder: RollingFileWriterBuilder::new(basedir, filename),
             layout: Box::new(TextLayout::default().no_color()),
 
             thread_name: "logforth-rolling-file".to_string(),
@@ -57,7 +61,9 @@ impl RollingFileBuilder {
     ///
     /// # Errors
     ///
-    /// Returns an error if the log directory cannot be created.
+    /// Returns an error if:
+    /// * The log directory cannot be created.
+    /// * The configured filename is empty.
     pub fn build(self) -> anyhow::Result<(RollingFile, DropGuard)> {
         let RollingFileBuilder {
             builder,
@@ -113,12 +119,6 @@ impl RollingFileBuilder {
     /// Sets the rotation policy.
     pub fn rotation(mut self, rotation: Rotation) -> Self {
         self.builder = self.builder.rotation(rotation);
-        self
-    }
-
-    /// Sets the filename prefix.
-    pub fn filename_prefix(mut self, prefix: impl Into<String>) -> Self {
-        self.builder = self.builder.filename_prefix(prefix);
         self
     }
 
