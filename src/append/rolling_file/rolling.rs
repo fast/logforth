@@ -411,7 +411,7 @@ impl State {
     }
 
     fn advance_date(&mut self, now: &Zoned) {
-        self.current_count = 0;
+        self.current_count = 1;
         self.current_filesize = 0;
         self.next_date_timestamp = self.rotation.next_date_timestamp(now);
     }
