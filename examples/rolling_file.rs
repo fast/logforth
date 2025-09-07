@@ -17,10 +17,9 @@ use logforth::append::rolling_file::Rotation;
 use logforth::layout::JsonLayout;
 
 fn main() {
-    let (rolling_writer, _guard) = RollingFileBuilder::new("logs")
+    let (rolling_writer, _guard) = RollingFileBuilder::new("logs", "my_app")
         .layout(JsonLayout::default())
         .rotation(Rotation::Daily)
-        .filename_prefix("app_log")
         .build()
         .unwrap();
 

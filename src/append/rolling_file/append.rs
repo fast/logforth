@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -42,9 +43,13 @@ pub struct RollingFileBuilder {
 
 impl RollingFileBuilder {
     /// Create a new builder.
-    pub fn new(basedir: impl Into<PathBuf>) -> Self {
+    ///
+    /// # Error
+    ///
+    /// If `filename` is empty, [`RollingFileBuilder::build`] would return an error.
+    pub fn new(basedir: impl Into<PathBuf>, filename: impl Into<String>) -> Self {
         Self {
-            builder: RollingFileWriterBuilder::new(basedir),
+            builder: RollingFileWriterBuilder::new(basedir, filename),
             layout: Box::new(TextLayout::default().no_color()),
 
             thread_name: "logforth-rolling-file".to_string(),
@@ -57,7 +62,9 @@ impl RollingFileBuilder {
     ///
     /// # Errors
     ///
-    /// Returns an error if the log directory cannot be created.
+    /// Returns an error if:
+    /// * The log directory cannot be created.
+    /// * The configured filename is empty.
     pub fn build(self) -> anyhow::Result<(RollingFile, DropGuard)> {
         let RollingFileBuilder {
             builder,
@@ -84,7 +91,7 @@ impl RollingFileBuilder {
     /// use logforth::append::rolling_file::RollingFileBuilder;
     /// use logforth::layout::JsonLayout;
     ///
-    /// let builder = RollingFileBuilder::new("my_service");
+    /// let builder = RollingFileBuilder::new("my_service", "my_app");
     /// builder.layout(JsonLayout::default());
     /// ```
     pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
@@ -116,12 +123,6 @@ impl RollingFileBuilder {
         self
     }
 
-    /// Sets the filename prefix.
-    pub fn filename_prefix(mut self, prefix: impl Into<String>) -> Self {
-        self.builder = self.builder.filename_prefix(prefix);
-        self
-    }
-
     /// Sets the filename suffix.
     pub fn filename_suffix(mut self, suffix: impl Into<String>) -> Self {
         self.builder = self.builder.filename_suffix(suffix);
@@ -129,13 +130,13 @@ impl RollingFileBuilder {
     }
 
     /// Sets the maximum number of log files to keep.
-    pub fn max_log_files(mut self, n: usize) -> Self {
+    pub fn max_log_files(mut self, n: NonZeroUsize) -> Self {
         self.builder = self.builder.max_log_files(n);
         self
     }
 
     /// Sets the maximum size of a log file in bytes.
-    pub fn max_file_size(mut self, n: usize) -> Self {
+    pub fn max_file_size(mut self, n: NonZeroUsize) -> Self {
         self.builder = self.builder.max_file_size(n);
         self
     }

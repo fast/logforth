@@ -12,27 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use logforth::append::single_file::SingleFileBuilder;
+use logforth::append::rolling_file::RollingFileBuilder;
+use logforth::append::rolling_file::Rotation;
 use logforth::layout::JsonLayout;
 
 fn main() {
-    let (single_writer, _guard) = SingleFileBuilder::new("my.log")
+    let (rolling_writer, _guard) = RollingFileBuilder::new("logs", "my_app")
+        .filename_suffix("log")
         .layout(JsonLayout::default())
+        .rotation(Rotation::Never)
         .build()
         .unwrap();
 
     logforth::builder()
-        .dispatch(|d| d.filter(log::LevelFilter::Trace).append(single_writer))
+        .dispatch(|d| d.filter(log::LevelFilter::Trace).append(rolling_writer))
         .apply();
 
     let repeat = 1;
 
     for i in 0..repeat {
-        log::error!("Hello error!");
-        log::warn!("Hello warn!");
-        log::info!("Hello info!");
-        log::debug!("Hello debug!");
-        log::trace!("Hello trace!");
+        log::error!("Hello single error!");
+        log::warn!("Hello single warn!");
+        log::info!("Hello single info!");
+        log::debug!("Hello single debug!");
+        log::trace!("Hello single trace!");
 
         if i + 1 < repeat {
             std::thread::sleep(std::time::Duration::from_secs(10));

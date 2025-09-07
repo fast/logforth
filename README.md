@@ -108,7 +108,7 @@ Other appenders, filters, layouts, and diagnostics are still evolving and may ch
 
 The following components yet to be unstabilized have known production usage and are considered reliable:
 
-* Appenders: `Fastrace`, `OpentelemetryLog`, `SingleFile`, and `RollingFile`
+* Appenders: `Fastrace`, `OpentelemetryLog`, and `RollingFile`
 * Layouts: `LogfmtLayout` and `GoogleCloudLoggingLayout`
 * Diagnostics: `FastraceDiagnostic`
 
@@ -122,7 +122,7 @@ The rest components, due to their external dependencies and several missing feat
 
 **What are the missing features?**
 
-Before stabilize `SingleFile`, `RollingFile` and `Syslog` appenders that depend on the `NonBlocking` utility, I need to decide whether an `AsyncAppend` composition is better (see [#145](https://github.com/fast/logforth/issues/145)).
+Before stabilize `RollingFile` and `Syslog` appenders that depend on the `NonBlocking` utility, I need to decide whether an `AsyncAppend` composition is better (see [#145](https://github.com/fast/logforth/issues/145)).
 
 Otherwise, how to share utilities like `NonBlocking` and `LevelColor` between different separate crates without duplicating code is still an open question.
 
