@@ -226,7 +226,9 @@ impl Journald {
     /// Send large payloads to journald via a memfd.
     #[cfg(target_os = "linux")]
     fn send_large_payload(&self, payload: &[u8]) -> Result<usize, Error> {
-        memfd::send_large_payload(&self.socket, payload).map_err(Error::from_io_error)
+        memfd::send_large_payload(&self.socket, payload).map_err(|err| {
+            Error::new(ErrorKind::Unexpected, "failed to send payload via memfd").set_source(err)
+        })
     }
 }
 
