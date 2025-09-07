@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -129,13 +130,13 @@ impl RollingFileBuilder {
     }
 
     /// Sets the maximum number of log files to keep.
-    pub fn max_log_files(mut self, n: usize) -> Self {
+    pub fn max_log_files(mut self, n: NonZeroUsize) -> Self {
         self.builder = self.builder.max_log_files(n);
         self
     }
 
     /// Sets the maximum size of a log file in bytes.
-    pub fn max_file_size(mut self, n: usize) -> Self {
+    pub fn max_file_size(mut self, n: NonZeroUsize) -> Self {
         self.builder = self.builder.max_file_size(n);
         self
     }

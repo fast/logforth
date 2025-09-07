@@ -14,6 +14,8 @@
 
 #![cfg(feature = "append-rolling-file")]
 
+use std::num::NonZeroUsize;
+
 use log::Record;
 use logforth::Diagnostic;
 use logforth::Layout;
@@ -39,8 +41,8 @@ fn test_meta_logging_in_format_works() {
         .layout(CustomLayout("file"))
         .rotation(Rotation::Minutely)
         .filename_suffix("log")
-        .max_log_files(10)
-        .max_file_size(1024 * 1024)
+        .max_log_files(NonZeroUsize::new(10).unwrap())
+        .max_file_size(NonZeroUsize::new(1024 * 1024).unwrap())
         .build()
         .unwrap();
 

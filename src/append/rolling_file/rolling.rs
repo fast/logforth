@@ -18,6 +18,7 @@ use std::fs::Metadata;
 use std::fs::OpenOptions;
 use std::io;
 use std::io::Write;
+use std::num::NonZeroUsize;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -71,8 +72,8 @@ pub struct RollingFileWriterBuilder {
     // has default
     rotation: Rotation,
     filename_suffix: Option<String>,
-    max_size: usize,
-    max_files: Option<usize>,
+    max_size: Option<NonZeroUsize>,
+    max_files: Option<NonZeroUsize>,
     clock: Clock,
 }
 
@@ -85,7 +86,7 @@ impl RollingFileWriterBuilder {
             filename: filename.into(),
             rotation: Rotation::Never,
             filename_suffix: None,
-            max_size: usize::MAX,
+            max_size: None,
             max_files: None,
             clock: Clock::DefaultClock,
         }
@@ -112,15 +113,15 @@ impl RollingFileWriterBuilder {
 
     /// Sets the maximum number of log files to keep.
     #[must_use]
-    pub fn max_log_files(mut self, n: usize) -> Self {
+    pub fn max_log_files(mut self, n: NonZeroUsize) -> Self {
         self.max_files = Some(n);
         self
     }
 
     /// Sets the maximum size of a log file in bytes.
     #[must_use]
-    pub fn max_file_size(mut self, n: usize) -> Self {
-        self.max_size = n;
+    pub fn max_file_size(mut self, n: NonZeroUsize) -> Self {
+        self.max_size = Some(n);
         self
     }
 
@@ -187,8 +188,8 @@ struct State {
     rotation: Rotation,
     current_filesize: usize,
     next_date_timestamp: Option<usize>,
-    max_size: usize,
-    max_files: Option<usize>,
+    max_size: Option<NonZeroUsize>,
+    max_files: Option<NonZeroUsize>,
     clock: Clock,
 }
 
@@ -198,8 +199,8 @@ impl State {
         dir: impl AsRef<Path>,
         log_filename: String,
         log_filename_suffix: Option<String>,
-        max_size: usize,
-        max_files: Option<usize>,
+        max_size: Option<NonZeroUsize>,
+        max_files: Option<NonZeroUsize>,
         clock: Clock,
     ) -> anyhow::Result<(Self, File)> {
         let now = clock.now();
@@ -371,7 +372,7 @@ impl State {
 
     fn rotate_log_writer(&self, now: &Zoned) -> anyhow::Result<File> {
         let mut renames = vec![];
-        for i in 1..self.max_files.unwrap_or(usize::MAX) {
+        for i in 1..self.max_files.map_or(usize::MAX, |n| n.get()) {
             let filepath = self.join_date(now, i);
             if fs::exists(&filepath).is_ok_and(|ok| ok) {
                 let next = self.join_date(now, i + 1);
@@ -389,7 +390,7 @@ impl State {
         let current_filepath = self.current_filename();
         fs::rename(&current_filepath, &archive_filepath)?;
         if let Some(max_files) = self.max_files {
-            if let Err(err) = self.delete_oldest_logs(max_files) {
+            if let Err(err) = self.delete_oldest_logs(max_files.get()) {
                 eprintln!("failed to delete oldest logs: {err}");
             }
         }
@@ -415,7 +416,8 @@ impl State {
     }
 
     fn should_rollover_on_size(&self) -> bool {
-        self.current_filesize >= self.max_size
+        self.max_size
+            .is_some_and(|n| self.current_filesize >= n.get())
     }
 }
 
@@ -424,6 +426,7 @@ mod tests {
     use std::cmp::min;
     use std::fs;
     use std::io::Write;
+    use std::num::NonZeroUsize;
     use std::ops::Add;
     use std::str::FromStr;
 
@@ -449,6 +452,8 @@ mod tests {
     }
 
     fn test_file_rolling_for_specific_file_size(max_files: usize, max_size: usize) {
+        let max_files = NonZeroUsize::new(max_files).unwrap();
+        let max_size = NonZeroUsize::new(max_size).unwrap();
         let temp_dir = TempDir::new().expect("failed to create a temporary directory");
 
         let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref(), "test_file")
@@ -459,9 +464,9 @@ mod tests {
             .build()
             .unwrap();
 
-        for i in 1..=(max_files * 2) {
+        for i in 1..=(max_files.get() * 2) {
             let mut expected_file_size = 0;
-            while expected_file_size < max_size {
+            while expected_file_size < max_size.get() {
                 let rand_str = generate_random_string();
                 expected_file_size += rand_str.len();
                 assert_eq!(writer.write(rand_str.as_bytes()).unwrap(), rand_str.len());
@@ -471,7 +476,7 @@ mod tests {
             writer.flush().unwrap();
             assert_eq!(
                 fs::read_dir(&writer.state.log_dir).unwrap().count(),
-                min(i, max_files)
+                min(i, max_files.get())
             );
         }
     }
@@ -500,22 +505,21 @@ mod tests {
         rotation_duration: Span,
         write_interval: Span,
     ) {
+        let max_files = NonZeroUsize::new(10).unwrap();
         let temp_dir = TempDir::new().expect("failed to create a temporary directory");
-        let max_files = 10;
 
         let start_time = Zoned::from_str("2024-08-10T00:00:00[UTC]").unwrap();
         let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref(), "test_file")
             .rotation(rotation)
             .filename_suffix("log")
             .max_log_files(max_files)
-            .max_file_size(usize::MAX)
             .clock(Clock::ManualClock(ManualClock::new(start_time.clone())))
             .build()
             .unwrap();
 
         let mut cur_time = start_time;
 
-        for i in 1..=(max_files * 2) {
+        for i in 1..=(max_files.get() * 2) {
             let mut expected_file_size = 0;
             let end_time = cur_time.add(rotation_duration);
             while cur_time < end_time {
@@ -533,7 +537,7 @@ mod tests {
             writer.flush().unwrap();
             assert_eq!(
                 fs::read_dir(&writer.state.log_dir).unwrap().count(),
-                min(i, max_files)
+                min(i, max_files.get())
             );
         }
     }
@@ -562,12 +566,12 @@ mod tests {
         rotation_duration: Span,
         write_interval: Span,
     ) {
-        let temp_dir = TempDir::new().expect("failed to create a temporary directory");
-        let max_files = 10;
+        let max_files = NonZeroUsize::new(10).unwrap();
+        let file_size = NonZeroUsize::new(500).unwrap();
         // Small file size and too many files to ensure both of file size and time rotation can be
         // triggered.
         let total_files = 100;
-        let file_size = 500;
+        let temp_dir = TempDir::new().expect("failed to create a temporary directory");
 
         let start_time = Zoned::from_str("2024-08-10T00:00:00[UTC]").unwrap();
         let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref(), "test_file")
@@ -602,7 +606,7 @@ mod tests {
                     time_rotation_trigger = true;
                     break;
                 }
-                if expected_file_size >= file_size {
+                if expected_file_size >= file_size.get() {
                     file_size_rotation_trigger = true;
                     break;
                 }
@@ -611,7 +615,7 @@ mod tests {
             writer.flush().unwrap();
             assert_eq!(
                 fs::read_dir(&writer.state.log_dir).unwrap().count(),
-                min(i, max_files)
+                min(i, max_files.get())
             );
         }
         assert!(file_size_rotation_trigger);
