@@ -212,12 +212,12 @@ impl State {
         match files.pop() {
             None => {
                 // brand-new directory
-                file = state.create_current_log_writer()?;
+                file = state.create_log_writer()?;
             }
             Some(last) => {
                 let last_logfile = last.filepath;
                 let current_date = rotation.current_datetime(&now);
-                let current_logfile = state.current_logfile();
+                let current_logfile = state.current_filename();
 
                 if last_logfile != current_logfile {
                     if current_date.is_none_or(|date| date == last.datetime) {
@@ -225,7 +225,7 @@ impl State {
                     }
 
                     // for some reason, the `filename.suffix` file does not exist, create a new one
-                    file = state.create_current_log_writer()?;
+                    file = state.create_log_writer()?;
                 } else {
                     if let Some(file) = files.pop() {
                         if current_date.is_none_or(|date| date == file.datetime) {
@@ -246,7 +246,7 @@ impl State {
         Ok((state, file))
     }
 
-    fn current_logfile(&self) -> PathBuf {
+    fn current_filename(&self) -> PathBuf {
         let filename = &self.log_filename;
         match self.log_filename_suffix.as_ref() {
             None => self.log_dir.join(filename),
@@ -254,12 +254,12 @@ impl State {
         }
     }
 
-    fn create_current_log_writer(&self) -> anyhow::Result<File> {
-        let logfile = self.current_logfile();
+    fn create_log_writer(&self) -> anyhow::Result<File> {
+        let filename = self.current_filename();
         OpenOptions::new()
             .write(true)
             .create_new(true)
-            .open(&logfile)
+            .open(&filename)
             .context("failed to create log file")
     }
 
@@ -370,7 +370,7 @@ impl State {
 
     fn rotate_log_writer(&self, now: &Zoned, cnt: usize) -> anyhow::Result<File> {
         let archive_filepath = self.join_date(now, cnt);
-        let current_filepath = self.current_logfile();
+        let current_filepath = self.current_filename();
 
         fs::rename(&current_filepath, &archive_filepath)?;
         if let Some(max_files) = self.max_files {
@@ -379,7 +379,7 @@ impl State {
             }
         }
 
-        self.create_current_log_writer()
+        self.create_log_writer()
     }
 
     fn refresh_writer(&self, now: &Zoned, cnt: usize, file: &mut File) {
