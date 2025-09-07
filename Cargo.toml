@@ -45,7 +45,12 @@ append-opentelemetry = [
 append-syslog = ["dep:fasyslog"]
 
 # Layouts
-layout-google-cloud-logging = ["dep:serde", "dep:serde_json", "log/kv_serde", "jiff/serde"]
+layout-google-cloud-logging = [
+  "dep:serde",
+  "dep:serde_json",
+  "log/kv_serde",
+  "jiff/serde",
+]
 layout-json = ["dep:serde", "dep:serde_json", "log/kv_serde", "jiff/serde"]
 
 # Diagnostics
