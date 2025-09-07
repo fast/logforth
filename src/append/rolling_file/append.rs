@@ -90,7 +90,7 @@ impl RollingFileBuilder {
     /// use logforth::append::rolling_file::RollingFileBuilder;
     /// use logforth::layout::JsonLayout;
     ///
-    /// let builder = RollingFileBuilder::new("my_service");
+    /// let builder = RollingFileBuilder::new("my_service", "my_app");
     /// builder.layout(JsonLayout::default());
     /// ```
     pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {

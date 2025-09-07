@@ -215,7 +215,7 @@ impl State {
                 file = state.create_current_log_writer()?;
             }
             Some(last) => {
-                let last_logfile = state.log_dir.join(last.filepath);
+                let last_logfile = last.filepath;
                 let current_date = rotation.current_datetime(&now);
                 let current_logfile = state.current_logfile();
 
@@ -308,13 +308,8 @@ impl State {
                     if !filename.ends_with(suffix) {
                         return None;
                     }
-                    filename = &filename[..filename.len() - suffix.len()];
+                    filename = &filename[..filename.len() - suffix.len() - 1];
                 }
-
-                if !filename.starts_with(".") {
-                    return None;
-                }
-                filename = &filename[1..];
 
                 if filename.is_empty() {
                     // the current log file is the largest
@@ -324,6 +319,12 @@ impl State {
                         datetime: DateTime::MAX,
                         count: usize::MAX,
                     });
+                }
+
+                if filename.starts_with(".") {
+                    filename = &filename[1..];
+                } else {
+                    return None;
                 }
 
                 let datetime = if self.rotation != Rotation::Never {
@@ -336,7 +337,7 @@ impl State {
                     DateTime::MAX
                 };
 
-                let count = usize::from_str(filename).ok()?;
+                let count = usize::from_str(&filename[..filename.len()]).ok()?;
 
                 Some(LogFile {
                     filepath,
@@ -354,6 +355,10 @@ impl State {
     fn delete_oldest_logs(&self, max_files: usize) -> anyhow::Result<()> {
         let files = self.list_sorted_logs()?;
 
+        if files.len() < max_files {
+            return Ok(());
+        }
+
         // delete files, so that (n-1) files remain, because we will create another log file
         for file in files.iter().take(files.len() - (max_files - 1)) {
             let filepath = &file.filepath;
@@ -367,7 +372,7 @@ impl State {
         let archive_filepath = self.join_date(now, cnt);
         let current_filepath = self.current_logfile();
 
-        fs::rename(&archive_filepath, &current_filepath)?;
+        fs::rename(&current_filepath, &archive_filepath)?;
         if let Some(max_files) = self.max_files {
             if let Err(err) = self.delete_oldest_logs(max_files) {
                 eprintln!("failed to delete oldest logs: {err}");
@@ -399,9 +404,10 @@ impl State {
     }
 
     fn advance_cnt(&mut self) -> usize {
+        let cnt = self.current_count;
         self.current_count += 1;
         self.current_filesize = 0;
-        self.current_count
+        cnt
     }
 
     fn advance_date(&mut self, now: &Zoned) {
@@ -439,6 +445,7 @@ mod tests {
         test_file_rolling_for_specific_file_size(20, 6666);
         test_file_rolling_for_specific_file_size(20, 10000);
     }
+
     fn test_file_rolling_for_specific_file_size(max_files: usize, max_size: usize) {
         let temp_dir = TempDir::new().expect("failed to create a temporary directory");
 
