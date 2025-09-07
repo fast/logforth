@@ -17,9 +17,10 @@ use jiff::ToSpan;
 use jiff::Unit;
 use jiff::Zoned;
 use jiff::ZonedRound;
+use jiff::civil::DateTime;
 
 /// Rotation policies for rolling files.
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Rotation {
     /// Rotate files every minute.
     Minutely,
@@ -46,8 +47,8 @@ impl Rotation {
         Some(next_date.timestamp().as_millisecond() as usize)
     }
 
-    /// Get the current date string based on the current date and rotation policy.
-    pub fn current_date(&self, current_date: &Zoned) -> Option<String> {
+    /// Get the current datetime based on the current date and rotation policy.
+    pub fn current_datetime(&self, current_date: &Zoned) -> Option<DateTime> {
         let round = ZonedRound::new().mode(RoundMode::Trunc);
         let current_date = match *self {
             Rotation::Never => return None,
@@ -57,8 +58,7 @@ impl Rotation {
         };
         let current_date =
             current_date.expect("invalid time; this is a bug in logforth rolling file appender");
-        let date_format = self.date_format();
-        Some(current_date.strftime(date_format).to_string())
+        Some(current_date.datetime())
     }
 
     /// Get the date format string for the rotation policy.

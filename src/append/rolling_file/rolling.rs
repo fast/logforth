@@ -188,34 +188,84 @@ impl State {
         max_files: Option<usize>,
         clock: Clock,
     ) -> anyhow::Result<(Self, File)> {
-        let log_dir = dir.as_ref().to_path_buf();
-        let date_format = rotation.date_format();
         let now = clock.now();
-        let next_date_timestamp = rotation.next_date_timestamp(&now);
+        let log_dir = dir.as_ref().to_path_buf();
+        fs::create_dir_all(&log_dir).context("failed to create log directory")?;
 
         let mut state = State {
             log_dir,
             log_filename,
             log_filename_suffix,
-            date_format,
+            date_format: rotation.date_format(),
             current_count: 0,
             current_filesize: 0,
-            next_date_timestamp,
+            next_date_timestamp: rotation.next_date_timestamp(&now),
             rotation,
             max_size,
             max_files,
             clock,
         };
 
-        let file = state.create_writer()?;
-        // best effort detecting filesize; otherwise always rollover at first
-        state.current_filesize = file.metadata().map_or(max_size, |m| m.len() as usize);
+        let mut files = state.list_sorted_logs()?;
+
+        let file;
+        match files.pop() {
+            None => {
+                // brand-new directory
+                file = state.create_current_log_writer()?;
+            }
+            Some(last) => {
+                let last_logfile = state.log_dir.join(last.filepath);
+                let current_date = rotation.current_datetime(&now);
+                let current_logfile = state.current_logfile();
+
+                if last_logfile != current_logfile {
+                    if current_date.is_none_or(|date| date == last.datetime) {
+                        state.current_count = last.count + 1;
+                    }
+
+                    // for some reason, the `filename.suffix` file does not exist, create a new one
+                    file = state.create_current_log_writer()?;
+                } else {
+                    if let Some(file) = files.pop() {
+                        if current_date.is_none_or(|date| date == file.datetime) {
+                            state.current_count = file.count + 1;
+                        }
+                    }
+
+                    // continue to use the existing current log file
+                    state.current_filesize = last.metadata.len() as usize;
+                    file = OpenOptions::new()
+                        .append(true)
+                        .open(&current_logfile)
+                        .context("failed to open existing log file")?;
+                }
+            }
+        }
+
         Ok((state, file))
     }
 
-    fn join_date(&self, date: &Zoned, cnt: usize) -> String {
+    fn current_logfile(&self) -> PathBuf {
+        let filename = &self.log_filename;
+        match self.log_filename_suffix.as_ref() {
+            None => self.log_dir.join(filename),
+            Some(suffix) => self.log_dir.join(format!("{filename}.{suffix}")),
+        }
+    }
+
+    fn create_current_log_writer(&self) -> anyhow::Result<File> {
+        let logfile = self.current_logfile();
+        OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&logfile)
+            .context("failed to create log file")
+    }
+
+    fn join_date(&self, date: &Zoned, cnt: usize) -> PathBuf {
         let date = date.strftime(self.date_format);
-        match (
+        let filename = match (
             &self.rotation,
             &self.log_filename,
             &self.log_filename_suffix,
@@ -226,16 +276,8 @@ impl State {
             }
             (_, filename, Some(suffix)) => format!("{filename}.{date}.{cnt}.{suffix}"),
             (_, filename, None) => format!("{filename}.{date}.{cnt}"),
-        }
-    }
-
-    fn create_writer(&self) -> anyhow::Result<File> {
-        fs::create_dir_all(&self.log_dir).context("failed to create log directory")?;
-        OpenOptions::new()
-            .append(true)
-            .create(true)
-            .open(self.log_dir.join(&self.log_filename))
-            .context("failed to create log file")
+        };
+        self.log_dir.join(filename)
     }
 
     // sorted from oldest to newest
@@ -309,43 +351,41 @@ impl State {
         Ok(files)
     }
 
-    fn create_log_writer(&self, now: &Zoned, cnt: usize) -> anyhow::Result<File> {
-        fs::create_dir_all(&self.log_dir).context("failed to create log directory")?;
-        let filename = self.join_date(now, cnt);
-        if let Some(max_files) = self.max_files {
-            if let Err(err) = self.delete_oldest_logs(max_files) {
-                eprintln!("failed to delete oldest logs: {err}");
-            }
-        }
-        OpenOptions::new()
-            .append(true)
-            .create(true)
-            .open(self.log_dir.join(filename))
-            .context("failed to create log file")
-    }
-
     fn delete_oldest_logs(&self, max_files: usize) -> anyhow::Result<()> {
         let files = self.list_sorted_logs()?;
 
         // delete files, so that (n-1) files remain, because we will create another log file
         for file in files.iter().take(files.len() - (max_files - 1)) {
             let filepath = &file.filepath;
-            fs::remove_file(filepath)
-                .with_context(|| format!("Failed to remove old log file {}", filepath.display()))?;
+            fs::remove_file(filepath).context("failed to remove old log file")?;
         }
 
         Ok(())
     }
 
+    fn rotate_log_writer(&self, now: &Zoned, cnt: usize) -> anyhow::Result<File> {
+        let archive_filepath = self.join_date(now, cnt);
+        let current_filepath = self.current_logfile();
+
+        fs::rename(&archive_filepath, &current_filepath)?;
+        if let Some(max_files) = self.max_files {
+            if let Err(err) = self.delete_oldest_logs(max_files) {
+                eprintln!("failed to delete oldest logs: {err}");
+            }
+        }
+
+        self.create_current_log_writer()
+    }
+
     fn refresh_writer(&self, now: &Zoned, cnt: usize, file: &mut File) {
-        match self.create_log_writer(now, cnt) {
+        match self.rotate_log_writer(now, cnt) {
             Ok(new_file) => {
                 if let Err(err) = file.flush() {
                     eprintln!("failed to flush previous writer: {err}");
                 }
                 *file = new_file;
             }
-            Err(err) => eprintln!("failed to create writer for logs: {err}"),
+            Err(err) => eprintln!("failed to rotate log writer: {err}"),
         }
     }
 
