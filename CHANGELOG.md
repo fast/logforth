@@ -25,6 +25,7 @@ All notable changes to this project will be documented in this file.
     app.2.log - old app.1.log
     - old app.2.log deleted
     ```
+* There is no longer `NonBlocking` related logics.
 
 ## [0.27.0] 2025-08-18
 

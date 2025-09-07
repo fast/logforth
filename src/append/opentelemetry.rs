@@ -221,11 +221,7 @@ pub struct OpentelemetryLog {
 }
 
 impl Append for OpentelemetryLog {
-    fn append(
-        &self,
-        record: &log::Record,
-        diagnostics: &[Box<dyn Diagnostic>],
-    ) -> Result<(), Error> {
+    fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
         let now = SystemTime::now();
 
         let mut log_record = self.logger.create_log_record();
@@ -236,7 +232,7 @@ impl Append for OpentelemetryLog {
         log_record.set_target(record.target().to_string());
         log_record.set_body(match self.make_body.as_ref() {
             None => AnyValue::String(record.args().to_string().into()),
-            Some(make_body) => make_body.create(record, diagnostics)?,
+            Some(make_body) => make_body.create(record, diags)?,
         });
 
         if let Some(module_path) = record.module_path() {
@@ -256,7 +252,7 @@ impl Append for OpentelemetryLog {
             .key_values()
             .visit(&mut extractor)
             .map_err(Error::from_kv_error)?;
-        for d in diagnostics {
+        for d in diags {
             d.visit(&mut extractor)?;
         }
 
@@ -284,11 +280,7 @@ fn log_level_to_otel_severity(level: log::Level) -> opentelemetry::logs::Severit
 /// A trait for formatting log records into a body that can be sent to OpenTelemetry.
 pub trait MakeBody: fmt::Debug + Send + Sync + 'static {
     /// Creates a log record with optional diagnostics.
-    fn create(
-        &self,
-        record: &Record,
-        diagnostics: &[Box<dyn Diagnostic>],
-    ) -> Result<AnyValue, Error>;
+    fn create(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<AnyValue, Error>;
 }
 
 impl<T: MakeBody> From<T> for Box<dyn MakeBody> {
@@ -313,12 +305,8 @@ impl MakeBodyLayout {
 }
 
 impl MakeBody for MakeBodyLayout {
-    fn create(
-        &self,
-        record: &Record,
-        diagnostics: &[Box<dyn Diagnostic>],
-    ) -> Result<AnyValue, Error> {
-        let body = self.layout.format(record, diagnostics)?;
+    fn create(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<AnyValue, Error> {
+        let body = self.layout.format(record, diags)?;
         Ok(AnyValue::Bytes(Box::new(body)))
     }
 }

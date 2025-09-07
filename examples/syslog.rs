@@ -15,7 +15,7 @@
 use logforth::append::syslog::SyslogBuilder;
 
 fn main() {
-    let (append, _guard) = SyslogBuilder::tcp_well_known().unwrap().build();
+    let append = SyslogBuilder::tcp_well_known().unwrap().build();
 
     logforth::builder()
         .dispatch(|d| d.filter(log::LevelFilter::Trace).append(append))

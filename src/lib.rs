@@ -66,9 +66,6 @@ pub mod diagnostic;
 pub mod filter;
 pub mod layout;
 
-#[cfg(feature = "internal-non-blocking")]
-pub(crate) mod non_blocking;
-
 pub use append::Append;
 pub use diagnostic::Diagnostic;
 pub use filter::Filter;
@@ -79,6 +76,3 @@ pub use error::*;
 
 mod logger;
 pub use logger::*;
-
-/// An RAII guard that can be used to ensure that a resource is held until it goes out of scope.
-pub type DropGuard = Box<dyn Send + Sync + 'static>;

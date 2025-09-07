@@ -42,12 +42,11 @@ append-opentelemetry = [
   "dep:opentelemetry-otlp",
   "dep:opentelemetry_sdk",
 ]
-append-rolling-file = ["internal-non-blocking"]
-append-syslog = ["internal-non-blocking", "dep:fasyslog"]
+append-syslog = ["dep:fasyslog"]
 
 # Layouts
-layout-google-cloud-logging = ["internal-serde", "dep:serde_json"]
-layout-json = ["internal-serde", "dep:serde_json"]
+layout-google-cloud-logging = ["dep:serde", "dep:serde_json", "log/kv_serde", "jiff/serde"]
+layout-json = ["dep:serde", "dep:serde_json", "log/kv_serde", "jiff/serde"]
 
 # Diagnostics
 diagnostic-fastrace = ["dep:fastrace"]
@@ -57,10 +56,6 @@ colored = ["dep:colored"]
 native-tls = ["dep:native-tls", "fasyslog?/native-tls"]
 rustls = ["dep:rustls", "fasyslog?/rustls"]
 
-# Internal features - not intended for directly public use
-internal-non-blocking = ["dep:crossbeam-channel"]
-internal-serde = ["dep:serde", "log/kv_serde", "jiff/serde"]
-
 [dependencies]
 anyhow = { version = "1.0" }
 env_filter = { version = "0.1.1" }
@@ -69,7 +64,6 @@ log = { version = "0.4.27", features = ["std", "kv"] }
 
 # Optional dependencies
 colored = { version = "3.0", optional = true }
-crossbeam-channel = { version = "0.5", optional = true }
 fastrace = { version = "0.7", optional = true }
 fasyslog = { version = "1.0.0", optional = true }
 libc = { version = "0.2.162", optional = true }
@@ -123,13 +117,13 @@ path = "examples/multiple_dispatches.rs"
 doc-scrape-examples = true
 name = "rolling_file"
 path = "examples/rolling_file.rs"
-required-features = ["append-rolling-file", "layout-json"]
+required-features = ["layout-json"]
 
 [[example]]
 doc-scrape-examples = true
 name = "single_file"
 path = "examples/single_file.rs"
-required-features = ["append-rolling-file", "layout-json"]
+required-features = ["layout-json"]
 
 [[example]]
 doc-scrape-examples = true

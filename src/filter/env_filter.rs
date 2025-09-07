@@ -19,6 +19,7 @@ use std::str::FromStr;
 
 use log::LevelFilter;
 use log::Metadata;
+use log::Record;
 
 use crate::Diagnostic;
 use crate::Error;
@@ -143,7 +144,7 @@ impl Filter for EnvFilter {
         }
     }
 
-    fn matches(&self, record: &log::Record, _: &[Box<dyn Diagnostic>]) -> FilterResult {
+    fn matches(&self, record: &Record, _: &[Box<dyn Diagnostic>]) -> FilterResult {
         if self.0.matches(record) {
             FilterResult::Neutral
         } else {

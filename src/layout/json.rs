@@ -19,6 +19,7 @@ use std::fmt::Arguments;
 use jiff::Timestamp;
 use jiff::Zoned;
 use jiff::tz::TimeZone;
+use log::Record;
 use serde::Serialize;
 use serde_json::Map;
 use serde_json::Value;
@@ -130,11 +131,9 @@ where
 }
 
 impl Layout for JsonLayout {
-    fn format(
-        &self,
-        record: &log::Record,
-        diagnostics: &[Box<dyn Diagnostic>],
-    ) -> Result<Vec<u8>, Error> {
+    fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
+        let diagnostics = diags;
+
         let mut kvs = Map::new();
         let mut kvs_visitor = KvCollector { kvs: &mut kvs };
         record

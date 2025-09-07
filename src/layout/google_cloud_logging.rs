@@ -17,6 +17,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt::Arguments;
 
+use log::Record;
 use serde::Serialize;
 use serde_json::Value;
 
@@ -222,11 +223,7 @@ where
 }
 
 impl Layout for GoogleCloudLoggingLayout {
-    fn format(
-        &self,
-        record: &log::Record,
-        diagnostics: &[Box<dyn Diagnostic>],
-    ) -> Result<Vec<u8>, Error> {
+    fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
         let mut visitor = KvCollector {
             layout: self,
             payload_fields: BTreeMap::new(),
@@ -240,7 +237,7 @@ impl Layout for GoogleCloudLoggingLayout {
             .key_values()
             .visit(&mut visitor)
             .map_err(Error::from_kv_error)?;
-        for d in diagnostics {
+        for d in diags {
             d.visit(&mut visitor)?;
         }
 
