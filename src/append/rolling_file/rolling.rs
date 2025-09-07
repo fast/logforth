@@ -38,6 +38,14 @@ pub struct RollingFileWriter {
     writer: File,
 }
 
+impl Drop for RollingFileWriter {
+    fn drop(&mut self) {
+        if let Err(err) = self.writer.flush() {
+            eprintln!("failed to flush file writer on dropped: {err}");
+        }
+    }
+}
+
 impl Write for RollingFileWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let now = self.state.clock.now();
