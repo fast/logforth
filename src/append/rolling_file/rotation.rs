@@ -34,21 +34,31 @@ pub enum Rotation {
 impl Rotation {
     /// Get the next date timestamp based on the current date and rotation policy.
     pub fn next_date_timestamp(&self, current_date: &Zoned) -> Option<usize> {
-        let timestamp_round = ZonedRound::new().mode(RoundMode::Trunc);
-
+        let round = ZonedRound::new().mode(RoundMode::Trunc);
         let next_date = match *self {
             Rotation::Never => return None,
-            Rotation::Minutely => {
-                (current_date + 1.minute()).round(timestamp_round.smallest(Unit::Minute))
-            }
-            Rotation::Hourly => {
-                (current_date + 1.hour()).round(timestamp_round.smallest(Unit::Hour))
-            }
-            Rotation::Daily => (current_date + 1.day()).round(timestamp_round.smallest(Unit::Day)),
+            Rotation::Minutely => (current_date + 1.minute()).round(round.smallest(Unit::Minute)),
+            Rotation::Hourly => (current_date + 1.hour()).round(round.smallest(Unit::Hour)),
+            Rotation::Daily => (current_date + 1.day()).round(round.smallest(Unit::Day)),
         };
         let next_date =
             next_date.expect("invalid time; this is a bug in logforth rolling file appender");
         Some(next_date.timestamp().as_millisecond() as usize)
+    }
+
+    /// Get the current date string based on the current date and rotation policy.
+    pub fn current_date(&self, current_date: &Zoned) -> Option<String> {
+        let round = ZonedRound::new().mode(RoundMode::Trunc);
+        let current_date = match *self {
+            Rotation::Never => return None,
+            Rotation::Minutely => current_date.round(round.smallest(Unit::Minute)),
+            Rotation::Hourly => current_date.round(round.smallest(Unit::Hour)),
+            Rotation::Daily => current_date.round(round.smallest(Unit::Day)),
+        };
+        let current_date =
+            current_date.expect("invalid time; this is a bug in logforth rolling file appender");
+        let date_format = self.date_format();
+        Some(current_date.strftime(date_format).to_string())
     }
 
     /// Get the date format string for the rotation policy.
