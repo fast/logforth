@@ -50,15 +50,20 @@ impl Write for RollingFileWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let now = self.state.clock.now();
         let writer = &mut self.writer;
+
         if self.state.should_rollover_on_date(&now) {
             self.state.current_filesize = 0;
             self.state.next_date_timestamp = self.state.rotation.next_date_timestamp(&now);
-            self.state.refresh_writer(&now, writer);
+            let current = &self.state.this_date_timestamp;
+            self.state.refresh_writer(current, writer);
         }
+
         if self.state.should_rollover_on_size() {
             self.state.current_filesize = 0;
             self.state.refresh_writer(&now, writer);
         }
+
+        self.state.this_date_timestamp = now;
 
         writer
             .write(buf)
@@ -197,6 +202,7 @@ struct State {
     date_format: &'static str,
     rotation: Rotation,
     current_filesize: usize,
+    this_date_timestamp: Zoned,
     next_date_timestamp: Option<usize>,
     max_size: Option<NonZeroUsize>,
     max_files: Option<NonZeroUsize>,
@@ -225,6 +231,7 @@ impl State {
             log_filename_suffix,
             date_format: rotation.date_format(),
             current_filesize: 0,
+            this_date_timestamp: clock.now(),
             next_date_timestamp: rotation.next_date_timestamp(&now),
             rotation,
             max_size,
@@ -249,8 +256,16 @@ impl State {
                     // for some reason, the `filename.suffix` file does not exist; create a new one
                     state.create_log_writer()?
                 } else {
-                    // continue to use the existing current log file
                     state.current_filesize = last.metadata.len() as usize;
+
+                    if let Ok(mtime) = last.metadata.modified() {
+                        if let Ok(mtime) = Zoned::try_from(mtime) {
+                            state.next_date_timestamp = state.rotation.next_date_timestamp(&mtime);
+                            state.this_date_timestamp = mtime;
+                        }
+                    }
+
+                    // continue to use the existing current log file
                     OpenOptions::new()
                         .append(true)
                         .open(&filename)
