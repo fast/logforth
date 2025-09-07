@@ -17,11 +17,11 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt::Arguments;
 
-use log::Record;
 use serde::Serialize;
 use serde_json::Value;
 
 use crate::Diagnostic;
+use crate::Error;
 use crate::diagnostic::Visitor;
 use crate::layout::Layout;
 
@@ -147,7 +147,7 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'kvs> {
 }
 
 impl Visitor for KvCollector<'_> {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
         if let Some(trace_project_id) = self.layout.trace_project_id.as_ref() {
             if self.trace.is_none() && self.layout.trace_keys.contains(key.as_ref()) {
                 self.trace = Some(format!("projects/{trace_project_id}/traces/{value}"));
@@ -224,9 +224,9 @@ where
 impl Layout for GoogleCloudLoggingLayout {
     fn format(
         &self,
-        record: &Record,
+        record: &log::Record,
         diagnostics: &[Box<dyn Diagnostic>],
-    ) -> anyhow::Result<Vec<u8>> {
+    ) -> Result<Vec<u8>, Error> {
         let mut visitor = KvCollector {
             layout: self,
             payload_fields: BTreeMap::new(),
@@ -236,7 +236,10 @@ impl Layout for GoogleCloudLoggingLayout {
             trace_sampled: None,
         };
 
-        record.key_values().visit(&mut visitor)?;
+        record
+            .key_values()
+            .visit(&mut visitor)
+            .map_err(Error::from_kv_error)?;
         for d in diagnostics {
             d.visit(&mut visitor)?;
         }
@@ -257,6 +260,7 @@ impl Layout for GoogleCloudLoggingLayout {
             }),
         };
 
-        Ok(serde_json::to_vec(&record_line)?)
+        // SAFETY: RecordLine is serializable.
+        Ok(serde_json::to_vec(&record_line).unwrap())
     }
 }

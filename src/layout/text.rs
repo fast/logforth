@@ -18,9 +18,9 @@ use jiff::Timestamp;
 use jiff::Zoned;
 use jiff::tz::TimeZone;
 use log::Level;
-use log::Record;
 
 use crate::Diagnostic;
+use crate::Error;
 use crate::diagnostic::Visitor;
 use crate::layout::Layout;
 use crate::layout::filename;
@@ -171,10 +171,11 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvWriter {
 }
 
 impl Visitor for KvWriter {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
         use std::fmt::Write;
 
-        write!(&mut self.text, " {key}={value}")?;
+        // SAFETY: write to a string always succeeds
+        write!(&mut self.text, " {key}={value}").unwrap();
         Ok(())
     }
 }
@@ -182,9 +183,9 @@ impl Visitor for KvWriter {
 impl Layout for TextLayout {
     fn format(
         &self,
-        record: &Record,
+        record: &log::Record,
         diagnostics: &[Box<dyn Diagnostic>],
-    ) -> anyhow::Result<Vec<u8>> {
+    ) -> Result<Vec<u8>, Error> {
         let time = match self.tz.clone() {
             Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),
@@ -198,7 +199,10 @@ impl Layout for TextLayout {
         let mut visitor = KvWriter {
             text: format!("{time:.6} {level:>5} {target}: {file}:{line} {message}"),
         };
-        record.key_values().visit(&mut visitor)?;
+        record
+            .key_values()
+            .visit(&mut visitor)
+            .map_err(Error::from_kv_error)?;
         for d in diagnostics {
             d.visit(&mut visitor)?;
         }

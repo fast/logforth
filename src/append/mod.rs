@@ -17,6 +17,7 @@
 use std::fmt;
 
 use crate::Diagnostic;
+use crate::Error;
 
 #[cfg(feature = "append-fastrace")]
 mod fastrace;
@@ -52,12 +53,12 @@ pub trait Append: fmt::Debug + Send + Sync + 'static {
         &self,
         record: &log::Record,
         diagnostics: &[Box<dyn Diagnostic>],
-    ) -> anyhow::Result<()>;
+    ) -> Result<(), Error>;
 
     /// Flushes any buffered records.
     ///
     /// Default to a no-op.
-    fn flush(&self) -> anyhow::Result<()> {
+    fn flush(&self) -> Result<(), Error> {
         Ok(())
     }
 }

@@ -17,6 +17,7 @@
 use std::fmt;
 
 use crate::Diagnostic;
+use crate::Error;
 
 #[cfg(feature = "layout-google-cloud-logging")]
 mod google_cloud_logging;
@@ -39,7 +40,7 @@ pub trait Layout: fmt::Debug + Send + Sync + 'static {
         &self,
         record: &log::Record,
         diagnostics: &[Box<dyn Diagnostic>],
-    ) -> anyhow::Result<Vec<u8>>;
+    ) -> Result<Vec<u8>, Error>;
 }
 
 impl<T: Layout> From<T> for Box<dyn Layout> {

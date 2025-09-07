@@ -18,6 +18,8 @@
 use std::borrow::Cow;
 use std::fmt;
 
+use crate::Error;
+
 #[cfg(feature = "diagnostic-fastrace")]
 mod fastrace;
 mod static_global;
@@ -31,13 +33,13 @@ pub use self::thread_local::ThreadLocalDiagnostic;
 /// A visitor to walk through diagnostic key-value pairs.
 pub trait Visitor {
     /// Visits a key-value pair.
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()>;
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error>;
 }
 
 /// A trait representing a Mapped Diagnostic Context (MDC) that provides diagnostic key-values.
 pub trait Diagnostic: fmt::Debug + Send + Sync + 'static {
     /// Visits the MDC key-values with the provided visitor.
-    fn visit(&self, visitor: &mut dyn Visitor) -> anyhow::Result<()>;
+    fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error>;
 }
 
 impl<T: Diagnostic> From<T> for Box<dyn Diagnostic> {

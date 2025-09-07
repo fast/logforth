@@ -16,6 +16,7 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 
 use crate::Diagnostic;
+use crate::Error;
 use crate::diagnostic::Visitor;
 
 thread_local! {
@@ -56,7 +57,7 @@ impl ThreadLocalDiagnostic {
 }
 
 impl Diagnostic for ThreadLocalDiagnostic {
-    fn visit(&self, visitor: &mut dyn Visitor) -> anyhow::Result<()> {
+    fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
         CONTEXT.with(|map| {
             let map = map.borrow();
             for (key, value) in map.iter() {

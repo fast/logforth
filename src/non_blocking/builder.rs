@@ -15,7 +15,6 @@
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use anyhow::Context;
 use crossbeam_channel::SendTimeoutError;
 use crossbeam_channel::Sender;
 use crossbeam_channel::bounded;
@@ -24,6 +23,8 @@ use crossbeam_channel::unbounded;
 use super::Message;
 use super::Writer;
 use super::worker::Worker;
+use crate::Error;
+use crate::ErrorKind;
 
 /// A guard that flushes log records associated with a [`NonBlocking`] writer on drop.
 ///
@@ -118,10 +119,10 @@ impl<T: Writer + Send + 'static> NonBlocking<T> {
         (Self { sender, marker }, worker_guard)
     }
 
-    pub fn send(&self, record: Vec<u8>) -> anyhow::Result<()> {
-        self.sender
-            .send(Message::Record(record))
-            .context("failed to send log message")
+    pub fn send(&self, record: Vec<u8>) -> Result<(), Error> {
+        self.sender.send(Message::Record(record)).map_err(|err| {
+            Error::new(ErrorKind::Unexpected, "failed to send log message").set_source(err)
+        })
     }
 }
 

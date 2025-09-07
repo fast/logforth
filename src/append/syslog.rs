@@ -41,6 +41,7 @@ use log::Record;
 use crate::Append;
 use crate::Diagnostic;
 use crate::DropGuard;
+use crate::Error;
 use crate::Layout;
 use crate::non_blocking::NonBlocking;
 use crate::non_blocking::NonBlockingBuilder;
@@ -323,7 +324,11 @@ impl Syslog {
 }
 
 impl Append for Syslog {
-    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
+    fn append(
+        &self,
+        record: &log::Record,
+        diagnostics: &[Box<dyn Diagnostic>],
+    ) -> Result<(), Error> {
         let message = self.formatter.format_message(record, diagnostics)?;
         self.writer.send(message)?;
         Ok(())
@@ -352,7 +357,7 @@ impl SyslogFormatter {
         &self,
         record: &Record,
         diagnostics: &[Box<dyn Diagnostic>],
-    ) -> anyhow::Result<Vec<u8>> {
+    ) -> Result<Vec<u8>, Error> {
         let severity = log_level_to_otel_severity(record.level());
 
         let message = match self.format {

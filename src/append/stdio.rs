@@ -14,9 +14,8 @@
 
 use std::io::Write;
 
-use log::Record;
-
 use crate::Diagnostic;
+use crate::Error;
 use crate::Layout;
 use crate::append::Append;
 use crate::layout::TextLayout;
@@ -61,15 +60,21 @@ impl Stdout {
 }
 
 impl Append for Stdout {
-    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
+    fn append(
+        &self,
+        record: &log::Record,
+        diagnostics: &[Box<dyn Diagnostic>],
+    ) -> Result<(), Error> {
         let mut bytes = self.layout.format(record, diagnostics)?;
         bytes.push(b'\n');
-        std::io::stdout().write_all(&bytes)?;
+        std::io::stdout()
+            .write_all(&bytes)
+            .map_err(Error::from_io_error)?;
         Ok(())
     }
 
-    fn flush(&self) -> anyhow::Result<()> {
-        std::io::stdout().flush()?;
+    fn flush(&self) -> Result<(), Error> {
+        std::io::stdout().flush().map_err(Error::from_io_error)?;
         Ok(())
     }
 }
@@ -114,15 +119,21 @@ impl Stderr {
 }
 
 impl Append for Stderr {
-    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
+    fn append(
+        &self,
+        record: &log::Record,
+        diagnostics: &[Box<dyn Diagnostic>],
+    ) -> Result<(), Error> {
         let mut bytes = self.layout.format(record, diagnostics)?;
         bytes.push(b'\n');
-        std::io::stderr().write_all(&bytes)?;
+        std::io::stderr()
+            .write_all(&bytes)
+            .map_err(Error::from_io_error)?;
         Ok(())
     }
 
-    fn flush(&self) -> anyhow::Result<()> {
-        std::io::stderr().flush()?;
+    fn flush(&self) -> Result<(), Error> {
+        std::io::stderr().flush().map_err(Error::from_io_error)?;
         Ok(())
     }
 }
