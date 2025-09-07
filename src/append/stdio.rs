@@ -14,6 +14,8 @@
 
 use std::io::Write;
 
+use log::Record;
+
 use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
@@ -60,12 +62,8 @@ impl Stdout {
 }
 
 impl Append for Stdout {
-    fn append(
-        &self,
-        record: &log::Record,
-        diagnostics: &[Box<dyn Diagnostic>],
-    ) -> Result<(), Error> {
-        let mut bytes = self.layout.format(record, diagnostics)?;
+    fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+        let mut bytes = self.layout.format(record, diags)?;
         bytes.push(b'\n');
         std::io::stdout()
             .write_all(&bytes)
@@ -119,12 +117,8 @@ impl Stderr {
 }
 
 impl Append for Stderr {
-    fn append(
-        &self,
-        record: &log::Record,
-        diagnostics: &[Box<dyn Diagnostic>],
-    ) -> Result<(), Error> {
-        let mut bytes = self.layout.format(record, diagnostics)?;
+    fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+        let mut bytes = self.layout.format(record, diags)?;
         bytes.push(b'\n');
         std::io::stderr()
             .write_all(&bytes)

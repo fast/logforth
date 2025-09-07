@@ -17,6 +17,7 @@
 use std::borrow::Cow;
 
 use jiff::Zoned;
+use log::Record;
 
 use crate::Diagnostic;
 use crate::Error;
@@ -38,11 +39,7 @@ pub struct FastraceEvent {
 }
 
 impl Append for FastraceEvent {
-    fn append(
-        &self,
-        record: &log::Record,
-        diagnostics: &[Box<dyn Diagnostic>],
-    ) -> Result<(), Error> {
+    fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
         let message = format!("{}", record.args());
 
         let mut collector = KvCollector { kv: Vec::new() };
@@ -50,7 +47,7 @@ impl Append for FastraceEvent {
             .key_values()
             .visit(&mut collector)
             .map_err(Error::from_kv_error)?;
-        for d in diagnostics {
+        for d in diags {
             d.visit(&mut collector)?;
         }
 

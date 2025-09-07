@@ -17,6 +17,7 @@ use std::borrow::Cow;
 use jiff::Timestamp;
 use jiff::Zoned;
 use jiff::tz::TimeZone;
+use log::Record;
 
 use crate::Diagnostic;
 use crate::Error;
@@ -118,11 +119,7 @@ impl Visitor for KvFormatter {
 }
 
 impl Layout for LogfmtLayout {
-    fn format(
-        &self,
-        record: &log::Record,
-        diagnostics: &[Box<dyn Diagnostic>],
-    ) -> Result<Vec<u8>, Error> {
+    fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
         let time = match self.tz.clone() {
             Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),
@@ -146,7 +143,7 @@ impl Layout for LogfmtLayout {
             .key_values()
             .visit(&mut visitor)
             .map_err(Error::from_kv_error)?;
-        for d in diagnostics {
+        for d in diags {
             d.visit(&mut visitor)?;
         }
 

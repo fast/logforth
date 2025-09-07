@@ -25,7 +25,6 @@ mod fastrace;
 mod journald;
 #[cfg(feature = "append-opentelemetry")]
 pub mod opentelemetry;
-#[cfg(feature = "append-rolling-file")]
 pub mod rolling_file;
 mod stdio;
 #[cfg(feature = "append-syslog")]
@@ -38,7 +37,6 @@ pub use self::fastrace::FastraceEvent;
 pub use self::journald::Journald;
 #[cfg(feature = "append-opentelemetry")]
 pub use self::opentelemetry::OpentelemetryLog;
-#[cfg(feature = "append-rolling-file")]
 pub use self::rolling_file::RollingFile;
 pub use self::stdio::Stderr;
 pub use self::stdio::Stdout;
@@ -49,11 +47,7 @@ pub use self::testing::Testing;
 /// A trait representing an appender that can process log records.
 pub trait Append: fmt::Debug + Send + Sync + 'static {
     /// Dispatches a log record to the append target.
-    fn append(
-        &self,
-        record: &log::Record,
-        diagnostics: &[Box<dyn Diagnostic>],
-    ) -> Result<(), Error>;
+    fn append(&self, record: &log::Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error>;
 
     /// Flushes any buffered records.
     ///

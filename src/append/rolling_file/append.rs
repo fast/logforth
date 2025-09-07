@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::Write;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::sync::Mutex;
+use std::sync::MutexGuard;
+
+use log::Record;
 
 use crate::Diagnostic;
-use crate::DropGuard;
 use crate::Error;
 use crate::Layout;
 use crate::append::Append;
@@ -25,19 +28,12 @@ use crate::append::rolling_file::Rotation;
 use crate::append::rolling_file::rolling::RollingFileWriter;
 use crate::append::rolling_file::rolling::RollingFileWriterBuilder;
 use crate::layout::TextLayout;
-use crate::non_blocking::NonBlocking;
-use crate::non_blocking::NonBlockingBuilder;
 
 /// A builder to configure and create an [`RollingFile`] appender.
 #[derive(Debug)]
 pub struct RollingFileBuilder {
     builder: RollingFileWriterBuilder,
     layout: Box<dyn Layout>,
-
-    // non-blocking options
-    thread_name: String,
-    buffered_lines_limit: Option<usize>,
-    shutdown_timeout: Option<Duration>,
 }
 
 impl RollingFileBuilder {
@@ -50,10 +46,6 @@ impl RollingFileBuilder {
         Self {
             builder: RollingFileWriterBuilder::new(basedir, filename),
             layout: Box::new(TextLayout::default().no_color()),
-
-            thread_name: "logforth-rolling-file".to_string(),
-            buffered_lines_limit: None,
-            shutdown_timeout: None,
         }
     }
 
@@ -64,20 +56,10 @@ impl RollingFileBuilder {
     /// Returns an error if:
     /// * The log directory cannot be created.
     /// * The configured filename is empty.
-    pub fn build(self) -> Result<(RollingFile, DropGuard), Error> {
-        let RollingFileBuilder {
-            builder,
-            layout,
-            thread_name,
-            buffered_lines_limit,
-            shutdown_timeout,
-        } = self;
+    pub fn build(self) -> Result<RollingFile, Error> {
+        let RollingFileBuilder { builder, layout } = self;
         let writer = builder.build()?;
-        let (non_blocking, guard) = NonBlockingBuilder::new(thread_name, writer)
-            .buffered_lines_limit(buffered_lines_limit)
-            .shutdown_timeout(shutdown_timeout)
-            .build();
-        Ok((RollingFile::new(non_blocking, layout), Box::new(guard)))
+        Ok(RollingFile::new(writer, layout))
     }
 
     /// Sets the layout for the logs.
@@ -95,24 +77,6 @@ impl RollingFileBuilder {
     /// ```
     pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
         self.layout = layout.into();
-        self
-    }
-
-    /// Sets the buffer size of pending messages.
-    pub fn buffered_lines_limit(mut self, buffered_lines_limit: Option<usize>) -> Self {
-        self.buffered_lines_limit = buffered_lines_limit;
-        self
-    }
-
-    /// Sets the shutdown timeout before the worker guard dropped.
-    pub fn shutdown_timeout(mut self, shutdown_timeout: Option<Duration>) -> Self {
-        self.shutdown_timeout = shutdown_timeout;
-        self
-    }
-
-    /// Sets the thread name for the background sender thread.
-    pub fn thread_name(mut self, thread_name: impl Into<String>) -> Self {
-        self.thread_name = thread_name.into();
         self
     }
 
@@ -144,25 +108,33 @@ impl RollingFileBuilder {
 /// An appender that writes log records to rolling files.
 #[derive(Debug)]
 pub struct RollingFile {
+    writer: Mutex<RollingFileWriter>,
     layout: Box<dyn Layout>,
-    writer: NonBlocking<RollingFileWriter>,
 }
 
 impl RollingFile {
-    fn new(writer: NonBlocking<RollingFileWriter>, layout: Box<dyn Layout>) -> Self {
-        Self { layout, writer }
+    fn new(writer: RollingFileWriter, layout: Box<dyn Layout>) -> Self {
+        let writer = Mutex::new(writer);
+        Self { writer, layout }
+    }
+
+    fn writer(&self) -> MutexGuard<'_, RollingFileWriter> {
+        self.writer.lock().unwrap_or_else(|e| e.into_inner())
     }
 }
 
 impl Append for RollingFile {
-    fn append(
-        &self,
-        record: &log::Record,
-        diagnostics: &[Box<dyn Diagnostic>],
-    ) -> Result<(), Error> {
-        let mut bytes = self.layout.format(record, diagnostics)?;
+    fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+        let mut bytes = self.layout.format(record, diags)?;
         bytes.push(b'\n');
-        self.writer.send(bytes)?;
+        let mut writer = self.writer();
+        writer.write_all(&bytes).map_err(Error::from_io_error)?;
+        Ok(())
+    }
+
+    fn flush(&self) -> Result<(), Error> {
+        let mut writer = self.writer();
+        writer.flush().map_err(Error::from_io_error)?;
         Ok(())
     }
 }

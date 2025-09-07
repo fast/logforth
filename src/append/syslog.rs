@@ -21,7 +21,7 @@
 //! use logforth::append::syslog::Syslog;
 //! use logforth::append::syslog::SyslogBuilder;
 //!
-//! let (append, _guard) = SyslogBuilder::tcp_well_known().unwrap().build();
+//! let append = SyslogBuilder::tcp_well_known().unwrap().build();
 //!
 //! logforth::builder()
 //!     .dispatch(|d| d.filter(log::LevelFilter::Trace).append(append))
@@ -31,7 +31,8 @@
 //! ```
 
 use std::io;
-use std::time::Duration;
+use std::sync::Mutex;
+use std::sync::MutexGuard;
 
 use fasyslog::SDElement;
 use fasyslog::format::SyslogContext;
@@ -40,12 +41,8 @@ use log::Record;
 
 use crate::Append;
 use crate::Diagnostic;
-use crate::DropGuard;
 use crate::Error;
 use crate::Layout;
-use crate::non_blocking::NonBlocking;
-use crate::non_blocking::NonBlockingBuilder;
-use crate::non_blocking::Writer;
 
 pub extern crate fasyslog;
 
@@ -67,11 +64,6 @@ pub enum SyslogFormat {
 pub struct SyslogBuilder {
     sender: SyslogSender,
     formatter: SyslogFormatter,
-
-    // non-blocking options
-    thread_name: String,
-    buffered_lines_limit: Option<usize>,
-    shutdown_timeout: Option<Duration>,
 }
 
 impl SyslogBuilder {
@@ -84,26 +76,13 @@ impl SyslogBuilder {
                 context: SyslogContext::default(),
                 layout: None,
             },
-            thread_name: "logforth-syslog".to_string(),
-            buffered_lines_limit: None,
-            shutdown_timeout: None,
         }
     }
 
     /// Build the [`Syslog`] appender.
-    pub fn build(self) -> (Syslog, DropGuard) {
-        let SyslogBuilder {
-            sender,
-            formatter,
-            thread_name,
-            buffered_lines_limit,
-            shutdown_timeout,
-        } = self;
-        let (non_blocking, guard) = NonBlockingBuilder::new(thread_name, SyslogWriter { sender })
-            .buffered_lines_limit(buffered_lines_limit)
-            .shutdown_timeout(shutdown_timeout)
-            .build();
-        (Syslog::new(non_blocking, formatter), Box::new(guard))
+    pub fn build(self) -> Syslog {
+        let SyslogBuilder { sender, formatter } = self;
+        Syslog::new(sender, formatter)
     }
 
     /// Set the format of the [`Syslog`] appender.
@@ -123,24 +102,6 @@ impl SyslogBuilder {
     /// Default to `None`, the message will construct with only [`Record::args`].
     pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
         self.formatter.layout = Some(layout.into());
-        self
-    }
-
-    /// Sets the buffer size of pending messages.
-    pub fn buffered_lines_limit(mut self, buffered_lines_limit: Option<usize>) -> Self {
-        self.buffered_lines_limit = buffered_lines_limit;
-        self
-    }
-
-    /// Sets the shutdown timeout before the worker guard dropped.
-    pub fn shutdown_timeout(mut self, shutdown_timeout: Option<Duration>) -> Self {
-        self.shutdown_timeout = shutdown_timeout;
-        self
-    }
-
-    /// Sets the thread name for the background sender thread.
-    pub fn thread_name(mut self, thread_name: impl Into<String>) -> Self {
-        self.thread_name = thread_name.into();
         self
     }
 
@@ -312,25 +273,35 @@ mod unix_ext {
 /// An appender that writes log records to syslog.
 #[derive(Debug)]
 pub struct Syslog {
-    writer: NonBlocking<SyslogWriter>,
+    sender: Mutex<SyslogSender>,
     formatter: SyslogFormatter,
 }
 
 impl Syslog {
     /// Creates a new [`Syslog`] appender.
-    fn new(writer: NonBlocking<SyslogWriter>, formatter: SyslogFormatter) -> Self {
-        Self { writer, formatter }
+    fn new(sender: SyslogSender, formatter: SyslogFormatter) -> Self {
+        let sender = Mutex::new(sender);
+        Self { sender, formatter }
+    }
+
+    fn sender(&self) -> MutexGuard<'_, SyslogSender> {
+        self.sender.lock().unwrap_or_else(|e| e.into_inner())
     }
 }
 
 impl Append for Syslog {
-    fn append(
-        &self,
-        record: &log::Record,
-        diagnostics: &[Box<dyn Diagnostic>],
-    ) -> Result<(), Error> {
-        let message = self.formatter.format_message(record, diagnostics)?;
-        self.writer.send(message)?;
+    fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+        let message = self.formatter.format_message(record, diags)?;
+        let mut sender = self.sender();
+        sender
+            .send_formatted(&message)
+            .map_err(Error::from_io_error)?;
+        Ok(())
+    }
+
+    fn flush(&self) -> Result<(), Error> {
+        let mut sender = self.sender();
+        sender.flush().map_err(Error::from_io_error)?;
         Ok(())
     }
 }
@@ -356,7 +327,7 @@ impl SyslogFormatter {
     fn format_message(
         &self,
         record: &Record,
-        diagnostics: &[Box<dyn Diagnostic>],
+        diags: &[Box<dyn Diagnostic>],
     ) -> Result<Vec<u8>, Error> {
         let severity = log_level_to_otel_severity(record.level());
 
@@ -367,7 +338,7 @@ impl SyslogFormatter {
                     self.context.format_rfc3164(severity, Some(record.args()))
                 ),
                 Some(ref layout) => {
-                    let message = layout.format(record, diagnostics)?;
+                    let message = layout.format(record, diags)?;
                     let message = String::from_utf8_lossy(&message);
                     format!("{}", self.context.format_rfc3164(severity, Some(message)))
                 }
@@ -387,7 +358,7 @@ impl SyslogFormatter {
                         )
                     ),
                     Some(ref layout) => {
-                        let message = layout.format(record, diagnostics)?;
+                        let message = layout.format(record, diags)?;
                         let message = String::from_utf8_lossy(&message);
                         format!(
                             "{}",
@@ -404,21 +375,5 @@ impl SyslogFormatter {
         };
 
         Ok(message.into_bytes())
-    }
-}
-
-/// A writer that writes formatted log records to syslog.
-#[derive(Debug)]
-struct SyslogWriter {
-    sender: SyslogSender,
-}
-
-impl Writer for SyslogWriter {
-    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
-        self.sender.send_formatted(buf)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.sender.flush()
     }
 }

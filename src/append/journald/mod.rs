@@ -17,6 +17,7 @@ use std::io::Write;
 use std::os::unix::net::UnixDatagram;
 
 use log::Level;
+use log::Record;
 
 use crate::Append;
 use crate::Diagnostic;
@@ -258,11 +259,7 @@ impl Visitor for WriteKeyValues<'_> {
 impl Append for Journald {
     /// Extract all fields (standard and custom) from `record`, append all `extra_fields` given
     /// to this appender, and send the result to journald.
-    fn append(
-        &self,
-        record: &log::Record,
-        diagnostics: &[Box<dyn Diagnostic>],
-    ) -> Result<(), Error> {
+    fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
         use field::*;
 
         let mut buffer = vec![];
@@ -319,7 +316,7 @@ impl Append for Journald {
             .key_values()
             .visit(&mut visitor)
             .map_err(Error::from_kv_error)?;
-        for d in diagnostics {
+        for d in diags {
             d.visit(&mut visitor)?;
         }
         // Put all extra fields of the appender

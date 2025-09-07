@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg(feature = "append-rolling-file")]
-
 use std::num::NonZeroUsize;
 
+use log::Record;
 use logforth::Diagnostic;
 use logforth::Error;
 use logforth::Layout;
@@ -27,11 +26,8 @@ use logforth::append::rolling_file::Rotation;
 struct CustomLayout(&'static str);
 
 impl Layout for CustomLayout {
-    fn format(
-        &self,
-        record: &log::Record,
-        _diagnostics: &[Box<dyn Diagnostic>],
-    ) -> Result<Vec<u8>, Error> {
+    fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
+        let _ = diags;
         Ok(format!("{} [{}] {}", self.0, record.level(), record.args()).into_bytes())
     }
 }
@@ -41,7 +37,7 @@ impl Layout for CustomLayout {
 fn test_meta_logging_in_format_works() {
     let stdout = append::Stdout::default().with_layout(CustomLayout("out"));
     let stderr = append::Stderr::default().with_layout(CustomLayout("err"));
-    let (rolling, _guard) = RollingFileBuilder::new("logs", "example")
+    let rolling = RollingFileBuilder::new("logs", "example")
         .layout(CustomLayout("file"))
         .rotation(Rotation::Minutely)
         .filename_suffix("log")
