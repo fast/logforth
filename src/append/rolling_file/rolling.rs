@@ -42,12 +42,13 @@ impl Write for RollingFileWriter {
         let now = self.state.clock.now();
         let writer = &mut self.writer;
         if self.state.should_rollover_on_date(&now) {
-            self.state.advance_date(&now);
-            self.state.refresh_writer(&now, 0, writer);
+            self.state.current_filesize = 0;
+            self.state.next_date_timestamp = self.state.rotation.next_date_timestamp(&now);
+            self.state.refresh_writer(&now, writer);
         }
         if self.state.should_rollover_on_size() {
-            let cnt = self.state.advance_cnt();
-            self.state.refresh_writer(&now, cnt, writer);
+            self.state.current_filesize = 0;
+            self.state.refresh_writer(&now, writer);
         }
 
         writer
@@ -165,6 +166,18 @@ struct LogFile {
     count: usize,
 }
 
+// oldest is the least
+fn compare_logfile(a: &LogFile, b: &LogFile) -> std::cmp::Ordering {
+    match a.datetime.cmp(&b.datetime) {
+        std::cmp::Ordering::Equal => {
+            let a_rev = usize::MAX - a.count;
+            let b_rev = usize::MAX - b.count;
+            a_rev.cmp(&b_rev)
+        }
+        ord => ord,
+    }
+}
+
 #[derive(Debug)]
 struct State {
     log_dir: PathBuf,
@@ -172,7 +185,6 @@ struct State {
     log_filename_suffix: Option<String>,
     date_format: &'static str,
     rotation: Rotation,
-    current_count: usize,
     current_filesize: usize,
     next_date_timestamp: Option<usize>,
     max_size: usize,
@@ -199,7 +211,6 @@ impl State {
             log_filename,
             log_filename_suffix,
             date_format: rotation.date_format(),
-            current_count: 0,
             current_filesize: 0,
             next_date_timestamp: rotation.next_date_timestamp(&now),
             rotation,
@@ -208,42 +219,32 @@ impl State {
             clock,
         };
 
-        let mut files = state.list_sorted_logs()?;
+        let files = {
+            let mut files = state.list_logfiles()?;
+            files.sort_by(compare_logfile);
+            files
+        };
 
-        let file;
-        match files.pop() {
+        let file = match files.last() {
             None => {
                 // brand-new directory
-                file = state.create_log_writer()?;
+                state.create_log_writer()?
             }
             Some(last) => {
-                let last_logfile = last.filepath;
-                let current_date = rotation.current_datetime(&now);
-                let current_logfile = state.current_filename();
-
-                if last_logfile != current_logfile {
-                    if current_date.is_none_or(|date| date == last.datetime) {
-                        state.current_count = last.count + 1;
-                    }
-
-                    // for some reason, the `filename.suffix` file does not exist, create a new one
-                    file = state.create_log_writer()?;
+                let filename = state.current_filename();
+                if last.filepath != filename {
+                    // for some reason, the `filename.suffix` file does not exist; create a new one
+                    state.create_log_writer()?
                 } else {
-                    if let Some(file) = files.pop() {
-                        if current_date.is_none_or(|date| date == file.datetime) {
-                            state.current_count = file.count + 1;
-                        }
-                    }
-
                     // continue to use the existing current log file
                     state.current_filesize = last.metadata.len() as usize;
-                    file = OpenOptions::new()
+                    OpenOptions::new()
                         .append(true)
-                        .open(&current_logfile)
-                        .context("failed to open existing log file")?;
+                        .open(&filename)
+                        .context("failed to open existing log file")?
                 }
             }
-        }
+        };
 
         Ok((state, file))
     }
@@ -282,12 +283,11 @@ impl State {
         self.log_dir.join(filename)
     }
 
-    // sorted from oldest to newest
-    fn list_sorted_logs(&self) -> anyhow::Result<Vec<LogFile>> {
+    fn list_logfiles(&self) -> anyhow::Result<Vec<LogFile>> {
         let read_dir = fs::read_dir(&self.log_dir)
             .with_context(|| format!("failed to read log dir: {}", self.log_dir.display()))?;
 
-        let mut files = read_dir
+        let files = read_dir
             .filter_map(|entry| {
                 let entry = entry.ok()?;
                 let filepath = entry.path();
@@ -319,7 +319,7 @@ impl State {
                         filepath,
                         metadata,
                         datetime: DateTime::MAX,
-                        count: usize::MAX,
+                        count: 0,
                     });
                 }
 
@@ -350,18 +350,17 @@ impl State {
             })
             .collect::<Vec<_>>();
 
-        files.sort_by_key(|f| (f.datetime, f.count));
         Ok(files)
     }
 
     fn delete_oldest_logs(&self, max_files: usize) -> anyhow::Result<()> {
-        let files = self.list_sorted_logs()?;
-
+        let mut files = self.list_logfiles()?;
         if files.len() < max_files {
             return Ok(());
         }
 
         // delete files, so that (n-1) files remain, because we will create another log file
+        files.sort_by(compare_logfile);
         for file in files.iter().take(files.len() - (max_files - 1)) {
             let filepath = &file.filepath;
             fs::remove_file(filepath).context("failed to remove old log file")?;
@@ -370,10 +369,24 @@ impl State {
         Ok(())
     }
 
-    fn rotate_log_writer(&self, now: &Zoned, cnt: usize) -> anyhow::Result<File> {
-        let archive_filepath = self.join_date(now, cnt);
-        let current_filepath = self.current_filename();
+    fn rotate_log_writer(&self, now: &Zoned) -> anyhow::Result<File> {
+        let mut renames = vec![];
+        for i in 1..self.max_files.unwrap_or(usize::MAX) {
+            let filepath = self.join_date(now, i);
+            if fs::exists(&filepath).is_ok_and(|ok| ok) {
+                let next = self.join_date(now, i + 1);
+                renames.push((filepath, next));
+            } else {
+                break;
+            }
+        }
 
+        for (old, new) in renames.iter().rev() {
+            fs::rename(old, new)?;
+        }
+
+        let archive_filepath = self.join_date(now, 1);
+        let current_filepath = self.current_filename();
         fs::rename(&current_filepath, &archive_filepath)?;
         if let Some(max_files) = self.max_files {
             if let Err(err) = self.delete_oldest_logs(max_files) {
@@ -384,8 +397,8 @@ impl State {
         self.create_log_writer()
     }
 
-    fn refresh_writer(&self, now: &Zoned, cnt: usize, file: &mut File) {
-        match self.rotate_log_writer(now, cnt) {
+    fn refresh_writer(&self, now: &Zoned, file: &mut File) {
+        match self.rotate_log_writer(now) {
             Ok(new_file) => {
                 if let Err(err) = file.flush() {
                     eprintln!("failed to flush previous writer: {err}");
@@ -403,19 +416,6 @@ impl State {
 
     fn should_rollover_on_size(&self) -> bool {
         self.current_filesize >= self.max_size
-    }
-
-    fn advance_cnt(&mut self) -> usize {
-        let cnt = self.current_count;
-        self.current_count += 1;
-        self.current_filesize = 0;
-        cnt
-    }
-
-    fn advance_date(&mut self, now: &Zoned) {
-        self.current_count = 1;
-        self.current_filesize = 0;
-        self.next_date_timestamp = self.rotation.next_date_timestamp(now);
     }
 }
 
