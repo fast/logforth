@@ -87,6 +87,7 @@ jobs:
           cargo run --no-default-features --example simple_stdout
           cargo run --features="layout-json" --example json_stdout
           cargo run --features="layout-json,append-rolling-file" --example rolling_file
+          cargo run --features="layout-json,append-rolling-file" --example single_file
           cargo run --features="fastrace/enable,diagnostic-fastrace,layout-google-cloud-logging" --example google_cloud_logging
           cargo run --features="fastrace/enable,append-fastrace,diagnostic-fastrace" --example fastrace
 

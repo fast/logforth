@@ -127,6 +127,12 @@ required-features = ["append-rolling-file", "layout-json"]
 
 [[example]]
 doc-scrape-examples = true
+name = "single_file"
+path = "examples/single_file.rs"
+required-features = ["append-rolling-file", "layout-json"]
+
+[[example]]
+doc-scrape-examples = true
 name = "custom_layout_filter"
 path = "examples/custom_layout_filter.rs"
 
