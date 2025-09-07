@@ -7,6 +7,23 @@ All notable changes to this project will be documented in this file.
 ### Breaking changes
 
 * `JsonLayout` now collects diagnostics context into a separate field `diags`.
+* `SingleFile` appender is removed. You can replace it with `RollingFile` with `Rotation::Never`.
+* `RollingFile` appender now requires `filename` when constructing.
+* `RollingFile`'s `filename_prefix` is now renamed to mandatory `filename`.
+* `RollingFile`'s `max_log_files` and `max_file_size` now take `NonZeroUsize`.
+* RollingFile's rollover strategy has been changed:
+    ```
+    from:
+    app.log
+    app.1.log
+    app.2.log
+
+    to:
+    app.log
+    app.1.log - old app.log
+    app.2.log - old app.1.log
+    - old app.2.log deleted
+    ```
 
 ## [0.27.0] 2025-08-18
 
