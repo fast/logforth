@@ -23,11 +23,11 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use anyhow::Context;
-use anyhow::ensure;
 use jiff::Zoned;
 use jiff::civil::DateTime;
 
+use crate::Error;
+use crate::ErrorKind;
 use crate::append::rolling_file::Rotation;
 use crate::append::rolling_file::clock::Clock;
 
@@ -132,7 +132,7 @@ impl RollingFileWriterBuilder {
     }
 
     /// Builds the [`RollingFileWriter`].
-    pub fn build(self) -> anyhow::Result<RollingFileWriter> {
+    pub fn build(self) -> Result<RollingFileWriter, Error> {
         let Self {
             basedir,
             rotation,
@@ -143,7 +143,9 @@ impl RollingFileWriterBuilder {
             clock,
         } = self;
 
-        ensure!(!filename.is_empty(), "filename must not be empty");
+        if filename.is_empty() {
+            return Err(Error::new(ErrorKind::ConfigInvalid, "empty filename"));
+        }
 
         let (state, writer) = State::new(
             rotation,
@@ -202,10 +204,12 @@ impl State {
         max_size: Option<NonZeroUsize>,
         max_files: Option<NonZeroUsize>,
         clock: Clock,
-    ) -> anyhow::Result<(Self, File)> {
+    ) -> Result<(Self, File), Error> {
         let now = clock.now();
         let log_dir = dir.as_ref().to_path_buf();
-        fs::create_dir_all(&log_dir).context("failed to create log directory")?;
+        fs::create_dir_all(&log_dir).map_err(|err| {
+            Error::new(ErrorKind::Unexpected, "failed to create log directory").set_source(err)
+        })?;
 
         let mut state = State {
             log_dir,
@@ -242,7 +246,10 @@ impl State {
                     OpenOptions::new()
                         .append(true)
                         .open(&filename)
-                        .context("failed to open existing log file")?
+                        .map_err(|err| {
+                            Error::new(ErrorKind::Unexpected, "failed to open current log")
+                                .set_source(err)
+                        })?
                 }
             }
         };
@@ -258,13 +265,15 @@ impl State {
         }
     }
 
-    fn create_log_writer(&self) -> anyhow::Result<File> {
+    fn create_log_writer(&self) -> Result<File, Error> {
         let filename = self.current_filename();
         OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(&filename)
-            .context("failed to create log file")
+            .map_err(|err| {
+                Error::new(ErrorKind::Unexpected, "failed to create log file").set_source(err)
+            })
     }
 
     fn join_date(&self, date: &Zoned, cnt: usize) -> PathBuf {
@@ -284,9 +293,14 @@ impl State {
         self.log_dir.join(filename)
     }
 
-    fn list_logfiles(&self) -> anyhow::Result<Vec<LogFile>> {
-        let read_dir = fs::read_dir(&self.log_dir)
-            .with_context(|| format!("failed to read log dir: {}", self.log_dir.display()))?;
+    fn list_logfiles(&self) -> Result<Vec<LogFile>, Error> {
+        let read_dir = fs::read_dir(&self.log_dir).map_err(|err| {
+            Error::new(
+                ErrorKind::Unexpected,
+                format!("failed to read log dir: {}", self.log_dir.display()),
+            )
+            .set_source(err)
+        })?;
 
         let files = read_dir
             .filter_map(|entry| {
@@ -354,7 +368,7 @@ impl State {
         Ok(files)
     }
 
-    fn delete_oldest_logs(&self, max_files: usize) -> anyhow::Result<()> {
+    fn delete_oldest_logs(&self, max_files: usize) -> Result<(), Error> {
         let mut files = self.list_logfiles()?;
         if files.len() < max_files {
             return Ok(());
@@ -364,13 +378,19 @@ impl State {
         files.sort_by(compare_logfile);
         for file in files.iter().take(files.len() - (max_files - 1)) {
             let filepath = &file.filepath;
-            fs::remove_file(filepath).context("failed to remove old log file")?;
+            fs::remove_file(filepath).map_err(|err| {
+                Error::new(
+                    ErrorKind::Unexpected,
+                    format!("failed to remove old log: {}", filepath.display()),
+                )
+                .set_source(err)
+            })?;
         }
 
         Ok(())
     }
 
-    fn rotate_log_writer(&self, now: &Zoned) -> anyhow::Result<File> {
+    fn rotate_log_writer(&self, now: &Zoned) -> Result<File, Error> {
         let mut renames = vec![];
         for i in 1..self.max_files.map_or(usize::MAX, |n| n.get()) {
             let filepath = self.join_date(now, i);
@@ -383,12 +403,25 @@ impl State {
         }
 
         for (old, new) in renames.iter().rev() {
-            fs::rename(old, new)?;
+            fs::rename(old, new).map_err(|err| {
+                Error::new(
+                    ErrorKind::Unexpected,
+                    format!("failed to rotate log: {}", old.display()),
+                )
+                .set_source(err)
+            })?
         }
 
         let archive_filepath = self.join_date(now, 1);
         let current_filepath = self.current_filename();
-        fs::rename(&current_filepath, &archive_filepath)?;
+        fs::rename(&current_filepath, &archive_filepath).map_err(|err| {
+            Error::new(
+                ErrorKind::Unexpected,
+                format!("failed to archive log: {}", current_filepath.display()),
+            )
+            .set_source(err)
+        })?;
+
         if let Some(max_files) = self.max_files {
             if let Err(err) = self.delete_oldest_logs(max_files.get()) {
                 eprintln!("failed to delete oldest logs: {err}");

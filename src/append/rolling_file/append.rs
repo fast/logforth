@@ -16,10 +16,9 @@ use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use log::Record;
-
 use crate::Diagnostic;
 use crate::DropGuard;
+use crate::Error;
 use crate::Layout;
 use crate::append::Append;
 use crate::append::rolling_file::Rotation;
@@ -65,7 +64,7 @@ impl RollingFileBuilder {
     /// Returns an error if:
     /// * The log directory cannot be created.
     /// * The configured filename is empty.
-    pub fn build(self) -> anyhow::Result<(RollingFile, DropGuard)> {
+    pub fn build(self) -> Result<(RollingFile, DropGuard), Error> {
         let RollingFileBuilder {
             builder,
             layout,
@@ -156,7 +155,11 @@ impl RollingFile {
 }
 
 impl Append for RollingFile {
-    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
+    fn append(
+        &self,
+        record: &log::Record,
+        diagnostics: &[Box<dyn Diagnostic>],
+    ) -> Result<(), Error> {
         let mut bytes = self.layout.format(record, diagnostics)?;
         bytes.push(b'\n');
         self.writer.send(bytes)?;

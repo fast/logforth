@@ -29,6 +29,8 @@ use opentelemetry_sdk::logs::SdkLogRecord;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 
 use crate::Diagnostic;
+use crate::Error;
+use crate::ErrorKind;
 use crate::Layout;
 use crate::append::Append;
 use crate::diagnostic::Visitor;
@@ -219,7 +221,11 @@ pub struct OpentelemetryLog {
 }
 
 impl Append for OpentelemetryLog {
-    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
+    fn append(
+        &self,
+        record: &log::Record,
+        diagnostics: &[Box<dyn Diagnostic>],
+    ) -> Result<(), Error> {
         let now = SystemTime::now();
 
         let mut log_record = self.logger.create_log_record();
@@ -246,7 +252,10 @@ impl Append for OpentelemetryLog {
         let mut extractor = KvExtractor {
             record: &mut log_record,
         };
-        record.key_values().visit(&mut extractor)?;
+        record
+            .key_values()
+            .visit(&mut extractor)
+            .map_err(Error::from_kv_error)?;
         for d in diagnostics {
             d.visit(&mut extractor)?;
         }
@@ -255,9 +264,10 @@ impl Append for OpentelemetryLog {
         Ok(())
     }
 
-    fn flush(&self) -> anyhow::Result<()> {
-        self.provider.force_flush()?;
-        Ok(())
+    fn flush(&self) -> Result<(), Error> {
+        self.provider.force_flush().map_err(|err| {
+            Error::new(ErrorKind::Unexpected, "failed to flush records").set_source(err)
+        })
     }
 }
 
@@ -278,7 +288,7 @@ pub trait MakeBody: fmt::Debug + Send + Sync + 'static {
         &self,
         record: &Record,
         diagnostics: &[Box<dyn Diagnostic>],
-    ) -> anyhow::Result<AnyValue>;
+    ) -> Result<AnyValue, Error>;
 }
 
 impl<T: MakeBody> From<T> for Box<dyn MakeBody> {
@@ -307,7 +317,7 @@ impl MakeBody for MakeBodyLayout {
         &self,
         record: &Record,
         diagnostics: &[Box<dyn Diagnostic>],
-    ) -> anyhow::Result<AnyValue> {
+    ) -> Result<AnyValue, Error> {
         let body = self.layout.format(record, diagnostics)?;
         Ok(AnyValue::Bytes(Box::new(body)))
     }
@@ -331,7 +341,7 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvExtractor<'_> {
 }
 
 impl Visitor for KvExtractor<'_> {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
         let key = key.into_owned();
         let value = value.into_owned();
         self.record.add_attribute(key, value);

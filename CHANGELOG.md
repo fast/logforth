@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking changes
 
+* All interfaces that return `anyhow::Result` is now using a result over `logforth::Error`.
 * `JsonLayout` now collects diagnostics context into a separate field `diags`.
 * `SingleFile` appender is removed. You can replace it with `RollingFile` with `Rotation::Never`.
 * `RollingFile` appender now requires `filename` when constructing.

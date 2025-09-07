@@ -19,12 +19,12 @@ use std::fmt::Arguments;
 use jiff::Timestamp;
 use jiff::Zoned;
 use jiff::tz::TimeZone;
-use log::Record;
 use serde::Serialize;
 use serde_json::Map;
 use serde_json::Value;
 
 use crate::Diagnostic;
+use crate::Error;
 use crate::diagnostic::Visitor;
 use crate::layout::Layout;
 
@@ -93,7 +93,7 @@ struct DiagsCollector<'a> {
 }
 
 impl Visitor for DiagsCollector<'_> {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
         self.diags.insert(key.into_owned(), value.into_owned());
         Ok(())
     }
@@ -132,12 +132,15 @@ where
 impl Layout for JsonLayout {
     fn format(
         &self,
-        record: &Record,
+        record: &log::Record,
         diagnostics: &[Box<dyn Diagnostic>],
-    ) -> anyhow::Result<Vec<u8>> {
+    ) -> Result<Vec<u8>, Error> {
         let mut kvs = Map::new();
         let mut kvs_visitor = KvCollector { kvs: &mut kvs };
-        record.key_values().visit(&mut kvs_visitor)?;
+        record
+            .key_values()
+            .visit(&mut kvs_visitor)
+            .map_err(Error::from_kv_error)?;
 
         let mut diags = BTreeMap::new();
         let mut diags_visitor = DiagsCollector { diags: &mut diags };
@@ -159,6 +162,7 @@ impl Layout for JsonLayout {
             diags,
         };
 
-        Ok(serde_json::to_vec(&record_line)?)
+        // SAFETY: RecordLine is serializable.
+        Ok(serde_json::to_vec(&record_line).unwrap())
     }
 }

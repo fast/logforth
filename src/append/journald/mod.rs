@@ -13,15 +13,15 @@
 // limitations under the License.
 
 use std::borrow::Cow;
-use std::io;
 use std::io::Write;
 use std::os::unix::net::UnixDatagram;
 
 use log::Level;
-use log::Record;
 
 use crate::Append;
 use crate::Diagnostic;
+use crate::Error;
+use crate::ErrorKind;
 use crate::diagnostic::Visitor;
 
 mod field;
@@ -114,8 +114,8 @@ impl Journald {
     /// Construct a journald appender
     ///
     /// Fails if the journald socket couldn't be opened.
-    pub fn new() -> io::Result<Self> {
-        let socket = UnixDatagram::unbound()?;
+    pub fn new() -> Result<Self, Error> {
+        let socket = UnixDatagram::unbound().map_err(Error::from_io_error)?;
         let sub = Self {
             socket,
             extra_fields: Vec::new(),
@@ -205,29 +205,30 @@ impl Journald {
         &self.syslog_identifier
     }
 
-    fn send_payload(&self, payload: &[u8]) -> io::Result<usize> {
-        self.socket
-            .send_to(payload, JOURNALD_PATH)
-            .or_else(|error| {
-                if Some(libc::EMSGSIZE) == error.raw_os_error() {
-                    self.send_large_payload(payload)
-                } else {
-                    Err(error)
-                }
-            })
+    fn send_payload(&self, payload: &[u8]) -> Result<usize, Error> {
+        self.socket.send_to(payload, JOURNALD_PATH).or_else(|err| {
+            if Some(libc::EMSGSIZE) == err.raw_os_error() {
+                self.send_large_payload(payload)
+            } else {
+                Err(Error::from_io_error(err))
+            }
+        })
     }
 
     #[cfg(all(unix, not(target_os = "linux")))]
-    fn send_large_payload(&self, _payload: &[u8]) -> io::Result<usize> {
-        Err(io::Error::other(
-            "Large payloads not supported on non-Linux OS",
+    fn send_large_payload(&self, _payload: &[u8]) -> Result<usize, Error> {
+        Err(Error::new(
+            ErrorKind::Unsupported,
+            "large payloads not supported on non-Linux OS",
         ))
     }
 
     /// Send large payloads to journald via a memfd.
     #[cfg(target_os = "linux")]
-    fn send_large_payload(&self, payload: &[u8]) -> io::Result<usize> {
-        memfd::send_large_payload(&self.socket, payload)
+    fn send_large_payload(&self, payload: &[u8]) -> Result<usize, Error> {
+        memfd::send_large_payload(&self.socket, payload).map_err(|err| {
+            Error::new(ErrorKind::Unexpected, "failed to send payload via memfd").set_source(err)
+        })
     }
 }
 
@@ -246,7 +247,7 @@ impl<'kvs> log::kv::VisitSource<'kvs> for WriteKeyValues<'_> {
 }
 
 impl Visitor for WriteKeyValues<'_> {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
         let key = key.as_ref();
         let value = value.as_bytes();
         field::put_field_length_encoded(self.0, field::FieldName::WriteEscaped(key), value);
@@ -257,7 +258,11 @@ impl Visitor for WriteKeyValues<'_> {
 impl Append for Journald {
     /// Extract all fields (standard and custom) from `record`, append all `extra_fields` given
     /// to this appender, and send the result to journald.
-    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
+    fn append(
+        &self,
+        record: &log::Record,
+        diagnostics: &[Box<dyn Diagnostic>],
+    ) -> Result<(), Error> {
         use field::*;
 
         let mut buffer = vec![];
@@ -276,7 +281,8 @@ impl Append for Journald {
         put_field_bytes(&mut buffer, FieldName::WellFormed("PRIORITY"), priority);
         put_field_length_encoded(&mut buffer, FieldName::WellFormed("MESSAGE"), record.args());
         // Syslog compatibility fields
-        writeln!(&mut buffer, "SYSLOG_PID={}", std::process::id())?;
+        // SAFETY: write to a Vec<u8> always succeeds
+        writeln!(&mut buffer, "SYSLOG_PID={}", std::process::id()).unwrap();
         if !self.syslog_identifier.is_empty() {
             put_field_bytes(
                 &mut buffer,
@@ -299,7 +305,8 @@ impl Append for Journald {
             );
         }
         if let Some(line) = record.line() {
-            writeln!(&mut buffer, "CODE_LINE={line}")?;
+            // SAFETY: write to a Vec<u8> always succeeds
+            writeln!(&mut buffer, "CODE_LINE={line}").unwrap();
         }
         put_field_bytes(
             &mut buffer,
@@ -308,7 +315,10 @@ impl Append for Journald {
         );
         // Put all structured values of the record
         let mut visitor = WriteKeyValues(&mut buffer);
-        record.key_values().visit(&mut visitor)?;
+        record
+            .key_values()
+            .visit(&mut visitor)
+            .map_err(Error::from_kv_error)?;
         for d in diagnostics {
             d.visit(&mut visitor)?;
         }

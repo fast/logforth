@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use log::Metadata;
-use log::Record;
 use logforth::Diagnostic;
+use logforth::Error;
 use logforth::Filter;
 use logforth::Layout;
 use logforth::append;
@@ -37,7 +37,11 @@ impl Filter for CustomFilter {
 struct CustomLayout;
 
 impl Layout for CustomLayout {
-    fn format(&self, record: &Record, _: &[Box<dyn Diagnostic>]) -> anyhow::Result<Vec<u8>> {
+    fn format(
+        &self,
+        record: &log::Record,
+        _diagnostics: &[Box<dyn Diagnostic>],
+    ) -> Result<Vec<u8>, Error> {
         Ok(format!("[Alert] {}", record.args()).into_bytes())
     }
 }

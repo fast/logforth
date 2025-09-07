@@ -16,8 +16,8 @@
 
 use std::num::NonZeroUsize;
 
-use log::Record;
 use logforth::Diagnostic;
+use logforth::Error;
 use logforth::Layout;
 use logforth::append;
 use logforth::append::rolling_file::RollingFileBuilder;
@@ -27,7 +27,11 @@ use logforth::append::rolling_file::Rotation;
 struct CustomLayout(&'static str);
 
 impl Layout for CustomLayout {
-    fn format(&self, record: &Record, _: &[Box<dyn Diagnostic>]) -> anyhow::Result<Vec<u8>> {
+    fn format(
+        &self,
+        record: &log::Record,
+        _diagnostics: &[Box<dyn Diagnostic>],
+    ) -> Result<Vec<u8>, Error> {
         Ok(format!("{} [{}] {}", self.0, record.level(), record.args()).into_bytes())
     }
 }

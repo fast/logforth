@@ -19,6 +19,8 @@ use jiff::Zoned;
 use jiff::tz::TimeZone;
 
 use crate::Diagnostic;
+use crate::Error;
+use crate::ErrorKind;
 use crate::diagnostic::Visitor;
 use crate::layout::Layout;
 use crate::layout::filename;
@@ -70,18 +72,22 @@ impl LogfmtLayout {
 }
 
 // The encode logic is copied from https://github.com/go-logfmt/logfmt/blob/76262ea7/encode.go.
-fn encode_key_value(result: &mut String, key: &str, value: &str) -> anyhow::Result<()> {
+fn encode_key_value(result: &mut String, key: &str, value: &str) -> Result<(), Error> {
     use std::fmt::Write;
 
     if key.contains([' ', '=', '"']) {
         // omit keys contain special chars
-        anyhow::bail!("key contains special chars: {key}");
+        return Err(Error::new(
+            ErrorKind::Unexpected,
+            format!("key contains special chars: {key}"),
+        ));
     }
 
+    // SAFETY: write to a string always succeeds
     if value.contains([' ', '=', '"']) {
-        write!(result, " {key}=\"{}\"", value.escape_debug())?;
+        write!(result, " {key}=\"{}\"", value.escape_debug()).unwrap();
     } else {
-        write!(result, " {key}={value}")?;
+        write!(result, " {key}={value}").unwrap();
     }
 
     Ok(())
@@ -105,7 +111,7 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvFormatter {
 }
 
 impl Visitor for KvFormatter {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
         encode_key_value(&mut self.text, key.as_ref(), value.as_ref())?;
         Ok(())
     }
@@ -116,7 +122,7 @@ impl Layout for LogfmtLayout {
         &self,
         record: &log::Record,
         diagnostics: &[Box<dyn Diagnostic>],
-    ) -> anyhow::Result<Vec<u8>> {
+    ) -> Result<Vec<u8>, Error> {
         let time = match self.tz.clone() {
             Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),
@@ -136,7 +142,10 @@ impl Layout for LogfmtLayout {
         visitor.visit(Cow::Borrowed("position"), format!("{file}:{line}").into())?;
         visitor.visit(Cow::Borrowed("message"), message.to_string().into())?;
 
-        record.key_values().visit(&mut visitor)?;
+        record
+            .key_values()
+            .visit(&mut visitor)
+            .map_err(Error::from_kv_error)?;
         for d in diagnostics {
             d.visit(&mut visitor)?;
         }

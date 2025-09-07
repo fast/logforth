@@ -19,6 +19,7 @@ use log::Record;
 
 use crate::Append;
 use crate::Diagnostic;
+use crate::Error;
 use crate::Filter;
 use crate::filter::FilterResult;
 
@@ -107,7 +108,7 @@ impl Dispatch {
         true
     }
 
-    fn log(&self, record: &Record) -> anyhow::Result<()> {
+    fn log(&self, record: &Record) -> Result<(), Error> {
         let diagnostics = &self.diagnostics;
 
         for filter in &self.filters {
@@ -124,7 +125,7 @@ impl Dispatch {
         Ok(())
     }
 
-    fn flush(&self) -> anyhow::Result<()> {
+    fn flush(&self) -> Result<(), Error> {
         for append in &self.appends {
             append.flush()?;
         }
@@ -132,7 +133,7 @@ impl Dispatch {
     }
 }
 
-fn handle_log_error(record: &Record, error: anyhow::Error) {
+fn handle_log_error(record: &Record, error: Error) {
     let Err(fallback_error) = write!(
         std::io::stderr(),
         r###"
@@ -163,7 +164,7 @@ Error performing stderr logging after error occurred during regular logging.
     );
 }
 
-fn handle_flush_error(error: anyhow::Error) {
+fn handle_flush_error(error: Error) {
     let Err(fallback_error) = write!(
         std::io::stderr(),
         r###"

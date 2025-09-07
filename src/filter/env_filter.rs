@@ -21,6 +21,8 @@ use log::LevelFilter;
 use log::Metadata;
 
 use crate::Diagnostic;
+use crate::Error;
+use crate::ErrorKind;
 use crate::Filter;
 use crate::filter::FilterResult;
 
@@ -163,7 +165,7 @@ impl<'a> From<&'a str> for EnvFilter {
 }
 
 impl FromStr for EnvFilter {
-    type Err = anyhow::Error;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         EnvFilterBuilder::new().try_parse(s).map(EnvFilter::new)
@@ -216,8 +218,10 @@ impl EnvFilterBuilder {
     /// Parses the directive string, returning an error if the given directive string is invalid.
     ///
     /// See [the `env_logger` documentation](https://docs.rs/env_logger/#enabling-logging) for more details.
-    pub fn try_parse(mut self, filters: &str) -> anyhow::Result<Self> {
-        self.0.try_parse(filters)?;
+    pub fn try_parse(mut self, filters: &str) -> Result<Self, Error> {
+        self.0.try_parse(filters).map_err(|err| {
+            Error::new(ErrorKind::ConfigInvalid, "malformed filter").set_source(err)
+        })?;
         Ok(self)
     }
 

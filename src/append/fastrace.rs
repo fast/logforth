@@ -17,9 +17,9 @@
 use std::borrow::Cow;
 
 use jiff::Zoned;
-use log::Record;
 
 use crate::Diagnostic;
+use crate::Error;
 use crate::append::Append;
 use crate::diagnostic::Visitor;
 
@@ -38,11 +38,18 @@ pub struct FastraceEvent {
 }
 
 impl Append for FastraceEvent {
-    fn append(&self, record: &Record, diagnostics: &[Box<dyn Diagnostic>]) -> anyhow::Result<()> {
+    fn append(
+        &self,
+        record: &log::Record,
+        diagnostics: &[Box<dyn Diagnostic>],
+    ) -> Result<(), Error> {
         let message = format!("{}", record.args());
 
         let mut collector = KvCollector { kv: Vec::new() };
-        record.key_values().visit(&mut collector)?;
+        record
+            .key_values()
+            .visit(&mut collector)
+            .map_err(Error::from_kv_error)?;
         for d in diagnostics {
             d.visit(&mut collector)?;
         }
@@ -66,7 +73,7 @@ impl Append for FastraceEvent {
         Ok(())
     }
 
-    fn flush(&self) -> anyhow::Result<()> {
+    fn flush(&self) -> Result<(), Error> {
         fastrace::flush();
         Ok(())
     }
@@ -88,7 +95,7 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector {
 }
 
 impl Visitor for KvCollector {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> anyhow::Result<()> {
+    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
         self.kv.push((key.into_owned(), value.into_owned()));
         Ok(())
     }

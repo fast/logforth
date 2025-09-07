@@ -74,6 +74,9 @@ pub use diagnostic::Diagnostic;
 pub use filter::Filter;
 pub use layout::Layout;
 
+mod error;
+pub use error::*;
+
 mod logger;
 pub use logger::*;
 
