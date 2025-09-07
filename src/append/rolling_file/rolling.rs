@@ -12,18 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use anyhow::Context;
-use anyhow::ensure;
-use jiff::Zoned;
-use jiff::civil::DateTime;
 use std::fs;
 use std::fs::File;
-use std::fs::{Metadata, OpenOptions};
+use std::fs::Metadata;
+use std::fs::OpenOptions;
 use std::io;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
+
+use anyhow::Context;
+use anyhow::ensure;
+use jiff::Zoned;
+use jiff::civil::DateTime;
 
 use crate::append::rolling_file::Rotation;
 use crate::append::rolling_file::clock::Clock;
