@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use anyhow::Context;
+use anyhow::ensure;
+use jiff::Zoned;
+use jiff::civil::DateTime;
 use std::fs;
 use std::fs::File;
-use std::fs::OpenOptions;
+use std::fs::{Metadata, OpenOptions};
 use std::io;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
-
-use anyhow::Context;
-use anyhow::ensure;
-use jiff::Zoned;
+use std::str::FromStr;
 
 use crate::append::rolling_file::Rotation;
 use crate::append::rolling_file::clock::Clock;
@@ -155,6 +156,14 @@ impl RollingFileWriterBuilder {
 }
 
 #[derive(Debug)]
+struct LogFile {
+    filepath: PathBuf,
+    metadata: Metadata,
+    datetime: DateTime,
+    count: usize,
+}
+
+#[derive(Debug)]
 struct State {
     log_dir: PathBuf,
     log_filename: String,
@@ -184,16 +193,13 @@ impl State {
         let now = clock.now();
         let next_date_timestamp = rotation.next_date_timestamp(&now);
 
-        let current_count = 0;
-        let current_filesize = 0;
-
-        let state = State {
+        let mut state = State {
             log_dir,
             log_filename,
             log_filename_suffix,
             date_format,
-            current_count,
-            current_filesize,
+            current_count: 0,
+            current_filesize: 0,
             next_date_timestamp,
             rotation,
             max_size,
@@ -201,7 +207,9 @@ impl State {
             clock,
         };
 
-        let file = state.create_log_writer(&now, 0)?;
+        let file = state.create_writer()?;
+        // best effort detecting filesize; otherwise always rollover at first
+        state.current_filesize = file.metadata().map_or(max_size, |m| m.len() as usize);
         Ok((state, file))
     }
 
@@ -221,6 +229,86 @@ impl State {
         }
     }
 
+    fn create_writer(&self) -> anyhow::Result<File> {
+        fs::create_dir_all(&self.log_dir).context("failed to create log directory")?;
+        OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(self.log_dir.join(&self.log_filename))
+            .context("failed to create log file")
+    }
+
+    // sorted from oldest to newest
+    fn list_sorted_logs(&self) -> anyhow::Result<Vec<LogFile>> {
+        let read_dir = fs::read_dir(&self.log_dir)
+            .with_context(|| format!("failed to read log dir: {}", self.log_dir.display()))?;
+
+        let mut files = read_dir
+            .filter_map(|entry| {
+                let entry = entry.ok()?;
+                let filepath = entry.path();
+
+                let metadata = entry.metadata().ok()?;
+                // the appender only creates files, not directories or symlinks,
+                if !metadata.is_file() {
+                    return None;
+                }
+
+                let filename = entry.file_name();
+                // if the filename is not a UTF-8 string, skip it.
+                let mut filename = filename.to_str()?;
+                if !filename.starts_with(&self.log_filename) {
+                    return None;
+                }
+                filename = &filename[self.log_filename.len()..];
+
+                if let Some(suffix) = &self.log_filename_suffix {
+                    if !filename.ends_with(suffix) {
+                        return None;
+                    }
+                    filename = &filename[..filename.len() - suffix.len()];
+                }
+
+                if !filename.starts_with(".") {
+                    return None;
+                }
+                filename = &filename[1..];
+
+                if filename.is_empty() {
+                    // the current log file is the largest
+                    return Some(LogFile {
+                        filepath,
+                        metadata,
+                        datetime: DateTime::MAX,
+                        count: usize::MAX,
+                    });
+                }
+
+                let datetime = if self.rotation != Rotation::Never {
+                    // mandatory datetime part
+                    let pos = filename.find('.')?;
+                    let datetime = DateTime::strptime(self.date_format, &filename[..pos]).ok()?;
+                    filename = &filename[pos + 1..];
+                    datetime
+                } else {
+                    DateTime::MAX
+                };
+
+                let count = usize::from_str(filename).ok()?;
+
+                Some(LogFile {
+                    filepath,
+                    metadata,
+                    datetime,
+                    count,
+                })
+            })
+            .collect::<Vec<_>>();
+
+        files.sort_by_key(|f| (f.datetime, f.count));
+        Ok(files)
+    }
+
     fn create_log_writer(&self, now: &Zoned, cnt: usize) -> anyhow::Result<File> {
         fs::create_dir_all(&self.log_dir).context("failed to create log directory")?;
         let filename = self.join_date(now, cnt);
@@ -237,53 +325,13 @@ impl State {
     }
 
     fn delete_oldest_logs(&self, max_files: usize) -> anyhow::Result<()> {
-        let read_dir = fs::read_dir(&self.log_dir)
-            .with_context(|| format!("failed to read log dir: {}", self.log_dir.display()))?;
-
-        let mut files = read_dir
-            .filter_map(|entry| {
-                let entry = entry.ok()?;
-                let metadata = entry.metadata().ok()?;
-
-                // the appender only creates files, not directories or symlinks,
-                // so we should never delete a dir or symlink.
-                if !metadata.is_file() {
-                    return None;
-                }
-
-                let filename = entry.file_name();
-                // if the filename is not a UTF-8 string, skip it.
-                let filename = filename.to_str()?;
-                if !filename.starts_with(&self.log_filename) {
-                    return None;
-                }
-
-                if let Some(suffix) = &self.log_filename_suffix {
-                    if !filename.ends_with(suffix) {
-                        return None;
-                    }
-                }
-
-                // On Linux (e.g., CentOS), `metadata.created()` may return an error due to lack of
-                // filesystem support. Fallback to `metadata.modified()` ensures
-                // compatibility across platforms.
-                let created = metadata.created().or_else(|_| metadata.modified()).ok()?;
-                Some((entry, created))
-            })
-            .collect::<Vec<_>>();
-
-        if files.len() < max_files {
-            return Ok(());
-        }
-
-        // sort the files by their creation timestamps.
-        files.sort_by_key(|(_, created_at)| *created_at);
+        let files = self.list_sorted_logs()?;
 
         // delete files, so that (n-1) files remain, because we will create another log file
-        for (file, _) in files.iter().take(files.len() - (max_files - 1)) {
-            fs::remove_file(file.path()).with_context(|| {
-                format!("Failed to remove old log file {}", file.path().display())
-            })?;
+        for file in files.iter().take(files.len() - (max_files - 1)) {
+            let filepath = &file.filepath;
+            fs::remove_file(filepath)
+                .with_context(|| format!("Failed to remove old log file {}", filepath.display()))?;
         }
 
         Ok(())
