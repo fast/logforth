@@ -30,7 +30,6 @@ use opentelemetry_sdk::logs::SdkLoggerProvider;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::ErrorKind;
 use crate::Layout;
 use crate::append::Append;
 use crate::diagnostic::Visitor;
@@ -261,9 +260,9 @@ impl Append for OpentelemetryLog {
     }
 
     fn flush(&self) -> Result<(), Error> {
-        self.provider.force_flush().map_err(|err| {
-            Error::new(ErrorKind::Unexpected, "failed to flush records").set_source(err)
-        })
+        self.provider
+            .force_flush()
+            .map_err(|err| Error::new("failed to flush records").set_source(err))
     }
 }
 

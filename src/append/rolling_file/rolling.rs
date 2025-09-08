@@ -27,7 +27,6 @@ use jiff::Zoned;
 use jiff::civil::DateTime;
 
 use crate::Error;
-use crate::ErrorKind;
 use crate::append::rolling_file::Rotation;
 use crate::append::rolling_file::clock::Clock;
 
@@ -157,7 +156,7 @@ impl RollingFileWriterBuilder {
         } = self;
 
         if filename.is_empty() {
-            return Err(Error::new(ErrorKind::ConfigInvalid, "empty filename"));
+            return Err(Error::new("filename must not be empty"));
         }
 
         let (state, writer) = State::new(
@@ -221,9 +220,8 @@ impl State {
     ) -> Result<(Self, File), Error> {
         let now = clock.now();
         let log_dir = dir.as_ref().to_path_buf();
-        fs::create_dir_all(&log_dir).map_err(|err| {
-            Error::new(ErrorKind::Unexpected, "failed to create log directory").set_source(err)
-        })?;
+        fs::create_dir_all(&log_dir)
+            .map_err(|err| Error::new("failed to create log directory").set_source(err))?;
 
         let mut state = State {
             log_dir,
@@ -269,10 +267,7 @@ impl State {
                     OpenOptions::new()
                         .append(true)
                         .open(&filename)
-                        .map_err(|err| {
-                            Error::new(ErrorKind::Unexpected, "failed to open current log")
-                                .set_source(err)
-                        })?
+                        .map_err(|err| Error::new("failed to open current log").set_source(err))?
                 }
             }
         };
@@ -294,9 +289,7 @@ impl State {
             .write(true)
             .create_new(true)
             .open(&filename)
-            .map_err(|err| {
-                Error::new(ErrorKind::Unexpected, "failed to create log file").set_source(err)
-            })
+            .map_err(|err| Error::new("failed to create log file").set_source(err))
     }
 
     fn join_date(&self, date: &Zoned, cnt: usize) -> PathBuf {
@@ -318,10 +311,10 @@ impl State {
 
     fn list_logfiles(&self) -> Result<Vec<LogFile>, Error> {
         let read_dir = fs::read_dir(&self.log_dir).map_err(|err| {
-            Error::new(
-                ErrorKind::Unexpected,
-                format!("failed to read log dir: {}", self.log_dir.display()),
-            )
+            Error::new(format!(
+                "failed to read log dir: {}",
+                self.log_dir.display()
+            ))
             .set_source(err)
         })?;
 
@@ -402,11 +395,8 @@ impl State {
         for file in files.iter().take(files.len() - (max_files - 1)) {
             let filepath = &file.filepath;
             fs::remove_file(filepath).map_err(|err| {
-                Error::new(
-                    ErrorKind::Unexpected,
-                    format!("failed to remove old log: {}", filepath.display()),
-                )
-                .set_source(err)
+                Error::new(format!("failed to remove old log: {}", filepath.display()))
+                    .set_source(err)
             })?;
         }
 
@@ -427,21 +417,17 @@ impl State {
 
         for (old, new) in renames.iter().rev() {
             fs::rename(old, new).map_err(|err| {
-                Error::new(
-                    ErrorKind::Unexpected,
-                    format!("failed to rotate log: {}", old.display()),
-                )
-                .set_source(err)
+                Error::new(format!("failed to rotate log: {}", old.display())).set_source(err)
             })?
         }
 
         let archive_filepath = self.join_date(now, 1);
         let current_filepath = self.current_filename();
         fs::rename(&current_filepath, &archive_filepath).map_err(|err| {
-            Error::new(
-                ErrorKind::Unexpected,
-                format!("failed to archive log: {}", current_filepath.display()),
-            )
+            Error::new(format!(
+                "failed to archive log: {}",
+                current_filepath.display()
+            ))
             .set_source(err)
         })?;
 

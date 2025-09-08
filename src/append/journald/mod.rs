@@ -22,7 +22,6 @@ use log::Record;
 use crate::Append;
 use crate::Diagnostic;
 use crate::Error;
-use crate::ErrorKind;
 use crate::diagnostic::Visitor;
 
 mod field;
@@ -218,18 +217,14 @@ impl Journald {
 
     #[cfg(all(unix, not(target_os = "linux")))]
     fn send_large_payload(&self, _payload: &[u8]) -> Result<usize, Error> {
-        Err(Error::new(
-            ErrorKind::Unsupported,
-            "large payloads not supported on non-Linux OS",
-        ))
+        Err(Error::new("large payloads not supported on non-Linux OS"))
     }
 
     /// Send large payloads to journald via a memfd.
     #[cfg(target_os = "linux")]
     fn send_large_payload(&self, payload: &[u8]) -> Result<usize, Error> {
-        memfd::send_large_payload(&self.socket, payload).map_err(|err| {
-            Error::new(ErrorKind::Unexpected, "failed to send payload via memfd").set_source(err)
-        })
+        memfd::send_large_payload(&self.socket, payload)
+            .map_err(|err| Error::new("failed to send payload via memfd").set_source(err))
     }
 }
 
