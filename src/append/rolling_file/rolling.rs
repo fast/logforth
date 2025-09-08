@@ -496,7 +496,7 @@ mod tests {
     fn test_file_rolling_for_specific_file_size(max_files: usize, max_size: usize) {
         let max_files = NonZeroUsize::new(max_files).unwrap();
         let max_size = NonZeroUsize::new(max_size).unwrap();
-        let temp_dir = TempDir::new().expect("failed to create a temporary directory");
+        let temp_dir = TempDir::new().unwrap();
 
         let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref(), "test_file")
             .rotation(Rotation::Never)
@@ -548,7 +548,7 @@ mod tests {
         write_interval: Span,
     ) {
         let max_files = NonZeroUsize::new(10).unwrap();
-        let temp_dir = TempDir::new().expect("failed to create a temporary directory");
+        let temp_dir = TempDir::new().unwrap();
 
         let start_time = Zoned::from_str("2024-08-10T00:00:00[UTC]").unwrap();
         let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref(), "test_file")
@@ -613,7 +613,7 @@ mod tests {
         // Small file size and too many files to ensure both of file size and time rotation can be
         // triggered.
         let total_files = 100;
-        let temp_dir = TempDir::new().expect("failed to create a temporary directory");
+        let temp_dir = TempDir::new().unwrap();
 
         let start_time = Zoned::from_str("2024-08-10T00:00:00[UTC]").unwrap();
         let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref(), "test_file")
