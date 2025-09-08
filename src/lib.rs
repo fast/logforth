@@ -76,3 +76,6 @@ pub use error::*;
 
 mod logger;
 pub use logger::*;
+
+mod record;
+pub use record::*;
