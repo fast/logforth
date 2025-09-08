@@ -23,7 +23,6 @@ use log::Record;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::ErrorKind;
 use crate::Filter;
 use crate::filter::FilterResult;
 
@@ -220,9 +219,9 @@ impl EnvFilterBuilder {
     ///
     /// See [the `env_logger` documentation](https://docs.rs/env_logger/#enabling-logging) for more details.
     pub fn try_parse(mut self, filters: &str) -> Result<Self, Error> {
-        self.0.try_parse(filters).map_err(|err| {
-            Error::new(ErrorKind::ConfigInvalid, "malformed filter").set_source(err)
-        })?;
+        self.0
+            .try_parse(filters)
+            .map_err(|err| Error::new("malformed filter").set_source(err))?;
         Ok(self)
     }
 

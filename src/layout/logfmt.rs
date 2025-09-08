@@ -21,7 +21,6 @@ use log::Record;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::ErrorKind;
 use crate::diagnostic::Visitor;
 use crate::layout::Layout;
 use crate::layout::filename;
@@ -78,10 +77,7 @@ fn encode_key_value(result: &mut String, key: &str, value: &str) -> Result<(), E
 
     if key.contains([' ', '=', '"']) {
         // omit keys contain special chars
-        return Err(Error::new(
-            ErrorKind::Unexpected,
-            format!("key contains special chars: {key}"),
-        ));
+        return Err(Error::new(format!("key contains special chars: {key}")));
     }
 
     // SAFETY: write to a string always succeeds
