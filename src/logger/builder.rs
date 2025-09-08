@@ -173,7 +173,7 @@ impl LoggerBuilder {
     /// ```
     pub fn apply(self) {
         self.try_apply()
-            .expect("Builder::apply should not be called after the global logger initialized");
+            .expect("LoggerBuilder::apply must be called before the global logger initialized");
     }
 }
 

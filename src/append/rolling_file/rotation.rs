@@ -17,7 +17,6 @@ use jiff::ToSpan;
 use jiff::Unit;
 use jiff::Zoned;
 use jiff::ZonedRound;
-use jiff::civil::DateTime;
 
 /// Rotation policies for rolling files.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,20 +44,6 @@ impl Rotation {
         let next_date =
             next_date.expect("invalid time; this is a bug in logforth rolling file appender");
         Some(next_date.timestamp().as_millisecond() as usize)
-    }
-
-    /// Get the current datetime based on the current date and rotation policy.
-    pub fn current_datetime(&self, current_date: &Zoned) -> Option<DateTime> {
-        let round = ZonedRound::new().mode(RoundMode::Trunc);
-        let current_date = match *self {
-            Rotation::Never => return None,
-            Rotation::Minutely => current_date.round(round.smallest(Unit::Minute)),
-            Rotation::Hourly => current_date.round(round.smallest(Unit::Hour)),
-            Rotation::Daily => current_date.round(round.smallest(Unit::Day)),
-        };
-        let current_date =
-            current_date.expect("invalid time; this is a bug in logforth rolling file appender");
-        Some(current_date.datetime())
     }
 
     /// Get the date format string for the rotation policy.
