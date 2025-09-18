@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! The module for key-value pairs in a log record.
+
 use std::borrow::Cow;
 use std::fmt;
 use std::slice;

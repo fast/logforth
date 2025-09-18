@@ -64,6 +64,7 @@ pub mod color;
 pub mod append;
 pub mod diagnostic;
 pub mod filter;
+pub mod kv;
 pub mod layout;
 
 pub use append::Append;

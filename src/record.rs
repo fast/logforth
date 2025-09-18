@@ -14,9 +14,7 @@
 
 use std::fmt;
 use std::time::SystemTime;
-
-/// The module for key-value pairs in a log record.
-pub mod kv;
+use crate::kv;
 
 ///
 pub struct Record<'a> {
