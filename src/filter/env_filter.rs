@@ -18,13 +18,11 @@ use std::borrow::Cow;
 use std::str::FromStr;
 
 use log::LevelFilter;
-use log::Metadata;
-use log::Record;
 
-use crate::Diagnostic;
 use crate::Error;
 use crate::Filter;
 use crate::filter::FilterResult;
+use crate::{Diagnostic, Metadata};
 
 /// The default environment variable for filtering logs.
 pub const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
@@ -136,15 +134,12 @@ impl EnvFilter {
 
 impl Filter for EnvFilter {
     fn enabled(&self, metadata: &Metadata, _: &[Box<dyn Diagnostic>]) -> FilterResult {
-        if self.0.enabled(metadata) {
-            FilterResult::Neutral
-        } else {
-            FilterResult::Reject
-        }
-    }
-
-    fn matches(&self, record: &Record, _: &[Box<dyn Diagnostic>]) -> FilterResult {
-        if self.0.matches(record) {
+        let target = metadata.target();
+        let metadata = log::Metadata::builder()
+            .level(metadata.level().into())
+            .target(target.get())
+            .build();
+        if self.0.enabled(&metadata) {
             FilterResult::Neutral
         } else {
             FilterResult::Reject

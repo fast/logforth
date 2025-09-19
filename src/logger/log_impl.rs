@@ -22,6 +22,7 @@ use crate::Diagnostic;
 use crate::Error;
 use crate::Filter;
 use crate::filter::FilterResult;
+use crate::record::{scoped_metadata, scoped_record};
 
 /// A logger facade that dispatches log records to one or more dispatcher.
 ///
@@ -97,32 +98,36 @@ impl Dispatch {
     fn enabled(&self, metadata: &Metadata) -> bool {
         let diagnostics = &self.diagnostics;
 
-        for filter in &self.filters {
-            match filter.enabled(metadata, diagnostics) {
-                FilterResult::Reject => return false,
-                FilterResult::Accept => return true,
-                FilterResult::Neutral => {}
+        scoped_metadata(metadata, |m| {
+            for filter in &self.filters {
+                match filter.enabled(m, diagnostics) {
+                    FilterResult::Reject => return false,
+                    FilterResult::Accept => return true,
+                    FilterResult::Neutral => {}
+                }
             }
-        }
 
-        true
+            true
+        })
     }
 
     fn log(&self, record: &Record) -> Result<(), Error> {
         let diagnostics = &self.diagnostics;
 
-        for filter in &self.filters {
-            match filter.matches(record, diagnostics) {
-                FilterResult::Reject => return Ok(()),
-                FilterResult::Accept => break,
-                FilterResult::Neutral => {}
+        scoped_record(record, |r| {
+            for filter in &self.filters {
+                match filter.matches(r, diagnostics) {
+                    FilterResult::Reject => return Ok(()),
+                    FilterResult::Accept => break,
+                    FilterResult::Neutral => {}
+                }
             }
-        }
 
-        for append in &self.appends {
-            append.append(record, diagnostics)?;
-        }
-        Ok(())
+            for append in &self.appends {
+                append.append(record, diagnostics)?;
+            }
+            Ok(())
+        })
     }
 
     fn flush(&self) -> Result<(), Error> {

@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::Metadata;
 use log::Record;
 use logforth::Diagnostic;
 use logforth::Error;
 use logforth::Filter;
 use logforth::Layout;
+use logforth::Metadata;
 use logforth::append;
 use logforth::filter::FilterResult;
 
@@ -26,7 +26,8 @@ struct CustomFilter;
 
 impl Filter for CustomFilter {
     fn enabled(&self, metadata: &Metadata, _: &[Box<dyn Diagnostic>]) -> FilterResult {
-        if metadata.level() < log::Level::Info {
+        let level = log::Level::from(metadata.level());
+        if level < log::Level::Info {
             FilterResult::Accept
         } else {
             FilterResult::Reject

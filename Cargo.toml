@@ -65,8 +65,8 @@ rustls = ["dep:rustls", "fasyslog?/rustls"]
 anyhow = { version = "1.0" }
 env_filter = { version = "0.1.1" }
 jiff = { version = "0.2" }
-log = { version = "0.4.27", features = ["std", "kv"] }
-value-bag = { version = "1.11.1", features = ["owned", "inline-i128"] }
+log = { version = "0.4.27", features = ["kv", "kv_sval", "std"] }
+value-bag = { version = "1.11.1", features = ["inline-i128", "owned", "sval"] }
 
 # Optional dependencies
 colored = { version = "3.0", optional = true }
