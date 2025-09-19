@@ -73,12 +73,13 @@ pub use filter::Filter;
 pub use layout::Layout;
 
 mod error;
-pub use error::*;
+pub use self::error::*;
 
 mod logger;
-pub use logger::*;
+pub use self::logger::*;
 
 mod record;
-pub use record::*;
+pub use self::record::*;
 
 mod str;
+pub use self::str::Str;

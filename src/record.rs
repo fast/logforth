@@ -15,12 +15,12 @@
 use std::fmt;
 use std::time::SystemTime;
 
+use crate::Str;
 use crate::kv;
-use crate::str::Str;
 
 ///
 pub struct Record<'a> {
-    // the different fields
+    // the observed time
     now: SystemTime,
 
     // the metadata
@@ -33,7 +33,7 @@ pub struct Record<'a> {
     args: fmt::Arguments<'a>,
 
     // structural logging
-    kvs: Vec<(log::kv::Key<'a>, kv::ValueOwned)>,
+    kvs: Vec<(kv::Key<'a>, kv::Value<'a>)>,
 }
 
 impl<'a> Record<'a> {
@@ -48,13 +48,13 @@ impl<'a> Record<'a> {
     }
 
     ///
-    pub fn module_path(&self) -> Option<&str> {
-        self.module_path.as_ref().map(|s| s.get())
+    pub fn module_path(&self) -> Option<Str<'_>> {
+        self.module_path.as_ref().map(|s| s.by_ref())
     }
 
     ///
-    pub fn file(&self) -> Option<&str> {
-        self.file.as_ref().map(|s| s.get())
+    pub fn file(&self) -> Option<Str<'_>> {
+        self.file.as_ref().map(|s| s.by_ref())
     }
 
     ///
@@ -62,53 +62,68 @@ impl<'a> Record<'a> {
         self.line
     }
 
-    pub(crate) fn new(record: &'a log::Record<'a>, now: SystemTime) -> Self {
-        Self {
-            now,
-            metadata: Metadata::new(record.metadata()),
-            module_path: record
-                .module_path_static()
-                .map(Str::new)
-                .or_else(|| record.module_path().map(Str::new_ref)),
-            file: record
-                .file_static()
-                .map(Str::new)
-                .or_else(|| record.file().map(Str::new_ref)),
-            line: record.line(),
-            args: *record.args(),
-            kvs: {
-                let kvs = record.key_values();
-                let mut cvt = kv::LogCrateConverter::new(kvs.count());
-                assert!(kvs.visit(&mut cvt).is_ok());
-                cvt.finalize()
-            },
-        }
+    ///
+    pub fn args(&self) -> fmt::Arguments<'a> {
+        self.args
     }
 }
+
+///
+pub struct RecordOwned {
+    // the observed time
+    now: SystemTime,
+
+    // the metadata
+    metadata: Metadata<'static>,
+    module_path: Option<Str<'static>>,
+    file: Option<Str<'static>>,
+    line: Option<u32>,
+
+    // the payload
+    args: Str<'static>,
+
+    // structural logging
+    kvs: Vec<(kv::KeyOwned, kv::ValueOwned)>,
+}
+//
+// impl RecordOwned {
+//     ///
+//     pub fn as_ref(&self) -> Record<'_> {
+//         Record {
+//             now: self.now,
+//             metadata: Metadata {
+//                 level: self.metadata.level,
+//                 target: self.metadata.target.by_ref(),
+//             },
+//             module_path: self.module_path.as_ref().map(|s| s.by_ref()),
+//             file: self.file.as_ref().map(|s| s.by_ref()),
+//             line: self.line,
+//             args: self.args.by_ref(),
+//             kvs: self
+//                 .kvs
+//                 .iter()
+//                 .map(|(k, v)| (k.as_ref(), v.by_ref()))
+//                 .collect(),
+//         }
+//     }
+// }
 
 ///
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Metadata<'a> {
     level: Level,
-    target: &'a str,
+    target: Str<'a>,
 }
 
 impl<'a> Metadata<'a> {
-    pub(crate) fn new(metadata: &log::Metadata<'a>) -> Self {
-        Self {
-            level: metadata.level().into(),
-            target: metadata.target(),
-        }
-    }
-
     /// Gets the level.
     pub fn level(&self) -> Level {
         self.level
     }
 
     /// Gets the target.
-    pub fn target(&self) -> &str {
-        self.target
+    pub fn target(&self) -> Str<'_> {
+        self.target.by_ref()
     }
 }
 
@@ -160,4 +175,59 @@ impl From<Level> for log::Level {
             Level::Trace => Self::Trace,
         }
     }
+}
+
+pub(crate) fn record_scoped(record: &log::Record<'_>, f: impl FnOnce(&Record<'_>)) {
+    let now = SystemTime::now();
+
+    let metadata = Metadata {
+        level: Level::from(record.level()),
+        target: Str::new_ref(record.target()),
+    };
+
+    let module_path = record
+        .module_path_static()
+        .map(|s| Str::new(s))
+        .or_else(|| record.module_path().map(|s| Str::new_ref(s)));
+    let file = record
+        .file_static()
+        .map(|s| Str::new(s))
+        .or_else(|| record.file().map(|s| Str::new_ref(s)));
+    let line = record.line();
+
+    let args = *record.args();
+
+    let mut kvs = Vec::new();
+    struct KeyValueVisitor<'a, 'b> {
+        kvs: &'b mut Vec<(log::kv::Key<'a>, log::kv::Value<'a>)>,
+    }
+
+    impl<'a, 'b> log::kv::VisitSource<'a> for KeyValueVisitor<'a, 'b> {
+        fn visit_pair(
+            &mut self,
+            key: log::kv::Key<'a>,
+            value: log::kv::Value<'a>,
+        ) -> Result<(), log::kv::Error> {
+            self.kvs.push((key, value));
+            Ok(())
+        }
+    }
+
+    let mut visitor = KeyValueVisitor { kvs: &mut kvs };
+    record.key_values().visit(&mut visitor).unwrap();
+
+    let rec = Record {
+        now,
+        metadata,
+        module_path,
+        file,
+        line,
+        args,
+        kvs: kvs
+            .iter()
+            .map(|(k, v)| (kv::Key::from_str(k.as_ref()), kv::Value::from_str("")))
+            .collect(),
+    };
+
+    f(&rec);
 }
