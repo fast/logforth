@@ -14,7 +14,9 @@
 
 use std::fmt;
 use std::time::SystemTime;
+
 use crate::kv;
+use crate::str::Str;
 
 ///
 pub struct Record<'a> {
@@ -23,8 +25,8 @@ pub struct Record<'a> {
 
     // the metadata
     metadata: Metadata<'a>,
-    module_path: Option<MaybeStaticStr<'a>>,
-    file: Option<MaybeStaticStr<'a>>,
+    module_path: Option<Str<'a>>,
+    file: Option<Str<'a>>,
     line: Option<u32>,
 
     // the payload
@@ -35,18 +37,43 @@ pub struct Record<'a> {
 }
 
 impl<'a> Record<'a> {
+    ///
+    pub fn time(&self) -> SystemTime {
+        self.now
+    }
+
+    ///
+    pub fn metadata(&self) -> &Metadata<'a> {
+        &self.metadata
+    }
+
+    ///
+    pub fn module_path(&self) -> Option<&str> {
+        self.module_path.as_ref().map(|s| s.get())
+    }
+
+    ///
+    pub fn file(&self) -> Option<&str> {
+        self.file.as_ref().map(|s| s.get())
+    }
+
+    ///
+    pub fn line(&self) -> Option<u32> {
+        self.line
+    }
+
     pub(crate) fn new(record: &'a log::Record<'a>, now: SystemTime) -> Self {
         Self {
             now,
             metadata: Metadata::new(record.metadata()),
             module_path: record
                 .module_path_static()
-                .map(MaybeStaticStr::Static)
-                .or_else(|| record.module_path().map(MaybeStaticStr::Borrowed)),
+                .map(Str::new)
+                .or_else(|| record.module_path().map(Str::new_ref)),
             file: record
                 .file_static()
-                .map(MaybeStaticStr::Static)
-                .or_else(|| record.file().map(MaybeStaticStr::Borrowed)),
+                .map(Str::new)
+                .or_else(|| record.file().map(Str::new_ref)),
             line: record.line(),
             args: *record.args(),
             kvs: {
@@ -131,22 +158,6 @@ impl From<Level> for log::Level {
             Level::Info => Self::Info,
             Level::Debug => Self::Debug,
             Level::Trace => Self::Trace,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-enum MaybeStaticStr<'a> {
-    Static(&'static str),
-    Borrowed(&'a str),
-}
-
-impl<'a> MaybeStaticStr<'a> {
-    #[inline]
-    fn get(&self) -> &'a str {
-        match *self {
-            MaybeStaticStr::Static(s) => s,
-            MaybeStaticStr::Borrowed(s) => s,
         }
     }
 }

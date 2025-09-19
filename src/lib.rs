@@ -80,3 +80,5 @@ pub use logger::*;
 
 mod record;
 pub use record::*;
+
+mod str;
