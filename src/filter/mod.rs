@@ -21,6 +21,7 @@ use crate::Diagnostic;
 pub mod env_filter;
 
 pub use self::env_filter::EnvFilter;
+pub use self::env_filter::EnvFilterBuilder;
 
 /// The result of a filter check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -12,17 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Filtering for log records.
+use std::fmt;
 
-mod directive;
-mod filter;
-mod op;
-mod parser;
+#[derive(Debug)]
+pub(crate) struct FilterOp {
+    filter: regex::Regex,
+}
 
-use directive::Directive;
-use directive::enabled;
-pub use filter::EnvFilter;
-pub use filter::EnvFilterBuilder;
-use op::FilterOp;
-pub use parser::ParseError;
-use parser::parse_spec;
+impl FilterOp {
+    pub(crate) fn new(spec: &str) -> Result<Self, String> {
+        match regex::Regex::new(spec) {
+            Ok(filter) => Ok(Self { filter }),
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
+    pub(crate) fn is_match(&self, s: &str) -> bool {
+        self.filter.is_match(s)
+    }
+}
+
+impl fmt::Display for FilterOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.filter.fmt(f)
+    }
+}

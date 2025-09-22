@@ -20,7 +20,7 @@ use crate::Append;
 use crate::Diagnostic;
 use crate::Filter;
 use crate::append;
-use crate::filter::EnvFilter;
+use crate::filter::EnvFilterBuilder;
 
 /// Creates a new empty [`LoggerBuilder`] instance for configuring log dispatching.
 ///
@@ -48,7 +48,7 @@ pub fn builder() -> LoggerBuilder {
 /// ```
 pub fn stdout() -> LoggerBuilder {
     builder().dispatch(|d| {
-        d.filter(EnvFilter::from_default_env())
+        d.filter(EnvFilterBuilder::from_default_env().build())
             .append(append::Stdout::default())
     })
 }
@@ -64,7 +64,7 @@ pub fn stdout() -> LoggerBuilder {
 /// ```
 pub fn stderr() -> LoggerBuilder {
     builder().dispatch(|d| {
-        d.filter(EnvFilter::from_default_env())
+        d.filter(EnvFilterBuilder::from_default_env().build())
             .append(append::Stderr::default())
     })
 }
