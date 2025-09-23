@@ -20,7 +20,7 @@ use crate::Append;
 use crate::Diagnostic;
 use crate::Filter;
 use crate::append;
-use crate::filter::EnvFilterBuilder;
+use crate::filter::env_filter::EnvFilterBuilder;
 
 /// Creates a new empty [`LoggerBuilder`] instance for configuring log dispatching.
 ///
