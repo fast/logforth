@@ -31,6 +31,9 @@ use crate::filter::FilterResult;
 #[cfg(test)]
 mod tests;
 
+/// The default environment variable for filtering logs.
+pub const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
+
 #[derive(Debug)]
 struct FilterOp {
     filter: regex::Regex,
@@ -180,9 +183,6 @@ fn parse_spec(spec: &str) -> ParseResult {
 
     result
 }
-
-/// The default environment variable for filtering logs.
-pub const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
 
 /// A builder for a log filter.
 ///
