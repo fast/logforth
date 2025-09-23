@@ -14,15 +14,54 @@
 
 //! Filtering for log records.
 
-mod directive;
 mod filter;
-mod op;
 mod parser;
 
-use directive::Directive;
-use directive::enabled;
 pub use filter::EnvFilter;
 pub use filter::EnvFilterBuilder;
-use op::FilterOp;
+use log::{Level, LevelFilter};
 pub use parser::ParseError;
 use parser::parse_spec;
+use std::fmt;
+
+#[derive(Debug)]
+struct FilterOp {
+    filter: regex::Regex,
+}
+
+impl FilterOp {
+    fn new(spec: &str) -> Result<Self, String> {
+        match regex::Regex::new(spec) {
+            Ok(filter) => Ok(Self { filter }),
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
+    fn is_match(&self, s: &str) -> bool {
+        self.filter.is_match(s)
+    }
+}
+
+impl fmt::Display for FilterOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.filter.fmt(f)
+    }
+}
+
+#[derive(Debug)]
+struct Directive {
+    name: Option<String>,
+    level: LevelFilter,
+}
+
+// Check whether a level and target are enabled by the set of directives.
+fn enabled(directives: &[Directive], level: Level, target: &str) -> bool {
+    // Search for the longest match, the vector is assumed to be pre-sorted.
+    for directive in directives.iter().rev() {
+        match directive.name {
+            Some(ref name) if !target.starts_with(&**name) => {}
+            Some(..) | None => return level <= directive.level,
+        }
+    }
+    false
+}

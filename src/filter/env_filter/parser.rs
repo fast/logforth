@@ -18,8 +18,8 @@ use std::fmt::Formatter;
 
 use log::LevelFilter;
 
-use super::directive::Directive;
-use super::op::FilterOp;
+use super::Directive;
+use super::FilterOp;
 
 #[derive(Default, Debug)]
 pub(crate) struct ParseResult {
