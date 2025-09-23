@@ -329,19 +329,18 @@ impl Filter for EnvFilter {
     }
 
     fn matches(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> FilterResult {
-        match self.enabled(record.metadata(), diags) {
-            FilterResult::Accept => FilterResult::Accept,
-            FilterResult::Reject => FilterResult::Reject,
-            FilterResult::Neutral => {
-                if let Some(filter) = self.filter.as_ref() {
-                    let payload = record.args().to_string();
-                    if !filter.is_match(payload.as_str()) {
-                        return FilterResult::Reject;
-                    }
-                }
+        let result = self.enabled(record.metadata(), diags);
+        if result != FilterResult::Neutral {
+            return result;
+        }
 
-                FilterResult::Neutral
+        if let Some(filter) = self.filter.as_ref() {
+            let payload = record.args().to_string();
+            if !filter.is_match(payload.as_str()) {
+                return FilterResult::Reject;
             }
         }
+
+        FilterResult::Neutral
     }
 }
