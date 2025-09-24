@@ -65,7 +65,6 @@ rustls = ["dep:rustls", "fasyslog?/rustls"]
 anyhow = { version = "1.0" }
 jiff = { version = "0.2" }
 log = { version = "0.4.27", features = ["std", "kv"] }
-regex = { version = "1.11.2" }
 
 # Optional dependencies
 colored = { version = "3.0", optional = true }
@@ -89,8 +88,8 @@ serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
 
 [dev-dependencies]
+insta = { version = "1.43.2" }
 rand = { version = "0.9" }
-snapbox = { version = "0.6.21" }
 tempfile = { version = "3.16" }
 
 [[example]]

@@ -12,10 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use snapbox::assert_data_eq;
-use snapbox::str;
+use insta::assert_snapshot;
+use log::Level;
+use log::LevelFilter;
+use log::Metadata;
 
-use super::*;
+use crate::Filter;
+use crate::filter::EnvFilter;
+use crate::filter::FilterResult;
+use crate::filter::env_filter::Directive;
+use crate::filter::env_filter::EnvFilterBuilder;
+use crate::filter::env_filter::ParseResult;
+use crate::filter::env_filter::parse_spec;
+
+impl EnvFilter {
+    fn rejected(&self, level: Level, target: &str) -> bool {
+        let metadata = Metadata::builder().level(level).target(target).build();
+        matches!(Filter::enabled(self, &metadata, &[]), FilterResult::Reject)
+    }
+}
 
 #[test]
 fn parse_spec_valid() {
@@ -50,9 +65,9 @@ fn parse_spec_invalid_crate() {
     assert_eq!(dirs[0].level, LevelFilter::Debug);
 
     assert_eq!(errors.len(), 1);
-    assert_data_eq!(
+    assert_snapshot!(
         &errors[0],
-        str!["malformed logging spec 'crate1::mod1=warn=info'"]
+        @"malformed logging spec 'crate1::mod1=warn=info'"
     );
 }
 
@@ -69,7 +84,7 @@ fn parse_spec_invalid_level() {
     assert_eq!(dirs[0].level, LevelFilter::Debug);
 
     assert_eq!(errors.len(), 1);
-    assert_data_eq!(&errors[0], str!["malformed logging spec 'noNumber'"]);
+    assert_snapshot!(&errors[0], @"malformed logging spec 'noNumber'");
 }
 
 #[test]
@@ -85,7 +100,7 @@ fn parse_spec_string_level() {
     assert_eq!(dirs[0].level, LevelFilter::Warn);
 
     assert_eq!(errors.len(), 1);
-    assert_data_eq!(&errors[0], str!["malformed logging spec 'wrong'"]);
+    assert_snapshot!(&errors[0], @"malformed logging spec 'wrong'");
 }
 
 #[test]
@@ -101,7 +116,7 @@ fn parse_spec_empty_level() {
     assert_eq!(dirs[0].level, LevelFilter::Trace);
 
     assert_eq!(errors.len(), 1);
-    assert_data_eq!(&errors[0], str!["malformed logging spec 'wrong'"]);
+    assert_snapshot!(&errors[0], @"malformed logging spec 'wrong'");
 }
 
 #[test]
@@ -241,13 +256,13 @@ fn parse_spec_multiple_invalid_crates() {
     assert_eq!(dirs[0].level, LevelFilter::Debug);
 
     assert_eq!(errors.len(), 2);
-    assert_data_eq!(
+    assert_snapshot!(
         &errors[0],
-        str!["malformed logging spec 'crate1::mod1=warn=info'"]
+        @"malformed logging spec 'crate1::mod1=warn=info'"
     );
-    assert_data_eq!(
+    assert_snapshot!(
         &errors[1],
-        str!["malformed logging spec 'crate3=error=error'"]
+        @"malformed logging spec 'crate3=error=error'"
     );
 }
 
@@ -264,8 +279,8 @@ fn parse_spec_multiple_invalid_levels() {
     assert_eq!(dirs[0].level, LevelFilter::Debug);
 
     assert_eq!(errors.len(), 2);
-    assert_data_eq!(&errors[0], str!["malformed logging spec 'noNumber'"]);
-    assert_data_eq!(&errors[1], str!["malformed logging spec 'invalid'"]);
+    assert_snapshot!(&errors[0], @"malformed logging spec 'noNumber'");
+    assert_snapshot!(&errors[1], @"malformed logging spec 'invalid'");
 }
 
 #[test]
@@ -281,19 +296,19 @@ fn parse_spec_invalid_crate_and_level() {
     assert_eq!(dirs[0].level, LevelFilter::Debug);
 
     assert_eq!(errors.len(), 2);
-    assert_data_eq!(
+    assert_snapshot!(
         &errors[0],
-        str!["malformed logging spec 'crate1::mod1=debug=info'"]
+        @"malformed logging spec 'crate1::mod1=debug=info'"
     );
-    assert_data_eq!(&errors[1], str!["malformed logging spec 'invalid'"]);
+    assert_snapshot!(&errors[1], @"malformed logging spec 'invalid'");
 }
 
 #[test]
 fn parse_error_message_single_error() {
     let ParseResult { errors, .. } = parse_spec("crate1::mod1=debug=info,crate2=debug");
-    assert_data_eq!(
+    assert_snapshot!(
         &errors[0],
-        str!["malformed logging spec 'crate1::mod1=debug=info'"]
+        @"malformed logging spec 'crate1::mod1=debug=info'"
     );
 }
 
@@ -301,36 +316,30 @@ fn parse_error_message_single_error() {
 fn parse_error_message_multiple_errors() {
     let ParseResult { errors, .. } =
         parse_spec("crate1::mod1=debug=info,crate2=debug,crate3=invalid");
-    assert_data_eq!(
+    assert_snapshot!(
         &errors[0],
-        str!["malformed logging spec 'crate1::mod1=debug=info'"]
+        @"malformed logging spec 'crate1::mod1=debug=info'"
     );
-}
-
-fn make_logger_filter(dirs: Vec<Directive>) -> EnvFilter {
-    let mut logger = EnvFilterBuilder::default().build();
-    logger.directives = dirs;
-    logger
 }
 
 #[test]
 fn filter_info() {
     let logger = EnvFilterBuilder::default()
-        .filter(None, LevelFilter::Info)
+        .filter_level(LevelFilter::Info)
         .build();
-    assert!(enabled(&logger.directives, Level::Info, "crate1"));
-    assert!(!enabled(&logger.directives, Level::Debug, "crate1"));
+    assert!(!logger.rejected(Level::Info, "crate1"));
+    assert!(logger.rejected(Level::Debug, "crate1"));
 }
 
 #[test]
 fn filter_beginning_longest_match() {
     let logger = EnvFilterBuilder::default()
-        .filter(Some("crate2"), LevelFilter::Info)
-        .filter(Some("crate2::mod"), LevelFilter::Debug)
-        .filter(Some("crate1::mod1"), LevelFilter::Warn)
+        .filter_module("crate2", LevelFilter::Info)
+        .filter_module("crate2::mod", LevelFilter::Debug)
+        .filter_module("crate1::mod1", LevelFilter::Warn)
         .build();
-    assert!(enabled(&logger.directives, Level::Debug, "crate2::mod1"));
-    assert!(!enabled(&logger.directives, Level::Debug, "crate2"));
+    assert!(!logger.rejected(Level::Debug, "crate2::mod1"));
+    assert!(logger.rejected(Level::Debug, "crate2"));
 }
 
 // Some of our tests are only correct or complete when they cover the full
@@ -356,128 +365,128 @@ fn ensure_tests_cover_level_universe() {
 #[test]
 fn parse_default() {
     let logger = EnvFilterBuilder::from_spec("info,crate1::mod1=warn").build();
-    assert!(enabled(&logger.directives, Level::Warn, "crate1::mod1"));
-    assert!(enabled(&logger.directives, Level::Info, "crate2::mod2"));
+    assert!(!logger.rejected(Level::Warn, "crate1::mod1"));
+    assert!(!logger.rejected(Level::Info, "crate2::mod2"));
 }
 
 #[test]
 fn parse_default_bare_level_off_lc() {
     let logger = EnvFilterBuilder::from_spec("off").build();
-    assert!(!enabled(&logger.directives, Level::Error, ""));
-    assert!(!enabled(&logger.directives, Level::Warn, ""));
-    assert!(!enabled(&logger.directives, Level::Info, ""));
-    assert!(!enabled(&logger.directives, Level::Debug, ""));
-    assert!(!enabled(&logger.directives, Level::Trace, ""));
+    assert!(logger.rejected(Level::Error, ""));
+    assert!(logger.rejected(Level::Warn, ""));
+    assert!(logger.rejected(Level::Info, ""));
+    assert!(logger.rejected(Level::Debug, ""));
+    assert!(logger.rejected(Level::Trace, ""));
 }
 
 #[test]
 fn parse_default_bare_level_off_uc() {
     let logger = EnvFilterBuilder::from_spec("OFF").build();
-    assert!(!enabled(&logger.directives, Level::Error, ""));
-    assert!(!enabled(&logger.directives, Level::Warn, ""));
-    assert!(!enabled(&logger.directives, Level::Info, ""));
-    assert!(!enabled(&logger.directives, Level::Debug, ""));
-    assert!(!enabled(&logger.directives, Level::Trace, ""));
+    assert!(logger.rejected(Level::Error, ""));
+    assert!(logger.rejected(Level::Warn, ""));
+    assert!(logger.rejected(Level::Info, ""));
+    assert!(logger.rejected(Level::Debug, ""));
+    assert!(logger.rejected(Level::Trace, ""));
 }
 
 #[test]
 fn parse_default_bare_level_error_lc() {
     let logger = EnvFilterBuilder::from_spec("error").build();
-    assert!(enabled(&logger.directives, Level::Error, ""));
-    assert!(!enabled(&logger.directives, Level::Warn, ""));
-    assert!(!enabled(&logger.directives, Level::Info, ""));
-    assert!(!enabled(&logger.directives, Level::Debug, ""));
-    assert!(!enabled(&logger.directives, Level::Trace, ""));
+    assert!(!logger.rejected(Level::Error, ""));
+    assert!(logger.rejected(Level::Warn, ""));
+    assert!(logger.rejected(Level::Info, ""));
+    assert!(logger.rejected(Level::Debug, ""));
+    assert!(logger.rejected(Level::Trace, ""));
 }
 
 #[test]
 fn parse_default_bare_level_error_uc() {
     let logger = EnvFilterBuilder::from_spec("ERROR").build();
-    assert!(enabled(&logger.directives, Level::Error, ""));
-    assert!(!enabled(&logger.directives, Level::Warn, ""));
-    assert!(!enabled(&logger.directives, Level::Info, ""));
-    assert!(!enabled(&logger.directives, Level::Debug, ""));
-    assert!(!enabled(&logger.directives, Level::Trace, ""));
+    assert!(!logger.rejected(Level::Error, ""));
+    assert!(logger.rejected(Level::Warn, ""));
+    assert!(logger.rejected(Level::Info, ""));
+    assert!(logger.rejected(Level::Debug, ""));
+    assert!(logger.rejected(Level::Trace, ""));
 }
 
 #[test]
 fn parse_default_bare_level_warn_lc() {
     let logger = EnvFilterBuilder::from_spec("warn").build();
-    assert!(enabled(&logger.directives, Level::Error, ""));
-    assert!(enabled(&logger.directives, Level::Warn, ""));
-    assert!(!enabled(&logger.directives, Level::Info, ""));
-    assert!(!enabled(&logger.directives, Level::Debug, ""));
-    assert!(!enabled(&logger.directives, Level::Trace, ""));
+    assert!(!logger.rejected(Level::Error, ""));
+    assert!(!logger.rejected(Level::Warn, ""));
+    assert!(logger.rejected(Level::Info, ""));
+    assert!(logger.rejected(Level::Debug, ""));
+    assert!(logger.rejected(Level::Trace, ""));
 }
 
 #[test]
 fn parse_default_bare_level_warn_uc() {
     let logger = EnvFilterBuilder::from_spec("WARN").build();
-    assert!(enabled(&logger.directives, Level::Error, ""));
-    assert!(enabled(&logger.directives, Level::Warn, ""));
-    assert!(!enabled(&logger.directives, Level::Info, ""));
-    assert!(!enabled(&logger.directives, Level::Debug, ""));
-    assert!(!enabled(&logger.directives, Level::Trace, ""));
+    assert!(!logger.rejected(Level::Error, ""));
+    assert!(!logger.rejected(Level::Warn, ""));
+    assert!(logger.rejected(Level::Info, ""));
+    assert!(logger.rejected(Level::Debug, ""));
+    assert!(logger.rejected(Level::Trace, ""));
 }
 
 #[test]
 fn parse_default_bare_level_info_lc() {
     let logger = EnvFilterBuilder::from_spec("info").build();
-    assert!(enabled(&logger.directives, Level::Error, ""));
-    assert!(enabled(&logger.directives, Level::Warn, ""));
-    assert!(enabled(&logger.directives, Level::Info, ""));
-    assert!(!enabled(&logger.directives, Level::Debug, ""));
-    assert!(!enabled(&logger.directives, Level::Trace, ""));
+    assert!(!logger.rejected(Level::Error, ""));
+    assert!(!logger.rejected(Level::Warn, ""));
+    assert!(!logger.rejected(Level::Info, ""));
+    assert!(logger.rejected(Level::Debug, ""));
+    assert!(logger.rejected(Level::Trace, ""));
 }
 
 #[test]
 fn parse_default_bare_level_info_uc() {
     let logger = EnvFilterBuilder::from_spec("INFO").build();
-    assert!(enabled(&logger.directives, Level::Error, ""));
-    assert!(enabled(&logger.directives, Level::Warn, ""));
-    assert!(enabled(&logger.directives, Level::Info, ""));
-    assert!(!enabled(&logger.directives, Level::Debug, ""));
-    assert!(!enabled(&logger.directives, Level::Trace, ""));
+    assert!(!logger.rejected(Level::Error, ""));
+    assert!(!logger.rejected(Level::Warn, ""));
+    assert!(!logger.rejected(Level::Info, ""));
+    assert!(logger.rejected(Level::Debug, ""));
+    assert!(logger.rejected(Level::Trace, ""));
 }
 
 #[test]
 fn parse_default_bare_level_debug_lc() {
     let logger = EnvFilterBuilder::from_spec("debug").build();
-    assert!(enabled(&logger.directives, Level::Error, ""));
-    assert!(enabled(&logger.directives, Level::Warn, ""));
-    assert!(enabled(&logger.directives, Level::Info, ""));
-    assert!(enabled(&logger.directives, Level::Debug, ""));
-    assert!(!enabled(&logger.directives, Level::Trace, ""));
+    assert!(!logger.rejected(Level::Error, ""));
+    assert!(!logger.rejected(Level::Warn, ""));
+    assert!(!logger.rejected(Level::Info, ""));
+    assert!(!logger.rejected(Level::Debug, ""));
+    assert!(logger.rejected(Level::Trace, ""));
 }
 
 #[test]
 fn parse_default_bare_level_debug_uc() {
     let logger = EnvFilterBuilder::from_spec("DEBUG").build();
-    assert!(enabled(&logger.directives, Level::Error, ""));
-    assert!(enabled(&logger.directives, Level::Warn, ""));
-    assert!(enabled(&logger.directives, Level::Info, ""));
-    assert!(enabled(&logger.directives, Level::Debug, ""));
-    assert!(!enabled(&logger.directives, Level::Trace, ""));
+    assert!(!logger.rejected(Level::Error, ""));
+    assert!(!logger.rejected(Level::Warn, ""));
+    assert!(!logger.rejected(Level::Info, ""));
+    assert!(!logger.rejected(Level::Debug, ""));
+    assert!(logger.rejected(Level::Trace, ""));
 }
 
 #[test]
 fn parse_default_bare_level_trace_lc() {
     let logger = EnvFilterBuilder::from_spec("trace").build();
-    assert!(enabled(&logger.directives, Level::Error, ""));
-    assert!(enabled(&logger.directives, Level::Warn, ""));
-    assert!(enabled(&logger.directives, Level::Info, ""));
-    assert!(enabled(&logger.directives, Level::Debug, ""));
-    assert!(enabled(&logger.directives, Level::Trace, ""));
+    assert!(!logger.rejected(Level::Error, ""));
+    assert!(!logger.rejected(Level::Warn, ""));
+    assert!(!logger.rejected(Level::Info, ""));
+    assert!(!logger.rejected(Level::Debug, ""));
+    assert!(!logger.rejected(Level::Trace, ""));
 }
 
 #[test]
 fn parse_default_bare_level_trace_uc() {
     let logger = EnvFilterBuilder::from_spec("TRACE").build();
-    assert!(enabled(&logger.directives, Level::Error, ""));
-    assert!(enabled(&logger.directives, Level::Warn, ""));
-    assert!(enabled(&logger.directives, Level::Info, ""));
-    assert!(enabled(&logger.directives, Level::Debug, ""));
-    assert!(enabled(&logger.directives, Level::Trace, ""));
+    assert!(!logger.rejected(Level::Error, ""));
+    assert!(!logger.rejected(Level::Warn, ""));
+    assert!(!logger.rejected(Level::Info, ""));
+    assert!(!logger.rejected(Level::Debug, ""));
+    assert!(!logger.rejected(Level::Trace, ""));
 }
 
 // In practice, the desired log level is typically specified by a token
@@ -488,35 +497,35 @@ fn parse_default_bare_level_trace_uc() {
 fn parse_default_bare_level_debug_mixed() {
     {
         let logger = EnvFilterBuilder::from_spec("Debug").build();
-        assert!(enabled(&logger.directives, Level::Error, ""));
-        assert!(enabled(&logger.directives, Level::Warn, ""));
-        assert!(enabled(&logger.directives, Level::Info, ""));
-        assert!(enabled(&logger.directives, Level::Debug, ""));
-        assert!(!enabled(&logger.directives, Level::Trace, ""));
+        assert!(!logger.rejected(Level::Error, ""));
+        assert!(!logger.rejected(Level::Warn, ""));
+        assert!(!logger.rejected(Level::Info, ""));
+        assert!(!logger.rejected(Level::Debug, ""));
+        assert!(logger.rejected(Level::Trace, ""));
     }
     {
         let logger = EnvFilterBuilder::from_spec("debuG").build();
-        assert!(enabled(&logger.directives, Level::Error, ""));
-        assert!(enabled(&logger.directives, Level::Warn, ""));
-        assert!(enabled(&logger.directives, Level::Info, ""));
-        assert!(enabled(&logger.directives, Level::Debug, ""));
-        assert!(!enabled(&logger.directives, Level::Trace, ""));
+        assert!(!logger.rejected(Level::Error, ""));
+        assert!(!logger.rejected(Level::Warn, ""));
+        assert!(!logger.rejected(Level::Info, ""));
+        assert!(!logger.rejected(Level::Debug, ""));
+        assert!(logger.rejected(Level::Trace, ""));
     }
     {
         let logger = EnvFilterBuilder::from_spec("deBug").build();
-        assert!(enabled(&logger.directives, Level::Error, ""));
-        assert!(enabled(&logger.directives, Level::Warn, ""));
-        assert!(enabled(&logger.directives, Level::Info, ""));
-        assert!(enabled(&logger.directives, Level::Debug, ""));
-        assert!(!enabled(&logger.directives, Level::Trace, ""));
+        assert!(!logger.rejected(Level::Error, ""));
+        assert!(!logger.rejected(Level::Warn, ""));
+        assert!(!logger.rejected(Level::Info, ""));
+        assert!(!logger.rejected(Level::Debug, ""));
+        assert!(logger.rejected(Level::Trace, ""));
     }
     {
         let logger = EnvFilterBuilder::from_spec("DeBuG").build(); // LaTeX flavor!
-        assert!(enabled(&logger.directives, Level::Error, ""));
-        assert!(enabled(&logger.directives, Level::Warn, ""));
-        assert!(enabled(&logger.directives, Level::Info, ""));
-        assert!(enabled(&logger.directives, Level::Debug, ""));
-        assert!(!enabled(&logger.directives, Level::Trace, ""));
+        assert!(!logger.rejected(Level::Error, ""));
+        assert!(!logger.rejected(Level::Warn, ""));
+        assert!(!logger.rejected(Level::Info, ""));
+        assert!(!logger.rejected(Level::Debug, ""));
+        assert!(logger.rejected(Level::Trace, ""));
     }
 }
 
@@ -525,19 +534,19 @@ fn try_parse_valid_filter() {
     let logger = EnvFilterBuilder::try_from_spec("info,crate1::mod1=warn")
         .expect("valid filter returned error")
         .build();
-    assert!(enabled(&logger.directives, Level::Warn, "crate1::mod1"));
-    assert!(enabled(&logger.directives, Level::Info, "crate2::mod2"));
+    assert!(!logger.rejected(Level::Warn, "crate1::mod1"));
+    assert!(!logger.rejected(Level::Info, "crate2::mod2"));
 }
 
 #[test]
 fn try_parse_invalid_filter() {
     let error = EnvFilterBuilder::try_from_spec("info,crate1=invalid").unwrap_err();
-    assert_data_eq!(error, str!["malformed logging spec 'invalid'"]);
+    assert_snapshot!(error.to_string(), @"malformed logging spec 'invalid'");
 }
 
 #[test]
 fn match_full_path() {
-    let logger = make_logger_filter(vec![
+    let logger = EnvFilter::from_directives(vec![
         Directive {
             name: Some("crate2".to_owned()),
             level: LevelFilter::Info,
@@ -547,15 +556,15 @@ fn match_full_path() {
             level: LevelFilter::Warn,
         },
     ]);
-    assert!(enabled(&logger.directives, Level::Warn, "crate1::mod1"));
-    assert!(!enabled(&logger.directives, Level::Info, "crate1::mod1"));
-    assert!(enabled(&logger.directives, Level::Info, "crate2"));
-    assert!(!enabled(&logger.directives, Level::Debug, "crate2"));
+    assert!(!logger.rejected(Level::Warn, "crate1::mod1"));
+    assert!(logger.rejected(Level::Info, "crate1::mod1"));
+    assert!(!logger.rejected(Level::Info, "crate2"));
+    assert!(logger.rejected(Level::Debug, "crate2"));
 }
 
 #[test]
 fn no_match() {
-    let logger = make_logger_filter(vec![
+    let logger = EnvFilter::from_directives(vec![
         Directive {
             name: Some("crate2".to_owned()),
             level: LevelFilter::Info,
@@ -565,12 +574,12 @@ fn no_match() {
             level: LevelFilter::Warn,
         },
     ]);
-    assert!(!enabled(&logger.directives, Level::Warn, "crate3"));
+    assert!(logger.rejected(Level::Warn, "crate3"));
 }
 
 #[test]
 fn match_beginning() {
-    let logger = make_logger_filter(vec![
+    let logger = EnvFilter::from_directives(vec![
         Directive {
             name: Some("crate2".to_owned()),
             level: LevelFilter::Info,
@@ -580,12 +589,12 @@ fn match_beginning() {
             level: LevelFilter::Warn,
         },
     ]);
-    assert!(enabled(&logger.directives, Level::Info, "crate2::mod1"));
+    assert!(!logger.rejected(Level::Info, "crate2::mod1"));
 }
 
 #[test]
 fn match_beginning_longest_match() {
-    let logger = make_logger_filter(vec![
+    let logger = EnvFilter::from_directives(vec![
         Directive {
             name: Some("crate2".to_owned()),
             level: LevelFilter::Info,
@@ -599,13 +608,13 @@ fn match_beginning_longest_match() {
             level: LevelFilter::Warn,
         },
     ]);
-    assert!(enabled(&logger.directives, Level::Debug, "crate2::mod1"));
-    assert!(!enabled(&logger.directives, Level::Debug, "crate2"));
+    assert!(!logger.rejected(Level::Debug, "crate2::mod1"));
+    assert!(logger.rejected(Level::Debug, "crate2"));
 }
 
 #[test]
 fn match_default() {
-    let logger = make_logger_filter(vec![
+    let logger = EnvFilter::from_directives(vec![
         Directive {
             name: None,
             level: LevelFilter::Info,
@@ -615,13 +624,13 @@ fn match_default() {
             level: LevelFilter::Warn,
         },
     ]);
-    assert!(enabled(&logger.directives, Level::Warn, "crate1::mod1"));
-    assert!(enabled(&logger.directives, Level::Info, "crate2::mod2"));
+    assert!(!logger.rejected(Level::Warn, "crate1::mod1"));
+    assert!(!logger.rejected(Level::Info, "crate2::mod2"));
 }
 
 #[test]
 fn zero_level() {
-    let logger = make_logger_filter(vec![
+    let logger = EnvFilter::from_directives(vec![
         Directive {
             name: None,
             level: LevelFilter::Info,
@@ -631,6 +640,6 @@ fn zero_level() {
             level: LevelFilter::Off,
         },
     ]);
-    assert!(!enabled(&logger.directives, Level::Error, "crate1::mod1"));
-    assert!(enabled(&logger.directives, Level::Info, "crate2::mod2"));
+    assert!(logger.rejected(Level::Error, "crate1::mod1"));
+    assert!(!logger.rejected(Level::Info, "crate2::mod2"));
 }
