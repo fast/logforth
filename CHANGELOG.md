@@ -27,6 +27,8 @@ All notable changes to this project will be documented in this file.
     - old app.2.log deleted
     ```
 * There is no longer `NonBlocking` related logics.
+* `EnvFilter` is now self-hosted. Some methods may be changed, but the general user experience should retain:
+  * `EnvFilter`'s constructors (`from_env`, etc.) are moved to `EnvFilterBuilder`.
 
 ## [0.27.0] 2025-08-18
 
