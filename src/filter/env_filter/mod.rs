@@ -19,8 +19,6 @@ use std::borrow::Cow;
 use log::Level;
 use log::LevelFilter;
 use log::Metadata;
-use log::Record;
-use regex::Regex;
 
 use crate::Diagnostic;
 use crate::Filter;
@@ -50,85 +48,68 @@ fn enabled(directives: &[Directive], level: Level, target: &str) -> bool {
     false
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 struct ParseResult {
     directives: Vec<Directive>,
-    filter: Option<Regex>,
     errors: Vec<String>,
 }
 
-impl ParseResult {
-    fn add_directive(&mut self, directive: Directive) {
-        self.directives.push(directive);
-    }
-
-    fn set_filter(&mut self, filter: Regex) {
-        self.filter = Some(filter);
-    }
-
-    fn add_error(&mut self, message: String) {
-        self.errors.push(message);
-    }
-}
-
-/// Parse a logging specification string (e.g: `crate1,crate2::mod3,crate3::x=error/foo`)
-/// and return a vector with log directives.
+/// Parse a logging specification string and return a vector with log directives.
+///
+/// The specification string is a comma-separated list of directives, e.g.:
+///
+/// * `info`
+/// * `my_crate=debug,other_crate=info`
+/// * `my_crate=debug,other_crate=info,trace`
+/// * `my_target=debug,other_target=info,trace`
 fn parse_spec(spec: &str) -> ParseResult {
-    let mut result = ParseResult::default();
+    let mut directives = vec![];
+    let mut errors = vec![];
 
-    let mut parts = spec.split('/');
-    let mods = parts.next();
-    let filter = parts.next();
-    if parts.next().is_some() {
-        result.add_error(format!("malformed logging spec '{spec}' (too many '/'s)"));
-        return result;
-    }
-    if let Some(m) = mods {
-        for s in m.split(',').map(|ss| ss.trim()) {
-            if s.is_empty() {
-                continue;
+    for s in spec.split(',').map(str::trim) {
+        if s.is_empty() {
+            continue;
+        }
+
+        let mut parts = s.split('=');
+        let part0 = parts.next().map(str::trim);
+        let part1 = parts.next().map(str::trim);
+
+        let Some(part0) = part0 else {
+            errors.push(format!("malformed logging spec '{s}'"));
+            continue;
+        };
+
+        if parts.next().is_some() {
+            errors.push(format!("malformed logging spec '{s}'"));
+            continue;
+        }
+
+        let (level, name) = match part1 {
+            None => {
+                if let Ok(level) = part0.parse() {
+                    // if the single argument is a log level string, treat that as a global fallback
+                    (level, None)
+                } else {
+                    (LevelFilter::Trace, Some(part0.to_owned()))
+                }
             }
-            let mut parts = s.split('=');
-            let (log_level, name) =
-                match (parts.next(), parts.next().map(|s| s.trim()), parts.next()) {
-                    (Some(part0), None, None) => {
-                        // if the single argument is a log-level string or number,
-                        // treat that as a global fallback
-                        match part0.parse() {
-                            Ok(num) => (num, None),
-                            Err(_) => (LevelFilter::max(), Some(part0)),
-                        }
-                    }
-                    (Some(part0), Some(""), None) => (LevelFilter::max(), Some(part0)),
-                    (Some(part0), Some(part1), None) => {
-                        if let Ok(num) = part1.parse() {
-                            (num, Some(part0))
-                        } else {
-                            result.add_error(format!("malformed logging spec '{part1}'"));
-                            continue;
-                        }
-                    }
-                    _ => {
-                        result.add_error(format!("malformed logging spec '{s}'"));
-                        continue;
-                    }
-                };
+            Some(part1) => {
+                if part1.is_empty() {
+                    (LevelFilter::Trace, Some(part0.to_owned()))
+                } else if let Ok(level) = part1.parse() {
+                    (level, Some(part0.to_owned()))
+                } else {
+                    errors.push(format!("malformed logging spec '{part1}'"));
+                    continue;
+                }
+            }
+        };
 
-            result.add_directive(Directive {
-                name: name.map(|s| s.to_owned()),
-                level: log_level,
-            });
-        }
+        directives.push(Directive { name, level });
     }
 
-    if let Some(filter) = filter {
-        match Regex::new(filter) {
-            Ok(filter_op) => result.set_filter(filter_op),
-            Err(err) => result.add_error(format!("malformed regex filter: {err}")),
-        }
-    }
-
-    result
+    ParseResult { directives, errors }
 }
 
 /// A builder for a log filter.
@@ -148,7 +129,6 @@ fn parse_spec(spec: &str) -> ParseResult {
 #[derive(Debug, Default)]
 pub struct EnvFilterBuilder {
     directives: Vec<Directive>,
-    filter: Option<Regex>,
 }
 
 impl EnvFilterBuilder {
@@ -201,21 +181,11 @@ impl EnvFilterBuilder {
         V: Into<Cow<'a, str>>,
     {
         let spec = spec.into();
-
-        let ParseResult {
-            directives,
-            filter,
-            errors,
-        } = parse_spec(&spec);
-
+        let ParseResult { directives, errors } = parse_spec(&spec);
         for error in errors {
             eprintln!("warning: {error}, ignoring it");
         }
-
-        let mut builder = EnvFilterBuilder {
-            filter,
-            directives: vec![],
-        };
+        let mut builder = EnvFilterBuilder::default();
         for directive in directives {
             builder.insert_directive(directive);
         }
@@ -228,21 +198,11 @@ impl EnvFilterBuilder {
         V: Into<Cow<'a, str>>,
     {
         let spec = spec.into();
-
-        let ParseResult {
-            directives,
-            filter,
-            errors,
-        } = parse_spec(&spec);
-
+        let ParseResult { directives, errors } = parse_spec(&spec);
         if let Some(error) = errors.into_iter().next() {
             return Err(error);
         }
-
-        let mut builder = EnvFilterBuilder {
-            filter,
-            directives: vec![],
-        };
+        let mut builder = EnvFilterBuilder::default();
         for directive in directives {
             builder.insert_directive(directive);
         }
@@ -253,7 +213,7 @@ impl EnvFilterBuilder {
     ///
     /// If the builder has no directives, a default directive of `ERROR` level will be added.
     pub fn build(self) -> EnvFilter {
-        let Self { directives, filter } = self;
+        let Self { directives } = self;
 
         let directives = if directives.is_empty() {
             vec![Directive {
@@ -266,7 +226,7 @@ impl EnvFilterBuilder {
             directives
         };
 
-        EnvFilter { directives, filter }
+        EnvFilter { directives }
     }
 
     /// Adds a directive to the filter for a specific module.
@@ -313,7 +273,6 @@ impl EnvFilterBuilder {
 #[derive(Debug)]
 pub struct EnvFilter {
     directives: Vec<Directive>,
-    filter: Option<Regex>,
 }
 
 impl Filter for EnvFilter {
@@ -326,21 +285,5 @@ impl Filter for EnvFilter {
         } else {
             FilterResult::Reject
         }
-    }
-
-    fn matches(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> FilterResult {
-        let result = self.enabled(record.metadata(), diags);
-        if result != FilterResult::Neutral {
-            return result;
-        }
-
-        if let Some(filter) = self.filter.as_ref() {
-            let payload = record.args().to_string();
-            if !filter.is_match(payload.as_str()) {
-                return FilterResult::Reject;
-            }
-        }
-
-        FilterResult::Neutral
     }
 }
