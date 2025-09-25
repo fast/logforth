@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use logforth::append::rolling_file::RollingFileBuilder;
-use logforth::append::rolling_file::Rotation;
+use logforth::append::file::FileBuilder;
+use logforth::append::file::Rotation;
 use logforth::layout::JsonLayout;
 
 fn main() {
-    let rolling_writer = RollingFileBuilder::new("logs", "my_app")
+    let rolling_writer = FileBuilder::new("logs", "my_app")
         .layout(JsonLayout::default())
         .rotation(Rotation::Daily)
         .build()

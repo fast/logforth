@@ -17,13 +17,13 @@
 //! # Example
 //!
 //!```
-//! use logforth::append::rolling_file;
-//! use logforth::append::rolling_file::RollingFile;
-//! use logforth::append::rolling_file::RollingFileBuilder;
-//! use logforth::append::rolling_file::Rotation;
+//! use logforth::append::file;
+//! use logforth::append::file::File;
+//! use logforth::append::file::FileBuilder;
+//! use logforth::append::file::Rotation;
 //! use logforth::layout::JsonLayout;
 //!
-//! let rolling_writer = RollingFileBuilder::new("logs", "app_log")
+//! let rolling_writer = FileBuilder::new("logs", "app_log")
 //!     .layout(JsonLayout::default())
 //!     .rotation(Rotation::Daily)
 //!     .build()
@@ -36,9 +36,8 @@
 //! log::info!("This log will be written to a rolling file.");
 //! ```
 
-pub use append::RollingFile;
-pub use append::RollingFileBuilder;
-pub use rotation::Rotation;
+pub use self::append::File;
+pub use self::append::FileBuilder;
 
 mod append;
 mod clock;

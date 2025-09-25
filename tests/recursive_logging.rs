@@ -19,8 +19,8 @@ use logforth::Diagnostic;
 use logforth::Error;
 use logforth::Layout;
 use logforth::append;
-use logforth::append::rolling_file::RollingFileBuilder;
-use logforth::append::rolling_file::Rotation;
+use logforth::append::file::FileBuilder;
+use logforth::append::file::Rotation;
 
 #[derive(Debug)]
 struct CustomLayout(&'static str);
@@ -37,7 +37,7 @@ impl Layout for CustomLayout {
 fn test_meta_logging_in_format_works() {
     let stdout = append::Stdout::default().with_layout(CustomLayout("out"));
     let stderr = append::Stderr::default().with_layout(CustomLayout("err"));
-    let rolling = RollingFileBuilder::new("logs", "example")
+    let rolling = FileBuilder::new("logs", "example")
         .layout(CustomLayout("file"))
         .rotation(Rotation::Minutely)
         .filename_suffix("log")

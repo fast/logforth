@@ -24,24 +24,20 @@ use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
 use crate::append::Append;
-use crate::append::rolling_file::Rotation;
-use crate::append::rolling_file::rolling::RollingFileWriter;
-use crate::append::rolling_file::rolling::RollingFileWriterBuilder;
+use crate::append::file::rolling::RollingFileWriter;
+use crate::append::file::rolling::RollingFileWriterBuilder;
+use crate::append::file::rotation::Rotation;
 use crate::layout::TextLayout;
 
-/// A builder to configure and create an [`RollingFile`] appender.
+/// A builder to configure and create an [`File`] appender.
 #[derive(Debug)]
-pub struct RollingFileBuilder {
+pub struct FileBuilder {
     builder: RollingFileWriterBuilder,
     layout: Box<dyn Layout>,
 }
 
-impl RollingFileBuilder {
-    /// Create a new builder.
-    ///
-    /// # Error
-    ///
-    /// If `filename` is empty, [`RollingFileBuilder::build`] would return an error.
+impl FileBuilder {
+    /// Create a new file appender builder.
     pub fn new(basedir: impl Into<PathBuf>, filename: impl Into<String>) -> Self {
         Self {
             builder: RollingFileWriterBuilder::new(basedir, filename),
@@ -49,17 +45,18 @@ impl RollingFileBuilder {
         }
     }
 
-    /// Build the [`RollingFile`] appender.
+    /// Build the [`File`] appender.
     ///
     /// # Errors
     ///
-    /// Returns an error if:
+    /// Returns an error if either:
+    ///
     /// * The log directory cannot be created.
     /// * The configured filename is empty.
-    pub fn build(self) -> Result<RollingFile, Error> {
-        let RollingFileBuilder { builder, layout } = self;
+    pub fn build(self) -> Result<File, Error> {
+        let FileBuilder { builder, layout } = self;
         let writer = builder.build()?;
-        Ok(RollingFile::new(writer, layout))
+        Ok(File::new(writer, layout))
     }
 
     /// Sets the layout for the logs.
@@ -69,10 +66,10 @@ impl RollingFileBuilder {
     /// # Examples
     ///
     /// ```
-    /// use logforth::append::rolling_file::RollingFileBuilder;
+    /// use logforth::append::file::FileBuilder;
     /// use logforth::layout::JsonLayout;
     ///
-    /// let builder = RollingFileBuilder::new("my_service", "my_app");
+    /// let builder = FileBuilder::new("my_service", "my_app");
     /// builder.layout(JsonLayout::default());
     /// ```
     pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
@@ -107,12 +104,12 @@ impl RollingFileBuilder {
 
 /// An appender that writes log records to rolling files.
 #[derive(Debug)]
-pub struct RollingFile {
+pub struct File {
     writer: Mutex<RollingFileWriter>,
     layout: Box<dyn Layout>,
 }
 
-impl RollingFile {
+impl File {
     fn new(writer: RollingFileWriter, layout: Box<dyn Layout>) -> Self {
         let writer = Mutex::new(writer);
         Self { writer, layout }
@@ -123,7 +120,7 @@ impl RollingFile {
     }
 }
 
-impl Append for RollingFile {
+impl Append for File {
     fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
         let mut bytes = self.layout.format(record, diags)?;
         bytes.push(b'\n');

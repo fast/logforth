@@ -27,8 +27,8 @@ use jiff::Zoned;
 use jiff::civil::DateTime;
 
 use crate::Error;
-use crate::append::rolling_file::Rotation;
-use crate::append::rolling_file::clock::Clock;
+use crate::append::file::clock::Clock;
+use crate::append::file::rotation::Rotation;
 
 /// A writer for rolling files.
 #[derive(Debug)]
@@ -478,10 +478,10 @@ mod tests {
     use rand::distr::Alphanumeric;
     use tempfile::TempDir;
 
-    use crate::append::rolling_file::Rotation;
-    use crate::append::rolling_file::clock::Clock;
-    use crate::append::rolling_file::clock::ManualClock;
-    use crate::append::rolling_file::rolling::RollingFileWriterBuilder;
+    use crate::append::file::clock::Clock;
+    use crate::append::file::clock::ManualClock;
+    use crate::append::file::rolling::RollingFileWriterBuilder;
+    use crate::append::file::rotation::Rotation;
 
     #[test]
     fn test_file_rolling_via_file_size() {

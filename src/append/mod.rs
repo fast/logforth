@@ -21,11 +21,11 @@ use crate::Error;
 
 #[cfg(feature = "append-fastrace")]
 mod fastrace;
+pub mod file;
 #[cfg(all(unix, feature = "append-journald"))]
 mod journald;
 #[cfg(feature = "append-opentelemetry")]
 pub mod opentelemetry;
-pub mod rolling_file;
 mod stdio;
 #[cfg(feature = "append-syslog")]
 pub mod syslog;
@@ -33,11 +33,11 @@ mod testing;
 
 #[cfg(feature = "append-fastrace")]
 pub use self::fastrace::FastraceEvent;
+pub use self::file::File;
 #[cfg(all(unix, feature = "append-journald"))]
 pub use self::journald::Journald;
 #[cfg(feature = "append-opentelemetry")]
 pub use self::opentelemetry::OpentelemetryLog;
-pub use self::rolling_file::RollingFile;
 pub use self::stdio::Stderr;
 pub use self::stdio::Stdout;
 #[cfg(feature = "append-syslog")]

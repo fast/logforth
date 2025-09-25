@@ -6,7 +6,7 @@ Later, we rewrite it completely to support:
 
 * Rolling files based on file size and/or time.
 * Drop non-blocking glue in favor of a dedicated async appender combinator.
-* Different log file naming strategies.
+* Different log file naming and rolling over strategies.
 
 Design reference:
 
