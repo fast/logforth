@@ -34,11 +34,11 @@ use crate::layout::Layout;
 /// Output format:
 ///
 /// ```json
-/// {"timestamp":"2024-08-11T22:44:57.172051+08:00","level":"ERROR","module_path":"rolling_file","file":"examples/rolling_file.rs","line":51,"message":"Hello error!"}
-/// {"timestamp":"2024-08-11T22:44:57.172187+08:00","level":"WARN","module_path":"rolling_file","file":"examples/rolling_file.rs","line":52,"message":"Hello warn!"}
-/// {"timestamp":"2024-08-11T22:44:57.172246+08:00","level":"INFO","module_path":"rolling_file","file":"examples/rolling_file.rs","line":53,"message":"Hello info!"}
-/// {"timestamp":"2024-08-11T22:44:57.172300+08:00","level":"DEBUG","module_path":"rolling_file","file":"examples/rolling_file.rs","line":54,"message":"Hello debug!"}
-/// {"timestamp":"2024-08-11T22:44:57.172353+08:00","level":"TRACE","module_path":"rolling_file","file":"examples/rolling_file.rs","line":55,"message":"Hello trace!"}
+/// {"timestamp":"2024-08-11T22:44:57.172051+08:00","level":"ERROR","module_path":"file","file":"examples/file.rs","line":51,"message":"Hello error!"}
+/// {"timestamp":"2024-08-11T22:44:57.172187+08:00","level":"WARN","module_path":"file","file":"examples/file.rs","line":52,"message":"Hello warn!"}
+/// {"timestamp":"2024-08-11T22:44:57.172246+08:00","level":"INFO","module_path":"file","file":"examples/file.rs","line":53,"message":"Hello info!"}
+/// {"timestamp":"2024-08-11T22:44:57.172300+08:00","level":"DEBUG","module_path":"file","file":"examples/file.rs","line":54,"message":"Hello debug!"}
+/// {"timestamp":"2024-08-11T22:44:57.172353+08:00","level":"TRACE","module_path":"file","file":"examples/file.rs","line":55,"message":"Hello trace!"}
 /// ```
 ///
 /// # Examples

@@ -88,11 +88,11 @@ mod colored {
 /// Output format:
 ///
 /// ```text
-/// 2024-08-11T22:44:57.172105+08:00 ERROR rolling_file: examples/rolling_file.rs:51 Hello error!
-/// 2024-08-11T22:44:57.172219+08:00  WARN rolling_file: examples/rolling_file.rs:52 Hello warn!
-/// 2024-08-11T22:44:57.172276+08:00  INFO rolling_file: examples/rolling_file.rs:53 Hello info!
-/// 2024-08-11T22:44:57.172329+08:00 DEBUG rolling_file: examples/rolling_file.rs:54 Hello debug!
-/// 2024-08-11T22:44:57.172382+08:00 TRACE rolling_file: examples/rolling_file.rs:55 Hello trace!
+/// 2024-08-11T22:44:57.172105+08:00 ERROR file: examples/file.rs:51 Hello error!
+/// 2024-08-11T22:44:57.172219+08:00  WARN file: examples/file.rs:52 Hello warn!
+/// 2024-08-11T22:44:57.172276+08:00  INFO file: examples/file.rs:53 Hello info!
+/// 2024-08-11T22:44:57.172329+08:00 DEBUG file: examples/file.rs:54 Hello debug!
+/// 2024-08-11T22:44:57.172382+08:00 TRACE file: examples/file.rs:55 Hello trace!
 /// ```
 ///
 /// By default, log levels are colored. You can set the `no_color` field to `true` to disable
