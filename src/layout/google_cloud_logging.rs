@@ -224,6 +224,8 @@ where
 
 impl Layout for GoogleCloudLoggingLayout {
     fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
+        let timestamp = jiff::Timestamp::now();
+
         let mut visitor = KvCollector {
             layout: self,
             payload_fields: BTreeMap::new(),
@@ -243,7 +245,7 @@ impl Layout for GoogleCloudLoggingLayout {
 
         let record_line = RecordLine {
             extra_fields: visitor.payload_fields,
-            timestamp: jiff::Timestamp::now(),
+            timestamp,
             severity: record.level().as_str(),
             message: record.args(),
             labels: visitor.labels,

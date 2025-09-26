@@ -187,6 +187,9 @@ impl Layout for TextLayout {
             Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),
         };
+        let (time, offset) = (time.timestamp(), time.offset());
+        let time = time.display_with_offset(offset);
+
         let level = self.format_record_level(record.level());
         let target = record.target();
         let file = filename(record);

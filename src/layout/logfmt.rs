@@ -120,6 +120,9 @@ impl Layout for LogfmtLayout {
             Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),
         };
+        let (time, offset) = (time.timestamp(), time.offset());
+        let time = time.display_with_offset(offset);
+
         let level = record.level().to_string();
         let target = record.target();
         let file = filename(record);
