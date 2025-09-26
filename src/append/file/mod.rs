@@ -20,17 +20,16 @@
 //! use logforth::append::file;
 //! use logforth::append::file::File;
 //! use logforth::append::file::FileBuilder;
-//! use logforth::append::file::Rotation;
 //! use logforth::layout::JsonLayout;
 //!
-//! let rolling_writer = FileBuilder::new("logs", "app_log")
+//! let rolling_file = FileBuilder::new("logs", "app_log")
 //!     .layout(JsonLayout::default())
-//!     .rotation(Rotation::Daily)
+//!     .rollover_daily()
 //!     .build()
 //!     .unwrap();
 //!
 //! logforth::builder()
-//!     .dispatch(|d| d.filter(log::LevelFilter::Trace).append(rolling_writer))
+//!     .dispatch(|d| d.filter(log::LevelFilter::Trace).append(rolling_file))
 //!     .apply();
 //!
 //! log::info!("This log will be written to a rolling file.");

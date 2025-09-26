@@ -8,19 +8,28 @@ All notable changes to this project will be documented in this file.
 
 * All interfaces that return `anyhow::Result` is now using a result over `logforth::Error`.
 * `JsonLayout` now collects diagnostics context into a separate field `diags`.
-* `SingleFile` appender is removed. You can replace it with `RollingFile` with `Rotation::Never`.
-* `RollingFile` is now provide by default; `append-rolling-file` flag is removed.
-* `RollingFile` appender now requires `filename` when constructing.
-* `RollingFile`'s `filename_prefix` is now renamed to mandatory `filename`.
-* `RollingFile`'s `max_log_files` and `max_file_size` now take `NonZeroUsize`.
-* RollingFile's rollover strategy has been changed:
+* `SingleFile` appender is removed. You can replace it with `append::File`.
+* `RollingFile` is now `File` and provide by default; `append-rolling-file` flag is removed.
+* `File` appender now requires `filename` when constructing.
+* `File`'s `filename_prefix` is now renamed to mandatory `filename`.
+* `File`'s `max_log_files` now take `NonZeroUsize`.
+* `File`'s rollover strategy methods are changes:
+  * `max_file_size` -> `rollover_size`
+  * `rotation` -> `rollover_minutely`, `rollover_hourly`, `rollover_daily`
+  * By default, no rollover is performed.
+* Rollover filename strategy has been changed:
     ```
-    from:
+    given:
+    filename = app
+    filename_suffix = log
+    max_log_files = 3
+
+    before rollover:
     app.log
     app.1.log
     app.2.log
 
-    to:
+    after rollover:
     app.log
     app.1.log - old app.log
     app.2.log - old app.1.log

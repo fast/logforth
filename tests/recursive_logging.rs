@@ -20,7 +20,6 @@ use logforth::Error;
 use logforth::Layout;
 use logforth::append;
 use logforth::append::file::FileBuilder;
-use logforth::append::file::Rotation;
 
 #[derive(Debug)]
 struct CustomLayout(&'static str);
@@ -39,10 +38,10 @@ fn test_meta_logging_in_format_works() {
     let stderr = append::Stderr::default().with_layout(CustomLayout("err"));
     let rolling = FileBuilder::new("logs", "example")
         .layout(CustomLayout("file"))
-        .rotation(Rotation::Minutely)
+        .rollover_minutely()
+        .rollover_size(NonZeroUsize::new(1024 * 1024).unwrap())
         .filename_suffix("log")
         .max_log_files(NonZeroUsize::new(10).unwrap())
-        .max_file_size(NonZeroUsize::new(1024 * 1024).unwrap())
         .build()
         .unwrap();
 

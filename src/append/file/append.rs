@@ -59,7 +59,7 @@ impl FileBuilder {
         Ok(File::new(writer, layout))
     }
 
-    /// Sets the layout for the logs.
+    /// Set the layout for the logs.
     ///
     /// Default to [`TextLayout`].
     ///
@@ -77,9 +77,31 @@ impl FileBuilder {
         self
     }
 
-    /// Sets the rotation policy.
-    pub fn rotation(mut self, rotation: Rotation) -> Self {
-        self.builder = self.builder.rotation(rotation);
+    /// Set the rotation strategy to roll over log files minutely.
+    pub fn rollover_minutely(mut self) -> Self {
+        self.builder = self.builder.rotation(Rotation::Minutely);
+        self
+    }
+
+    /// Set the rotation strategy to roll over log files hourly.
+    pub fn rollover_hourly(mut self) -> Self {
+        self.builder = self.builder.rotation(Rotation::Hourly);
+        self
+    }
+
+    /// Set the rotation strategy to roll over log files daily at 00:00 in the local time zone.
+    pub fn rollover_daily(mut self) -> Self {
+        self.builder = self.builder.rotation(Rotation::Daily);
+        self
+    }
+
+    /// Set the rotation strategy to roll over log files if the current log file exceeds the given
+    /// size.
+    ///
+    /// If any time-based rotation strategy is set, the size-based rotation will be checked on the
+    /// current log file after the time-based rotation check.
+    pub fn rollover_size(mut self, n: NonZeroUsize) -> Self {
+        self.builder = self.builder.max_file_size(n);
         self
     }
 
@@ -92,12 +114,6 @@ impl FileBuilder {
     /// Sets the maximum number of log files to keep.
     pub fn max_log_files(mut self, n: NonZeroUsize) -> Self {
         self.builder = self.builder.max_log_files(n);
-        self
-    }
-
-    /// Sets the maximum size of a log file in bytes.
-    pub fn max_file_size(mut self, n: NonZeroUsize) -> Self {
-        self.builder = self.builder.max_file_size(n);
         self
     }
 }
