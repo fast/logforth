@@ -40,6 +40,11 @@ All notable changes to this project will be documented in this file.
   * `EnvFilter`'s constructors (`from_env`, etc.) are moved to `EnvFilterBuilder`.
 * Upgrade to opentelemetry 0.31.0.
 
+### Notable changes
+
+* Timestamp format in `TextLayout`, `JsonLayout`, and `LogfmtLayout` is changed from RFC 9557 to RFC 3339 format.
+  * That is, from "2025-01-10T15:22:37.868815+08:00[Asia/Shanghai]" to "2025-01-10T15:22:37.868815+08:00".
+
 ## [0.27.0] 2025-08-18
 
 ### Notable changes

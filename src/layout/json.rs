@@ -16,9 +16,9 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fmt::Arguments;
 
-use jiff::Timestamp;
 use jiff::Zoned;
 use jiff::tz::TimeZone;
+use jiff::{Timestamp, TimestampDisplayWithOffset};
 use log::Record;
 use serde::Serialize;
 use serde_json::Map;
@@ -102,8 +102,8 @@ impl Visitor for DiagsCollector<'_> {
 
 #[derive(Debug, Clone, Serialize)]
 struct RecordLine<'a> {
-    #[serde(serialize_with = "serialize_time_zone")]
-    timestamp: Zoned,
+    #[serde(serialize_with = "serialize_timestamp")]
+    timestamp: TimestampDisplayWithOffset,
     level: &'a str,
     target: &'a str,
     file: &'a str,
@@ -116,7 +116,10 @@ struct RecordLine<'a> {
     diags: BTreeMap<String, String>,
 }
 
-fn serialize_time_zone<S>(timestamp: &Zoned, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_timestamp<S>(
+    timestamp: &TimestampDisplayWithOffset,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
@@ -134,6 +137,12 @@ impl Layout for JsonLayout {
     fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
         let diagnostics = diags;
 
+        let time = match self.tz.clone() {
+            None => Zoned::now(),
+            Some(tz) => Timestamp::now().to_zoned(tz),
+        };
+        let timestamp = time.timestamp().display_with_offset(time.offset());
+
         let mut kvs = Map::new();
         let mut kvs_visitor = KvCollector { kvs: &mut kvs };
         record
@@ -148,10 +157,7 @@ impl Layout for JsonLayout {
         }
 
         let record_line = RecordLine {
-            timestamp: match self.tz.clone() {
-                Some(tz) => Timestamp::now().to_zoned(tz),
-                None => Zoned::now(),
-            },
+            timestamp,
             level: record.level().as_str(),
             target: record.target(),
             file: record.file().unwrap_or_default(),
