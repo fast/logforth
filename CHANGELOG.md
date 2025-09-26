@@ -38,6 +38,7 @@ All notable changes to this project will be documented in this file.
 * There is no longer `NonBlocking` related logics.
 * `EnvFilter` is now self-hosted. Some methods may be changed, but the general user experience should retain:
   * `EnvFilter`'s constructors (`from_env`, etc.) are moved to `EnvFilterBuilder`.
+* Upgrade to opentelemetry 0.31.0.
 
 ## [0.27.0] 2025-08-18
 
