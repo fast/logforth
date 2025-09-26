@@ -138,11 +138,10 @@ impl Layout for JsonLayout {
         let diagnostics = diags;
 
         let time = match self.tz.clone() {
-            Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),
+            Some(tz) => Timestamp::now().to_zoned(tz),
         };
-        let (time, offset) = (time.timestamp(), time.offset());
-        let timestamp = time.display_with_offset(offset);
+        let timestamp = time.timestamp().display_with_offset(time.offset());
 
         let mut kvs = Map::new();
         let mut kvs_visitor = KvCollector { kvs: &mut kvs };

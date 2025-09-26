@@ -184,11 +184,10 @@ impl Visitor for KvWriter {
 impl Layout for TextLayout {
     fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
         let time = match self.tz.clone() {
-            Some(tz) => Timestamp::now().to_zoned(tz),
             None => Zoned::now(),
+            Some(tz) => Timestamp::now().to_zoned(tz),
         };
-        let (time, offset) = (time.timestamp(), time.offset());
-        let time = time.display_with_offset(offset);
+        let time = time.timestamp().display_with_offset(time.offset());
 
         let level = self.format_record_level(record.level());
         let target = record.target();
