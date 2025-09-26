@@ -72,9 +72,15 @@ fastrace = { version = "0.7", optional = true }
 fasyslog = { version = "1.0.0", optional = true }
 libc = { version = "0.2.162", optional = true }
 native-tls = { version = "0.2", optional = true }
-opentelemetry = { version = "0.31.0", optional = true, default-features = false, features = ["logs"] }
-opentelemetry-otlp = { version = "0.31.0", optional = true, default-features = false, features = ["logs"] }
-opentelemetry_sdk = { version = "0.31.0", optional = true, default-features = false, features = ["logs"] }
+opentelemetry = { version = "0.31.0", optional = true, default-features = false, features = [
+  "logs",
+] }
+opentelemetry-otlp = { version = "0.31.0", optional = true, default-features = false, features = [
+  "logs",
+] }
+opentelemetry_sdk = { version = "0.31.0", optional = true, default-features = false, features = [
+  "logs",
+] }
 rustls = { version = "0.23.27", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
