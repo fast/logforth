@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use insta::assert_snapshot;
-use log::Level;
-use log::LevelFilter;
-use log::Metadata;
 
 use crate::Filter;
+use crate::Level;
+use crate::LevelFilter;
+use crate::MetadataBuilder;
 use crate::filter::EnvFilter;
 use crate::filter::FilterResult;
 use crate::filter::env_filter::Directive;
@@ -27,7 +27,10 @@ use crate::filter::env_filter::parse_spec;
 
 impl EnvFilter {
     fn rejected(&self, level: Level, target: &str) -> bool {
-        let metadata = Metadata::builder().level(level).target(target).build();
+        let metadata = MetadataBuilder::default()
+            .level(level)
+            .target(target)
+            .build();
         matches!(Filter::enabled(self, &metadata, &[]), FilterResult::Reject)
     }
 }

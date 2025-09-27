@@ -14,14 +14,16 @@
 
 use std::io::Write;
 
-use log::Metadata;
-use log::Record;
-
 use crate::Append;
 use crate::Diagnostic;
 use crate::Error;
 use crate::Filter;
+use crate::Metadata;
+use crate::MetadataBuilder;
+use crate::Record;
+use crate::RecordBuilder;
 use crate::filter::FilterResult;
+use crate::kv::{Key, Value};
 
 /// A logger facade that dispatches log records to one or more dispatcher.
 ///
@@ -39,16 +41,55 @@ impl Logger {
 }
 
 impl log::Log for Logger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        let metadata = MetadataBuilder::default()
+            .target(metadata.target())
+            .level(metadata.level().into())
+            .build();
+
         self.dispatches
             .iter()
-            .any(|dispatch| dispatch.enabled(metadata))
+            .any(|dispatch| dispatch.enabled(&metadata))
     }
 
-    fn log(&self, record: &Record) {
+    fn log(&self, record: &log::Record) {
+        let mut kvs = Vec::new();
+        struct KeyValueVisitor<'a, 'b> {
+            kvs: &'b mut Vec<(log::kv::Key<'a>, log::kv::Value<'a>)>,
+        }
+
+        impl<'a, 'b> log::kv::VisitSource<'a> for KeyValueVisitor<'a, 'b> {
+            fn visit_pair(
+                &mut self,
+                key: log::kv::Key<'a>,
+                value: log::kv::Value<'a>,
+            ) -> Result<(), log::kv::Error> {
+                self.kvs.push((key, value));
+                Ok(())
+            }
+        }
+
+        let mut visitor = KeyValueVisitor { kvs: &mut kvs };
+        record.key_values().visit(&mut visitor).unwrap();
+
+        let mut new_kvs = Vec::with_capacity(kvs.len());
+        for (k, v) in kvs.iter() {
+            new_kvs.push((Key::from(k.as_str()), Value::from_sval2(v)));
+        }
+
+        let record = RecordBuilder::default()
+            .args(*record.args())
+            .level(record.level().into())
+            .target(record.target())
+            .module_path(record.module_path())
+            .file(record.file())
+            .line(record.line())
+            .key_values(&new_kvs)
+            .build();
+
         for dispatch in &self.dispatches {
-            if let Err(err) = dispatch.log(record) {
-                handle_log_error(record, err);
+            if let Err(err) = dispatch.log(&record) {
+                handle_log_error(&record, err);
             }
         }
     }

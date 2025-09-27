@@ -78,5 +78,8 @@ pub use self::error::*;
 mod logger;
 pub use self::logger::*;
 
+mod record;
+pub use self::record::*;
+
 mod str;
 pub use self::str::*;

@@ -15,12 +15,11 @@
 use std::io::Write;
 use std::os::unix::net::UnixDatagram;
 
-use log::Level;
-use log::Record;
-
 use crate::Append;
 use crate::Diagnostic;
 use crate::Error;
+use crate::Level;
+use crate::Record;
 use crate::kv::Key;
 use crate::kv::Value;
 use crate::kv::Visitor;
@@ -231,18 +230,6 @@ impl Journald {
 
 struct WriteKeyValues<'a>(&'a mut Vec<u8>);
 
-impl<'kvs> log::kv::VisitSource<'kvs> for WriteKeyValues<'_> {
-    fn visit_pair(
-        &mut self,
-        key: log::kv::Key<'kvs>,
-        value: log::kv::Value<'kvs>,
-    ) -> Result<(), log::kv::Error> {
-        let key = key.as_str();
-        field::put_field_length_encoded(self.0, field::FieldName::WriteEscaped(key), value);
-        Ok(())
-    }
-}
-
 impl Visitor for WriteKeyValues<'_> {
     fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
         let key = key.as_str();
@@ -308,10 +295,7 @@ impl Append for Journald {
         );
         // Put all structured values of the record
         let mut visitor = WriteKeyValues(&mut buffer);
-        record
-            .key_values()
-            .visit(&mut visitor)
-            .map_err(Error::from_kv_error)?;
+        record.visit_kvs(&mut visitor)?;
         for d in diags {
             d.visit(&mut visitor)?;
         }

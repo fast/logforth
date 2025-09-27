@@ -18,7 +18,6 @@ use std::borrow::Cow;
 use std::fmt;
 use std::time::SystemTime;
 
-use log::Record;
 use opentelemetry::InstrumentationScope;
 use opentelemetry::logs::AnyValue;
 use opentelemetry::logs::LogRecord;
@@ -31,6 +30,8 @@ use opentelemetry_sdk::logs::SdkLoggerProvider;
 use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
+use crate::Level;
+use crate::Record;
 use crate::append::Append;
 use crate::kv::Key;
 use crate::kv::Value;
@@ -249,10 +250,7 @@ impl Append for OpentelemetryLog {
         let mut extractor = KvExtractor {
             record: &mut log_record,
         };
-        record
-            .key_values()
-            .visit(&mut extractor)
-            .map_err(Error::from_kv_error)?;
+        record.visit_kvs(&mut extractor)?;
         for d in diags {
             d.visit(&mut extractor)?;
         }
@@ -268,13 +266,13 @@ impl Append for OpentelemetryLog {
     }
 }
 
-fn log_level_to_otel_severity(level: log::Level) -> opentelemetry::logs::Severity {
+fn log_level_to_otel_severity(level: Level) -> opentelemetry::logs::Severity {
     match level {
-        log::Level::Error => opentelemetry::logs::Severity::Error,
-        log::Level::Warn => opentelemetry::logs::Severity::Warn,
-        log::Level::Info => opentelemetry::logs::Severity::Info,
-        log::Level::Debug => opentelemetry::logs::Severity::Debug,
-        log::Level::Trace => opentelemetry::logs::Severity::Trace,
+        Level::Error => opentelemetry::logs::Severity::Error,
+        Level::Warn => opentelemetry::logs::Severity::Warn,
+        Level::Info => opentelemetry::logs::Severity::Info,
+        Level::Debug => opentelemetry::logs::Severity::Debug,
+        Level::Trace => opentelemetry::logs::Severity::Trace,
     }
 }
 

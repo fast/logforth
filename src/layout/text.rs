@@ -15,11 +15,11 @@
 use jiff::Timestamp;
 use jiff::Zoned;
 use jiff::tz::TimeZone;
-use log::Level;
-use log::Record;
 
 use crate::Diagnostic;
 use crate::Error;
+use crate::Level;
+use crate::Record;
 use crate::kv::Key;
 use crate::kv::Value;
 use crate::kv::Visitor;
@@ -158,19 +158,6 @@ struct KvWriter {
     text: String,
 }
 
-impl<'kvs> log::kv::VisitSource<'kvs> for KvWriter {
-    fn visit_pair(
-        &mut self,
-        key: log::kv::Key<'kvs>,
-        value: log::kv::Value<'kvs>,
-    ) -> Result<(), log::kv::Error> {
-        use std::fmt::Write;
-
-        write!(&mut self.text, " {key}={value}")?;
-        Ok(())
-    }
-}
-
 impl Visitor for KvWriter {
     fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
         use std::fmt::Write;
@@ -198,10 +185,7 @@ impl Layout for TextLayout {
         let mut visitor = KvWriter {
             text: format!("{time:.6} {level:>5} {target}: {file}:{line} {message}"),
         };
-        record
-            .key_values()
-            .visit(&mut visitor)
-            .map_err(Error::from_kv_error)?;
+        record.visit_kvs(&mut visitor)?;
         for d in diags {
             d.visit(&mut visitor)?;
         }

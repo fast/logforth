@@ -18,11 +18,10 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
 
-use log::Record;
-
 use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
+use crate::Record;
 use crate::append::Append;
 use crate::append::file::rolling::RollingFileWriter;
 use crate::append::file::rolling::RollingFileWriterBuilder;

@@ -18,6 +18,7 @@ use std::fmt;
 
 use crate::Diagnostic;
 use crate::Error;
+use crate::Record;
 
 #[cfg(feature = "append-fastrace")]
 mod fastrace;
@@ -47,7 +48,7 @@ pub use self::testing::Testing;
 /// A trait representing an appender that can process log records.
 pub trait Append: fmt::Debug + Send + Sync + 'static {
     /// Dispatches a log record to the append target.
-    fn append(&self, record: &log::Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error>;
+    fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error>;
 
     /// Flushes any buffered records.
     ///

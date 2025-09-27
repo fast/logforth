@@ -44,6 +44,12 @@ unsafe impl<'k> Send for Str<'k> {}
 // SAFETY: `Str` does not use interior mutability
 unsafe impl<'k> Sync for Str<'k> {}
 
+impl<'k> Default for Str<'k> {
+    fn default() -> Self {
+        Str::new("")
+    }
+}
+
 enum StrOwner {
     None,
     Static(&'static str),
@@ -155,7 +161,7 @@ impl<'k> Str<'k> {
         }
     }
 
-    /// Get a new string, borrowing data from this one.
+    /// Get a new [`Str`], borrowing data from this one.
     pub const fn by_ref(&self) -> Str<'_> {
         Str {
             value: self.value,
@@ -244,6 +250,14 @@ impl<'k> Str<'k> {
 impl<'a> hash::Hash for Str<'a> {
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
         self.get().hash(state)
+    }
+}
+
+impl std::ops::Deref for Str<'_> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.get()
     }
 }
 

@@ -18,12 +18,12 @@ use jiff::Timestamp;
 use jiff::TimestampDisplayWithOffset;
 use jiff::Zoned;
 use jiff::tz::TimeZone;
-use log::Record;
 use serde::Serialize;
 use serde_json::Map;
 
 use crate::Diagnostic;
 use crate::Error;
+use crate::Record;
 use crate::kv::Key;
 use crate::kv::Value;
 use crate::kv::Visitor;
@@ -72,21 +72,6 @@ impl JsonLayout {
 
 struct KvCollector<'a> {
     kvs: &'a mut Map<String, serde_json::Value>,
-}
-
-impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'_> {
-    fn visit_pair(
-        &mut self,
-        key: log::kv::Key<'kvs>,
-        value: log::kv::Value<'kvs>,
-    ) -> Result<(), log::kv::Error> {
-        let key = key.to_string();
-        match serde_json::to_value(&value) {
-            Ok(value) => self.kvs.insert(key, value),
-            Err(_) => self.kvs.insert(key, value.to_string().into()),
-        };
-        Ok(())
-    }
 }
 
 impl Visitor for KvCollector<'_> {
@@ -145,10 +130,7 @@ impl Layout for JsonLayout {
 
         let mut kvs = Map::new();
         let mut kvs_visitor = KvCollector { kvs: &mut kvs };
-        record
-            .key_values()
-            .visit(&mut kvs_visitor)
-            .map_err(Error::from_kv_error)?;
+        record.visit_kvs(&mut kvs_visitor)?;
 
         let mut diags = Map::new();
         let mut diags_visitor = KvCollector { kvs: &mut diags };

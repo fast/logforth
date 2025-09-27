@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use logforth::LevelFilter;
 use logforth::append::syslog::SyslogBuilder;
 
 fn main() {
     let append = SyslogBuilder::tcp_well_known().unwrap().build();
 
     logforth::builder()
-        .dispatch(|d| d.filter(log::LevelFilter::Trace).append(append))
+        .dispatch(|d| d.filter(LevelFilter::Trace).append(append))
         .apply();
 
     let repeat = 1;

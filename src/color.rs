@@ -17,7 +17,8 @@
 use colored::Color;
 use colored::ColoredString;
 use colored::Colorize;
-use log::Level;
+
+use crate::Level;
 
 /// Colors for different log levels.
 #[derive(Debug, Clone)]

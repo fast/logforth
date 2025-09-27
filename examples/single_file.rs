@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use logforth::LevelFilter;
 use logforth::append::file::FileBuilder;
 use logforth::layout::JsonLayout;
 
@@ -23,7 +24,7 @@ fn main() {
         .unwrap();
 
     logforth::builder()
-        .dispatch(|d| d.filter(log::LevelFilter::Trace).append(rolling_writer))
+        .dispatch(|d| d.filter(LevelFilter::Trace).append(rolling_writer))
         .apply();
 
     let repeat = 1;

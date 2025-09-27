@@ -122,9 +122,4 @@ impl Error {
     pub fn from_fmt_error(err: fmt::Error) -> Error {
         Error::new("failed to perform format").set_source(err)
     }
-
-    /// Default constructor for [`Error`] from [`log::kv::Error`].
-    pub fn from_kv_error(err: log::kv::Error) -> Error {
-        Error::new("failed to visit log kvs").set_source(err)
-    }
 }

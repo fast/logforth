@@ -14,11 +14,10 @@
 
 use std::io::Write;
 
-use log::Record;
-
 use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
+use crate::Record;
 use crate::append::Append;
 use crate::layout::TextLayout;
 

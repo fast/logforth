@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::Record;
-
 use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
+use crate::Record;
 use crate::append::Append;
 use crate::layout::TextLayout;
 

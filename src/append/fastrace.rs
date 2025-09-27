@@ -17,10 +17,10 @@
 use std::borrow::Cow;
 
 use jiff::Zoned;
-use log::Record;
 
 use crate::Diagnostic;
 use crate::Error;
+use crate::Record;
 use crate::append::Append;
 use crate::kv::Key;
 use crate::kv::Value;
@@ -45,10 +45,7 @@ impl Append for FastraceEvent {
         let message = format!("{}", record.args());
 
         let mut collector = KvCollector { kv: Vec::new() };
-        record
-            .key_values()
-            .visit(&mut collector)
-            .map_err(Error::from_kv_error)?;
+        record.visit_kvs(&mut collector)?;
         for d in diags {
             d.visit(&mut collector)?;
         }
@@ -80,17 +77,6 @@ impl Append for FastraceEvent {
 
 struct KvCollector {
     kv: Vec<(String, String)>,
-}
-
-impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector {
-    fn visit_pair(
-        &mut self,
-        key: log::kv::Key<'kvs>,
-        value: log::kv::Value<'kvs>,
-    ) -> Result<(), log::kv::Error> {
-        self.kv.push((key.to_string(), value.to_string()));
-        Ok(())
-    }
 }
 
 impl Visitor for KvCollector {

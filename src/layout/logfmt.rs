@@ -15,10 +15,10 @@
 use jiff::Timestamp;
 use jiff::Zoned;
 use jiff::tz::TimeZone;
-use log::Record;
 
 use crate::Diagnostic;
 use crate::Error;
+use crate::Record;
 use crate::kv::Key;
 use crate::kv::Value;
 use crate::kv::Visitor;
@@ -71,43 +71,32 @@ impl LogfmtLayout {
     }
 }
 
-// The encode logic is copied from https://github.com/go-logfmt/logfmt/blob/76262ea7/encode.go.
-fn encode_key_value(result: &mut String, key: &str, value: &str) -> Result<(), Error> {
-    use std::fmt::Write;
-
-    if key.contains([' ', '=', '"']) {
-        // omit keys contain special chars
-        return Err(Error::new(format!("key contains special chars: {key}")));
-    }
-
-    // SAFETY: write to a string always succeeds
-    if value.contains([' ', '=', '"']) {
-        write!(result, " {key}=\"{}\"", value.escape_debug()).unwrap();
-    } else {
-        write!(result, " {key}={value}").unwrap();
-    }
-
-    Ok(())
-}
-
 struct KvFormatter {
     text: String,
 }
 
-impl<'kvs> log::kv::VisitSource<'kvs> for KvFormatter {
-    fn visit_pair(
-        &mut self,
-        key: log::kv::Key<'kvs>,
-        value: log::kv::Value<'kvs>,
-    ) -> Result<(), log::kv::Error> {
-        encode_key_value(&mut self.text, key.as_str(), value.to_string().as_str())
-            .map_err(log::kv::Error::boxed)
-    }
-}
-
 impl Visitor for KvFormatter {
+    // The encode logic is copied from https://github.com/go-logfmt/logfmt/blob/76262ea7/encode.go.
     fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
-        encode_key_value(&mut self.text, key.as_str(), value.to_string().as_str())
+        use std::fmt::Write;
+
+        let key = key.as_str();
+        let value = value.to_string();
+        let value = value.as_str();
+
+        if key.contains([' ', '=', '"']) {
+            // omit keys contain special chars
+            return Err(Error::new(format!("key contains special chars: {key}")));
+        }
+
+        // SAFETY: write to a string always succeeds
+        if value.contains([' ', '=', '"']) {
+            write!(&mut self.text, " {key}=\"{}\"", value.escape_debug()).unwrap();
+        } else {
+            write!(&mut self.text, " {key}={value}").unwrap();
+        }
+
+        Ok(())
     }
 }
 
@@ -137,10 +126,7 @@ impl Layout for LogfmtLayout {
         )?;
         visitor.visit("message".into(), Value::from_debug(message))?;
 
-        record
-            .key_values()
-            .visit(&mut visitor)
-            .map_err(Error::from_kv_error)?;
+        record.visit_kvs(&mut visitor)?;
         for d in diags {
             d.visit(&mut visitor)?;
         }

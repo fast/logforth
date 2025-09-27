@@ -71,12 +71,11 @@
 use std::borrow::Cow;
 use std::str::FromStr;
 
-use log::LevelFilter;
-use log::Metadata;
-
 use crate::Diagnostic;
 use crate::Error;
 use crate::Filter;
+use crate::LevelFilter;
+use crate::Metadata;
 use crate::filter::FilterResult;
 
 #[cfg(test)]

@@ -14,7 +14,7 @@
 
 use std::num::NonZeroUsize;
 
-use log::Record;
+use logforth::Record;
 use logforth::Diagnostic;
 use logforth::Error;
 use logforth::Layout;

@@ -16,11 +16,11 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt::Arguments;
 
-use log::Record;
 use serde::Serialize;
 
 use crate::Diagnostic;
 use crate::Error;
+use crate::Record;
 use crate::kv::Key;
 use crate::kv::Value;
 use crate::kv::Visitor;
@@ -128,28 +128,9 @@ struct KvCollector<'a> {
     trace_sampled: Option<bool>,
 }
 
-impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'kvs> {
-    fn visit_pair(
-        &mut self,
-        key: log::kv::Key<'kvs>,
-        value: log::kv::Value<'kvs>,
-    ) -> Result<(), log::kv::Error> {
-        let key = key.to_string();
-        if self.layout.label_keys.contains(&key) {
-            self.labels.insert(key, value.to_string().into());
-        } else {
-            match serde_json::to_value(&value) {
-                Ok(value) => self.payload_fields.insert(key, value),
-                Err(_) => self.payload_fields.insert(key, value.to_string().into()),
-            };
-        }
-        Ok(())
-    }
-}
-
 impl Visitor for KvCollector<'_> {
     fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
-        let key = key.to_string();
+        let key = key.into_string();
 
         if let Some(trace_project_id) = self.layout.trace_project_id.as_ref() {
             if self.trace.is_none() && self.layout.trace_keys.contains(&key) {
@@ -227,7 +208,9 @@ where
 
 impl Layout for GoogleCloudLoggingLayout {
     fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
-        let timestamp = jiff::Timestamp::now();
+        // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
+        // very unlikely if the system clock is correct.
+        let timestamp = jiff::Timestamp::try_from(record.time()).unwrap();
 
         let mut visitor = KvCollector {
             layout: self,
@@ -238,10 +221,7 @@ impl Layout for GoogleCloudLoggingLayout {
             trace_sampled: None,
         };
 
-        record
-            .key_values()
-            .visit(&mut visitor)
-            .map_err(Error::from_kv_error)?;
+        record.visit_kvs(&mut visitor)?;
         for d in diags {
             d.visit(&mut visitor)?;
         }

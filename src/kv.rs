@@ -25,6 +25,12 @@ use value_bag::ValueBag;
 use crate::Error;
 use crate::Str;
 
+/// A visitor to walk through key-value pairs.
+pub trait Visitor {
+    /// Visits a key-value pair.
+    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error>;
+}
+
 /// Represent a value in a key-value pair.
 pub type Value<'a> = ValueBag<'a>;
 
@@ -46,6 +52,11 @@ impl<'a> Key<'a> {
     /// Get the key string.
     pub fn as_str(&self) -> &str {
         self.0.get()
+    }
+
+    /// Coerce to a key with a shorter lifetime.
+    pub fn coerce(&self) -> Key<'_> {
+        Key(self.0.by_ref())
     }
 }
 
@@ -85,10 +96,4 @@ impl fmt::Display for KeyOwned {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
     }
-}
-
-/// A visitor to walk through key-value pairs.
-pub trait Visitor {
-    /// Visits a key-value pair.
-    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error>;
 }
