@@ -79,7 +79,28 @@ impl log::Log for Logger {
     }
 
     fn log(&self, record: &log::Record) {
+        // basic fields
+        let mut builder = RecordBuilder::default()
+            .args(*record.args())
+            .level(record.level().into())
+            .target(record.target())
+            .line(record.line());
+
+        // optional static fields
+        builder = if let Some(module_path) = record.module_path_static() {
+            builder.module_path_static(module_path)
+        } else {
+            builder.module_path(record.module_path())
+        };
+        builder = if let Some(file) = record.file_static() {
+            builder.file_static(file)
+        } else {
+            builder.file(record.file())
+        };
+
+        // key-values
         let mut kvs = Vec::new();
+
         struct KeyValueVisitor<'a, 'b> {
             kvs: &'b mut Vec<(log::kv::Key<'a>, log::kv::Value<'a>)>,
         }
@@ -102,18 +123,9 @@ impl log::Log for Logger {
         for (k, v) in kvs.iter() {
             new_kvs.push((Key::from(k.as_str()), Value::from_sval2(v)));
         }
+        builder = builder.key_values(&new_kvs);
 
-        let record = RecordBuilder::default()
-            .args(*record.args())
-            .level(record.level().into())
-            .target(record.target())
-            .module_path(record.module_path())
-            .file(record.file())
-            .line(record.line())
-            .key_values(&new_kvs)
-            .build();
-
-        Logger::log(self, &record);
+        Logger::log(self, &builder.build());
     }
 
     fn flush(&self) {

@@ -191,8 +191,8 @@ impl<'a> RecordBuilder<'a> {
     }
 
     /// Set [`module_path`](Record::module_path) to a `'static` string.
-    pub fn module_path_static(mut self, path: Option<&'static str>) -> Self {
-        self.record.module_path = path.map(MaybeStaticStr::Static);
+    pub fn module_path_static(mut self, path: &'static str) -> Self {
+        self.record.module_path = Some(MaybeStaticStr::Static(path));
         self
     }
 
@@ -203,8 +203,8 @@ impl<'a> RecordBuilder<'a> {
     }
 
     /// Set [`file`](Record::file) to a `'static` string.
-    pub fn file_static(mut self, file: Option<&'static str>) -> Self {
-        self.record.file = file.map(MaybeStaticStr::Static);
+    pub fn file_static(mut self, file: &'static str) -> Self {
+        self.record.file = Some(MaybeStaticStr::Static(file));
         self
     }
 
