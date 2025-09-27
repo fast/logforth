@@ -52,6 +52,7 @@ layout-google-cloud-logging = [
   "jiff/serde",
 ]
 layout-json = ["dep:serde", "dep:serde_json", "log/kv_serde", "jiff/serde"]
+layout-text = ["dep:colored"]
 
 # Diagnostics
 diagnostic-fastrace = ["dep:fastrace"]

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use jiff::Timestamp;
-use jiff::Zoned;
 use jiff::tz::TimeZone;
 
 use crate::Diagnostic;
@@ -105,7 +104,7 @@ impl Layout for LogfmtLayout {
         // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
         // very unlikely if the system clock is correct.
         let ts = Timestamp::try_from(record.time()).unwrap();
-        let tz = self.tz.clone().unwrap_or_else(|| TimeZone::system());
+        let tz = self.tz.clone().unwrap_or_else(TimeZone::system);
         let offset = tz.to_offset(ts);
         let time = ts.display_with_offset(offset);
 

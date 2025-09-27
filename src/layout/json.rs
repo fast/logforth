@@ -125,7 +125,7 @@ impl Layout for JsonLayout {
         // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
         // very unlikely if the system clock is correct.
         let ts = Timestamp::try_from(record.time()).unwrap();
-        let tz = self.tz.clone().unwrap_or_else(|| TimeZone::system());
+        let tz = self.tz.clone().unwrap_or_else(TimeZone::system);
         let offset = tz.to_offset(ts);
         let timestamp = ts.display_with_offset(offset);
 

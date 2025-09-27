@@ -26,7 +26,7 @@ use crate::append::Append;
 use crate::append::file::rolling::RollingFileWriter;
 use crate::append::file::rolling::RollingFileWriterBuilder;
 use crate::append::file::rotation::Rotation;
-use crate::layout::TextLayout;
+use crate::layout::PlainTextLayout;
 
 /// A builder to configure and create an [`File`] appender.
 #[derive(Debug)]
@@ -40,7 +40,7 @@ impl FileBuilder {
     pub fn new(basedir: impl Into<PathBuf>, filename: impl Into<String>) -> Self {
         Self {
             builder: RollingFileWriterBuilder::new(basedir, filename),
-            layout: Box::new(TextLayout::default().no_color()),
+            layout: Box::new(PlainTextLayout::default()),
         }
     }
 
@@ -60,7 +60,7 @@ impl FileBuilder {
 
     /// Set the layout for the logs.
     ///
-    /// Default to [`TextLayout`].
+    /// Default to [`PlainTextLayout`].
     ///
     /// # Examples
     ///

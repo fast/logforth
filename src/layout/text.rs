@@ -12,6 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! A layout that formats log record as optionally colored text.
+
+pub extern crate colored;
+
+use colored::Color;
+use colored::ColoredString;
+use colored::Colorize;
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
 
@@ -25,64 +32,52 @@ use crate::kv::Visitor;
 use crate::layout::Layout;
 use crate::layout::filename;
 
-#[cfg(feature = "colored")]
-mod colored {
-    use super::*;
-    use crate::color::LevelColor;
-    use crate::colored::Color;
+/// Colors for different log levels.
+#[derive(Debug, Clone)]
+pub struct LevelColor {
+    /// Color for error level logs.
+    pub error: Color,
+    /// Color for warning level logs.
+    pub warn: Color,
+    /// Color for info level logs.
+    pub info: Color,
+    /// Color for debug level logs.
+    pub debug: Color,
+    /// Color for trace level logs.
+    pub trace: Color,
+}
 
-    impl TextLayout {
-        /// Customize the color of each log level.
-        ///
-        /// No effect if `no_color` is set to `true`.
-        pub fn colors(mut self, colors: LevelColor) -> Self {
-            self.colors = colors;
-            self
-        }
-
-        /// Customize the color of the error log level. Default to red.
-        ///
-        /// No effect if `no_color` is set to `true`.
-        pub fn error_color(mut self, color: Color) -> Self {
-            self.colors.error = color;
-            self
-        }
-
-        /// Customize the color of the warn log level. Default to yellow.
-        ///
-        /// No effect if `no_color` is set to `true`.
-        pub fn warn_color(mut self, color: Color) -> Self {
-            self.colors.warn = color;
-            self
-        }
-
-        /// Customize the color of the info log level/ Default to green.
-        ///
-        /// No effect if `no_color` is set to `true`.
-        pub fn info_color(mut self, color: Color) -> Self {
-            self.colors.info = color;
-            self
-        }
-
-        /// Customize the color of the debug log level. Default to blue.
-        ///
-        /// No effect if `no_color` is set to `true`.
-        pub fn debug_color(mut self, color: Color) -> Self {
-            self.colors.debug = color;
-            self
-        }
-
-        /// Customize the color of the trace log level. Default to magenta.
-        ///
-        /// No effect if `no_color` is set to `true`.
-        pub fn trace_color(mut self, color: Color) -> Self {
-            self.colors.trace = color;
-            self
+impl Default for LevelColor {
+    fn default() -> Self {
+        Self {
+            error: Color::Red,
+            warn: Color::Yellow,
+            info: Color::Green,
+            debug: Color::Blue,
+            trace: Color::Magenta,
         }
     }
 }
 
-/// A layout that formats log record as text.
+impl LevelColor {
+    /// Colorize the log level.
+    fn colorize_record_level(&self, no_color: bool, level: Level) -> ColoredString {
+        if no_color {
+            ColoredString::from(level.to_string())
+        } else {
+            let color = match level {
+                Level::Error => self.error,
+                Level::Warn => self.warn,
+                Level::Info => self.info,
+                Level::Debug => self.debug,
+                Level::Trace => self.trace,
+            };
+            ColoredString::from(level.to_string()).color(color)
+        }
+    }
+}
+
+/// A layout that formats log record as optionally colored text.
 ///
 /// Output format:
 ///
@@ -114,13 +109,60 @@ mod colored {
 /// [`LevelColor`]: crate::color::LevelColor
 #[derive(Debug, Clone, Default)]
 pub struct TextLayout {
-    #[cfg(feature = "colored")]
-    colors: crate::color::LevelColor,
+    colors: LevelColor,
     no_color: bool,
     tz: Option<TimeZone>,
 }
 
 impl TextLayout {
+    /// Customize the color of each log level.
+    ///
+    /// No effect if `no_color` is set to `true`.
+    pub fn colors(mut self, colors: LevelColor) -> Self {
+        self.colors = colors;
+        self
+    }
+
+    /// Customize the color of the error log level. Default to red.
+    ///
+    /// No effect if `no_color` is set to `true`.
+    pub fn error_color(mut self, color: Color) -> Self {
+        self.colors.error = color;
+        self
+    }
+
+    /// Customize the color of the warn log level. Default to yellow.
+    ///
+    /// No effect if `no_color` is set to `true`.
+    pub fn warn_color(mut self, color: Color) -> Self {
+        self.colors.warn = color;
+        self
+    }
+
+    /// Customize the color of the info log level/ Default to green.
+    ///
+    /// No effect if `no_color` is set to `true`.
+    pub fn info_color(mut self, color: Color) -> Self {
+        self.colors.info = color;
+        self
+    }
+
+    /// Customize the color of the debug log level. Default to blue.
+    ///
+    /// No effect if `no_color` is set to `true`.
+    pub fn debug_color(mut self, color: Color) -> Self {
+        self.colors.debug = color;
+        self
+    }
+
+    /// Customize the color of the trace log level. Default to magenta.
+    ///
+    /// No effect if `no_color` is set to `true`.
+    pub fn trace_color(mut self, color: Color) -> Self {
+        self.colors.trace = color;
+        self
+    }
+
     /// Disables colored output.
     pub fn no_color(mut self) -> Self {
         self.no_color = true;
@@ -142,13 +184,7 @@ impl TextLayout {
         self
     }
 
-    #[cfg(not(feature = "colored"))]
-    fn format_record_level(&self, level: Level) -> String {
-        level.to_string()
-    }
-
-    #[cfg(feature = "colored")]
-    fn format_record_level(&self, level: Level) -> crate::colored::ColoredString {
+    fn format_record_level(&self, level: Level) -> ColoredString {
         self.colors.colorize_record_level(self.no_color, level)
     }
 }
@@ -172,7 +208,7 @@ impl Layout for TextLayout {
         // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
         // very unlikely if the system clock is correct.
         let ts = Timestamp::try_from(record.time()).unwrap();
-        let tz = self.tz.clone().unwrap_or_else(|| TimeZone::system());
+        let tz = self.tz.clone().unwrap_or_else(TimeZone::system);
         let offset = tz.to_offset(ts);
         let time = ts.display_with_offset(offset);
 

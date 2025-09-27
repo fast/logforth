@@ -19,7 +19,7 @@ use crate::Error;
 use crate::Layout;
 use crate::Record;
 use crate::append::Append;
-use crate::layout::TextLayout;
+use crate::layout::PlainTextLayout;
 
 /// An appender that writes log records to standard output.
 ///
@@ -38,7 +38,7 @@ pub struct Stdout {
 impl Default for Stdout {
     fn default() -> Self {
         Self {
-            layout: Box::new(TextLayout::default()),
+            layout: Box::new(PlainTextLayout::default()),
         }
     }
 }
@@ -50,9 +50,9 @@ impl Stdout {
     ///
     /// ```
     /// use logforth::append::Stdout;
-    /// use logforth::layout::TextLayout;
+    /// use logforth::layout::PlainTextLayout;
     ///
-    /// let stdout_appender = Stdout::default().with_layout(TextLayout::default());
+    /// let stdout_appender = Stdout::default().with_layout(PlainTextLayout::default());
     /// ```
     pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
         self.layout = layout.into();
@@ -93,7 +93,7 @@ pub struct Stderr {
 impl Default for Stderr {
     fn default() -> Self {
         Self {
-            layout: Box::new(TextLayout::default()),
+            layout: Box::new(PlainTextLayout::default()),
         }
     }
 }
@@ -105,9 +105,9 @@ impl Stderr {
     ///
     /// ```
     /// use logforth::append::Stderr;
-    /// use logforth::layout::TextLayout;
+    /// use logforth::layout::PlainTextLayout;
     ///
-    /// let stderr_appender = Stderr::default().with_layout(TextLayout::default());
+    /// let stderr_appender = Stderr::default().with_layout(PlainTextLayout::default());
     /// ```
     pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
         self.layout = layout.into();

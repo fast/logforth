@@ -40,6 +40,7 @@ All notable changes to this project will be documented in this file.
   * `EnvFilter`'s constructors (`from_env`, etc.) are moved to `EnvFilterBuilder`.
 * Upgrade to opentelemetry 0.31.0.
 * `LoggerBuilder`'s `try_apply`/`apply` methods are renamed to `try_setup_log_crate`/`setup_log_crate`.
+* `TextLayout` is now behind `layout-text` feature flag, and colored is always available when the feature is enabled.
 * Internal log structs are migrated from `log` crate to self-hosted types. This should not affect most users, but if you are customizing appender, layout, filter, and diagnostic, you should replace `log::Record`, `log::Metadata`, or `log::Level`, with `logforth::Record`, `logforth::Metadata`, or `logforth::Level`.
 
 ### Notable changes

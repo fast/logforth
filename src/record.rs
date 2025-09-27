@@ -468,8 +468,8 @@ impl PartialOrd<Level> for LevelFilter {
 }
 
 /// The type returned by `from_str` when the string doesn't match any of the log levels.
-#[non_exhaustive]
 #[derive(Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct ParseLevelError {}
 
 impl fmt::Display for ParseLevelError {
