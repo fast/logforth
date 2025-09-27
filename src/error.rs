@@ -15,7 +15,7 @@
 use std::fmt;
 use std::io;
 
-/// Error is the error struct returned by Logforth's interfaces.
+/// The error struct of Logforth.
 pub struct Error {
     message: String,
     source: Option<anyhow::Error>,

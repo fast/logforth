@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! The module for key-value pairs in a log record or a diagnostic context.
+//! Key-value pairs in a log record or a diagnostic context.
 
 // This file is derived from https://github.com/SpriteOvO/spdlog-rs/blob/788bda33/spdlog/src/kv.rs
 
@@ -33,10 +33,10 @@ pub trait Visitor {
     fn visit(&mut self, key: Key, value: Value) -> Result<(), Error>;
 }
 
-/// Represent a value in a key-value pair.
+/// A value in a key-value pair.
 pub type Value<'a> = ValueBag<'a>;
 
-/// Represent a key in a key-value pair.
+/// A key in a key-value pair.
 #[derive(Debug, Clone)]
 pub struct Key<'a>(Str<'a>);
 
@@ -80,10 +80,10 @@ impl<'a> From<&'a str> for Key<'a> {
     }
 }
 
-/// Represent an owned value in a key-value pair.
+/// An owned value in a key-value pair.
 pub type ValueOwned = OwnedValueBag;
 
-/// Represent an owned key in a key-value pair.
+/// An owned key in a key-value pair.
 #[derive(Debug, Clone)]
 pub struct KeyOwned(Str<'static>);
 

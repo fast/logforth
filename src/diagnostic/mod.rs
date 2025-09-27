@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Mapped Diagnostic Context (MDC). A lighter technique consists of uniquely stamping each log
-//! request.
+//! Mapped Diagnostic Context (MDC).
+//!
+//! A lighter technique consists of uniquely stamping each log request.
 
 use std::fmt;
 
