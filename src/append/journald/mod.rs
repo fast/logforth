@@ -76,8 +76,8 @@ fn current_exe_identifier() -> Option<String> {
 /// ## Custom fields and structured record fields
 ///
 /// In addition to these fields the appender also adds all structures key-values
-/// (see [`Record::key_values`]) from each log record as journal fields,
-/// and also supports global extra fields via [`Journald::with_extra_fields`].
+/// from each log record as journal fields, and also supports global extra fields via
+/// [`Journald::with_extra_fields`].
 ///
 /// Journald allows only ASCII uppercase letters, ASCII digits, and the
 /// underscore in field names, and limits field names to 64 bytes.  See

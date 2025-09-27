@@ -104,6 +104,49 @@ impl<'a> Record<'a> {
     }
 }
 
+/// Owned version of a log record.
+#[derive(Clone, Debug)]
+pub struct RecordOwned {
+    // the observed time
+    now: SystemTime,
+
+    // the metadata
+    metadata: MetadataOwned,
+    module_path: Option<String>,
+    file: Option<String>,
+    line: Option<u32>,
+
+    // the payload
+    args: String,
+
+    // structural logging
+    kvs: Vec<(kv::KeyOwned, kv::ValueOwned)>,
+}
+
+impl RecordOwned {
+    /// Process a `Record`.
+    ///
+    /// This is a workaround before `format_args` can return a value outlives the function call.
+    pub fn execute(&self, f: impl FnOnce(&Record) -> Result<(), Error>) -> Result<(), Error> {
+        f(&Record {
+            now: self.now,
+            metadata: Metadata {
+                level: self.metadata.level,
+                target: &self.metadata.target,
+            },
+            module_path: self.module_path.as_deref().map(MaybeStaticStr::Str),
+            file: self.file.as_deref().map(MaybeStaticStr::Str),
+            line: self.line,
+            args: format_args!("{}", self.args),
+            kvs: &self
+                .kvs
+                .iter()
+                .map(|(k, v)| (k.by_ref(), v.by_ref()))
+                .collect::<Vec<_>>(),
+        })
+    }
+}
+
 /// Builder for [`Record`].
 #[derive(Debug)]
 pub struct RecordBuilder<'a> {
@@ -202,6 +245,13 @@ pub struct Metadata<'a> {
     target: &'a str,
 }
 
+/// Owned version of metadata about a log message.
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub struct MetadataOwned {
+    level: Level,
+    target: String,
+}
+
 impl<'a> Metadata<'a> {
     /// Gets the level.
     pub fn level(&self) -> Level {
@@ -211,6 +261,14 @@ impl<'a> Metadata<'a> {
     /// Gets the target.
     pub fn target(&self) -> &'a str {
         self.target
+    }
+
+    /// Converts to an owned version of `Metadata`.
+    pub fn to_owned(&self) -> MetadataOwned {
+        MetadataOwned {
+            level: self.level,
+            target: self.target.to_owned(),
+        }
     }
 }
 

@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{Append, Logger};
+use crate::Append;
 use crate::Diagnostic;
 use crate::Filter;
+use crate::Logger;
 use crate::append;
 use crate::filter::env_filter::EnvFilterBuilder;
 use crate::logger::log_impl::Dispatch;
@@ -129,10 +130,11 @@ impl LoggerBuilder {
     /// This should be called early in the execution of a Rust program. Any log events that occur
     /// before initialization will be ignored.
     ///
-    /// This function will set the global maximum log level to `Trace`. To override this, call [`log::set_max_level`] after this function.
+    /// This function will set the global maximum log level to `Trace`. To override this, call
+    /// [`log::set_max_level`] after this function.
     ///
-    /// Alternatively, you can obtain a [`Logger`] instance by calling [`LoggerBuilder::build`], and then call [`log::set_boxed_logger`]
-    /// manually.
+    /// Alternatively, you can obtain a [`Logger`] instance by calling [`LoggerBuilder::build`], and
+    /// then call [`log::set_boxed_logger`] manually.
     ///
     /// # Errors
     ///
@@ -158,10 +160,11 @@ impl LoggerBuilder {
     /// This function will panic if it is called more than once, or if another library has already
     /// initialized a global logger.
     ///
-    /// This function will set the global maximum log level to `Trace`. To override this, call [`log::set_max_level`] after this function.
+    /// This function will set the global maximum log level to `Trace`. To override this, call
+    /// [`log::set_max_level`] after this function.
     ///
-    /// Alternatively, you can obtain a [`Logger`] instance by calling [`LoggerBuilder::build`], and then call [`log::set_boxed_logger`]
-    /// manually.
+    /// Alternatively, you can obtain a [`Logger`] instance by calling [`LoggerBuilder::build`], and
+    /// then call [`log::set_boxed_logger`] manually.
     ///
     /// # Panics
     ///

@@ -86,8 +86,8 @@ pub type ValueOwned = OwnedValueBag;
 pub struct KeyOwned(Str<'static>);
 
 impl KeyOwned {
-    /// Get the owned key string.
-    pub fn as_ref(&self) -> Key<'_> {
+    /// Create a `Key` ref.
+    pub fn by_ref(&self) -> Key<'_> {
         Key(self.0.by_ref())
     }
 }
