@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use jiff::Timestamp;
-use jiff::Zoned;
 use jiff::tz::TimeZone;
 
 use crate::Diagnostic;
@@ -170,11 +169,12 @@ impl Visitor for KvWriter {
 
 impl Layout for TextLayout {
     fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
-        let time = match self.tz.clone() {
-            None => Zoned::now(),
-            Some(tz) => Timestamp::now().to_zoned(tz),
-        };
-        let time = time.timestamp().display_with_offset(time.offset());
+        // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
+        // very unlikely if the system clock is correct.
+        let ts = Timestamp::try_from(record.time()).unwrap();
+        let tz = self.tz.clone().unwrap_or_else(|| TimeZone::system());
+        let offset = tz.to_offset(ts);
+        let time = ts.display_with_offset(offset);
 
         let level = self.format_record_level(record.level());
         let target = record.target();

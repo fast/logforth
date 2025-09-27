@@ -122,11 +122,12 @@ impl Layout for JsonLayout {
     fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
         let diagnostics = diags;
 
-        let time = match self.tz.clone() {
-            None => Zoned::now(),
-            Some(tz) => Timestamp::now().to_zoned(tz),
-        };
-        let timestamp = time.timestamp().display_with_offset(time.offset());
+        // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
+        // very unlikely if the system clock is correct.
+        let ts = Timestamp::try_from(record.time()).unwrap();
+        let tz = self.tz.clone().unwrap_or_else(|| TimeZone::system());
+        let offset = tz.to_offset(ts);
+        let timestamp = ts.display_with_offset(offset);
 
         let mut kvs = Map::new();
         let mut kvs_visitor = KvCollector { kvs: &mut kvs };
