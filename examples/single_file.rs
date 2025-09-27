@@ -17,15 +17,17 @@ use logforth::layout::JsonLayout;
 use logforth::record::LevelFilter;
 
 fn main() {
-    let rolling_writer = FileBuilder::new("logs", "my_app")
+    logforth::bridge::setup_log_crate();
+
+    let file = FileBuilder::new("logs", "my_app")
         .filename_suffix("log")
         .layout(JsonLayout::default())
         .build()
         .unwrap();
 
     logforth::builder()
-        .dispatch(|d| d.filter(LevelFilter::Trace).append(rolling_writer))
-        .setup_log_crate();
+        .dispatch(|d| d.filter(LevelFilter::Trace).append(file))
+        .apply();
 
     let repeat = 1;
 

@@ -20,6 +20,7 @@ use logforth::diagnostic;
 use logforth::record::LevelFilter;
 
 fn main() {
+    logforth::bridge::setup_log_crate();
     logforth::builder()
         .dispatch(|d| {
             d.filter(LevelFilter::Trace)
@@ -29,7 +30,7 @@ fn main() {
             d.diagnostic(diagnostic::FastraceDiagnostic::default())
                 .append(logforth::append::Stderr::default())
         })
-        .setup_log_crate();
+        .apply();
 
     fastrace::set_reporter(ConsoleReporter, Config::default());
 

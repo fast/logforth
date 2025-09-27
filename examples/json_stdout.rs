@@ -16,9 +16,10 @@ use logforth::append;
 use logforth::layout::JsonLayout;
 
 fn main() {
+    logforth::bridge::setup_log_crate();
     logforth::builder()
         .dispatch(|d| d.append(append::Stdout::default().with_layout(JsonLayout::default())))
-        .setup_log_crate();
+        .apply();
 
     log::info!("This is an info message.");
     log::debug!("This debug message will not be printed by default.");

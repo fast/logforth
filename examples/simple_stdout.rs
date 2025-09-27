@@ -13,7 +13,8 @@
 // limitations under the License.
 
 fn main() {
-    logforth::stdout().setup_log_crate();
+    logforth::bridge::setup_log_crate();
+    logforth::stdout().apply();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

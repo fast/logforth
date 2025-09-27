@@ -46,12 +46,13 @@ impl Layout for CustomLayout {
 }
 
 fn main() {
+    logforth::bridge::setup_log_crate();
     logforth::builder()
         .dispatch(|d| {
             d.filter(CustomFilter)
                 .append(append::Stdout::default().with_layout(CustomLayout))
         })
-        .setup_log_crate();
+        .apply();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");
