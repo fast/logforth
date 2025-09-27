@@ -20,12 +20,13 @@
 //! use logforth::append::syslog;
 //! use logforth::append::syslog::Syslog;
 //! use logforth::append::syslog::SyslogBuilder;
+//! use logforth::record::LevelFilter;
 //!
 //! let append = SyslogBuilder::tcp_well_known().unwrap().build();
 //!
 //! logforth::builder()
-//!     .dispatch(|d| d.filter(log::LevelFilter::Trace).append(append))
-//!     .apply();
+//!     .dispatch(|d| d.filter(LevelFilter::Trace).append(append))
+//!     .setup_log_crate();
 //!
 //! log::info!("This log will be written to syslog.");
 //! ```
@@ -37,12 +38,13 @@ use std::sync::MutexGuard;
 use fasyslog::SDElement;
 use fasyslog::format::SyslogContext;
 use fasyslog::sender::SyslogSender;
-use log::Record;
 
 use crate::Append;
 use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
+use crate::record::Level;
+use crate::record::Record;
 
 pub extern crate fasyslog;
 
@@ -313,13 +315,13 @@ struct SyslogFormatter {
     layout: Option<Box<dyn Layout>>,
 }
 
-fn log_level_to_otel_severity(level: log::Level) -> fasyslog::Severity {
+fn log_level_to_syslog_severity(level: Level) -> fasyslog::Severity {
     match level {
-        log::Level::Error => fasyslog::Severity::ERROR,
-        log::Level::Warn => fasyslog::Severity::WARNING,
-        log::Level::Info => fasyslog::Severity::NOTICE,
-        log::Level::Debug => fasyslog::Severity::INFORMATIONAL,
-        log::Level::Trace => fasyslog::Severity::DEBUG,
+        Level::Error => fasyslog::Severity::ERROR,
+        Level::Warn => fasyslog::Severity::WARNING,
+        Level::Info => fasyslog::Severity::NOTICE,
+        Level::Debug => fasyslog::Severity::INFORMATIONAL,
+        Level::Trace => fasyslog::Severity::DEBUG,
     }
 }
 
@@ -329,7 +331,7 @@ impl SyslogFormatter {
         record: &Record,
         diags: &[Box<dyn Diagnostic>],
     ) -> Result<Vec<u8>, Error> {
-        let severity = log_level_to_otel_severity(record.level());
+        let severity = log_level_to_syslog_severity(record.level());
 
         let message = match self.format {
             SyslogFormat::RFC3164 => match self.layout {

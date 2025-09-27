@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::LevelFilter;
-
-use super::log_impl::Dispatch;
-use super::log_impl::Logger;
 use crate::Append;
 use crate::Diagnostic;
 use crate::Filter;
+use crate::Logger;
 use crate::append;
 use crate::filter::env_filter::EnvFilterBuilder;
+use crate::logger::log_impl::Dispatch;
 
-/// Creates a new empty [`LoggerBuilder`] instance for configuring log dispatching.
+/// Create a new empty [`LoggerBuilder`] instance for configuring log dispatching.
 ///
 /// # Examples
 ///
@@ -31,19 +29,21 @@ use crate::filter::env_filter::EnvFilterBuilder;
 ///
 /// let builder = logforth::builder()
 ///     .dispatch(|d| d.append(append::Stderr::default()))
-///     .apply();
+///     .setup_log_crate();
 /// ```
 pub fn builder() -> LoggerBuilder {
     LoggerBuilder::new()
 }
 
-/// Creates a [`LoggerBuilder`] with a default [`append::Stdout`] appender and an [`env_filter`](https://crates.io/crates/env_filter)
+/// Create a [`LoggerBuilder`] with a default [`append::Stdout`] appender and an [`EnvFilter`]
 /// respecting `RUST_LOG`.
+///
+/// [`EnvFilter`]: crate::filter::EnvFilter
 ///
 /// # Examples
 ///
 /// ```
-/// logforth::stdout().apply();
+/// logforth::stdout().setup_log_crate();
 /// log::error!("This error will be logged to stdout.");
 /// ```
 pub fn stdout() -> LoggerBuilder {
@@ -53,13 +53,15 @@ pub fn stdout() -> LoggerBuilder {
     })
 }
 
-/// Creates a [`LoggerBuilder`] with a default [`append::Stderr`] appender and an [`env_filter`](https://crates.io/crates/env_filter)
+/// Create a [`LoggerBuilder`] with a default [`append::Stderr`] appender and an [`EnvFilter`]
 /// respecting `RUST_LOG`.
+///
+/// [`EnvFilter`]: crate::filter::EnvFilter
 ///
 /// # Examples
 ///
 /// ```
-/// logforth::stderr().apply();
+/// logforth::stderr().setup_log_crate();
 /// log::info!("This info will be logged to stderr.");
 /// ```
 pub fn stderr() -> LoggerBuilder {
@@ -78,7 +80,7 @@ pub fn stderr() -> LoggerBuilder {
 ///
 /// logforth::builder()
 ///     .dispatch(|d| d.append(append::Stdout::default()))
-///     .apply();
+///     .setup_log_crate();
 /// ```
 #[must_use = "call `apply` to set the global logger or `build` to construct a logger instance"]
 #[derive(Debug)]
@@ -92,7 +94,7 @@ impl LoggerBuilder {
         LoggerBuilder { dispatches: vec![] }
     }
 
-    /// Registers a new dispatch with the [`LoggerBuilder`].
+    /// Register a new dispatch with the [`LoggerBuilder`].
     ///
     /// # Examples
     ///
@@ -101,7 +103,7 @@ impl LoggerBuilder {
     ///
     /// logforth::builder()
     ///     .dispatch(|d| d.append(append::Stderr::default()))
-    ///     .apply();
+    ///     .setup_log_crate();
     /// ```
     pub fn dispatch<F>(mut self, f: F) -> Self
     where
@@ -123,56 +125,58 @@ impl LoggerBuilder {
         Logger::new(self.dispatches)
     }
 
-    /// Sets up the global logger with all the configured dispatches.
+    /// Set up `log`'s global logger with all the configured dispatches.
     ///
     /// This should be called early in the execution of a Rust program. Any log events that occur
     /// before initialization will be ignored.
     ///
-    /// This will set the global maximum log level to [`LevelFilter::Trace`]. To override this,
-    /// call [`log::set_max_level`] after this function. Alternatively, you can obtain a [`Logger`]
-    /// instance by calling [`LoggerBuilder::build`], and then call [`log::set_boxed_logger`]
-    /// manually.
+    /// This function will set the global maximum log level to `Trace`. To override this, call
+    /// [`log::set_max_level`] after this function.
+    ///
+    /// Alternatively, you can obtain a [`Logger`] instance by calling [`LoggerBuilder::build`], and
+    /// then call [`log::set_boxed_logger`] manually.
     ///
     /// # Errors
     ///
-    /// Returns an error if a global logger has already been set.
+    /// Return an error if a global logger has already been set.
     ///
     /// # Examples
     ///
     /// ```
-    /// let result = logforth::builder().try_apply();
+    /// let result = logforth::builder().try_setup_log_crate();
     /// if let Err(e) = result {
     ///     eprintln!("Failed to set logger: {}", e);
     /// }
     /// ```
-    pub fn try_apply(self) -> Result<(), log::SetLoggerError> {
+    pub fn try_setup_log_crate(self) -> Result<(), log::SetLoggerError> {
         let logger = self.build();
         log::set_boxed_logger(Box::new(logger))?;
-        log::set_max_level(LevelFilter::Trace);
+        log::set_max_level(log::LevelFilter::Trace);
         Ok(())
     }
 
-    /// Sets up the global logger with all the configured dispatches.
+    /// Set up `log`'s global logger with all the configured dispatches.
     ///
     /// This function will panic if it is called more than once, or if another library has already
     /// initialized a global logger.
     ///
-    /// This function will set the global maximum log level to [`LevelFilter::Trace`]. To override
-    /// this, call [`log::set_max_level`] after this function. Alternatively, you can obtain a
-    /// [`Logger`] instance by calling [`LoggerBuilder::build`], and then call
-    /// [`log::set_boxed_logger`] manually.
+    /// This function will set the global maximum log level to `Trace`. To override this, call
+    /// [`log::set_max_level`] after this function.
+    ///
+    /// Alternatively, you can obtain a [`Logger`] instance by calling [`LoggerBuilder::build`], and
+    /// then call [`log::set_boxed_logger`] manually.
     ///
     /// # Panics
     ///
-    /// Panics if the global logger has already been set.
+    /// Panic if the global logger has already been set.
     ///
     /// # Examples
     ///
     /// ```
-    /// logforth::builder().apply();
+    /// logforth::builder().setup_log_crate();
     /// ```
-    pub fn apply(self) {
-        self.try_apply()
+    pub fn setup_log_crate(self) {
+        self.try_setup_log_crate()
             .expect("LoggerBuilder::apply must be called before the global logger initialized");
     }
 }
@@ -183,13 +187,14 @@ impl LoggerBuilder {
 ///
 /// ```
 /// use logforth::append;
+/// use logforth::record::LevelFilter;
 ///
 /// logforth::builder()
 ///     .dispatch(|d| {
-///         d.filter(log::LevelFilter::Info)
+///         d.filter(LevelFilter::Info)
 ///             .append(append::Stdout::default())
 ///     })
-///     .apply();
+///     .setup_log_crate();
 /// ```
 #[derive(Debug)]
 pub struct DispatchBuilder<const APPEND: bool> {
@@ -213,13 +218,14 @@ impl DispatchBuilder<false> {
     ///
     /// ```
     /// use logforth::append;
+    /// use logforth::record::LevelFilter;
     ///
     /// logforth::builder()
     ///     .dispatch(|d| {
-    ///         d.filter(log::LevelFilter::Error)
+    ///         d.filter(LevelFilter::Error)
     ///             .append(append::Stderr::default())
     ///     })
-    ///     .apply();
+    ///     .setup_log_crate();
     /// ```
     pub fn filter(mut self, filter: impl Into<Box<dyn Filter>>) -> Self {
         self.filters.push(filter.into());
@@ -233,14 +239,15 @@ impl DispatchBuilder<false> {
     /// ```
     /// use logforth::append;
     /// use logforth::diagnostic;
+    /// use logforth::record::LevelFilter;
     ///
     /// logforth::builder()
     ///     .dispatch(|d| {
-    ///         d.filter(log::LevelFilter::Error)
+    ///         d.filter(LevelFilter::Error)
     ///             .diagnostic(diagnostic::ThreadLocalDiagnostic::default())
     ///             .append(append::Stderr::default())
     ///     })
-    ///     .apply();
+    ///     .setup_log_crate();
     /// ```
     pub fn diagnostic(mut self, diagnostic: impl Into<Box<dyn Diagnostic>>) -> Self {
         self.diagnostics.push(diagnostic.into());
@@ -264,7 +271,7 @@ impl<const APPEND: bool> DispatchBuilder<APPEND> {
     ///
     /// logforth::builder()
     ///     .dispatch(|d| d.append(append::Stdout::default()))
-    ///     .apply();
+    ///     .setup_log_crate();
     /// ```
     pub fn append(mut self, append: impl Into<Box<dyn Append>>) -> DispatchBuilder<true> {
         self.appends.push(append.into());

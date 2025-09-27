@@ -12,21 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::Metadata;
-use log::Record;
 use logforth::Diagnostic;
 use logforth::Error;
 use logforth::Filter;
 use logforth::Layout;
 use logforth::append;
 use logforth::filter::FilterResult;
+use logforth::record::Level;
+use logforth::record::Metadata;
+use logforth::record::Record;
 
 #[derive(Debug)]
 struct CustomFilter;
 
 impl Filter for CustomFilter {
     fn enabled(&self, metadata: &Metadata, _: &[Box<dyn Diagnostic>]) -> FilterResult {
-        if metadata.level() < log::Level::Info {
+        if metadata.level() < Level::Info {
             FilterResult::Accept
         } else {
             FilterResult::Reject
@@ -50,7 +51,7 @@ fn main() {
             d.filter(CustomFilter)
                 .append(append::Stdout::default().with_layout(CustomLayout))
         })
-        .apply();
+        .setup_log_crate();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

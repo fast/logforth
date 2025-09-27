@@ -52,6 +52,7 @@ layout-google-cloud-logging = [
   "jiff/serde",
 ]
 layout-json = ["dep:serde", "dep:serde_json", "log/kv_serde", "jiff/serde"]
+layout-text = ["dep:colored"]
 
 # Diagnostics
 diagnostic-fastrace = ["dep:fastrace"]
@@ -65,6 +66,7 @@ rustls = ["dep:rustls", "fasyslog?/rustls"]
 anyhow = { version = "1.0" }
 jiff = { version = "0.2" }
 log = { version = "0.4.27", features = ["kv_std", "kv_sval"] }
+value-bag = { version = "1.11.1", features = ["inline-i128", "owned", "sval"] }
 
 # Optional dependencies
 colored = { version = "3.0", optional = true }

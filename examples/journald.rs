@@ -17,7 +17,9 @@ fn main() {
     use logforth::append::Journald;
 
     let append = Journald::new().unwrap();
-    logforth::builder().dispatch(|d| d.append(append)).apply();
+    logforth::builder()
+        .dispatch(|d| d.append(append))
+        .setup_log_crate();
 
     log::error!("Hello, journald at ERROR!");
     log::warn!("Hello, journald at WARN!");

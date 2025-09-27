@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt::Arguments;
 
-use log::Record;
 use serde::Serialize;
-use serde_json::Value;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::diagnostic::Visitor;
+use crate::kv::Key;
+use crate::kv::Value;
+use crate::kv::Visitor;
 use crate::layout::Layout;
+use crate::record::Record;
 
 /// A layout for Google Cloud Structured Logging.
 ///
@@ -121,61 +121,45 @@ impl GoogleCloudLoggingLayout {
 struct KvCollector<'a> {
     layout: &'a GoogleCloudLoggingLayout,
 
-    payload_fields: BTreeMap<String, Value>,
-    labels: BTreeMap<String, Value>,
+    payload_fields: BTreeMap<String, serde_json::Value>,
+    labels: BTreeMap<String, serde_json::Value>,
     trace: Option<String>,
     span_id: Option<String>,
     trace_sampled: Option<bool>,
 }
 
-impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'kvs> {
-    fn visit_pair(
-        &mut self,
-        key: log::kv::Key<'kvs>,
-        value: log::kv::Value<'kvs>,
-    ) -> Result<(), log::kv::Error> {
-        let key = key.to_string();
-        if self.layout.label_keys.contains(&key) {
-            self.labels.insert(key, value.to_string().into());
-        } else {
-            match serde_json::to_value(&value) {
-                Ok(value) => self.payload_fields.insert(key, value),
-                Err(_) => self.payload_fields.insert(key, value.to_string().into()),
-            };
-        }
-        Ok(())
-    }
-}
-
 impl Visitor for KvCollector<'_> {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
+    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
+        let key = key.into_string();
+
         if let Some(trace_project_id) = self.layout.trace_project_id.as_ref() {
-            if self.trace.is_none() && self.layout.trace_keys.contains(key.as_ref()) {
+            if self.trace.is_none() && self.layout.trace_keys.contains(&key) {
                 self.trace = Some(format!("projects/{trace_project_id}/traces/{value}"));
                 return Ok(());
             }
 
-            if self.span_id.is_none() && self.layout.span_id_keys.contains(key.as_ref()) {
-                self.span_id = Some(value.into_owned());
+            if self.span_id.is_none() && self.layout.span_id_keys.contains(&key) {
+                self.span_id = Some(value.to_string());
                 return Ok(());
             }
 
-            if self.trace_sampled.is_none() && self.layout.trace_sampled_keys.contains(key.as_ref())
-            {
-                if let Ok(v) = value.parse() {
-                    self.trace_sampled = Some(v);
-                    return Ok(());
-                }
+            if self.trace_sampled.is_none() && self.layout.trace_sampled_keys.contains(&key) {
+                self.trace_sampled = value.to_bool();
+                return Ok(());
             }
         }
 
-        let key = key.into_owned();
-        let value = value.into_owned();
+        let value = match serde_json::to_value(&value) {
+            Ok(value) => value,
+            Err(_) => value.to_string().into(),
+        };
+
         if self.layout.label_keys.contains(&key) {
-            self.labels.insert(key, value.into());
+            self.labels.insert(key, value);
         } else {
-            self.payload_fields.insert(key, value.into());
+            self.payload_fields.insert(key, value);
         }
+
         Ok(())
     }
 }
@@ -193,14 +177,14 @@ struct SourceLocation<'a> {
 #[derive(Debug, Clone, Serialize)]
 struct RecordLine<'a> {
     #[serde(flatten)]
-    extra_fields: BTreeMap<String, Value>,
+    extra_fields: BTreeMap<String, serde_json::Value>,
     severity: &'a str,
     timestamp: jiff::Timestamp,
     #[serde(serialize_with = "serialize_args")]
     message: &'a Arguments<'a>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     #[serde(rename = "logging.googleapis.com/labels")]
-    labels: BTreeMap<String, Value>,
+    labels: BTreeMap<String, serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "logging.googleapis.com/trace")]
     trace: Option<String>,
@@ -224,7 +208,9 @@ where
 
 impl Layout for GoogleCloudLoggingLayout {
     fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
-        let timestamp = jiff::Timestamp::now();
+        // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
+        // very unlikely if the system clock is correct.
+        let timestamp = jiff::Timestamp::try_from(record.time()).unwrap();
 
         let mut visitor = KvCollector {
             layout: self,
@@ -235,10 +221,7 @@ impl Layout for GoogleCloudLoggingLayout {
             trace_sampled: None,
         };
 
-        record
-            .key_values()
-            .visit(&mut visitor)
-            .map_err(Error::from_kv_error)?;
+        record.key_values().visit(&mut visitor)?;
         for d in diags {
             d.visit(&mut visitor)?;
         }

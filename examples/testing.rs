@@ -27,12 +27,13 @@ Compare the output of the three commands."#
 #[cfg(test)]
 mod tests {
     use logforth::append::Testing;
+    use logforth::record::LevelFilter;
 
     #[test]
     fn testing() {
         logforth::builder()
-            .dispatch(|d| d.filter(log::LevelFilter::Trace).append(Testing::default()))
-            .apply();
+            .dispatch(|d| d.filter(LevelFilter::Trace).append(Testing::default()))
+            .setup_log_crate();
 
         log::error!("Hello error!");
         log::warn!("Hello warn!");

@@ -12,22 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::Cow;
-use std::collections::BTreeMap;
 use std::fmt::Arguments;
 
-use jiff::Zoned;
+use jiff::Timestamp;
+use jiff::TimestampDisplayWithOffset;
 use jiff::tz::TimeZone;
-use jiff::{Timestamp, TimestampDisplayWithOffset};
-use log::Record;
 use serde::Serialize;
 use serde_json::Map;
-use serde_json::Value;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::diagnostic::Visitor;
+use crate::kv::Key;
+use crate::kv::Value;
+use crate::kv::Visitor;
 use crate::layout::Layout;
+use crate::record::Record;
 
 /// A JSON layout for formatting log records.
 ///
@@ -71,31 +70,16 @@ impl JsonLayout {
 }
 
 struct KvCollector<'a> {
-    kvs: &'a mut Map<String, Value>,
+    kvs: &'a mut Map<String, serde_json::Value>,
 }
 
-impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'_> {
-    fn visit_pair(
-        &mut self,
-        key: log::kv::Key<'kvs>,
-        value: log::kv::Value<'kvs>,
-    ) -> Result<(), log::kv::Error> {
-        let key = key.to_string();
+impl Visitor for KvCollector<'_> {
+    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
+        let key = key.into_string();
         match serde_json::to_value(&value) {
             Ok(value) => self.kvs.insert(key, value),
             Err(_) => self.kvs.insert(key, value.to_string().into()),
         };
-        Ok(())
-    }
-}
-
-struct DiagsCollector<'a> {
-    diags: &'a mut BTreeMap<String, String>,
-}
-
-impl Visitor for DiagsCollector<'_> {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
-        self.diags.insert(key.into_owned(), value.into_owned());
         Ok(())
     }
 }
@@ -111,9 +95,9 @@ struct RecordLine<'a> {
     #[serde(serialize_with = "serialize_args")]
     message: &'a Arguments<'a>,
     #[serde(skip_serializing_if = "Map::is_empty")]
-    kvs: Map<String, Value>,
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    diags: BTreeMap<String, String>,
+    kvs: Map<String, serde_json::Value>,
+    #[serde(skip_serializing_if = "Map::is_empty")]
+    diags: Map<String, serde_json::Value>,
 }
 
 fn serialize_timestamp<S>(
@@ -137,21 +121,19 @@ impl Layout for JsonLayout {
     fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
         let diagnostics = diags;
 
-        let time = match self.tz.clone() {
-            None => Zoned::now(),
-            Some(tz) => Timestamp::now().to_zoned(tz),
-        };
-        let timestamp = time.timestamp().display_with_offset(time.offset());
+        // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
+        // very unlikely if the system clock is correct.
+        let ts = Timestamp::try_from(record.time()).unwrap();
+        let tz = self.tz.clone().unwrap_or_else(TimeZone::system);
+        let offset = tz.to_offset(ts);
+        let timestamp = ts.display_with_offset(offset);
 
         let mut kvs = Map::new();
         let mut kvs_visitor = KvCollector { kvs: &mut kvs };
-        record
-            .key_values()
-            .visit(&mut kvs_visitor)
-            .map_err(Error::from_kv_error)?;
+        record.key_values().visit(&mut kvs_visitor)?;
 
-        let mut diags = BTreeMap::new();
-        let mut diags_visitor = DiagsCollector { diags: &mut diags };
+        let mut diags = Map::new();
+        let mut diags_visitor = KvCollector { kvs: &mut diags };
         for d in diagnostics {
             d.visit(&mut diags_visitor)?;
         }

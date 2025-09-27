@@ -19,7 +19,7 @@
 use std::fmt::Arguments;
 use std::io::Write;
 
-use log::kv::Value;
+use crate::kv::Value;
 
 pub(super) enum FieldName<'a> {
     WellFormed(&'a str),

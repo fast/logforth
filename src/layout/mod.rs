@@ -18,26 +18,30 @@ use std::fmt;
 
 use crate::Diagnostic;
 use crate::Error;
+use crate::record::Record;
 
 #[cfg(feature = "layout-google-cloud-logging")]
 mod google_cloud_logging;
 #[cfg(feature = "layout-json")]
 mod json;
 mod logfmt;
-mod text;
+mod plain_text;
+#[cfg(feature = "layout-text")]
+pub mod text;
 
 #[cfg(feature = "layout-google-cloud-logging")]
 pub use self::google_cloud_logging::GoogleCloudLoggingLayout;
 #[cfg(feature = "layout-json")]
 pub use self::json::JsonLayout;
 pub use self::logfmt::LogfmtLayout;
+pub use self::plain_text::PlainTextLayout;
+#[cfg(feature = "layout-text")]
 pub use self::text::TextLayout;
 
 /// A layout for formatting log records.
 pub trait Layout: fmt::Debug + Send + Sync + 'static {
     /// Formats a log record with optional diagnostics.
-    fn format(&self, record: &log::Record, diags: &[Box<dyn Diagnostic>])
-    -> Result<Vec<u8>, Error>;
+    fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error>;
 }
 
 impl<T: Layout> From<T> for Box<dyn Layout> {
@@ -48,7 +52,7 @@ impl<T: Layout> From<T> for Box<dyn Layout> {
 
 // obtain filename only from record's full file path
 // reason: the module is already logged + full file path is noisy for text layout
-fn filename<'a>(record: &'a log::Record<'a>) -> std::borrow::Cow<'a, str> {
+fn filename<'a>(record: &'a Record<'a>) -> std::borrow::Cow<'a, str> {
     record
         .file()
         .map(std::path::Path::new)

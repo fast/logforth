@@ -17,12 +17,14 @@
 use std::borrow::Cow;
 
 use jiff::Zoned;
-use log::Record;
 
 use crate::Diagnostic;
 use crate::Error;
 use crate::append::Append;
-use crate::diagnostic::Visitor;
+use crate::kv::Key;
+use crate::kv::Value;
+use crate::kv::Visitor;
+use crate::record::Record;
 
 /// An appender that adds log records to fastrace as an event associated to the current span.
 ///
@@ -43,10 +45,7 @@ impl Append for FastraceEvent {
         let message = format!("{}", record.args());
 
         let mut collector = KvCollector { kv: Vec::new() };
-        record
-            .key_values()
-            .visit(&mut collector)
-            .map_err(Error::from_kv_error)?;
+        record.key_values().visit(&mut collector)?;
         for d in diags {
             d.visit(&mut collector)?;
         }
@@ -80,20 +79,9 @@ struct KvCollector {
     kv: Vec<(String, String)>,
 }
 
-impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector {
-    fn visit_pair(
-        &mut self,
-        key: log::kv::Key<'kvs>,
-        value: log::kv::Value<'kvs>,
-    ) -> Result<(), log::kv::Error> {
-        self.kv.push((key.to_string(), value.to_string()));
-        Ok(())
-    }
-}
-
 impl Visitor for KvCollector {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
-        self.kv.push((key.into_owned(), value.into_owned()));
+    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
+        self.kv.push((key.into_string(), value.to_string()));
         Ok(())
     }
 }

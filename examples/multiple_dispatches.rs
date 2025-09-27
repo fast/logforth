@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::LevelFilter;
 use logforth::append;
+use logforth::record::LevelFilter;
 
 fn main() {
     logforth::builder()
@@ -25,7 +25,7 @@ fn main() {
             d.filter(LevelFilter::Info)
                 .append(append::Stdout::default())
         })
-        .apply();
+        .setup_log_crate();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

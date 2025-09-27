@@ -17,18 +17,19 @@ use fastrace::collector::Config;
 use fastrace::collector::ConsoleReporter;
 use fastrace::collector::SpanContext;
 use logforth::diagnostic;
+use logforth::record::LevelFilter;
 
 fn main() {
     logforth::builder()
         .dispatch(|d| {
-            d.filter(log::LevelFilter::Trace)
+            d.filter(LevelFilter::Trace)
                 .append(logforth::append::FastraceEvent::default())
         })
         .dispatch(|d| {
             d.diagnostic(diagnostic::FastraceDiagnostic::default())
                 .append(logforth::append::Stderr::default())
         })
-        .apply();
+        .setup_log_crate();
 
     fastrace::set_reporter(ConsoleReporter, Config::default());
 

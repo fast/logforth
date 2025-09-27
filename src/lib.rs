@@ -28,7 +28,7 @@
 //! Simple setup with default stdout appender:
 //!
 //! ```
-//! logforth::stdout().apply();
+//! logforth::stdout().setup_log_crate();
 //!
 //! log::info!("This is an info message.");
 //! ```
@@ -36,8 +36,8 @@
 //! Advanced setup with custom filters and multiple appenders:
 //!
 //! ```
-//! use log::LevelFilter;
 //! use logforth::append;
+//! use logforth::record::LevelFilter;
 //!
 //! logforth::builder()
 //!     .dispatch(|d| {
@@ -48,7 +48,7 @@
 //!         d.filter(LevelFilter::Info)
 //!             .append(append::Stdout::default())
 //!     })
-//!     .apply();
+//!     .setup_log_crate();
 //!
 //! log::error!("Error message.");
 //! log::info!("Info message.");
@@ -56,23 +56,21 @@
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-#[cfg(feature = "colored")]
-pub extern crate colored;
-#[cfg(feature = "colored")]
-pub mod color;
-
 pub mod append;
 pub mod diagnostic;
 pub mod filter;
+pub mod kv;
 pub mod layout;
+pub mod record;
+pub mod str;
 
-pub use append::Append;
-pub use diagnostic::Diagnostic;
-pub use filter::Filter;
-pub use layout::Layout;
+pub use self::append::Append;
+pub use self::diagnostic::Diagnostic;
+pub use self::filter::Filter;
+pub use self::layout::Layout;
 
 mod error;
-pub use error::*;
+pub use self::error::*;
 
 mod logger;
-pub use logger::*;
+pub use self::logger::*;

@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::Record;
-
 use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
 use crate::append::Append;
-use crate::layout::TextLayout;
+use crate::layout::PlainTextLayout;
+use crate::record::Record;
 
 /// An appender that writes log records that can be captured by a test harness (like `cargo test`),
 /// and thus the outputs are suppressed unless `--nocapture` or `--show-output` is specified.
@@ -38,7 +37,7 @@ pub struct Testing {
 impl Default for Testing {
     fn default() -> Self {
         Self {
-            layout: Box::new(TextLayout::default()),
+            layout: Box::new(PlainTextLayout::default()),
         }
     }
 }
@@ -50,9 +49,9 @@ impl Testing {
     ///
     /// ```
     /// use logforth::append::Testing;
-    /// use logforth::layout::TextLayout;
+    /// use logforth::layout::PlainTextLayout;
     ///
-    /// let test_appender = Testing::default().with_layout(TextLayout::default());
+    /// let test_appender = Testing::default().with_layout(PlainTextLayout::default());
     /// ```
     pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
         self.layout = layout.into();

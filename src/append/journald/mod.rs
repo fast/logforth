@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::Cow;
 use std::io::Write;
 use std::os::unix::net::UnixDatagram;
-
-use log::Level;
-use log::Record;
 
 use crate::Append;
 use crate::Diagnostic;
 use crate::Error;
-use crate::diagnostic::Visitor;
+use crate::kv::Key;
+use crate::kv::Value;
+use crate::kv::Visitor;
+use crate::record::Level;
+use crate::record::Record;
 
 mod field;
 #[cfg(target_os = "linux")]
@@ -76,8 +76,8 @@ fn current_exe_identifier() -> Option<String> {
 /// ## Custom fields and structured record fields
 ///
 /// In addition to these fields the appender also adds all structures key-values
-/// (see [`Record::key_values`]) from each log record as journal fields,
-/// and also supports global extra fields via [`Journald::with_extra_fields`].
+/// from each log record as journal fields, and also supports global extra fields via
+/// [`Journald::with_extra_fields`].
 ///
 /// Journald allows only ASCII uppercase letters, ASCII digits, and the
 /// underscore in field names, and limits field names to 64 bytes.  See
@@ -179,7 +179,7 @@ impl Journald {
         self
     }
 
-    /// Sets the syslog identifier for this appender.
+    /// Set the syslog identifier for this appender.
     ///
     /// The syslog identifier comes from the classic syslog interface (`openlog()`
     /// and `syslog()`) and tags log entries with a given identifier.
@@ -200,7 +200,7 @@ impl Journald {
         self
     }
 
-    /// Returns the syslog identifier in use.
+    /// Return the syslog identifier in use.
     pub fn syslog_identifier(&self) -> &str {
         &self.syslog_identifier
     }
@@ -230,22 +230,9 @@ impl Journald {
 
 struct WriteKeyValues<'a>(&'a mut Vec<u8>);
 
-impl<'kvs> log::kv::VisitSource<'kvs> for WriteKeyValues<'_> {
-    fn visit_pair(
-        &mut self,
-        key: log::kv::Key<'kvs>,
-        value: log::kv::Value<'kvs>,
-    ) -> Result<(), log::kv::Error> {
-        let key = key.as_str();
-        field::put_field_length_encoded(self.0, field::FieldName::WriteEscaped(key), value);
-        Ok(())
-    }
-}
-
 impl Visitor for WriteKeyValues<'_> {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
-        let key = key.as_ref();
-        let value = value.as_bytes();
+    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
+        let key = key.as_str();
         field::put_field_length_encoded(self.0, field::FieldName::WriteEscaped(key), value);
         Ok(())
     }
@@ -307,10 +294,7 @@ impl Append for Journald {
         );
         // Put all structured values of the record
         let mut visitor = WriteKeyValues(&mut buffer);
-        record
-            .key_values()
-            .visit(&mut visitor)
-            .map_err(Error::from_kv_error)?;
+        record.key_values().visit(&mut visitor)?;
         for d in diags {
             d.visit(&mut visitor)?;
         }

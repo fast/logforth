@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::Cow;
-
 use jiff::Timestamp;
-use jiff::Zoned;
 use jiff::tz::TimeZone;
-use log::Record;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::diagnostic::Visitor;
+use crate::kv::Key;
+use crate::kv::Value;
+use crate::kv::Visitor;
 use crate::layout::Layout;
 use crate::layout::filename;
+use crate::record::Record;
 
 /// A logfmt layout for formatting log records.
 ///
@@ -71,58 +70,45 @@ impl LogfmtLayout {
     }
 }
 
-// The encode logic is copied from https://github.com/go-logfmt/logfmt/blob/76262ea7/encode.go.
-fn encode_key_value(result: &mut String, key: &str, value: &str) -> Result<(), Error> {
-    use std::fmt::Write;
-
-    if key.contains([' ', '=', '"']) {
-        // omit keys contain special chars
-        return Err(Error::new(format!("key contains special chars: {key}")));
-    }
-
-    // SAFETY: write to a string always succeeds
-    if value.contains([' ', '=', '"']) {
-        write!(result, " {key}=\"{}\"", value.escape_debug()).unwrap();
-    } else {
-        write!(result, " {key}={value}").unwrap();
-    }
-
-    Ok(())
-}
-
 struct KvFormatter {
     text: String,
 }
 
-impl<'kvs> log::kv::VisitSource<'kvs> for KvFormatter {
-    fn visit_pair(
-        &mut self,
-        key: log::kv::Key<'kvs>,
-        value: log::kv::Value<'kvs>,
-    ) -> Result<(), log::kv::Error> {
-        match encode_key_value(&mut self.text, key.as_str(), value.to_string().as_str()) {
-            Ok(()) => Ok(()),
-            Err(err) => Err(log::kv::Error::boxed(err)),
-        }
-    }
-}
-
 impl Visitor for KvFormatter {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
-        encode_key_value(&mut self.text, key.as_ref(), value.as_ref())?;
+    // The encode logic is copied from https://github.com/go-logfmt/logfmt/blob/76262ea7/encode.go.
+    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
+        use std::fmt::Write;
+
+        let key = key.as_str();
+        let value = value.to_string();
+        let value = value.as_str();
+
+        if key.contains([' ', '=', '"']) {
+            // omit keys contain special chars
+            return Err(Error::new(format!("key contains special chars: {key}")));
+        }
+
+        // SAFETY: write to a string always succeeds
+        if value.contains([' ', '=', '"']) {
+            write!(&mut self.text, " {key}=\"{}\"", value.escape_debug()).unwrap();
+        } else {
+            write!(&mut self.text, " {key}={value}").unwrap();
+        }
+
         Ok(())
     }
 }
 
 impl Layout for LogfmtLayout {
     fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
-        let time = match self.tz.clone() {
-            None => Zoned::now(),
-            Some(tz) => Timestamp::now().to_zoned(tz),
-        };
-        let time = time.timestamp().display_with_offset(time.offset());
+        // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
+        // very unlikely if the system clock is correct.
+        let ts = Timestamp::try_from(record.time()).unwrap();
+        let tz = self.tz.clone().unwrap_or_else(TimeZone::system);
+        let offset = tz.to_offset(ts);
+        let time = ts.display_with_offset(offset);
 
-        let level = record.level().to_string();
+        let level = record.level();
         let target = record.target();
         let file = filename(record);
         let line = record.line().unwrap_or_default();
@@ -132,15 +118,15 @@ impl Layout for LogfmtLayout {
             text: format!("timestamp={time:.6}"),
         };
 
-        visitor.visit(Cow::Borrowed("level"), level.into())?;
-        visitor.visit(Cow::Borrowed("module"), target.into())?;
-        visitor.visit(Cow::Borrowed("position"), format!("{file}:{line}").into())?;
-        visitor.visit(Cow::Borrowed("message"), message.to_string().into())?;
+        visitor.visit("level".into(), level.as_str().into())?;
+        visitor.visit("module".into(), target.into())?;
+        visitor.visit(
+            "position".into(),
+            Value::from_debug(&format_args!("{file}:{line}")),
+        )?;
+        visitor.visit("message".into(), Value::from_debug(message))?;
 
-        record
-            .key_values()
-            .visit(&mut visitor)
-            .map_err(Error::from_kv_error)?;
+        record.key_values().visit(&mut visitor)?;
         for d in diags {
             d.visit(&mut visitor)?;
         }

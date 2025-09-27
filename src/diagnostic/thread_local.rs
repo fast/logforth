@@ -17,7 +17,7 @@ use std::collections::BTreeMap;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::diagnostic::Visitor;
+use crate::kv::Visitor;
 
 thread_local! {
     static CONTEXT: RefCell<BTreeMap<String, String>> = const { RefCell::new(BTreeMap::new()) };
@@ -61,7 +61,7 @@ impl Diagnostic for ThreadLocalDiagnostic {
         CONTEXT.with(|map| {
             let map = map.borrow();
             for (key, value) in map.iter() {
-                visitor.visit(key.into(), value.into())?;
+                visitor.visit(key.as_str().into(), value.as_str().into())?;
             }
             Ok(())
         })

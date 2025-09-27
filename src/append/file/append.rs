@@ -18,8 +18,6 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
 
-use log::Record;
-
 use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
@@ -27,7 +25,8 @@ use crate::append::Append;
 use crate::append::file::rolling::RollingFileWriter;
 use crate::append::file::rolling::RollingFileWriterBuilder;
 use crate::append::file::rotation::Rotation;
-use crate::layout::TextLayout;
+use crate::layout::PlainTextLayout;
+use crate::record::Record;
 
 /// A builder to configure and create an [`File`] appender.
 #[derive(Debug)]
@@ -41,7 +40,7 @@ impl FileBuilder {
     pub fn new(basedir: impl Into<PathBuf>, filename: impl Into<String>) -> Self {
         Self {
             builder: RollingFileWriterBuilder::new(basedir, filename),
-            layout: Box::new(TextLayout::default().no_color()),
+            layout: Box::new(PlainTextLayout::default()),
         }
     }
 
@@ -49,7 +48,7 @@ impl FileBuilder {
     ///
     /// # Errors
     ///
-    /// Returns an error if either:
+    /// Return an error if either:
     ///
     /// * The log directory cannot be created.
     /// * The configured filename is empty.
@@ -61,7 +60,7 @@ impl FileBuilder {
 
     /// Set the layout for the logs.
     ///
-    /// Default to [`TextLayout`].
+    /// Default to [`PlainTextLayout`].
     ///
     /// # Examples
     ///

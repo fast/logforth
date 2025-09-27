@@ -14,6 +14,7 @@
 
 use logforth::append::file::FileBuilder;
 use logforth::layout::JsonLayout;
+use logforth::record::LevelFilter;
 
 fn main() {
     let rolling_writer = FileBuilder::new("logs", "my_app")
@@ -23,8 +24,8 @@ fn main() {
         .unwrap();
 
     logforth::builder()
-        .dispatch(|d| d.filter(log::LevelFilter::Trace).append(rolling_writer))
-        .apply();
+        .dispatch(|d| d.filter(LevelFilter::Trace).append(rolling_writer))
+        .setup_log_crate();
 
     let repeat = 1;
 

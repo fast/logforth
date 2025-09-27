@@ -14,14 +14,17 @@
 
 use std::io::Write;
 
-use log::Metadata;
-use log::Record;
-
 use crate::Append;
 use crate::Diagnostic;
 use crate::Error;
 use crate::Filter;
 use crate::filter::FilterResult;
+use crate::kv::Key;
+use crate::kv::Value;
+use crate::record::Metadata;
+use crate::record::MetadataBuilder;
+use crate::record::Record;
+use crate::record::RecordBuilder;
 
 /// A logger facade that dispatches log records to one or more dispatcher.
 ///
@@ -38,14 +41,16 @@ impl Logger {
     }
 }
 
-impl log::Log for Logger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
+impl Logger {
+    /// Determines if a log message with the specified metadata would be logged.
+    pub fn enabled(&self, metadata: &Metadata) -> bool {
         self.dispatches
             .iter()
             .any(|dispatch| dispatch.enabled(metadata))
     }
 
-    fn log(&self, record: &Record) {
+    /// Logs the Record.
+    pub fn log(&self, record: &Record) {
         for dispatch in &self.dispatches {
             if let Err(err) = dispatch.log(record) {
                 handle_log_error(record, err);
@@ -53,12 +58,78 @@ impl log::Log for Logger {
         }
     }
 
-    fn flush(&self) {
+    /// Flushes any buffered records.
+    pub fn flush(&self) {
         for dispatch in &self.dispatches {
             if let Err(err) = dispatch.flush() {
                 handle_flush_error(err);
             }
         }
+    }
+}
+
+impl log::Log for Logger {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        let metadata = MetadataBuilder::default()
+            .target(metadata.target())
+            .level(metadata.level().into())
+            .build();
+
+        Logger::enabled(self, &metadata)
+    }
+
+    fn log(&self, record: &log::Record) {
+        // basic fields
+        let mut builder = RecordBuilder::default()
+            .args(*record.args())
+            .level(record.level().into())
+            .target(record.target())
+            .line(record.line());
+
+        // optional static fields
+        builder = if let Some(module_path) = record.module_path_static() {
+            builder.module_path_static(module_path)
+        } else {
+            builder.module_path(record.module_path())
+        };
+        builder = if let Some(file) = record.file_static() {
+            builder.file_static(file)
+        } else {
+            builder.file(record.file())
+        };
+
+        // key-values
+        let mut kvs = Vec::new();
+
+        struct KeyValueVisitor<'a, 'b> {
+            kvs: &'b mut Vec<(log::kv::Key<'a>, log::kv::Value<'a>)>,
+        }
+
+        impl<'a, 'b> log::kv::VisitSource<'a> for KeyValueVisitor<'a, 'b> {
+            fn visit_pair(
+                &mut self,
+                key: log::kv::Key<'a>,
+                value: log::kv::Value<'a>,
+            ) -> Result<(), log::kv::Error> {
+                self.kvs.push((key, value));
+                Ok(())
+            }
+        }
+
+        let mut visitor = KeyValueVisitor { kvs: &mut kvs };
+        record.key_values().visit(&mut visitor).unwrap();
+
+        let mut new_kvs = Vec::with_capacity(kvs.len());
+        for (k, v) in kvs.iter() {
+            new_kvs.push((Key::from(k.as_str()), Value::from_sval2(v)));
+        }
+        builder = builder.key_values(new_kvs.as_slice());
+
+        Logger::log(self, &builder.build());
+    }
+
+    fn flush(&self) {
+        Logger::flush(self);
     }
 }
 

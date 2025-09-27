@@ -21,6 +21,7 @@
 //! use logforth::append::file::File;
 //! use logforth::append::file::FileBuilder;
 //! use logforth::layout::JsonLayout;
+//! use logforth::record::LevelFilter;
 //!
 //! let rolling_file = FileBuilder::new("logs", "app_log")
 //!     .layout(JsonLayout::default())
@@ -29,8 +30,8 @@
 //!     .unwrap();
 //!
 //! logforth::builder()
-//!     .dispatch(|d| d.filter(log::LevelFilter::Trace).append(rolling_file))
-//!     .apply();
+//!     .dispatch(|d| d.filter(LevelFilter::Trace).append(rolling_file))
+//!     .setup_log_crate();
 //!
 //! log::info!("This log will be written to a rolling file.");
 //! ```

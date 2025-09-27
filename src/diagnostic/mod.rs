@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Mapped Diagnostic Context (MDC). A lighter technique consists of uniquely stamping each log
-//! request.
+//! Mapped Diagnostic Context (MDC).
+//!
+//! A lighter technique consists of uniquely stamping each log request.
 
-use std::borrow::Cow;
 use std::fmt;
 
 use crate::Error;
+use crate::kv;
 
 #[cfg(feature = "diagnostic-fastrace")]
 mod fastrace;
@@ -30,16 +31,10 @@ pub use self::fastrace::FastraceDiagnostic;
 pub use self::static_global::StaticDiagnostic;
 pub use self::thread_local::ThreadLocalDiagnostic;
 
-/// A visitor to walk through diagnostic key-value pairs.
-pub trait Visitor {
-    /// Visits a key-value pair.
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error>;
-}
-
 /// A trait representing a Mapped Diagnostic Context (MDC) that provides diagnostic key-values.
 pub trait Diagnostic: fmt::Debug + Send + Sync + 'static {
     /// Visits the MDC key-values with the provided visitor.
-    fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error>;
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error>;
 }
 
 impl<T: Diagnostic> From<T> for Box<dyn Diagnostic> {

@@ -18,7 +18,6 @@ use std::borrow::Cow;
 use std::fmt;
 use std::time::SystemTime;
 
-use log::Record;
 use opentelemetry::InstrumentationScope;
 use opentelemetry::logs::AnyValue;
 use opentelemetry::logs::LogRecord;
@@ -32,7 +31,11 @@ use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
 use crate::append::Append;
-use crate::diagnostic::Visitor;
+use crate::kv::Key;
+use crate::kv::Value;
+use crate::kv::Visitor;
+use crate::record::Level;
+use crate::record::Record;
 
 /// A builder to configure and create an [`OpentelemetryLog`] appender.
 #[derive(Debug)]
@@ -247,10 +250,7 @@ impl Append for OpentelemetryLog {
         let mut extractor = KvExtractor {
             record: &mut log_record,
         };
-        record
-            .key_values()
-            .visit(&mut extractor)
-            .map_err(Error::from_kv_error)?;
+        record.key_values().visit(&mut extractor)?;
         for d in diags {
             d.visit(&mut extractor)?;
         }
@@ -266,13 +266,13 @@ impl Append for OpentelemetryLog {
     }
 }
 
-fn log_level_to_otel_severity(level: log::Level) -> opentelemetry::logs::Severity {
+fn log_level_to_otel_severity(level: Level) -> opentelemetry::logs::Severity {
     match level {
-        log::Level::Error => opentelemetry::logs::Severity::Error,
-        log::Level::Warn => opentelemetry::logs::Severity::Warn,
-        log::Level::Info => opentelemetry::logs::Severity::Info,
-        log::Level::Debug => opentelemetry::logs::Severity::Debug,
-        log::Level::Trace => opentelemetry::logs::Severity::Trace,
+        Level::Error => opentelemetry::logs::Severity::Error,
+        Level::Warn => opentelemetry::logs::Severity::Warn,
+        Level::Info => opentelemetry::logs::Severity::Info,
+        Level::Debug => opentelemetry::logs::Severity::Debug,
+        Level::Trace => opentelemetry::logs::Severity::Trace,
     }
 }
 
@@ -314,23 +314,10 @@ struct KvExtractor<'a> {
     record: &'a mut SdkLogRecord,
 }
 
-impl<'kvs> log::kv::VisitSource<'kvs> for KvExtractor<'_> {
-    fn visit_pair(
-        &mut self,
-        key: log::kv::Key<'kvs>,
-        value: log::kv::Value<'kvs>,
-    ) -> Result<(), log::kv::Error> {
-        let key = key.to_string();
-        let value = value.to_string();
-        self.record.add_attribute(key, value);
-        Ok(())
-    }
-}
-
 impl Visitor for KvExtractor<'_> {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
-        let key = key.into_owned();
-        let value = value.into_owned();
+    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
+        let key = key.into_string();
+        let value = value.to_string();
         self.record.add_attribute(key, value);
         Ok(())
     }

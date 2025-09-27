@@ -47,7 +47,7 @@ fn main() {
                     ),
                 )
         })
-        .apply();
+        .setup_log_crate();
 
     fastrace::set_reporter(ConsoleReporter, Config::default());
 

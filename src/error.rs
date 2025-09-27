@@ -15,7 +15,7 @@
 use std::fmt;
 use std::io;
 
-/// Error is the error struct returned by Logforth's interfaces.
+/// The error struct of Logforth.
 pub struct Error {
     message: String,
     source: Option<anyhow::Error>,
@@ -121,10 +121,5 @@ impl Error {
     /// Default constructor for [`Error`] from [`fmt::Error`].
     pub fn from_fmt_error(err: fmt::Error) -> Error {
         Error::new("failed to perform format").set_source(err)
-    }
-
-    /// Default constructor for [`Error`] from [`log::kv::Error`].
-    pub fn from_kv_error(err: log::kv::Error) -> Error {
-        Error::new("failed to visit log kvs").set_source(err)
     }
 }

@@ -39,11 +39,18 @@ All notable changes to this project will be documented in this file.
 * `EnvFilter` is now self-hosted. Some methods may be changed, but the general user experience should retain:
   * `EnvFilter`'s constructors (`from_env`, etc.) are moved to `EnvFilterBuilder`.
 * Upgrade to opentelemetry 0.31.0.
+* `LoggerBuilder`'s `try_apply`/`apply` methods are renamed to `try_setup_log_crate`/`setup_log_crate`.
+* `TextLayout` is now behind `layout-text` feature flag, and colored is always available when the feature is enabled.
+* Internal log structs are migrated from `log` crate to self-hosted types. This should not affect most users, but if you are customizing appender, layout, filter, and diagnostic, you should replace `log::Record`, `log::Metadata`, or `log::Level`, with `logforth::Record`, `logforth::Metadata`, or `logforth::Level`.
 
 ### Notable changes
 
 * Timestamp format in `TextLayout`, `JsonLayout`, and `LogfmtLayout` is changed from RFC 9557 to RFC 3339 format.
   * That is, from "2025-01-10T15:22:37.868815+08:00[Asia/Shanghai]" to "2025-01-10T15:22:37.868815+08:00".
+
+### New features
+
+* `PlainTextLayout` is added to support plain text format without any extra dependency.
 
 ## [0.27.0] 2025-08-18
 
