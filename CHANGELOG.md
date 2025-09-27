@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
     ```rust
     fn main() {
         logforth::bridge::setup_log_crate();
-        logforth::builder().apply()
+        logforth::builder().apply();
     }
     ```
 * `TextLayout` is now behind `layout-text` feature flag, and colored is always available when the feature is enabled.
