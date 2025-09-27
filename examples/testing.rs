@@ -31,9 +31,10 @@ mod tests {
 
     #[test]
     fn testing() {
+        logforth::bridge::setup_log_crate();
         logforth::builder()
             .dispatch(|d| d.filter(LevelFilter::Trace).append(Testing::default()))
-            .setup_log_crate();
+            .apply();
 
         log::error!("Hello error!");
         log::warn!("Hello warn!");

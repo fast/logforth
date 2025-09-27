@@ -45,11 +45,12 @@ fn test_meta_logging_in_format_works() {
         .build()
         .unwrap();
 
+    logforth::bridge::setup_log_crate();
     logforth::builder()
         .dispatch(|d| d.append(stdout))
         .dispatch(|d| d.append(stderr))
         .dispatch(|d| d.append(rolling))
-        .setup_log_crate();
+        .apply();
 
     struct Thing<'a>(&'a str);
 

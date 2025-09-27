@@ -16,9 +16,8 @@ use crate::Append;
 use crate::Diagnostic;
 use crate::Filter;
 use crate::Logger;
-use crate::append;
-use crate::filter::env_filter::EnvFilterBuilder;
 use crate::logger::log_impl::Dispatch;
+use crate::logger::log_impl::set_default_logger;
 
 /// Create a new empty [`LoggerBuilder`] instance for configuring log dispatching.
 ///
@@ -29,46 +28,10 @@ use crate::logger::log_impl::Dispatch;
 ///
 /// let builder = logforth::builder()
 ///     .dispatch(|d| d.append(append::Stderr::default()))
-///     .setup_log_crate();
+///     .apply();
 /// ```
 pub fn builder() -> LoggerBuilder {
     LoggerBuilder::new()
-}
-
-/// Create a [`LoggerBuilder`] with a default [`append::Stdout`] appender and an [`EnvFilter`]
-/// respecting `RUST_LOG`.
-///
-/// [`EnvFilter`]: crate::filter::EnvFilter
-///
-/// # Examples
-///
-/// ```
-/// logforth::stdout().setup_log_crate();
-/// log::error!("This error will be logged to stdout.");
-/// ```
-pub fn stdout() -> LoggerBuilder {
-    builder().dispatch(|d| {
-        d.filter(EnvFilterBuilder::from_default_env().build())
-            .append(append::Stdout::default())
-    })
-}
-
-/// Create a [`LoggerBuilder`] with a default [`append::Stderr`] appender and an [`EnvFilter`]
-/// respecting `RUST_LOG`.
-///
-/// [`EnvFilter`]: crate::filter::EnvFilter
-///
-/// # Examples
-///
-/// ```
-/// logforth::stderr().setup_log_crate();
-/// log::info!("This info will be logged to stderr.");
-/// ```
-pub fn stderr() -> LoggerBuilder {
-    builder().dispatch(|d| {
-        d.filter(EnvFilterBuilder::from_default_env().build())
-            .append(append::Stderr::default())
-    })
 }
 
 /// A builder for configuring log dispatching and setting up the global logger.
@@ -80,7 +43,7 @@ pub fn stderr() -> LoggerBuilder {
 ///
 /// logforth::builder()
 ///     .dispatch(|d| d.append(append::Stdout::default()))
-///     .setup_log_crate();
+///     .apply();
 /// ```
 #[must_use = "call `apply` to set the global logger or `build` to construct a logger instance"]
 #[derive(Debug)]
@@ -103,7 +66,7 @@ impl LoggerBuilder {
     ///
     /// logforth::builder()
     ///     .dispatch(|d| d.append(append::Stderr::default()))
-    ///     .setup_log_crate();
+    ///     .apply();
     /// ```
     pub fn dispatch<F>(mut self, f: F) -> Self
     where
@@ -125,16 +88,10 @@ impl LoggerBuilder {
         Logger::new(self.dispatches)
     }
 
-    /// Set up `log`'s global logger with all the configured dispatches.
+    /// Set up the global logger with all the configured dispatches.
     ///
     /// This should be called early in the execution of a Rust program. Any log events that occur
     /// before initialization will be ignored.
-    ///
-    /// This function will set the global maximum log level to `Trace`. To override this, call
-    /// [`log::set_max_level`] after this function.
-    ///
-    /// Alternatively, you can obtain a [`Logger`] instance by calling [`LoggerBuilder::build`], and
-    /// then call [`log::set_boxed_logger`] manually.
     ///
     /// # Errors
     ///
@@ -143,28 +100,21 @@ impl LoggerBuilder {
     /// # Examples
     ///
     /// ```
-    /// let result = logforth::builder().try_setup_log_crate();
-    /// if let Err(e) = result {
-    ///     eprintln!("Failed to set logger: {}", e);
+    /// if logforth::builder().try_apply().is_err() {
+    ///     eprintln!("failed to set logger");
     /// }
     /// ```
-    pub fn try_setup_log_crate(self) -> Result<(), log::SetLoggerError> {
-        let logger = self.build();
-        log::set_boxed_logger(Box::new(logger))?;
-        log::set_max_level(log::LevelFilter::Trace);
-        Ok(())
+    pub fn try_apply(self) -> Result<(), Logger> {
+        set_default_logger(self.build())
     }
 
-    /// Set up `log`'s global logger with all the configured dispatches.
+    /// Set up the global logger with all the configured dispatches.
+    ///
+    /// This should be called early in the execution of a Rust program. Any log events that occur
+    /// before initialization will be ignored.
     ///
     /// This function will panic if it is called more than once, or if another library has already
     /// initialized a global logger.
-    ///
-    /// This function will set the global maximum log level to `Trace`. To override this, call
-    /// [`log::set_max_level`] after this function.
-    ///
-    /// Alternatively, you can obtain a [`Logger`] instance by calling [`LoggerBuilder::build`], and
-    /// then call [`log::set_boxed_logger`] manually.
     ///
     /// # Panics
     ///
@@ -173,10 +123,10 @@ impl LoggerBuilder {
     /// # Examples
     ///
     /// ```
-    /// logforth::builder().setup_log_crate();
+    /// logforth::builder().apply();
     /// ```
-    pub fn setup_log_crate(self) {
-        self.try_setup_log_crate()
+    pub fn apply(self) {
+        self.try_apply()
             .expect("LoggerBuilder::apply must be called before the global logger initialized");
     }
 }
@@ -194,7 +144,7 @@ impl LoggerBuilder {
 ///         d.filter(LevelFilter::Info)
 ///             .append(append::Stdout::default())
 ///     })
-///     .setup_log_crate();
+///     .apply();
 /// ```
 #[derive(Debug)]
 pub struct DispatchBuilder<const APPEND: bool> {
@@ -225,7 +175,7 @@ impl DispatchBuilder<false> {
     ///         d.filter(LevelFilter::Error)
     ///             .append(append::Stderr::default())
     ///     })
-    ///     .setup_log_crate();
+    ///     .apply();
     /// ```
     pub fn filter(mut self, filter: impl Into<Box<dyn Filter>>) -> Self {
         self.filters.push(filter.into());
@@ -247,7 +197,7 @@ impl DispatchBuilder<false> {
     ///             .diagnostic(diagnostic::ThreadLocalDiagnostic::default())
     ///             .append(append::Stderr::default())
     ///     })
-    ///     .setup_log_crate();
+    ///     .apply();
     /// ```
     pub fn diagnostic(mut self, diagnostic: impl Into<Box<dyn Diagnostic>>) -> Self {
         self.diagnostics.push(diagnostic.into());
@@ -271,7 +221,7 @@ impl<const APPEND: bool> DispatchBuilder<APPEND> {
     ///
     /// logforth::builder()
     ///     .dispatch(|d| d.append(append::Stdout::default()))
-    ///     .setup_log_crate();
+    ///     .apply();
     /// ```
     pub fn append(mut self, append: impl Into<Box<dyn Append>>) -> DispatchBuilder<true> {
         self.appends.push(append.into());

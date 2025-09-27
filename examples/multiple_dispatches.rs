@@ -16,6 +16,7 @@ use logforth::append;
 use logforth::record::LevelFilter;
 
 fn main() {
+    logforth::bridge::setup_log_crate();
     logforth::builder()
         .dispatch(|d| {
             d.filter(LevelFilter::Error)
@@ -25,7 +26,7 @@ fn main() {
             d.filter(LevelFilter::Info)
                 .append(append::Stdout::default())
         })
-        .setup_log_crate();
+        .apply();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

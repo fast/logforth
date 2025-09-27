@@ -36,6 +36,7 @@ struct MyStructuredValue {
 }
 
 fn main() {
+    logforth::bridge::setup_log_crate();
     logforth::builder()
         .dispatch(|d| {
             d.diagnostic(diagnostic::FastraceDiagnostic::default())
@@ -47,7 +48,7 @@ fn main() {
                     ),
                 )
         })
-        .setup_log_crate();
+        .apply();
 
     fastrace::set_reporter(ConsoleReporter, Config::default());
 

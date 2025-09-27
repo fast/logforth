@@ -21,14 +21,15 @@
 //!
 //! Logforth allows you to set up multiple log dispatches with different filters and appenders. You
 //! can configure global log levels, use built-in appenders for stdout, stderr, files, or create
-//! custom appenders. It integrates seamlessly with the `log` crate.
+//! custom appenders. It provides out-of-the-box integrations with the `log` crate.
 //!
 //! # Examples
 //!
 //! Simple setup with default stdout appender:
 //!
 //! ```
-//! logforth::stdout().setup_log_crate();
+//! logforth::bridge::setup_log_crate();
+//! logforth::stdout().apply();
 //!
 //! log::info!("This is an info message.");
 //! ```
@@ -39,6 +40,7 @@
 //! use logforth::append;
 //! use logforth::record::LevelFilter;
 //!
+//! logforth::bridge::setup_log_crate();
 //! logforth::builder()
 //!     .dispatch(|d| {
 //!         d.filter(LevelFilter::Error)
@@ -48,7 +50,7 @@
 //!         d.filter(LevelFilter::Info)
 //!             .append(append::Stdout::default())
 //!     })
-//!     .setup_log_crate();
+//!     .apply();
 //!
 //! log::error!("Error message.");
 //! log::info!("Info message.");
@@ -57,6 +59,7 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 pub mod append;
+pub mod bridge;
 pub mod diagnostic;
 pub mod filter;
 pub mod kv;

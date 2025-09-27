@@ -12,16 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod builder;
-pub use self::builder::DispatchBuilder;
-pub use self::builder::LoggerBuilder;
-pub use self::builder::builder;
+//! Bridge Logforth with interfaces of logging crates.
 
-mod log_impl;
-pub use self::log_impl::Logger;
-pub use self::log_impl::default_logger;
-pub use self::log_impl::set_default_logger;
-
-mod utility;
-pub use self::utility::stderr;
-pub use self::utility::stdout;
+mod log;
+pub use self::log::setup_log_crate;
+pub use self::log::try_setup_log_crate;

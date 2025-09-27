@@ -58,7 +58,6 @@ layout-text = ["dep:colored"]
 diagnostic-fastrace = ["dep:fastrace"]
 
 # Standalone features
-colored = ["dep:colored"]
 native-tls = ["dep:native-tls", "fasyslog?/native-tls"]
 rustls = ["dep:rustls", "fasyslog?/rustls"]
 

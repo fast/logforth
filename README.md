@@ -40,7 +40,8 @@ Set up a basic logger that outputs to stdout:
 
 ```rust
 fn main() {
-    logforth::stdout().setup_log_crate();
+    logforth::bridge::setup_log_crate();
+    logforth::stdout().apply();
 
     log::error!("This is an error message.");
     log::info!("This is an info message.");
@@ -59,6 +60,7 @@ use logforth::record::LevelFilter;
 use logforth::append;
 
 fn main() {
+    logforth::bridge::setup_log_crate();
     logforth::builder()
         .dispatch(|d| d
             .filter(LevelFilter::Error)
@@ -66,7 +68,7 @@ fn main() {
         .dispatch(|d| d
             .filter(LevelFilter::Info)
             .append(append::Stdout::default()))
-        .setup_log_crate();
+        .apply();
 
     log::error!("This error will be logged to stderr.");
     log::info!("This info will be logged to stdout.");
