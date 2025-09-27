@@ -73,3 +73,9 @@ unused_must_use = "deny"
 
 [workspace.lints.clippy]
 dbg_macro = "deny"
+
+[workspace.metadata.release]
+pre-release-commit-message = "chore: Release {{crate_name}} version {{version}}"
+sign-commit = true
+sign-tag = true
+tag-message = "chore: Release {{crate_name}} version {{version}}"
