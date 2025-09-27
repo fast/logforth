@@ -16,7 +16,7 @@
 name = "logforth-append-file"
 version = "0.1.0"
 
-description = "Fastrace appender for Logforth."
+description = "File appender for Logforth with optional rollover strategy."
 keywords = ["logging", "log", "file-appender"]
 
 categories.workspace = true

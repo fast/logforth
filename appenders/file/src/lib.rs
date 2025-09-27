@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Appender for writing log records to rolling files.
+//! Appender for writing log records to single file or rolling files.
 //!
 //! # Example
 //!
