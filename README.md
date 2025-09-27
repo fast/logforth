@@ -31,7 +31,7 @@ Add `log` and `logforth` to your `Cargo.toml`:
 
 ```shell
 cargo add log
-cargo add logforth
+cargo add logforth -F starter-log
 ```
 
 ## Simple Usage
