@@ -1,0 +1,162 @@
+# Copyright 2024 FastLabs Developers
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+[package]
+name = "logforth"
+version = "0.27.0"
+
+description = "A versatile and extensible logging implementation."
+keywords = ["logging", "log", "opentelemetry", "fastrace"]
+
+categories.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = []
+
+# Starters
+starter-log = ["bridge-log", "append-file", "layout-text", "layout-json"]
+
+# Bridges
+bridge-log = ["dep:logforth-bridge-log"]
+
+# Appenders
+append-fastrace = ["dep:logforth-append-fastrace"]
+append-file = ["dep:logforth-append-file"]
+append-journald = ["dep:logforth-append-journald"]
+append-opentelemetry = ["dep:logforth-append-opentelemetry"]
+append-syslog = ["dep:logforth-append-syslog"]
+
+# Layouts
+layout-google-cloud-logging = ["dep:logforth-layout-google-cloud-logging"]
+layout-json = ["dep:logforth-layout-json"]
+layout-logfmt = ["dep:logforth-layout-logfmt"]
+layout-text = ["dep:logforth-layout-text"]
+
+# Diagnostics
+diagnostic-fastrace = ["dep:logforth-diagnostic-fastrace"]
+
+# Standalone features
+native-tls = ["logforth-append-syslog?/native-tls"]
+rustls = ["logforth-append-syslog?/rustls"]
+
+[dependencies]
+logforth-core = { workspace = true }
+
+# Optional dependencies
+logforth-append-fastrace = { workspace = true, optional = true }
+logforth-append-file = { workspace = true, optional = true }
+logforth-append-journald = { workspace = true, optional = true }
+logforth-append-opentelemetry = { workspace = true, optional = true }
+logforth-append-syslog = { workspace = true, optional = true }
+logforth-bridge-log = { workspace = true, optional = true }
+logforth-diagnostic-fastrace = { workspace = true, optional = true }
+logforth-layout-google-cloud-logging = { workspace = true, optional = true }
+logforth-layout-json = { workspace = true, optional = true }
+logforth-layout-logfmt = { workspace = true, optional = true }
+logforth-layout-text = { workspace = true, optional = true }
+
+[dev-dependencies]
+fastrace = { workspace = true, features = ["enable"] }
+log = { workspace = true, features = ["kv_serde"] }
+logforth-append-file = { workspace = true }
+serde = { workspace = true }
+
+[lints]
+workspace = true
+
+[[example]]
+doc-scrape-examples = true
+name = "testing"
+path = "examples/testing.rs"
+required-features = ["bridge-log"]
+
+[[example]]
+doc-scrape-examples = true
+name = "simple_stdout"
+path = "examples/simple_stdout.rs"
+required-features = ["bridge-log"]
+
+[[example]]
+doc-scrape-examples = true
+name = "log_with_logger"
+path = "examples/log_with_logger.rs"
+required-features = ["bridge-log"]
+
+[[example]]
+doc-scrape-examples = true
+name = "json_stdout"
+path = "examples/json_stdout.rs"
+required-features = ["starter-log"]
+
+[[example]]
+doc-scrape-examples = true
+name = "multiple_dispatches"
+path = "examples/multiple_dispatches.rs"
+required-features = ["starter-log"]
+
+[[example]]
+doc-scrape-examples = true
+name = "rolling_file"
+path = "examples/rolling_file.rs"
+required-features = ["starter-log"]
+
+[[example]]
+doc-scrape-examples = true
+name = "single_file"
+path = "examples/single_file.rs"
+required-features = ["starter-log"]
+
+[[example]]
+doc-scrape-examples = true
+name = "custom_layout_filter"
+path = "examples/custom_layout_filter.rs"
+required-features = ["starter-log"]
+
+[[example]]
+doc-scrape-examples = true
+name = "syslog"
+path = "examples/syslog.rs"
+required-features = ["starter-log", "append-syslog"]
+
+[[example]]
+doc-scrape-examples = true
+name = "journald"
+path = "examples/journald.rs"
+required-features = ["starter-log", "append-journald"]
+
+[[example]]
+doc-scrape-examples = true
+name = "fastrace"
+path = "examples/fastrace.rs"
+required-features = ["starter-log", "append-fastrace", "diagnostic-fastrace"]
+
+[[example]]
+doc-scrape-examples = true
+name = "google_cloud_logging"
+path = "examples/google_cloud_logging.rs"
+required-features = [
+  "starter-log",
+  "diagnostic-fastrace",
+  "layout-google-cloud-logging",
+]

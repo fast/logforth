@@ -12,159 +12,70 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[package]
-name = "logforth"
+[workspace]
+members = [
+  "core",
+  "logforth",
 
-description = "A versatile and extensible logging implementation."
+  "appenders/*",
+  "bridges/*",
+  "diagnostics/*",
+  "layouts/*",
+]
+resolver = "2"
+
+[workspace.package]
+categories = ["development-tools::debugging"]
 edition = "2024"
 homepage = "https://github.com/fast/logforth"
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/fast/logforth"
 rust-version = "1.85.0"
-version = "0.27.0"
 
-categories = ["development-tools::debugging"]
-keywords = ["logging", "log", "opentelemetry", "fastrace"]
+[workspace.dependencies]
+# Workspace dependencies
+logforth-append-fastrace = { version = "0.1.0", path = "appenders/fastrace" }
+logforth-append-file = { version = "0.1.0", path = "appenders/file" }
+logforth-append-journald = { version = "0.1.0", path = "appenders/journald" }
+logforth-append-opentelemetry = { version = "0.1.0", path = "appenders/opentelemetry" }
+logforth-append-syslog = { version = "0.1.0", path = "appenders/syslog" }
+logforth-bridge-log = { version = "0.1.0", path = "bridges/log" }
+logforth-core = { version = "0.1.0", path = "core" }
+logforth-diagnostic-fastrace = { version = "0.1.0", path = "diagnostics/fastrace" }
+logforth-layout-google-cloud-logging = { version = "0.1.0", path = "layouts/google-cloud-logging" }
+logforth-layout-json = { version = "0.1.0", path = "layouts/json" }
+logforth-layout-logfmt = { version = "0.1.0", path = "layouts/logfmt" }
+logforth-layout-text = { version = "0.1.0", path = "layouts/text" }
 
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
-
-[features]
-default = []
-
-# Appenders
-append-fastrace = ["dep:fastrace"]
-append-journald = ["dep:libc"]
-append-opentelemetry = [
-  "dep:opentelemetry",
-  "dep:opentelemetry-otlp",
-  "dep:opentelemetry_sdk",
-]
-append-syslog = ["dep:fasyslog"]
-
-# Layouts
-layout-google-cloud-logging = [
-  "dep:serde",
-  "dep:serde_json",
-  "log/kv_serde",
-  "jiff/serde",
-]
-layout-json = ["dep:serde", "dep:serde_json", "log/kv_serde", "jiff/serde"]
-layout-text = ["dep:colored"]
-
-# Diagnostics
-diagnostic-fastrace = ["dep:fastrace"]
-
-# Standalone features
-native-tls = ["dep:native-tls", "fasyslog?/native-tls"]
-rustls = ["dep:rustls", "fasyslog?/rustls"]
-
-[dependencies]
+# Crates.io dependencies
 anyhow = { version = "1.0" }
+colored = { version = "3.0" }
+fastrace = { version = "0.7" }
+fasyslog = { version = "1.0.0" }
+insta = { version = "1.43.2" }
 jiff = { version = "0.2" }
+libc = { version = "0.2.162" }
 log = { version = "0.4.27", features = ["kv_std", "kv_sval"] }
+opentelemetry = { version = "0.31.0", default-features = false }
+opentelemetry-otlp = { version = "0.31.0", default-features = false }
+opentelemetry_sdk = { version = "0.31.0", default-features = false }
+rand = { version = "0.9" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0" }
+tempfile = { version = "3.16" }
 value-bag = { version = "1.11.1", features = ["inline-i128", "owned", "sval"] }
 
-# Optional dependencies
-colored = { version = "3.0", optional = true }
-fastrace = { version = "0.7", optional = true }
-fasyslog = { version = "1.0.0", optional = true }
-libc = { version = "0.2.162", optional = true }
-native-tls = { version = "0.2", optional = true }
-opentelemetry = { version = "0.31.0", optional = true, default-features = false, features = [
-  "logs",
-] }
-opentelemetry-otlp = { version = "0.31.0", optional = true, default-features = false, features = [
-  "logs",
-] }
-opentelemetry_sdk = { version = "0.31.0", optional = true, default-features = false, features = [
-  "logs",
-] }
-rustls = { version = "0.23.27", optional = true }
-serde = { version = "1.0", features = ["derive"], optional = true }
-serde_json = { version = "1.0", optional = true }
+[workspace.lints.rust]
+mismatched_lifetime_syntaxes = "allow"
+missing_docs = "deny"
+unknown_lints = "deny"
+unused_must_use = "deny"
 
-[dev-dependencies]
-insta = { version = "1.43.2" }
-opentelemetry = { version = "0.31.0" }
-opentelemetry-otlp = { version = "0.31.0" }
-opentelemetry_sdk = { version = "0.31.0" }
-rand = { version = "0.9" }
-tempfile = { version = "3.16" }
-
-[[example]]
-doc-scrape-examples = true
-name = "testing"
-path = "examples/testing.rs"
-
-[[example]]
-doc-scrape-examples = true
-name = "simple_stdout"
-path = "examples/simple_stdout.rs"
-
-[[example]]
-doc-scrape-examples = true
-name = "log_with_logger"
-path = "examples/log_with_logger.rs"
-
-[[example]]
-doc-scrape-examples = true
-name = "json_stdout"
-path = "examples/json_stdout.rs"
-required-features = ["layout-json"]
-
-[[example]]
-doc-scrape-examples = true
-name = "multiple_dispatches"
-path = "examples/multiple_dispatches.rs"
-
-[[example]]
-doc-scrape-examples = true
-name = "rolling_file"
-path = "examples/rolling_file.rs"
-required-features = ["layout-json"]
-
-[[example]]
-doc-scrape-examples = true
-name = "single_file"
-path = "examples/single_file.rs"
-required-features = ["layout-json"]
-
-[[example]]
-doc-scrape-examples = true
-name = "custom_layout_filter"
-path = "examples/custom_layout_filter.rs"
-
-[[example]]
-doc-scrape-examples = true
-name = "syslog"
-path = "examples/syslog.rs"
-required-features = ["append-syslog"]
-
-[[example]]
-doc-scrape-examples = true
-name = "journald"
-path = "examples/journald.rs"
-required-features = ["append-journald"]
-
-[[example]]
-doc-scrape-examples = true
-name = "fastrace"
-path = "examples/fastrace.rs"
-required-features = [
-  "fastrace/enable",
-  "append-fastrace",
-  "diagnostic-fastrace",
-]
-
-[[example]]
-doc-scrape-examples = true
-name = "google_cloud_logging"
-path = "examples/google_cloud_logging.rs"
-required-features = [
-  "fastrace/enable",
-  "diagnostic-fastrace",
-  "layout-google-cloud-logging",
-]
+[workspace.lints.clippy]
+dbg_macro = "deny"
+field_reassign_with_default = "allow"
+identity_op = "allow"
+manual_range_contains = "allow"
+new_without_default = "allow"
+too_many_arguments = "allow"

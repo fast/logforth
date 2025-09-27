@@ -52,7 +52,7 @@ jobs:
           hawkeye check
           taplo format --check
           typos
-          cargo +nightly fmt --all
+          cargo +nightly fmt --all -- --check
           cargo +nightly clippy --all-targets --all-features -- -D warnings
 
   test:
@@ -78,22 +78,23 @@ jobs:
         run: cargo test --all-features -- --nocapture
       - name: Run examples
         shell: bash
+        working-directory: logforth
         run: |
           set -x
-          cargo run --example simple_stdout
-          cargo run --example log_with_logger
-          cargo run --example multiple_dispatches
-          cargo run --example custom_layout_filter
-          cargo run --no-default-features --example simple_stdout
-          cargo run --features="layout-json" --example json_stdout
-          cargo run --features="layout-json" --example rolling_file
-          cargo run --features="layout-json" --example single_file
-          cargo run --features="fastrace/enable,diagnostic-fastrace,layout-google-cloud-logging" --example google_cloud_logging
-          cargo run --features="fastrace/enable,append-fastrace,diagnostic-fastrace" --example fastrace
+          cargo run --features="bridge-log" --example simple_stdout
+          cargo run --features="starter-log" --example simple_stdout
+          cargo run --features="starter-log" --example log_with_logger
+          cargo run --features="starter-log" --example multiple_dispatches
+          cargo run --features="starter-log" --example custom_layout_filter
+          cargo run --features="starter-log" --example json_stdout
+          cargo run --features="starter-log" --example rolling_file
+          cargo run --features="starter-log" --example single_file
+          cargo run --features="starter-log,diagnostic-fastrace,layout-google-cloud-logging" --example google_cloud_logging
+          cargo run --features="starter-log,append-fastrace,diagnostic-fastrace" --example fastrace
 
-          cargo test --example testing -- --show-output
-          cargo test --example testing -- --nocapture
-          cargo test --example testing
+          cargo test --features="starter-log" --example testing -- --show-output
+          cargo test --features="starter-log" --example testing -- --nocapture
+          cargo test --features="starter-log" --example testing
 
   required:
     name: Required
