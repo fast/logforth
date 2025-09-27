@@ -18,7 +18,7 @@ use logforth::layout::JsonLayout;
 fn main() {
     logforth::builder()
         .dispatch(|d| d.append(append::Stdout::default().with_layout(JsonLayout::default())))
-        .apply();
+        .setup_log_crate();
 
     log::info!("This is an info message.");
     log::debug!("This debug message will not be printed by default.");

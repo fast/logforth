@@ -29,7 +29,7 @@ use crate::logger::log_impl::Dispatch;
 ///
 /// let builder = logforth::builder()
 ///     .dispatch(|d| d.append(append::Stderr::default()))
-///     .apply();
+///     .setup_log_crate();
 /// ```
 pub fn builder() -> LoggerBuilder {
     LoggerBuilder::new()
@@ -43,7 +43,7 @@ pub fn builder() -> LoggerBuilder {
 /// # Examples
 ///
 /// ```
-/// logforth::stdout().apply();
+/// logforth::stdout().setup_log_crate();
 /// log::error!("This error will be logged to stdout.");
 /// ```
 pub fn stdout() -> LoggerBuilder {
@@ -61,7 +61,7 @@ pub fn stdout() -> LoggerBuilder {
 /// # Examples
 ///
 /// ```
-/// logforth::stderr().apply();
+/// logforth::stderr().setup_log_crate();
 /// log::info!("This info will be logged to stderr.");
 /// ```
 pub fn stderr() -> LoggerBuilder {
@@ -80,7 +80,7 @@ pub fn stderr() -> LoggerBuilder {
 ///
 /// logforth::builder()
 ///     .dispatch(|d| d.append(append::Stdout::default()))
-///     .apply();
+///     .setup_log_crate();
 /// ```
 #[must_use = "call `apply` to set the global logger or `build` to construct a logger instance"]
 #[derive(Debug)]
@@ -103,7 +103,7 @@ impl LoggerBuilder {
     ///
     /// logforth::builder()
     ///     .dispatch(|d| d.append(append::Stderr::default()))
-    ///     .apply();
+    ///     .setup_log_crate();
     /// ```
     pub fn dispatch<F>(mut self, f: F) -> Self
     where
@@ -143,12 +143,12 @@ impl LoggerBuilder {
     /// # Examples
     ///
     /// ```
-    /// let result = logforth::builder().try_apply();
+    /// let result = logforth::builder().try_setup_log_crate();
     /// if let Err(e) = result {
     ///     eprintln!("Failed to set logger: {}", e);
     /// }
     /// ```
-    pub fn try_apply(self) -> Result<(), log::SetLoggerError> {
+    pub fn try_setup_log_crate(self) -> Result<(), log::SetLoggerError> {
         let logger = self.build();
         log::set_boxed_logger(Box::new(logger))?;
         log::set_max_level(log::LevelFilter::Trace);
@@ -173,10 +173,10 @@ impl LoggerBuilder {
     /// # Examples
     ///
     /// ```
-    /// logforth::builder().apply();
+    /// logforth::builder().setup_log_crate();
     /// ```
-    pub fn apply(self) {
-        self.try_apply()
+    pub fn setup_log_crate(self) {
+        self.try_setup_log_crate()
             .expect("LoggerBuilder::apply must be called before the global logger initialized");
     }
 }
@@ -194,7 +194,7 @@ impl LoggerBuilder {
 ///         d.filter(LevelFilter::Info)
 ///             .append(append::Stdout::default())
 ///     })
-///     .apply();
+///     .setup_log_crate();
 /// ```
 #[derive(Debug)]
 pub struct DispatchBuilder<const APPEND: bool> {
@@ -225,7 +225,7 @@ impl DispatchBuilder<false> {
     ///         d.filter(LevelFilter::Error)
     ///             .append(append::Stderr::default())
     ///     })
-    ///     .apply();
+    ///     .setup_log_crate();
     /// ```
     pub fn filter(mut self, filter: impl Into<Box<dyn Filter>>) -> Self {
         self.filters.push(filter.into());
@@ -247,7 +247,7 @@ impl DispatchBuilder<false> {
     ///             .diagnostic(diagnostic::ThreadLocalDiagnostic::default())
     ///             .append(append::Stderr::default())
     ///     })
-    ///     .apply();
+    ///     .setup_log_crate();
     /// ```
     pub fn diagnostic(mut self, diagnostic: impl Into<Box<dyn Diagnostic>>) -> Self {
         self.diagnostics.push(diagnostic.into());
@@ -271,7 +271,7 @@ impl<const APPEND: bool> DispatchBuilder<APPEND> {
     ///
     /// logforth::builder()
     ///     .dispatch(|d| d.append(append::Stdout::default()))
-    ///     .apply();
+    ///     .setup_log_crate();
     /// ```
     pub fn append(mut self, append: impl Into<Box<dyn Append>>) -> DispatchBuilder<true> {
         self.appends.push(append.into());

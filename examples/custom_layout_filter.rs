@@ -51,7 +51,7 @@ fn main() {
             d.filter(CustomFilter)
                 .append(append::Stdout::default().with_layout(CustomLayout))
         })
-        .apply();
+        .setup_log_crate();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

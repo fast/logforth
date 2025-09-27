@@ -26,7 +26,7 @@
 //!
 //! logforth::builder()
 //!     .dispatch(|d| d.filter(LevelFilter::Trace).append(append))
-//!     .apply();
+//!     .setup_log_crate();
 //!
 //! log::info!("This log will be written to syslog.");
 //! ```

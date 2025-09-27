@@ -25,7 +25,7 @@ fn main() {
 
     logforth::builder()
         .dispatch(|d| d.filter(LevelFilter::Trace).append(rolling_writer))
-        .apply();
+        .setup_log_crate();
 
     let repeat = 1;
 

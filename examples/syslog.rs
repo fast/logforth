@@ -20,7 +20,7 @@ fn main() {
 
     logforth::builder()
         .dispatch(|d| d.filter(LevelFilter::Trace).append(append))
-        .apply();
+        .setup_log_crate();
 
     let repeat = 1;
 

@@ -25,7 +25,7 @@ fn main() {
             d.filter(LevelFilter::Info)
                 .append(append::Stdout::default())
         })
-        .apply();
+        .setup_log_crate();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

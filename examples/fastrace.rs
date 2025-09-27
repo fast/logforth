@@ -29,7 +29,7 @@ fn main() {
             d.diagnostic(diagnostic::FastraceDiagnostic::default())
                 .append(logforth::append::Stderr::default())
         })
-        .apply();
+        .setup_log_crate();
 
     fastrace::set_reporter(ConsoleReporter, Config::default());
 

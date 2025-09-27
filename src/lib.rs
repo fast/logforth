@@ -28,7 +28,7 @@
 //! Simple setup with default stdout appender:
 //!
 //! ```
-//! logforth::stdout().apply();
+//! logforth::stdout().setup_log_crate();
 //!
 //! log::info!("This is an info message.");
 //! ```
@@ -48,7 +48,7 @@
 //!         d.filter(LevelFilter::Info)
 //!             .append(append::Stdout::default())
 //!     })
-//!     .apply();
+//!     .setup_log_crate();
 //!
 //! log::error!("Error message.");
 //! log::info!("Info message.");

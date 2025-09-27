@@ -41,6 +41,33 @@ impl Logger {
     }
 }
 
+impl Logger {
+    /// Determines if a log message with the specified metadata would be logged.
+    pub fn enabled(&self, metadata: &Metadata) -> bool {
+        self.dispatches
+            .iter()
+            .any(|dispatch| dispatch.enabled(metadata))
+    }
+
+    /// Logs the Record.
+    pub fn log(&self, record: &Record) {
+        for dispatch in &self.dispatches {
+            if let Err(err) = dispatch.log(record) {
+                handle_log_error(record, err);
+            }
+        }
+    }
+
+    /// Flushes any buffered records.
+    pub fn flush(&self) {
+        for dispatch in &self.dispatches {
+            if let Err(err) = dispatch.flush() {
+                handle_flush_error(err);
+            }
+        }
+    }
+}
+
 impl log::Log for Logger {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
         let metadata = MetadataBuilder::default()
@@ -48,9 +75,7 @@ impl log::Log for Logger {
             .level(metadata.level().into())
             .build();
 
-        self.dispatches
-            .iter()
-            .any(|dispatch| dispatch.enabled(&metadata))
+        Logger::enabled(self, &metadata)
     }
 
     fn log(&self, record: &log::Record) {
@@ -88,19 +113,11 @@ impl log::Log for Logger {
             .key_values(&new_kvs)
             .build();
 
-        for dispatch in &self.dispatches {
-            if let Err(err) = dispatch.log(&record) {
-                handle_log_error(&record, err);
-            }
-        }
+        Logger::log(self, &record);
     }
 
     fn flush(&self) {
-        for dispatch in &self.dispatches {
-            if let Err(err) = dispatch.flush() {
-                handle_flush_error(err);
-            }
-        }
+        Logger::flush(self);
     }
 }
 
