@@ -18,7 +18,7 @@ use std::fmt;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::Record;
+use crate::record::Record;
 
 #[cfg(feature = "append-fastrace")]
 mod fastrace;

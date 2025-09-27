@@ -15,15 +15,15 @@
 use insta::assert_snapshot;
 
 use crate::Filter;
-use crate::Level;
-use crate::LevelFilter;
-use crate::MetadataBuilder;
 use crate::filter::EnvFilter;
 use crate::filter::FilterResult;
 use crate::filter::env_filter::Directive;
 use crate::filter::env_filter::EnvFilterBuilder;
 use crate::filter::env_filter::ParseResult;
 use crate::filter::env_filter::parse_spec;
+use crate::record::Level;
+use crate::record::LevelFilter;
+use crate::record::MetadataBuilder;
 
 impl EnvFilter {
     fn rejected(&self, level: Level, target: &str) -> bool {

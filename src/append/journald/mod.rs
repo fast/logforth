@@ -18,11 +18,11 @@ use std::os::unix::net::UnixDatagram;
 use crate::Append;
 use crate::Diagnostic;
 use crate::Error;
-use crate::Level;
-use crate::Record;
 use crate::kv::Key;
 use crate::kv::Value;
 use crate::kv::Visitor;
+use crate::record::Level;
+use crate::record::Record;
 
 mod field;
 #[cfg(target_os = "linux")]

@@ -24,13 +24,13 @@ use jiff::tz::TimeZone;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::Level;
-use crate::Record;
 use crate::kv::Key;
 use crate::kv::Value;
 use crate::kv::Visitor;
 use crate::layout::Layout;
 use crate::layout::filename;
+use crate::record::Level;
+use crate::record::Record;
 
 /// Colors for different log levels.
 #[derive(Debug, Clone)]
@@ -105,8 +105,6 @@ impl LevelColor {
 ///
 /// let text_layout = TextLayout::default();
 /// ```
-///
-/// [`LevelColor`]: crate::color::LevelColor
 #[derive(Debug, Clone, Default)]
 pub struct TextLayout {
     colors: LevelColor,

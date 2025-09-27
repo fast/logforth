@@ -18,11 +18,11 @@ use std::time::SystemTime;
 use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
-use crate::Record;
 use crate::kv::Key;
 use crate::kv::Value;
 use crate::kv::Visitor;
 use crate::layout::filename;
+use crate::record::Record;
 
 /// A layout that formats log record as plain text.
 ///

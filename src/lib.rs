@@ -36,8 +36,8 @@
 //! Advanced setup with custom filters and multiple appenders:
 //!
 //! ```
-//! use logforth::LevelFilter;
 //! use logforth::append;
+//! use logforth::record::LevelFilter;
 //!
 //! logforth::builder()
 //!     .dispatch(|d| {
@@ -61,6 +61,8 @@ pub mod diagnostic;
 pub mod filter;
 pub mod kv;
 pub mod layout;
+pub mod record;
+pub mod str;
 
 pub use self::append::Append;
 pub use self::diagnostic::Diagnostic;
@@ -72,9 +74,3 @@ pub use self::error::*;
 
 mod logger;
 pub use self::logger::*;
-
-mod record;
-pub use self::record::*;
-
-mod str;
-pub use self::str::*;

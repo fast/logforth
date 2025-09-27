@@ -16,11 +16,11 @@ use logforth::Diagnostic;
 use logforth::Error;
 use logforth::Filter;
 use logforth::Layout;
-use logforth::Level;
-use logforth::Metadata;
-use logforth::Record;
 use logforth::append;
 use logforth::filter::FilterResult;
+use logforth::record::Level;
+use logforth::record::Metadata;
+use logforth::record::Record;
 
 #[derive(Debug)]
 struct CustomFilter;

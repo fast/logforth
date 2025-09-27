@@ -17,9 +17,9 @@ use std::io::Write;
 use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
-use crate::Record;
 use crate::append::Append;
 use crate::layout::PlainTextLayout;
+use crate::record::Record;
 
 /// An appender that writes log records to standard output.
 ///

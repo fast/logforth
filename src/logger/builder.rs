@@ -186,8 +186,8 @@ impl LoggerBuilder {
 /// # Examples
 ///
 /// ```
-/// use logforth::LevelFilter;
 /// use logforth::append;
+/// use logforth::record::LevelFilter;
 ///
 /// logforth::builder()
 ///     .dispatch(|d| {
@@ -217,8 +217,8 @@ impl DispatchBuilder<false> {
     /// # Examples
     ///
     /// ```
-    /// use logforth::LevelFilter;
     /// use logforth::append;
+    /// use logforth::record::LevelFilter;
     ///
     /// logforth::builder()
     ///     .dispatch(|d| {
@@ -237,9 +237,9 @@ impl DispatchBuilder<false> {
     /// # Examples
     ///
     /// ```
-    /// use logforth::LevelFilter;
     /// use logforth::append;
     /// use logforth::diagnostic;
+    /// use logforth::record::LevelFilter;
     ///
     /// logforth::builder()
     ///     .dispatch(|d| {

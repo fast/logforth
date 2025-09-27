@@ -16,8 +16,8 @@ use fastrace::Span;
 use fastrace::collector::Config;
 use fastrace::collector::ConsoleReporter;
 use fastrace::collector::SpanContext;
-use logforth::LevelFilter;
 use logforth::diagnostic;
+use logforth::record::LevelFilter;
 
 fn main() {
     logforth::builder()

@@ -26,8 +26,8 @@ Compare the output of the three commands."#
 
 #[cfg(test)]
 mod tests {
-    use logforth::LevelFilter;
     use logforth::append::Testing;
+    use logforth::record::LevelFilter;
 
     #[test]
     fn testing() {

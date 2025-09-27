@@ -17,12 +17,12 @@ use jiff::tz::TimeZone;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::Record;
 use crate::kv::Key;
 use crate::kv::Value;
 use crate::kv::Visitor;
 use crate::layout::Layout;
 use crate::layout::filename;
+use crate::record::Record;
 
 /// A logfmt layout for formatting log records.
 ///

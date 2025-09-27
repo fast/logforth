@@ -12,15 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Log record and metadata.
+
 use std::cmp;
 use std::fmt;
 use std::str::FromStr;
 use std::time::SystemTime;
 
 use crate::Error;
-use crate::Str;
 use crate::kv;
 use crate::kv::KeyValues;
+use crate::str::Str;
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 enum MaybeStaticStr<'a> {

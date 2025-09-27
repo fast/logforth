@@ -20,11 +20,11 @@ use jiff::Zoned;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::Record;
 use crate::append::Append;
 use crate::kv::Key;
 use crate::kv::Value;
 use crate::kv::Visitor;
+use crate::record::Record;
 
 /// An appender that adds log records to fastrace as an event associated to the current span.
 ///

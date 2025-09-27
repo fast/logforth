@@ -74,9 +74,9 @@ use std::str::FromStr;
 use crate::Diagnostic;
 use crate::Error;
 use crate::Filter;
-use crate::LevelFilter;
-use crate::Metadata;
 use crate::filter::FilterResult;
+use crate::record::LevelFilter;
+use crate::record::Metadata;
 
 #[cfg(test)]
 mod tests;

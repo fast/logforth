@@ -17,9 +17,9 @@ use std::num::NonZeroUsize;
 use logforth::Diagnostic;
 use logforth::Error;
 use logforth::Layout;
-use logforth::Record;
 use logforth::append;
 use logforth::append::file::FileBuilder;
+use logforth::record::Record;
 
 #[derive(Debug)]
 struct CustomLayout(&'static str);

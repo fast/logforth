@@ -25,7 +25,7 @@ use value_bag::OwnedValueBag;
 use value_bag::ValueBag;
 
 use crate::Error;
-use crate::Str;
+use crate::str::Str;
 
 /// A visitor to walk through key-value pairs.
 pub trait Visitor {

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use logforth::LevelFilter;
 use logforth::append::file::FileBuilder;
 use logforth::layout::JsonLayout;
+use logforth::record::LevelFilter;
 
 fn main() {
     let rolling_writer = FileBuilder::new("logs", "my_app")

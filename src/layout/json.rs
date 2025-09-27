@@ -22,11 +22,11 @@ use serde_json::Map;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::Record;
 use crate::kv::Key;
 use crate::kv::Value;
 use crate::kv::Visitor;
 use crate::layout::Layout;
+use crate::record::Record;
 
 /// A JSON layout for formatting log records.
 ///

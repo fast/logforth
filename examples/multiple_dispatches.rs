@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use logforth::LevelFilter;
 use logforth::append;
+use logforth::record::LevelFilter;
 
 fn main() {
     logforth::builder()

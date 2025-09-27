@@ -17,9 +17,9 @@
 use std::fmt;
 
 use crate::Diagnostic;
-use crate::LevelFilter;
-use crate::Metadata;
-use crate::Record;
+use crate::record::LevelFilter;
+use crate::record::Metadata;
+use crate::record::Record;
 
 pub mod env_filter;
 

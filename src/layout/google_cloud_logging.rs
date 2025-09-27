@@ -20,11 +20,11 @@ use serde::Serialize;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::Record;
 use crate::kv::Key;
 use crate::kv::Value;
 use crate::kv::Visitor;
 use crate::layout::Layout;
+use crate::record::Record;
 
 /// A layout for Google Cloud Structured Logging.
 ///

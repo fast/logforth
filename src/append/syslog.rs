@@ -17,10 +17,10 @@
 //! # Examples
 //!
 //!```rust, no_run
-//! use logforth::LevelFilter;
 //! use logforth::append::syslog;
 //! use logforth::append::syslog::Syslog;
 //! use logforth::append::syslog::SyslogBuilder;
+//! use logforth::record::LevelFilter;
 //!
 //! let append = SyslogBuilder::tcp_well_known().unwrap().build();
 //!
@@ -43,8 +43,8 @@ use crate::Append;
 use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
-use crate::Level;
-use crate::Record;
+use crate::record::Level;
+use crate::record::Record;
 
 pub extern crate fasyslog;
 

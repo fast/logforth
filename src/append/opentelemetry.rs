@@ -30,12 +30,12 @@ use opentelemetry_sdk::logs::SdkLoggerProvider;
 use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
-use crate::Level;
-use crate::Record;
 use crate::append::Append;
 use crate::kv::Key;
 use crate::kv::Value;
 use crate::kv::Visitor;
+use crate::record::Level;
+use crate::record::Record;
 
 /// A builder to configure and create an [`OpentelemetryLog`] appender.
 #[derive(Debug)]

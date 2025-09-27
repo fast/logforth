@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use logforth::LevelFilter;
 use logforth::append::syslog::SyslogBuilder;
+use logforth::record::LevelFilter;
 
 fn main() {
     let append = SyslogBuilder::tcp_well_known().unwrap().build();

@@ -17,11 +17,11 @@
 //! # Example
 //!
 //!```
-//! use logforth::LevelFilter;
 //! use logforth::append::file;
 //! use logforth::append::file::File;
 //! use logforth::append::file::FileBuilder;
 //! use logforth::layout::JsonLayout;
+//! use logforth::record::LevelFilter;
 //!
 //! let rolling_file = FileBuilder::new("logs", "app_log")
 //!     .layout(JsonLayout::default())
