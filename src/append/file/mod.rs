@@ -17,6 +17,7 @@
 //! # Example
 //!
 //!```
+//! use logforth::LevelFilter;
 //! use logforth::append::file;
 //! use logforth::append::file::File;
 //! use logforth::append::file::FileBuilder;
@@ -29,7 +30,7 @@
 //!     .unwrap();
 //!
 //! logforth::builder()
-//!     .dispatch(|d| d.filter(log::LevelFilter::Trace).append(rolling_file))
+//!     .dispatch(|d| d.filter(LevelFilter::Trace).append(rolling_file))
 //!     .apply();
 //!
 //! log::info!("This log will be written to a rolling file.");

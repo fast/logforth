@@ -36,7 +36,7 @@
 //! Advanced setup with custom filters and multiple appenders:
 //!
 //! ```
-//! use log::LevelFilter;
+//! use logforth::LevelFilter;
 //! use logforth::append;
 //!
 //! logforth::builder()

@@ -233,7 +233,6 @@ struct WriteKeyValues<'a>(&'a mut Vec<u8>);
 impl Visitor for WriteKeyValues<'_> {
     fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
         let key = key.as_str();
-        let value = log::kv::Value::from_sval(&value);
         field::put_field_length_encoded(self.0, field::FieldName::WriteEscaped(key), value);
         Ok(())
     }

@@ -17,6 +17,7 @@
 //! # Examples
 //!
 //!```rust, no_run
+//! use logforth::LevelFilter;
 //! use logforth::append::syslog;
 //! use logforth::append::syslog::Syslog;
 //! use logforth::append::syslog::SyslogBuilder;
@@ -24,7 +25,7 @@
 //! let append = SyslogBuilder::tcp_well_known().unwrap().build();
 //!
 //! logforth::builder()
-//!     .dispatch(|d| d.filter(log::LevelFilter::Trace).append(append))
+//!     .dispatch(|d| d.filter(LevelFilter::Trace).append(append))
 //!     .apply();
 //!
 //! log::info!("This log will be written to syslog.");

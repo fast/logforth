@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use logforth::Diagnostic;
 use logforth::Error;
 use logforth::Filter;
 use logforth::Layout;
+use logforth::Level;
 use logforth::Metadata;
 use logforth::Record;
 use logforth::append;
 use logforth::filter::FilterResult;
-use logforth::{Diagnostic, Level};
 
 #[derive(Debug)]
 struct CustomFilter;

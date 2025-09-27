@@ -16,12 +16,13 @@ use fastrace::Span;
 use fastrace::collector::Config;
 use fastrace::collector::ConsoleReporter;
 use fastrace::collector::SpanContext;
+use logforth::LevelFilter;
 use logforth::diagnostic;
 
 fn main() {
     logforth::builder()
         .dispatch(|d| {
-            d.filter(log::LevelFilter::Trace)
+            d.filter(LevelFilter::Trace)
                 .append(logforth::append::FastraceEvent::default())
         })
         .dispatch(|d| {

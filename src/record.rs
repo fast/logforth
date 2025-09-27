@@ -382,7 +382,7 @@ impl PartialEq<Level> for LevelFilter {
 
 impl PartialOrd<Level> for LevelFilter {
     fn partial_cmp(&self, other: &Level) -> Option<cmp::Ordering> {
-        other.partial_cmp(self)
+        Some(Ord::cmp(&(*self as usize), &(*other as usize)))
     }
 }
 

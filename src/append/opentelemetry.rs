@@ -314,19 +314,6 @@ struct KvExtractor<'a> {
     record: &'a mut SdkLogRecord,
 }
 
-impl<'kvs> log::kv::VisitSource<'kvs> for KvExtractor<'_> {
-    fn visit_pair(
-        &mut self,
-        key: log::kv::Key<'kvs>,
-        value: log::kv::Value<'kvs>,
-    ) -> Result<(), log::kv::Error> {
-        let key = key.to_string();
-        let value = value.to_string();
-        self.record.add_attribute(key, value);
-        Ok(())
-    }
-}
-
 impl Visitor for KvExtractor<'_> {
     fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
         let key = key.into_string();

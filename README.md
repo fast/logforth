@@ -55,8 +55,8 @@ By default, all logging except the error level is disabled. You can enable loggi
 Configure multiple dispatches with different filters and appenders:
 
 ```rust
+use logforth::LevelFilter;
 use logforth::append;
-use log::LevelFilter;
 
 fn main() {
     logforth::builder()

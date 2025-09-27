@@ -12,17 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::LevelFilter;
-
-use super::log_impl::Dispatch;
-use super::log_impl::Logger;
-use crate::Append;
+use crate::{Append, Logger};
 use crate::Diagnostic;
 use crate::Filter;
 use crate::append;
 use crate::filter::env_filter::EnvFilterBuilder;
+use crate::logger::log_impl::Dispatch;
 
-/// Creates a new empty [`LoggerBuilder`] instance for configuring log dispatching.
+/// Create a new empty [`LoggerBuilder`] instance for configuring log dispatching.
 ///
 /// # Examples
 ///
@@ -37,8 +34,10 @@ pub fn builder() -> LoggerBuilder {
     LoggerBuilder::new()
 }
 
-/// Creates a [`LoggerBuilder`] with a default [`append::Stdout`] appender and an [`env_filter`](https://crates.io/crates/env_filter)
+/// Create a [`LoggerBuilder`] with a default [`append::Stdout`] appender and an [`EnvFilter`]
 /// respecting `RUST_LOG`.
+///
+/// [`EnvFilter`]: crate::filter::EnvFilter
 ///
 /// # Examples
 ///
@@ -53,8 +52,10 @@ pub fn stdout() -> LoggerBuilder {
     })
 }
 
-/// Creates a [`LoggerBuilder`] with a default [`append::Stderr`] appender and an [`env_filter`](https://crates.io/crates/env_filter)
+/// Create a [`LoggerBuilder`] with a default [`append::Stderr`] appender and an [`EnvFilter`]
 /// respecting `RUST_LOG`.
+///
+/// [`EnvFilter`]: crate::filter::EnvFilter
 ///
 /// # Examples
 ///
@@ -92,7 +93,7 @@ impl LoggerBuilder {
         LoggerBuilder { dispatches: vec![] }
     }
 
-    /// Registers a new dispatch with the [`LoggerBuilder`].
+    /// Register a new dispatch with the [`LoggerBuilder`].
     ///
     /// # Examples
     ///
@@ -123,14 +124,14 @@ impl LoggerBuilder {
         Logger::new(self.dispatches)
     }
 
-    /// Sets up the global logger with all the configured dispatches.
+    /// Set up `log`'s global logger with all the configured dispatches.
     ///
     /// This should be called early in the execution of a Rust program. Any log events that occur
     /// before initialization will be ignored.
     ///
-    /// This will set the global maximum log level to [`LevelFilter::Trace`]. To override this,
-    /// call [`log::set_max_level`] after this function. Alternatively, you can obtain a [`Logger`]
-    /// instance by calling [`LoggerBuilder::build`], and then call [`log::set_boxed_logger`]
+    /// This function will set the global maximum log level to `Trace`. To override this, call [`log::set_max_level`] after this function.
+    ///
+    /// Alternatively, you can obtain a [`Logger`] instance by calling [`LoggerBuilder::build`], and then call [`log::set_boxed_logger`]
     /// manually.
     ///
     /// # Errors
@@ -148,19 +149,19 @@ impl LoggerBuilder {
     pub fn try_apply(self) -> Result<(), log::SetLoggerError> {
         let logger = self.build();
         log::set_boxed_logger(Box::new(logger))?;
-        log::set_max_level(LevelFilter::Trace);
+        log::set_max_level(log::LevelFilter::Trace);
         Ok(())
     }
 
-    /// Sets up the global logger with all the configured dispatches.
+    /// Sets up `log`'s global logger with all the configured dispatches.
     ///
     /// This function will panic if it is called more than once, or if another library has already
     /// initialized a global logger.
     ///
-    /// This function will set the global maximum log level to [`LevelFilter::Trace`]. To override
-    /// this, call [`log::set_max_level`] after this function. Alternatively, you can obtain a
-    /// [`Logger`] instance by calling [`LoggerBuilder::build`], and then call
-    /// [`log::set_boxed_logger`] manually.
+    /// This function will set the global maximum log level to `Trace`. To override this, call [`log::set_max_level`] after this function.
+    ///
+    /// Alternatively, you can obtain a [`Logger`] instance by calling [`LoggerBuilder::build`], and then call [`log::set_boxed_logger`]
+    /// manually.
     ///
     /// # Panics
     ///
@@ -182,11 +183,12 @@ impl LoggerBuilder {
 /// # Examples
 ///
 /// ```
+/// use logforth::LevelFilter;
 /// use logforth::append;
 ///
 /// logforth::builder()
 ///     .dispatch(|d| {
-///         d.filter(log::LevelFilter::Info)
+///         d.filter(LevelFilter::Info)
 ///             .append(append::Stdout::default())
 ///     })
 ///     .apply();
@@ -212,11 +214,12 @@ impl DispatchBuilder<false> {
     /// # Examples
     ///
     /// ```
+    /// use logforth::LevelFilter;
     /// use logforth::append;
     ///
     /// logforth::builder()
     ///     .dispatch(|d| {
-    ///         d.filter(log::LevelFilter::Error)
+    ///         d.filter(LevelFilter::Error)
     ///             .append(append::Stderr::default())
     ///     })
     ///     .apply();
@@ -231,12 +234,13 @@ impl DispatchBuilder<false> {
     /// # Examples
     ///
     /// ```
+    /// use logforth::LevelFilter;
     /// use logforth::append;
     /// use logforth::diagnostic;
     ///
     /// logforth::builder()
     ///     .dispatch(|d| {
-    ///         d.filter(log::LevelFilter::Error)
+    ///         d.filter(LevelFilter::Error)
     ///             .diagnostic(diagnostic::ThreadLocalDiagnostic::default())
     ///             .append(append::Stderr::default())
     ///     })

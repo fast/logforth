@@ -23,7 +23,8 @@ use crate::MetadataBuilder;
 use crate::Record;
 use crate::RecordBuilder;
 use crate::filter::FilterResult;
-use crate::kv::{Key, Value};
+use crate::kv::Key;
+use crate::kv::Value;
 
 /// A logger facade that dispatches log records to one or more dispatcher.
 ///
