@@ -67,15 +67,9 @@ tempfile = { version = "3.16" }
 value-bag = { version = "1.11.1", features = ["inline-i128", "owned", "sval"] }
 
 [workspace.lints.rust]
-mismatched_lifetime_syntaxes = "allow"
 missing_docs = "deny"
 unknown_lints = "deny"
 unused_must_use = "deny"
 
 [workspace.lints.clippy]
 dbg_macro = "deny"
-field_reassign_with_default = "allow"
-identity_op = "allow"
-manual_range_contains = "allow"
-new_without_default = "allow"
-too_many_arguments = "allow"
