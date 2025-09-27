@@ -88,7 +88,7 @@ impl fmt::Display for KeyOwned {
 }
 
 /// A visitor to walk through key-value pairs.
-pub trait Visitor<'kvs> {
+pub trait Visitor {
     /// Visits a key-value pair.
-    fn visit(&mut self, key: Key<'kvs>, value: Value<'kvs>) -> Result<(), Error>;
+    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error>;
 }

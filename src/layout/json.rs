@@ -89,8 +89,8 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'_> {
     }
 }
 
-impl<'kvs> Visitor<'kvs> for KvCollector<'_> {
-    fn visit(&mut self, key: Key<'kvs>, value: Value<'kvs>) -> Result<(), Error> {
+impl Visitor for KvCollector<'_> {
+    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
         let key = key.into_string();
         match serde_json::to_value(&value) {
             Ok(value) => self.kvs.insert(key, value),

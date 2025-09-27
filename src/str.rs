@@ -84,11 +84,11 @@ impl<'k> Clone for Str<'k> {
 
 impl<'k> Drop for Str<'k> {
     fn drop(&mut self) {
-        match self.owner {
-            StrOwner::Box(boxed) => drop(unsafe { Box::from_raw(boxed) }),
-            // Other cases handled normally
-            _ => (),
+        if let StrOwner::Box(boxed) = self.owner {
+            drop(unsafe { Box::from_raw(boxed) });
         }
+
+        // other cases handled normally
     }
 }
 
@@ -309,7 +309,7 @@ pub trait ToStr {
     fn to_str(&self) -> Str<'_>;
 }
 
-impl<'a, T: ToStr + ?Sized> ToStr for &'a T {
+impl<T: ToStr + ?Sized> ToStr for &T {
     fn to_str(&self) -> Str<'_> {
         (**self).to_str()
     }

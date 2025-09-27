@@ -93,8 +93,8 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector {
     }
 }
 
-impl<'kvs> Visitor<'kvs> for KvCollector {
-    fn visit(&mut self, key: Key<'kvs>, value: Value<'kvs>) -> Result<(), Error> {
+impl Visitor for KvCollector {
+    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
         self.kv.push((key.into_string(), value.to_string()));
         Ok(())
     }

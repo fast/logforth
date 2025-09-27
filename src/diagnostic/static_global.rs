@@ -55,7 +55,7 @@ impl StaticDiagnostic {
     }
 }
 
-fn do_visit<'kvs>(d: &'kvs StaticDiagnostic, visitor: &mut dyn Visitor<'kvs>) -> Result<(), Error> {
+fn do_visit(d: &StaticDiagnostic, visitor: &mut dyn Visitor) -> Result<(), Error> {
     for (key, value) in d.kvs.iter() {
         visitor.visit(key.as_str().into(), value.as_str().into())?;
     }
@@ -63,13 +63,13 @@ fn do_visit<'kvs>(d: &'kvs StaticDiagnostic, visitor: &mut dyn Visitor<'kvs>) ->
 }
 
 impl Diagnostic for StaticDiagnostic {
-    fn visit<'kvs>(&'kvs self, visitor: &mut dyn Visitor<'kvs>) -> Result<(), Error> {
+    fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
         do_visit(self, visitor)
     }
 }
 
 impl Diagnostic for &'static StaticDiagnostic {
-    fn visit<'kvs>(&'kvs self, visitor: &mut dyn Visitor<'kvs>) -> Result<(), Error> {
+    fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
         do_visit(self, visitor)
     }
 }

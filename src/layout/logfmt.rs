@@ -105,8 +105,8 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvFormatter {
     }
 }
 
-impl<'kvs> Visitor<'kvs> for KvFormatter {
-    fn visit(&mut self, key: Key<'kvs>, value: Value<'kvs>) -> Result<(), Error> {
+impl Visitor for KvFormatter {
+    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
         encode_key_value(&mut self.text, key.as_str(), value.to_string().as_str())
     }
 }

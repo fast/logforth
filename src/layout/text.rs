@@ -171,8 +171,8 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvWriter {
     }
 }
 
-impl<'kvs> Visitor<'kvs> for KvWriter {
-    fn visit(&mut self, key: Key<'kvs>, value: Value<'kvs>) -> Result<(), Error> {
+impl Visitor for KvWriter {
+    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
         use std::fmt::Write;
 
         // SAFETY: write to a string always succeeds

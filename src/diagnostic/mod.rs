@@ -33,7 +33,7 @@ pub use self::thread_local::ThreadLocalDiagnostic;
 /// A trait representing a Mapped Diagnostic Context (MDC) that provides diagnostic key-values.
 pub trait Diagnostic: fmt::Debug + Send + Sync + 'static {
     /// Visits the MDC key-values with the provided visitor.
-    fn visit<'kvs>(&'kvs self, visitor: &mut dyn kv::Visitor<'kvs>) -> Result<(), Error>;
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error>;
 }
 
 impl<T: Diagnostic> From<T> for Box<dyn Diagnostic> {

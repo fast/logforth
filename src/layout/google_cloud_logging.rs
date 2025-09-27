@@ -147,8 +147,8 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector<'kvs> {
     }
 }
 
-impl<'kvs> Visitor<'kvs> for KvCollector<'_> {
-    fn visit(&mut self, key: Key<'kvs>, value: Value<'kvs>) -> Result<(), Error> {
+impl Visitor for KvCollector<'_> {
+    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
         let key = key.to_string();
 
         if let Some(trace_project_id) = self.layout.trace_project_id.as_ref() {

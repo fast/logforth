@@ -329,8 +329,8 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvExtractor<'_> {
     }
 }
 
-impl<'kvs> Visitor<'kvs> for KvExtractor<'_> {
-    fn visit(&mut self, key: Key<'kvs>, value: Value<'kvs>) -> Result<(), Error> {
+impl Visitor for KvExtractor<'_> {
+    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
         let key = key.into_string();
         let value = value.to_string();
         self.record.add_attribute(key, value);
