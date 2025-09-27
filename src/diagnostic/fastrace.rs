@@ -14,7 +14,8 @@
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::diagnostic::Visitor;
+use crate::kv::Value;
+use crate::kv::Visitor;
 
 /// A diagnostic that enriches log records with trace ID provided by the Fastrace library.
 ///
@@ -43,9 +44,9 @@ pub struct FastraceDiagnostic {}
 impl Diagnostic for FastraceDiagnostic {
     fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
         if let Some(span) = fastrace::collector::SpanContext::current_local_parent() {
-            visitor.visit("trace_id".into(), span.trace_id.to_string().into())?;
-            visitor.visit("span_id".into(), span.span_id.to_string().into())?;
-            visitor.visit("sampled".into(), span.sampled.to_string().into())?;
+            visitor.visit("trace_id".into(), Value::from_u128(span.trace_id.0))?;
+            visitor.visit("span_id".into(), Value::from_u64(span.span_id.0))?;
+            visitor.visit("sampled".into(), Value::from_bool(span.sampled))?;
         }
 
         Ok(())

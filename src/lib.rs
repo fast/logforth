@@ -64,15 +64,19 @@ pub mod color;
 pub mod append;
 pub mod diagnostic;
 pub mod filter;
+pub mod kv;
 pub mod layout;
 
-pub use append::Append;
-pub use diagnostic::Diagnostic;
-pub use filter::Filter;
-pub use layout::Layout;
+pub use self::append::Append;
+pub use self::diagnostic::Diagnostic;
+pub use self::filter::Filter;
+pub use self::layout::Layout;
 
 mod error;
-pub use error::*;
+pub use self::error::*;
 
 mod logger;
-pub use logger::*;
+pub use self::logger::*;
+
+mod str;
+pub use self::str::*;

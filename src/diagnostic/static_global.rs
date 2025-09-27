@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::diagnostic::Visitor;
+use crate::kv::Visitor;
 
 /// A diagnostic that stores key-value pairs in a static global map.
 ///
@@ -55,21 +55,21 @@ impl StaticDiagnostic {
     }
 }
 
-fn do_visit(d: &StaticDiagnostic, visitor: &mut dyn Visitor) -> Result<(), Error> {
+fn do_visit<'kvs>(d: &'kvs StaticDiagnostic, visitor: &mut dyn Visitor<'kvs>) -> Result<(), Error> {
     for (key, value) in d.kvs.iter() {
-        visitor.visit(key.into(), value.into())?;
+        visitor.visit(key.as_str().into(), value.as_str().into())?;
     }
     Ok(())
 }
 
 impl Diagnostic for StaticDiagnostic {
-    fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
+    fn visit<'kvs>(&'kvs self, visitor: &mut dyn Visitor<'kvs>) -> Result<(), Error> {
         do_visit(self, visitor)
     }
 }
 
 impl Diagnostic for &'static StaticDiagnostic {
-    fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
+    fn visit<'kvs>(&'kvs self, visitor: &mut dyn Visitor<'kvs>) -> Result<(), Error> {
         do_visit(self, visitor)
     }
 }

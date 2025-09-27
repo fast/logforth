@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::Cow;
-
 use jiff::Timestamp;
 use jiff::Zoned;
 use jiff::tz::TimeZone;
@@ -21,7 +19,9 @@ use log::Record;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::diagnostic::Visitor;
+use crate::kv::Key;
+use crate::kv::Value;
+use crate::kv::Visitor;
 use crate::layout::Layout;
 use crate::layout::filename;
 
@@ -100,17 +100,14 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvFormatter {
         key: log::kv::Key<'kvs>,
         value: log::kv::Value<'kvs>,
     ) -> Result<(), log::kv::Error> {
-        match encode_key_value(&mut self.text, key.as_str(), value.to_string().as_str()) {
-            Ok(()) => Ok(()),
-            Err(err) => Err(log::kv::Error::boxed(err)),
-        }
+        encode_key_value(&mut self.text, key.as_str(), value.to_string().as_str())
+            .map_err(log::kv::Error::boxed)
     }
 }
 
-impl Visitor for KvFormatter {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
-        encode_key_value(&mut self.text, key.as_ref(), value.as_ref())?;
-        Ok(())
+impl<'kvs> Visitor<'kvs> for KvFormatter {
+    fn visit(&mut self, key: Key<'kvs>, value: Value<'kvs>) -> Result<(), Error> {
+        encode_key_value(&mut self.text, key.as_str(), value.to_string().as_str())
     }
 }
 
@@ -122,7 +119,7 @@ impl Layout for LogfmtLayout {
         };
         let time = time.timestamp().display_with_offset(time.offset());
 
-        let level = record.level().to_string();
+        let level = record.level();
         let target = record.target();
         let file = filename(record);
         let line = record.line().unwrap_or_default();
@@ -132,10 +129,13 @@ impl Layout for LogfmtLayout {
             text: format!("timestamp={time:.6}"),
         };
 
-        visitor.visit(Cow::Borrowed("level"), level.into())?;
-        visitor.visit(Cow::Borrowed("module"), target.into())?;
-        visitor.visit(Cow::Borrowed("position"), format!("{file}:{line}").into())?;
-        visitor.visit(Cow::Borrowed("message"), message.to_string().into())?;
+        visitor.visit("level".into(), level.as_str().into())?;
+        visitor.visit("module".into(), target.into())?;
+        visitor.visit(
+            "position".into(),
+            Value::from_debug(&format_args!("{file}:{line}")),
+        )?;
+        visitor.visit("message".into(), Value::from_debug(message))?;
 
         record
             .key_values()

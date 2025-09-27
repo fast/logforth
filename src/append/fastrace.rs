@@ -22,7 +22,9 @@ use log::Record;
 use crate::Diagnostic;
 use crate::Error;
 use crate::append::Append;
-use crate::diagnostic::Visitor;
+use crate::kv::Key;
+use crate::kv::Value;
+use crate::kv::Visitor;
 
 /// An appender that adds log records to fastrace as an event associated to the current span.
 ///
@@ -91,9 +93,9 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvCollector {
     }
 }
 
-impl Visitor for KvCollector {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
-        self.kv.push((key.into_owned(), value.into_owned()));
+impl<'kvs> Visitor<'kvs> for KvCollector {
+    fn visit(&mut self, key: Key<'kvs>, value: Value<'kvs>) -> Result<(), Error> {
+        self.kv.push((key.into_string(), value.to_string()));
         Ok(())
     }
 }

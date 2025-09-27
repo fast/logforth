@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 
-use crate::Diagnostic;
 use crate::Error;
-use crate::diagnostic::Visitor;
+use crate::kv::{Key, Value, Visitor};
+use crate::{Diagnostic, Str};
 
 thread_local! {
     static CONTEXT: RefCell<BTreeMap<String, String>> = const { RefCell::new(BTreeMap::new()) };
@@ -57,11 +58,13 @@ impl ThreadLocalDiagnostic {
 }
 
 impl Diagnostic for ThreadLocalDiagnostic {
-    fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
+    fn visit<'kvs>(&'kvs self, visitor: &mut dyn Visitor<'kvs>) -> Result<(), Error> {
         CONTEXT.with(|map| {
             let map = map.borrow();
             for (key, value) in map.iter() {
-                visitor.visit(key.into(), value.into())?;
+                let key = key.clone();
+                let value = value.clone();
+                visitor.visit(Key::from(Str::from(key)), Value::from(value))?;
             }
             Ok(())
         })

@@ -32,7 +32,9 @@ use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
 use crate::append::Append;
-use crate::diagnostic::Visitor;
+use crate::kv::Key;
+use crate::kv::Value;
+use crate::kv::Visitor;
 
 /// A builder to configure and create an [`OpentelemetryLog`] appender.
 #[derive(Debug)]
@@ -327,10 +329,10 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvExtractor<'_> {
     }
 }
 
-impl Visitor for KvExtractor<'_> {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
-        let key = key.into_owned();
-        let value = value.into_owned();
+impl<'kvs> Visitor<'kvs> for KvExtractor<'_> {
+    fn visit(&mut self, key: Key<'kvs>, value: Value<'kvs>) -> Result<(), Error> {
+        let key = key.into_string();
+        let value = value.to_string();
         self.record.add_attribute(key, value);
         Ok(())
     }

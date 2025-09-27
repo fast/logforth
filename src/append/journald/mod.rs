@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::Cow;
 use std::io::Write;
 use std::os::unix::net::UnixDatagram;
 
@@ -22,7 +21,9 @@ use log::Record;
 use crate::Append;
 use crate::Diagnostic;
 use crate::Error;
-use crate::diagnostic::Visitor;
+use crate::kv::Key;
+use crate::kv::Value;
+use crate::kv::Visitor;
 
 mod field;
 #[cfg(target_os = "linux")]
@@ -242,10 +243,10 @@ impl<'kvs> log::kv::VisitSource<'kvs> for WriteKeyValues<'_> {
     }
 }
 
-impl Visitor for WriteKeyValues<'_> {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
-        let key = key.as_ref();
-        let value = value.as_bytes();
+impl<'kvs> Visitor<'kvs> for WriteKeyValues<'_> {
+    fn visit(&mut self, key: Key<'kvs>, value: Value<'kvs>) -> Result<(), Error> {
+        let key = key.as_str();
+        let value = log::kv::Value::from_sval(&value);
         field::put_field_length_encoded(self.0, field::FieldName::WriteEscaped(key), value);
         Ok(())
     }

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::Cow;
-
 use jiff::Timestamp;
 use jiff::Zoned;
 use jiff::tz::TimeZone;
@@ -22,7 +20,9 @@ use log::Record;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::diagnostic::Visitor;
+use crate::kv::Key;
+use crate::kv::Value;
+use crate::kv::Visitor;
 use crate::layout::Layout;
 use crate::layout::filename;
 
@@ -171,8 +171,8 @@ impl<'kvs> log::kv::VisitSource<'kvs> for KvWriter {
     }
 }
 
-impl Visitor for KvWriter {
-    fn visit(&mut self, key: Cow<str>, value: Cow<str>) -> Result<(), Error> {
+impl<'kvs> Visitor<'kvs> for KvWriter {
+    fn visit(&mut self, key: Key<'kvs>, value: Value<'kvs>) -> Result<(), Error> {
         use std::fmt::Write;
 
         // SAFETY: write to a string always succeeds
