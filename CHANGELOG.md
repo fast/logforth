@@ -6,24 +6,31 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking changes
 
-* To work with `log` crate, now you need to set both:
+#### Interfaces
+
+* To work with the `log` crate, now it's recommended to add the "starter-log" feature flag and set both:
     ```rust
     fn main() {
         logforth::bridge::setup_log_crate();
         logforth::builder().apply()
     }
     ```
-* All interfaces that return `anyhow::Result` is now using a result over `logforth::Error`.
-* `JsonLayout` now collects diagnostics context into a separate field `diags`.
+* `TextLayout` is now behind `layout-text` feature flag, and colored is always available when the feature is enabled.
+* `EnvFilter` is now self-hosted. Some methods may be changed, but the general user experience should retain:
+    * `EnvFilter`'s constructors (`from_env`, etc.) are moved to `EnvFilterBuilder`.
+* There is no longer `NonBlocking` related logics.
+
+#### File appender
+
 * `SingleFile` appender is removed. You can replace it with `append::File`.
-* `RollingFile` is now `File` and provided by default; `append-rolling-file` flag is removed.
+* `RollingFile` is now `File` and is behind `append-file` flag.
 * `File` appender now requires `filename` when constructing.
 * `File`'s `filename_prefix` is now renamed to mandatory `filename`.
 * `File`'s `max_log_files` now takes `NonZeroUsize`.
 * `File`'s rollover strategy methods has been changed:
-  * `max_file_size` -> `rollover_size` and takes `NonZeroUsize`
-  * `rotation` -> `rollover_minutely`, `rollover_hourly`, `rollover_daily`
-  * By default, no rollover is performed.
+    * `max_file_size` -> `rollover_size` and takes `NonZeroUsize`
+    * `rotation` -> `rollover_minutely`, `rollover_hourly`, `rollover_daily`
+    * By default, no rollover is performed.
 * Rollover filename strategy has been changed:
     ```
     given:
@@ -42,12 +49,17 @@ All notable changes to this project will be documented in this file.
     app.2.log - old app.1.log
     - old app.2.log deleted
     ```
-* There is no longer `NonBlocking` related logics.
-* `EnvFilter` is now self-hosted. Some methods may be changed, but the general user experience should retain:
-  * `EnvFilter`'s constructors (`from_env`, etc.) are moved to `EnvFilterBuilder`.
-* Upgrade to opentelemetry 0.31.0.
-* `TextLayout` is now behind `layout-text` feature flag, and colored is always available when the feature is enabled.
+
+#### Developments
+
+* All interfaces that return `anyhow::Result` is now using a result over `logforth::Error`.
 * Internal log structs are migrated from `log` crate to self-hosted types. This should not affect most users, but if you are customizing appender, layout, filter, and diagnostic, you should replace `log::Record`, `log::Metadata`, or `log::Level`, with `logforth::Record`, `logforth::Metadata`, or `logforth::Level`.
+* All components are factored out into their own crates.
+
+#### Minors
+
+* `JsonLayout` now collects diagnostics context into a separate field `diags`.
+* Upgrade to opentelemetry 0.31.0.
 
 ### Notable changes
 
