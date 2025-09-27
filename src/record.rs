@@ -20,6 +20,7 @@ use std::time::SystemTime;
 use crate::Error;
 use crate::Str;
 use crate::kv;
+use crate::kv::KeyValues;
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 enum MaybeStaticStr<'a> {
@@ -59,7 +60,7 @@ pub struct Record<'a> {
     args: fmt::Arguments<'a>,
 
     // structural logging
-    kvs: &'a [(kv::Key<'a>, kv::Value<'a>)],
+    kvs: KeyValues<'a>,
 }
 
 impl<'a> Record<'a> {
@@ -103,12 +104,9 @@ impl<'a> Record<'a> {
         &self.args
     }
 
-    /// Visit the key-values with the provided visitor.
-    pub fn visit_kvs(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
-        for (key, value) in self.kvs.iter() {
-            visitor.visit(key.coerce(), value.clone())?;
-        }
-        Ok(())
+    /// The key-values.
+    pub fn key_values(&self) -> &KeyValues<'a> {
+        &self.kvs
     }
 
     /// Convert to an owned record.
@@ -215,8 +213,8 @@ impl<'a> RecordBuilder<'a> {
     }
 
     /// Set [`key_values`](struct.Record.html#method.key_values)
-    pub fn key_values(mut self, kvs: &'a [(kv::Key<'a>, kv::Value<'a>)]) -> Self {
-        self.record.kvs = kvs;
+    pub fn key_values(mut self, kvs: impl Into<KeyValues<'a>>) -> Self {
+        self.record.kvs = kvs.into();
         self
     }
 
@@ -322,11 +320,7 @@ impl RecordOwned {
             file: self.file.as_deref().map(MaybeStaticStr::Str),
             line: self.line,
             args: format_args!("{}", self.args),
-            kvs: &self
-                .kvs
-                .iter()
-                .map(|(k, v)| (k.by_ref(), v.by_ref()))
-                .collect::<Vec<_>>(),
+            kvs: KeyValues::from(self.kvs.as_slice()),
         })
     }
 }

@@ -16,7 +16,6 @@ use std::fmt::Arguments;
 
 use jiff::Timestamp;
 use jiff::TimestampDisplayWithOffset;
-use jiff::Zoned;
 use jiff::tz::TimeZone;
 use serde::Serialize;
 use serde_json::Map;
@@ -131,7 +130,7 @@ impl Layout for JsonLayout {
 
         let mut kvs = Map::new();
         let mut kvs_visitor = KvCollector { kvs: &mut kvs };
-        record.visit_kvs(&mut kvs_visitor)?;
+        record.key_values().visit(&mut kvs_visitor)?;
 
         let mut diags = Map::new();
         let mut diags_visitor = KvCollector { kvs: &mut diags };

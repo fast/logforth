@@ -221,7 +221,7 @@ impl Layout for TextLayout {
         let mut visitor = KvWriter {
             text: format!("{time:.6} {level:>5} {target}: {file}:{line} {message}"),
         };
-        record.visit_kvs(&mut visitor)?;
+        record.key_values().visit(&mut visitor)?;
         for d in diags {
             d.visit(&mut visitor)?;
         }

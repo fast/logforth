@@ -250,7 +250,7 @@ impl Append for OpentelemetryLog {
         let mut extractor = KvExtractor {
             record: &mut log_record,
         };
-        record.visit_kvs(&mut extractor)?;
+        record.key_values().visit(&mut extractor)?;
         for d in diags {
             d.visit(&mut extractor)?;
         }

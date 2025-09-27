@@ -123,7 +123,7 @@ impl log::Log for Logger {
         for (k, v) in kvs.iter() {
             new_kvs.push((Key::from(k.as_str()), Value::from_sval2(v)));
         }
-        builder = builder.key_values(&new_kvs);
+        builder = builder.key_values(new_kvs.as_slice());
 
         Logger::log(self, &builder.build());
     }

@@ -126,7 +126,7 @@ impl Layout for LogfmtLayout {
         )?;
         visitor.visit("message".into(), Value::from_debug(message))?;
 
-        record.visit_kvs(&mut visitor)?;
+        record.key_values().visit(&mut visitor)?;
         for d in diags {
             d.visit(&mut visitor)?;
         }

@@ -45,7 +45,7 @@ impl Append for FastraceEvent {
         let message = format!("{}", record.args());
 
         let mut collector = KvCollector { kv: Vec::new() };
-        record.visit_kvs(&mut collector)?;
+        record.key_values().visit(&mut collector)?;
         for d in diags {
             d.visit(&mut collector)?;
         }

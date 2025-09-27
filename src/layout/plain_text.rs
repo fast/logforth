@@ -84,7 +84,7 @@ impl Layout for PlainTextLayout {
         write!(&mut text, " {level:>5} {target}: {file}:{line} {message}").unwrap();
 
         let mut visitor = KvWriter { text };
-        record.visit_kvs(&mut visitor)?;
+        record.key_values().visit(&mut visitor)?;
         for d in diags {
             d.visit(&mut visitor)?;
         }
