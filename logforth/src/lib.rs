@@ -86,7 +86,7 @@ pub mod append {
     pub use logforth_append_file as file;
     #[cfg(feature = "append-file")]
     pub use logforth_append_file::File;
-    #[cfg(feature = "append-journald")]
+    #[cfg(all(unix, feature = "append-journald"))]
     pub use logforth_append_journald::Journald;
     #[cfg(feature = "append-opentelemetry")]
     pub use logforth_append_opentelemetry as opentelemetry;
