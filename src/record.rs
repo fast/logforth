@@ -18,6 +18,7 @@ use std::str::FromStr;
 use std::time::SystemTime;
 
 use crate::Error;
+use crate::Str;
 use crate::kv;
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
@@ -31,6 +32,13 @@ impl<'a> MaybeStaticStr<'a> {
         match *self {
             MaybeStaticStr::Str(s) => s,
             MaybeStaticStr::Static(s) => s,
+        }
+    }
+
+    fn into_str(self) -> Str<'static> {
+        match self {
+            MaybeStaticStr::Str(s) => Str::new_owned(s.to_owned()),
+            MaybeStaticStr::Static(s) => Str::new(s),
         }
     }
 }
@@ -95,55 +103,35 @@ impl<'a> Record<'a> {
         &self.args
     }
 
-    /// Visits the key-values with the provided visitor.
+    /// Visit the key-values with the provided visitor.
     pub fn visit_kvs(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
         for (key, value) in self.kvs.iter() {
             visitor.visit(key.coerce(), value.clone())?;
         }
         Ok(())
     }
-}
 
-/// Owned version of a log record.
-#[derive(Clone, Debug)]
-pub struct RecordOwned {
-    // the observed time
-    now: SystemTime,
-
-    // the metadata
-    metadata: MetadataOwned,
-    module_path: Option<String>,
-    file: Option<String>,
-    line: Option<u32>,
-
-    // the payload
-    args: String,
-
-    // structural logging
-    kvs: Vec<(kv::KeyOwned, kv::ValueOwned)>,
-}
-
-impl RecordOwned {
-    /// Process a `Record`.
-    ///
-    /// This is a workaround before `format_args` can return a value outlives the function call.
-    pub fn execute(&self, f: impl FnOnce(&Record) -> Result<(), Error>) -> Result<(), Error> {
-        f(&Record {
+    /// Convert to an owned record.
+    pub fn to_owned(&self) -> RecordOwned {
+        RecordOwned {
             now: self.now,
-            metadata: Metadata {
+            metadata: MetadataOwned {
                 level: self.metadata.level,
-                target: &self.metadata.target,
+                target: Str::new_owned(self.metadata.target),
             },
-            module_path: self.module_path.as_deref().map(MaybeStaticStr::Str),
-            file: self.file.as_deref().map(MaybeStaticStr::Str),
+            module_path: self.module_path.map(MaybeStaticStr::into_str),
+            file: self.file.map(MaybeStaticStr::into_str),
             line: self.line,
-            args: format_args!("{}", self.args),
-            kvs: &self
+            args: match self.args.as_str() {
+                Some(s) => Str::new(s),
+                None => Str::new_owned(self.args.to_string()),
+            },
+            kvs: self
                 .kvs
                 .iter()
-                .map(|(k, v)| (k.by_ref(), v.by_ref()))
-                .collect::<Vec<_>>(),
-        })
+                .map(|(k, v)| (k.to_owned(), v.to_owned()))
+                .collect(),
+        }
     }
 }
 
@@ -245,30 +233,15 @@ pub struct Metadata<'a> {
     target: &'a str,
 }
 
-/// Owned version of metadata about a log message.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct MetadataOwned {
-    level: Level,
-    target: String,
-}
-
 impl<'a> Metadata<'a> {
-    /// Gets the level.
+    /// Get the level.
     pub fn level(&self) -> Level {
         self.level
     }
 
-    /// Gets the target.
+    /// Get the target.
     pub fn target(&self) -> &'a str {
         self.target
-    }
-
-    /// Converts to an owned version of `Metadata`.
-    pub fn to_owned(&self) -> MetadataOwned {
-        MetadataOwned {
-            level: self.level,
-            target: self.target.to_owned(),
-        }
     }
 }
 
@@ -302,9 +275,59 @@ impl<'a> MetadataBuilder<'a> {
         self
     }
 
-    /// Returns a [`Metadata`] object.
+    /// Invoke the builder and return a `Metadata`
     pub fn build(self) -> Metadata<'a> {
         self.metadata
+    }
+}
+
+/// Owned version of a log record.
+#[derive(Clone, Debug)]
+pub struct RecordOwned {
+    // the observed time
+    now: SystemTime,
+
+    // the metadata
+    metadata: MetadataOwned,
+    module_path: Option<Str<'static>>,
+    file: Option<Str<'static>>,
+    line: Option<u32>,
+
+    // the payload
+    args: Str<'static>,
+
+    // structural logging
+    kvs: Vec<(kv::KeyOwned, kv::ValueOwned)>,
+}
+
+/// Owned version of metadata about a log message.
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+struct MetadataOwned {
+    level: Level,
+    target: Str<'static>,
+}
+
+impl RecordOwned {
+    /// Process a `Record`.
+    ///
+    /// This is a workaround before `format_args` can return a value outlives the function call.
+    pub fn execute(&self, f: impl FnOnce(&Record) -> Result<(), Error>) -> Result<(), Error> {
+        f(&Record {
+            now: self.now,
+            metadata: Metadata {
+                level: self.metadata.level,
+                target: &self.metadata.target,
+            },
+            module_path: self.module_path.as_deref().map(MaybeStaticStr::Str),
+            file: self.file.as_deref().map(MaybeStaticStr::Str),
+            line: self.line,
+            args: format_args!("{}", self.args),
+            kvs: &self
+                .kvs
+                .iter()
+                .map(|(k, v)| (k.by_ref(), v.by_ref()))
+                .collect::<Vec<_>>(),
+        })
     }
 }
 
@@ -335,7 +358,7 @@ pub enum Level {
 }
 
 impl Level {
-    /// Returns the string representation of the `Level`.
+    /// Return the string representation of the `Level`.
     ///
     /// This returns the same string as the `fmt::Display` implementation.
     pub fn as_str(&self) -> &'static str {
@@ -386,7 +409,7 @@ pub enum LevelFilter {
 }
 
 impl LevelFilter {
-    /// Returns the string representation of the `LevelFilter`.
+    /// Return the string representation of the `LevelFilter`.
     ///
     /// This returns the same string as the `fmt::Display` implementation.
     pub fn as_str(&self) -> &'static str {

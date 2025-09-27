@@ -138,7 +138,7 @@ impl LoggerBuilder {
     ///
     /// # Errors
     ///
-    /// Returns an error if a global logger has already been set.
+    /// Return an error if a global logger has already been set.
     ///
     /// # Examples
     ///
@@ -155,7 +155,7 @@ impl LoggerBuilder {
         Ok(())
     }
 
-    /// Sets up `log`'s global logger with all the configured dispatches.
+    /// Set up `log`'s global logger with all the configured dispatches.
     ///
     /// This function will panic if it is called more than once, or if another library has already
     /// initialized a global logger.
@@ -168,7 +168,7 @@ impl LoggerBuilder {
     ///
     /// # Panics
     ///
-    /// Panics if the global logger has already been set.
+    /// Panic if the global logger has already been set.
     ///
     /// # Examples
     ///

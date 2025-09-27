@@ -48,7 +48,7 @@ impl FileBuilder {
     ///
     /// # Errors
     ///
-    /// Returns an error if either:
+    /// Return an error if either:
     ///
     /// * The log directory cannot be created.
     /// * The configured filename is empty.

@@ -179,7 +179,7 @@ impl Journald {
         self
     }
 
-    /// Sets the syslog identifier for this appender.
+    /// Set the syslog identifier for this appender.
     ///
     /// The syslog identifier comes from the classic syslog interface (`openlog()`
     /// and `syslog()`) and tags log entries with a given identifier.
@@ -200,7 +200,7 @@ impl Journald {
         self
     }
 
-    /// Returns the syslog identifier in use.
+    /// Return the syslog identifier in use.
     pub fn syslog_identifier(&self) -> &str {
         &self.syslog_identifier
     }

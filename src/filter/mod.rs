@@ -38,10 +38,10 @@ pub enum FilterResult {
 
 /// A trait representing a filter that can be applied to log records.
 pub trait Filter: fmt::Debug + Send + Sync + 'static {
-    /// Returns whether the record is filtered by its given metadata.
+    /// Return whether the record is filtered by its given metadata.
     fn enabled(&self, metadata: &Metadata, diags: &[Box<dyn Diagnostic>]) -> FilterResult;
 
-    /// Returns whether the record is filtered.
+    /// Return whether the record is filtered.
     fn matches(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> FilterResult {
         self.enabled(record.metadata(), diags)
     }
