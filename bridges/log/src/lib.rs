@@ -22,23 +22,15 @@ struct LogCrateLogger(());
 
 impl log::Log for LogCrateLogger {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
-        let Some(logger) = default_logger() else {
-            return false;
-        };
-
-        log::Log::enabled(logger, metadata)
+        log::Log::enabled(default_logger(), metadata)
     }
 
     fn log(&self, record: &log::Record) {
-        if let Some(logger) = default_logger() {
-            log::Log::log(logger, record);
-        }
+        log::Log::log(default_logger(), record)
     }
 
     fn flush(&self) {
-        if let Some(logger) = default_logger() {
-            log::Log::flush(logger);
-        }
+        log::Log::flush(default_logger())
     }
 }
 

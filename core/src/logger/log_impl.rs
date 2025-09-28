@@ -28,8 +28,9 @@ static DEFAULT_LOGGER: OnceLock<Logger> = OnceLock::new();
 /// Return the default global logger instance.
 ///
 /// If no default logger has been set, `None` is returned.
-pub fn default_logger() -> Option<&'static Logger> {
-    DEFAULT_LOGGER.get()
+pub fn default_logger() -> &'static Logger {
+    static NOP_LOGGER: Logger = Logger { dispatches: vec![] };
+    DEFAULT_LOGGER.get().unwrap_or(&NOP_LOGGER)
 }
 
 /// Set the default global logger instance.
