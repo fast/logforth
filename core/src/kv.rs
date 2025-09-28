@@ -29,7 +29,7 @@ use crate::str::Str;
 
 /// A visitor to walk through key-value pairs.
 pub trait Visitor {
-    /// Visits a key-value pair.
+    /// Visit a key-value pair.
     fn visit(&mut self, key: Key, value: Value) -> Result<(), Error>;
 }
 

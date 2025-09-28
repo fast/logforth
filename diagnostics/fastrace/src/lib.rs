@@ -40,7 +40,6 @@ use logforth_core::kv::Visitor;
 ///
 /// let diagnostic = FastraceDiagnostic::default();
 /// ```
-
 #[derive(Default, Debug, Clone, Copy)]
 #[non_exhaustive]
 pub struct FastraceDiagnostic {}

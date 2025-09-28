@@ -27,12 +27,12 @@ pub use self::stdio::Stderr;
 pub use self::stdio::Stdout;
 pub use self::testing::Testing;
 
-/// A trait representing an appender that can process log records.
+/// An appender that can process log records.
 pub trait Append: fmt::Debug + Send + Sync + 'static {
-    /// Dispatches a log record to the append target.
+    /// Dispatch a log record to the append target.
     fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error>;
 
-    /// Flushes any buffered records.
+    /// Flush any buffered records.
     ///
     /// Default to a no-op.
     fn flush(&self) -> Result<(), Error> {

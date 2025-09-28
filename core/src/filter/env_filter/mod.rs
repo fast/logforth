@@ -173,7 +173,7 @@ pub struct EnvFilterBuilder {
 }
 
 impl EnvFilterBuilder {
-    /// Initializes the filter builder from the environment using default variable name `RUST_LOG`.
+    /// Initialize the filter builder from the environment using default variable name `RUST_LOG`.
     ///
     /// # Examples
     ///
@@ -188,7 +188,7 @@ impl EnvFilterBuilder {
         EnvFilterBuilder::from_env(DEFAULT_FILTER_ENV)
     }
 
-    /// Initializes the filter builder from the environment using default variable name `RUST_LOG`.
+    /// Initialize the filter builder from the environment using default variable name `RUST_LOG`.
     /// If the variable is not set, the default value will be used.
     ///
     /// # Examples
@@ -208,7 +208,7 @@ impl EnvFilterBuilder {
         EnvFilterBuilder::from_env_or(DEFAULT_FILTER_ENV, default)
     }
 
-    /// Initializes the filter builder from the environment using specific variable name.
+    /// Initialize the filter builder from the environment using specific variable name.
     ///
     /// # Examples
     ///
@@ -231,7 +231,7 @@ impl EnvFilterBuilder {
         }
     }
 
-    /// Initializes the filter builder from the environment using specific variable name.
+    /// Initialize the filter builder from the environment using specific variable name.
     /// If the variable is not set, the default value will be used.
     ///
     /// # Examples
@@ -258,7 +258,7 @@ impl EnvFilterBuilder {
         }
     }
 
-    /// Initializes the filter builder from the passed RUST_LOG specification. Malformed directives
+    /// Initialize the filter builder from the passed RUST_LOG specification. Malformed directives
     /// will be ignored with a warning printed to stderr.
     ///
     /// # Examples
@@ -286,7 +286,7 @@ impl EnvFilterBuilder {
         builder
     }
 
-    /// Initializes the filter builder from the passed RUST_LOG specification.
+    /// Initialize the filter builder from the passed RUST_LOG specification.
     ///
     /// # Examples
     ///
@@ -332,7 +332,7 @@ impl EnvFilterBuilder {
         }
     }
 
-    /// Adds a directive to the filter for a specific module.
+    /// Add a directive to the filter for a specific module.
     ///
     /// The given module will log at most the specified level provided.
     pub fn filter_module(mut self, module: impl Into<String>, level: LevelFilter) -> Self {
@@ -341,7 +341,7 @@ impl EnvFilterBuilder {
         self
     }
 
-    /// Adds a directive to the filter for all modules.
+    /// Add a directive to the filter for all modules.
     ///
     /// All log messages will log at most the specified level provided.
     pub fn filter_level(mut self, level: LevelFilter) -> Self {

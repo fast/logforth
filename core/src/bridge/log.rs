@@ -12,11 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::Diagnostic;
+use crate::Filter;
 use crate::Logger;
+use crate::filter::FilterResult;
 use crate::kv::Key;
 use crate::kv::Value;
 use crate::record::Level;
 use crate::record::LevelFilter;
+use crate::record::Metadata;
 use crate::record::MetadataBuilder;
 use crate::record::RecordBuilder;
 
@@ -41,6 +45,16 @@ impl From<log::Level> for Level {
             log::Level::Info => Self::Info,
             log::Level::Debug => Self::Debug,
             log::Level::Trace => Self::Trace,
+        }
+    }
+}
+
+impl Filter for log::LevelFilter {
+    fn enabled(&self, metadata: &Metadata, _: &[Box<dyn Diagnostic>]) -> FilterResult {
+        if metadata.level() <= LevelFilter::from(*self) {
+            FilterResult::Neutral
+        } else {
+            FilterResult::Reject
         }
     }
 }

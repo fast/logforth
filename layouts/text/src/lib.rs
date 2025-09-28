@@ -161,7 +161,7 @@ impl TextLayout {
         self
     }
 
-    /// Disables colored output.
+    /// Disable colored output.
     pub fn no_color(mut self) -> Self {
         self.no_color = true;
         self
