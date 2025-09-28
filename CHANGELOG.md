@@ -1,8 +1,6 @@
 # CHANGELOG
 
-All notable changes to the `logforth` crate will be documented in this file.
-
-For each component, the changes could be found in its own changelog file.
+All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
