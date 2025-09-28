@@ -27,9 +27,9 @@ mod thread_local;
 pub use self::static_global::StaticDiagnostic;
 pub use self::thread_local::ThreadLocalDiagnostic;
 
-/// A trait representing a Mapped Diagnostic Context (MDC) that provides diagnostic key-values.
+/// A Mapped Diagnostic Context (MDC) that provides diagnostic key-values.
 pub trait Diagnostic: fmt::Debug + Send + Sync + 'static {
-    /// Visits the MDC key-values with the provided visitor.
+    /// Visit the MDC key-values with the provided visitor.
     fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error>;
 }
 

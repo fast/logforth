@@ -102,7 +102,7 @@ impl GoogleCloudLoggingLayout {
         self
     }
 
-    /// Extends the set of keys that should be treated as labels.
+    /// Extend the set of keys that should be treated as labels.
     ///
     /// Any key found in a log entry, and referenced here, will be stored in the labels field rather
     /// than the payload. Labels are indexed by default, but can only store strings.

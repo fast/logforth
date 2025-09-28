@@ -377,6 +377,17 @@ impl Level {
             Level::Trace => "TRACE",
         }
     }
+
+    /// Convert the `Level` to the equivalent `LevelFilter`.
+    pub fn to_level_filter(&self) -> LevelFilter {
+        match self {
+            Level::Error => LevelFilter::Error,
+            Level::Warn => LevelFilter::Warn,
+            Level::Info => LevelFilter::Info,
+            Level::Debug => LevelFilter::Debug,
+            Level::Trace => LevelFilter::Trace,
+        }
+    }
 }
 
 impl fmt::Display for Level {

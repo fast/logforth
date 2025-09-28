@@ -40,7 +40,7 @@ pub fn set_default_logger(logger: Logger) -> Result<(), Logger> {
     DEFAULT_LOGGER.set(logger)
 }
 
-/// A logger facade that dispatches log records to one or more dispatcher.
+/// A logger that dispatches log records to one or more dispatcher.
 #[derive(Debug)]
 pub struct Logger {
     dispatches: Vec<Dispatch>,
@@ -53,14 +53,14 @@ impl Logger {
 }
 
 impl Logger {
-    /// Determines if a log message with the specified metadata would be logged.
+    /// Determine if a log message with the specified metadata would be logged.
     pub fn enabled(&self, metadata: &Metadata) -> bool {
         self.dispatches
             .iter()
             .any(|dispatch| dispatch.enabled(metadata))
     }
 
-    /// Logs the Record.
+    /// Log the [`Record`].
     pub fn log(&self, record: &Record) {
         for dispatch in &self.dispatches {
             if let Err(err) = dispatch.log(record) {
@@ -69,7 +69,7 @@ impl Logger {
         }
     }
 
-    /// Flushes any buffered records.
+    /// Flush any buffered records.
     pub fn flush(&self) {
         for dispatch in &self.dispatches {
             if let Err(err) = dispatch.flush() {

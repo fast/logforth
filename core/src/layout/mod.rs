@@ -26,7 +26,7 @@ pub use self::plain_text::PlainTextLayout;
 
 /// A layout for formatting log records.
 pub trait Layout: fmt::Debug + Send + Sync + 'static {
-    /// Formats a log record with optional diagnostics.
+    /// Format a log record with optional diagnostics.
     fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error>;
 }
 

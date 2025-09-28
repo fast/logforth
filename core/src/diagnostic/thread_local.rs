@@ -37,7 +37,7 @@ thread_local! {
 pub struct ThreadLocalDiagnostic {}
 
 impl ThreadLocalDiagnostic {
-    /// Inserts a key-value pair into the thread local diagnostic .
+    /// Insert a key-value pair into the thread local diagnostic .
     pub fn insert<K, V>(key: K, value: V)
     where
         K: Into<String>,
@@ -48,7 +48,7 @@ impl ThreadLocalDiagnostic {
         });
     }
 
-    /// Removes a key-value pair from the thread local diagnostic.
+    /// Remove a key-value pair from the thread local diagnostic.
     pub fn remove(key: &str) {
         CONTEXT.with(|map| {
             map.borrow_mut().remove(key);
