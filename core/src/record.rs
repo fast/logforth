@@ -144,6 +144,24 @@ impl<'a> Record<'a> {
                 .collect(),
         }
     }
+
+    /// Create a builder initialized with the current record's values.
+    pub fn to_builder(&self) -> RecordBuilder<'a> {
+        RecordBuilder {
+            record: Record {
+                now: self.now,
+                metadata: Metadata {
+                    level: self.metadata.level,
+                    target: self.metadata.target,
+                },
+                module_path: self.module_path,
+                file: self.file,
+                line: self.line,
+                args: self.args,
+                kvs: self.kvs.clone(),
+            },
+        }
+    }
 }
 
 /// Builder for [`Record`].
@@ -253,6 +271,16 @@ impl<'a> Metadata<'a> {
     /// Get the target.
     pub fn target(&self) -> &'a str {
         self.target
+    }
+
+    /// Create a builder initialized with the current metadata's values.
+    pub fn to_builder(&self) -> MetadataBuilder<'a> {
+        MetadataBuilder {
+            metadata: Metadata {
+                level: self.level,
+                target: self.target,
+            },
+        }
     }
 }
 
