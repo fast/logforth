@@ -18,7 +18,6 @@
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
-use std::fmt::Arguments;
 
 use logforth_core::Diagnostic;
 use logforth_core::Error;
@@ -183,8 +182,7 @@ struct RecordLine<'a> {
     extra_fields: BTreeMap<String, serde_json::Value>,
     severity: &'a str,
     timestamp: jiff::Timestamp,
-    #[serde(serialize_with = "serialize_args")]
-    message: &'a Arguments<'a>,
+    message: &'a str,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     #[serde(rename = "logging.googleapis.com/labels")]
     labels: BTreeMap<String, serde_json::Value>,
@@ -200,13 +198,6 @@ struct RecordLine<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "logging.googleapis.com/sourceLocation")]
     source_location: Option<SourceLocation<'a>>,
-}
-
-fn serialize_args<S>(args: &Arguments, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serializer.collect_str(args)
 }
 
 impl Layout for GoogleCloudLoggingLayout {
@@ -233,7 +224,7 @@ impl Layout for GoogleCloudLoggingLayout {
             extra_fields: visitor.payload_fields,
             timestamp,
             severity: record.level().as_str(),
-            message: record.args(),
+            message: record.payload(),
             labels: visitor.labels,
             trace: visitor.trace,
             span_id: visitor.span_id,

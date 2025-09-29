@@ -14,16 +14,20 @@
 
 //! Log record and metadata.
 
+use std::borrow::Cow;
 use std::cmp;
 use std::fmt;
 use std::str::FromStr;
 use std::time::SystemTime;
 
-use crate::Error;
 use crate::kv;
 use crate::kv::KeyValues;
+use crate::str::IntoStr;
 use crate::str::Str;
 
+// This struct is preferred over `Str` because we need to return a &'a str
+// when holding only a reference to the str ref. But `Str::get` return a &str
+// that lives as long as the `Str` itself, which is not necessarily 'a.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 enum MaybeStaticStr<'a> {
     Str(&'a str),
@@ -35,6 +39,13 @@ impl<'a> MaybeStaticStr<'a> {
         match *self {
             MaybeStaticStr::Str(s) => s,
             MaybeStaticStr::Static(s) => s,
+        }
+    }
+
+    fn get_static(&self) -> Option<&'static str> {
+        match *self {
+            MaybeStaticStr::Str(_) => None,
+            MaybeStaticStr::Static(s) => Some(s),
         }
     }
 
@@ -59,7 +70,7 @@ pub struct Record<'a> {
     line: Option<u32>,
 
     // the payload
-    args: fmt::Arguments<'a>,
+    payload: Str<'static>,
 
     // structural logging
     kvs: KeyValues<'a>,
@@ -91,15 +102,25 @@ impl<'a> Record<'a> {
         self.module_path.map(|s| s.get())
     }
 
+    /// The module path of the message, if it is a `'static` str.
+    pub fn module_path_static(&self) -> Option<&'static str> {
+        self.module_path.and_then(|s| s.get_static())
+    }
+
     /// The source file containing the message.
     pub fn file(&self) -> Option<&'a str> {
         self.file.map(|s| s.get())
     }
 
+    /// The source file containing the message, if it is a `'static` str.
+    pub fn file_static(&self) -> Option<&'static str> {
+        self.file.and_then(|s| s.get_static())
+    }
+
     /// The filename of the source file.
     // obtain filename only from record's full file path
     // reason: the module is already logged + full file path is noisy for some layouts
-    pub fn filename(&self) -> std::borrow::Cow<'a, str> {
+    pub fn filename(&self) -> Cow<'a, str> {
         self.file()
             .map(std::path::Path::new)
             .and_then(std::path::Path::file_name)
@@ -113,8 +134,13 @@ impl<'a> Record<'a> {
     }
 
     /// The message body.
-    pub fn args(&self) -> &fmt::Arguments<'a> {
-        &self.args
+    pub fn payload(&self) -> &str {
+        self.payload.get()
+    }
+
+    /// The message body, if it is a `'static` str.
+    pub fn payload_static(&self) -> Option<&'static str> {
+        self.payload.get_static()
     }
 
     /// The key-values.
@@ -133,15 +159,30 @@ impl<'a> Record<'a> {
             module_path: self.module_path.map(MaybeStaticStr::into_str),
             file: self.file.map(MaybeStaticStr::into_str),
             line: self.line,
-            args: match self.args.as_str() {
-                Some(s) => Str::new(s),
-                None => Str::new_owned(self.args.to_string()),
-            },
+            payload: self.payload.clone(),
             kvs: self
                 .kvs
                 .iter()
                 .map(|(k, v)| (k.to_owned(), v.to_owned()))
                 .collect(),
+        }
+    }
+
+    /// Create a builder initialized with the current record's values.
+    pub fn to_builder(&self) -> RecordBuilder<'a> {
+        RecordBuilder {
+            record: Record {
+                now: self.now,
+                metadata: Metadata {
+                    level: self.metadata.level,
+                    target: self.metadata.target,
+                },
+                module_path: self.module_path,
+                file: self.file,
+                line: self.line,
+                payload: self.payload.clone(),
+                kvs: self.kvs.clone(),
+            },
         }
     }
 }
@@ -161,7 +202,7 @@ impl Default for RecordBuilder<'_> {
                 module_path: None,
                 file: None,
                 line: None,
-                args: format_args!(""),
+                payload: Default::default(),
                 kvs: Default::default(),
             },
         }
@@ -169,9 +210,10 @@ impl Default for RecordBuilder<'_> {
 }
 
 impl<'a> RecordBuilder<'a> {
-    /// Set [`args`](Record::args).
-    pub fn args(mut self, args: fmt::Arguments<'a>) -> Self {
-        self.record.args = args;
+    /// Set [`payload`](Record::payload).
+    pub fn payload(mut self, payload: impl IntoStr<'static>) -> Self {
+        let payload = payload.into_str();
+        self.record.payload = payload.to_shared();
         self
     }
 
@@ -254,6 +296,16 @@ impl<'a> Metadata<'a> {
     pub fn target(&self) -> &'a str {
         self.target
     }
+
+    /// Create a builder initialized with the current metadata's values.
+    pub fn to_builder(&self) -> MetadataBuilder<'a> {
+        MetadataBuilder {
+            metadata: Metadata {
+                level: self.level,
+                target: self.target,
+            },
+        }
+    }
 }
 
 /// Builder for [`Metadata`].
@@ -305,7 +357,7 @@ pub struct RecordOwned {
     line: Option<u32>,
 
     // the payload
-    args: Str<'static>,
+    payload: Str<'static>,
 
     // structural logging
     kvs: Vec<(kv::KeyOwned, kv::ValueOwned)>,
@@ -319,11 +371,9 @@ struct MetadataOwned {
 }
 
 impl RecordOwned {
-    /// Process a `Record`.
-    ///
-    /// This is a workaround before `format_args` can return a value outlives the function call.
-    pub fn execute(&self, f: impl FnOnce(&Record) -> Result<(), Error>) -> Result<(), Error> {
-        f(&Record {
+    /// Create a `Record` referencing the data in this `RecordOwned`.
+    pub fn as_record(&self) -> Record<'_> {
+        Record {
             now: self.now,
             metadata: Metadata {
                 level: self.metadata.level,
@@ -332,9 +382,9 @@ impl RecordOwned {
             module_path: self.module_path.as_deref().map(MaybeStaticStr::Str),
             file: self.file.as_deref().map(MaybeStaticStr::Str),
             line: self.line,
-            args: format_args!("{}", self.args),
+            payload: self.payload.clone(),
             kvs: KeyValues::from(self.kvs.as_slice()),
-        })
+        }
     }
 }
 

@@ -31,7 +31,7 @@ struct CustomLayout(&'static str);
 impl Layout for CustomLayout {
     fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
         let _ = diags;
-        Ok(format!("{} [{}] {}", self.0, record.level(), record.args()).into_bytes())
+        Ok(format!("{} [{}] {}", self.0, record.level(), record.payload()).into_bytes())
     }
 }
 

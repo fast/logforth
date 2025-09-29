@@ -214,7 +214,7 @@ impl Layout for TextLayout {
         let target = record.target();
         let file = record.filename();
         let line = record.line().unwrap_or_default();
-        let message = record.args();
+        let message = record.payload();
 
         let mut visitor = KvWriter {
             text: format!("{time:.6} {level:>5} {target}: {file}:{line} {message}"),

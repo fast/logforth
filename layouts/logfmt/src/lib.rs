@@ -109,7 +109,7 @@ impl Layout for LogfmtLayout {
         let target = record.target();
         let file = record.filename();
         let line = record.line().unwrap_or_default();
-        let message = record.args();
+        let message = record.payload();
 
         let mut visitor = KvFormatter {
             text: format!("timestamp={time:.6}"),
@@ -119,9 +119,9 @@ impl Layout for LogfmtLayout {
         visitor.visit("module".into(), target.into())?;
         visitor.visit(
             "position".into(),
-            Value::from_debug(&format_args!("{file}:{line}")),
+            Value::from_display(&format_args!("{file}:{line}")),
         )?;
-        visitor.visit("message".into(), Value::from_debug(message))?;
+        visitor.visit("message".into(), Value::from_str(message))?;
 
         record.key_values().visit(&mut visitor)?;
         for d in diags {

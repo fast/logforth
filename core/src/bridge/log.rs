@@ -70,9 +70,12 @@ impl log::Log for Logger {
     }
 
     fn log(&self, record: &log::Record) {
+        if !log::Log::enabled(self, record.metadata()) {
+            return;
+        }
+
         // basic fields
         let mut builder = RecordBuilder::default()
-            .args(*record.args())
             .level(record.level().into())
             .target(record.target())
             .line(record.line());
@@ -87,6 +90,13 @@ impl log::Log for Logger {
             builder.file_static(file)
         } else {
             builder.file(record.file())
+        };
+
+        // payload
+        builder = if let Some(payload) = record.args().as_str() {
+            builder.payload(payload)
+        } else {
+            builder.payload(record.args().to_string())
         };
 
         // key-values

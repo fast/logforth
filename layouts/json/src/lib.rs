@@ -16,8 +16,6 @@
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-use std::fmt::Arguments;
-
 use jiff::Timestamp;
 use jiff::TimestampDisplayWithOffset;
 use jiff::tz::TimeZone;
@@ -95,8 +93,7 @@ struct RecordLine<'a> {
     target: &'a str,
     file: &'a str,
     line: u32,
-    #[serde(serialize_with = "serialize_args")]
-    message: &'a Arguments<'a>,
+    message: &'a str,
     #[serde(skip_serializing_if = "Map::is_empty")]
     kvs: Map<String, serde_json::Value>,
     #[serde(skip_serializing_if = "Map::is_empty")]
@@ -111,13 +108,6 @@ where
     S: serde::Serializer,
 {
     serializer.collect_str(&format_args!("{timestamp:.6}"))
-}
-
-fn serialize_args<S>(args: &Arguments, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serializer.collect_str(args)
 }
 
 impl Layout for JsonLayout {
@@ -147,7 +137,7 @@ impl Layout for JsonLayout {
             target: record.target(),
             file: record.file().unwrap_or_default(),
             line: record.line().unwrap_or_default(),
-            message: record.args(),
+            message: record.payload(),
             kvs,
             diags,
         };

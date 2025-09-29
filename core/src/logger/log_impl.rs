@@ -160,7 +160,7 @@ Error perform logging.
     Record: {record:?}
     Error: {error:?}
 "###,
-        args = record.args(),
+        args = record.payload(),
         record = record,
         error = error,
     ) else {
@@ -175,7 +175,7 @@ Error performing stderr logging after error occurred during regular logging.
     Error: {error:?}
     Fallback error: {fallback_error}
 "###,
-        args = record.args(),
+        args = record.payload(),
         record = record,
         error = error,
         fallback_error = fallback_error,
