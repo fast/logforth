@@ -37,7 +37,7 @@ pub trait Visitor {
 pub type Value<'a> = ValueBag<'a>;
 
 /// A key in a key-value pair.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Key<'a>(Str<'a>);
 
 impl<'a> Key<'a> {
@@ -84,7 +84,7 @@ impl<'a> From<&'a str> for Key<'a> {
 pub type ValueOwned = OwnedValueBag;
 
 /// An owned key in a key-value pair.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct KeyOwned(Str<'static>);
 
 impl KeyOwned {
@@ -130,6 +130,28 @@ impl<'a> KeyValues<'a> {
         match &self.0 {
             KeyValuesState::Borrowed(p) => KeyValuesIter(KeyValuesIterState::Borrowed(p.iter())),
             KeyValuesState::Owned(p) => KeyValuesIter(KeyValuesIterState::Owned(p.iter())),
+        }
+    }
+
+    /// Get the value for a given key.
+    ///
+    /// If the key appears multiple times in the source then which key is returned is undetermined.
+    pub fn get(&self, key: &str) -> Option<Value<'a>> {
+        match &self.0 {
+            KeyValuesState::Borrowed(p) => p.iter().find_map(|(k, v)| {
+                if k.0.get() != key {
+                    None
+                } else {
+                    Some(v.clone())
+                }
+            }),
+            KeyValuesState::Owned(p) => p.iter().find_map(|(k, v)| {
+                if k.0.get() != key {
+                    None
+                } else {
+                    Some(v.by_ref())
+                }
+            }),
         }
     }
 

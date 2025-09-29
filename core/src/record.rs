@@ -185,6 +185,11 @@ impl<'a> Record<'a> {
             },
         }
     }
+
+    /// Returns a new builder.
+    pub fn builder() -> RecordBuilder<'a> {
+        RecordBuilder::default()
+    }
 }
 
 /// Builder for [`Record`].
@@ -305,6 +310,11 @@ impl<'a> Metadata<'a> {
                 target: self.target,
             },
         }
+    }
+
+    /// Returns a new builder.
+    pub fn builder() -> MetadataBuilder<'a> {
+        MetadataBuilder::default()
     }
 }
 
