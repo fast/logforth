@@ -79,7 +79,7 @@ impl Layout for PlainTextLayout {
         let target = record.target();
         let file = record.filename();
         let line = record.line().unwrap_or_default();
-        let message = record.args();
+        let message = record.payload();
         write!(&mut text, " {level:>5} {target}: {file}:{line} {message}").unwrap();
 
         let mut visitor = KvWriter { text };

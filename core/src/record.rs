@@ -14,16 +14,20 @@
 
 //! Log record and metadata.
 
+use std::borrow::Cow;
 use std::cmp;
 use std::fmt;
 use std::str::FromStr;
 use std::time::SystemTime;
 
-use crate::Error;
 use crate::kv;
 use crate::kv::KeyValues;
+use crate::str::IntoStr;
 use crate::str::Str;
 
+// This struct is preferred over `Str` because we need to return a &'a str
+// when holding only a reference to the str ref. But `Str::get` return a &str
+// that lives as long as the `Str` itself, which is not necessarily 'a.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 enum MaybeStaticStr<'a> {
     Str(&'a str),
@@ -59,7 +63,7 @@ pub struct Record<'a> {
     line: Option<u32>,
 
     // the payload
-    args: fmt::Arguments<'a>,
+    payload: Str<'static>,
 
     // structural logging
     kvs: KeyValues<'a>,
@@ -99,7 +103,7 @@ impl<'a> Record<'a> {
     /// The filename of the source file.
     // obtain filename only from record's full file path
     // reason: the module is already logged + full file path is noisy for some layouts
-    pub fn filename(&self) -> std::borrow::Cow<'a, str> {
+    pub fn filename(&self) -> Cow<'a, str> {
         self.file()
             .map(std::path::Path::new)
             .and_then(std::path::Path::file_name)
@@ -113,8 +117,8 @@ impl<'a> Record<'a> {
     }
 
     /// The message body.
-    pub fn args(&self) -> &fmt::Arguments<'a> {
-        &self.args
+    pub fn payload(&self) -> &str {
+        self.payload.get()
     }
 
     /// The key-values.
@@ -133,10 +137,7 @@ impl<'a> Record<'a> {
             module_path: self.module_path.map(MaybeStaticStr::into_str),
             file: self.file.map(MaybeStaticStr::into_str),
             line: self.line,
-            args: match self.args.as_str() {
-                Some(s) => Str::new(s),
-                None => Str::new_owned(self.args.to_string()),
-            },
+            payload: self.payload.clone(),
             kvs: self
                 .kvs
                 .iter()
@@ -157,7 +158,7 @@ impl<'a> Record<'a> {
                 module_path: self.module_path,
                 file: self.file,
                 line: self.line,
-                args: self.args,
+                payload: self.payload.clone(),
                 kvs: self.kvs.clone(),
             },
         }
@@ -179,7 +180,7 @@ impl Default for RecordBuilder<'_> {
                 module_path: None,
                 file: None,
                 line: None,
-                args: format_args!(""),
+                payload: Default::default(),
                 kvs: Default::default(),
             },
         }
@@ -187,9 +188,10 @@ impl Default for RecordBuilder<'_> {
 }
 
 impl<'a> RecordBuilder<'a> {
-    /// Set [`args`](Record::args).
-    pub fn args(mut self, args: fmt::Arguments<'a>) -> Self {
-        self.record.args = args;
+    /// Set [`payload`](Record::payload).
+    pub fn payload(mut self, payload: impl IntoStr<'static>) -> Self {
+        let payload = payload.into_str();
+        self.record.payload = payload.to_shared();
         self
     }
 
@@ -333,7 +335,7 @@ pub struct RecordOwned {
     line: Option<u32>,
 
     // the payload
-    args: Str<'static>,
+    payload: Str<'static>,
 
     // structural logging
     kvs: Vec<(kv::KeyOwned, kv::ValueOwned)>,
@@ -347,11 +349,9 @@ struct MetadataOwned {
 }
 
 impl RecordOwned {
-    /// Process a `Record`.
-    ///
-    /// This is a workaround before `format_args` can return a value outlives the function call.
-    pub fn execute(&self, f: impl FnOnce(&Record) -> Result<(), Error>) -> Result<(), Error> {
-        f(&Record {
+    /// Create a `Record` referencing the data in this `RecordOwned`.
+    pub fn as_record(&self) -> Record<'_> {
+        Record {
             now: self.now,
             metadata: Metadata {
                 level: self.metadata.level,
@@ -360,9 +360,9 @@ impl RecordOwned {
             module_path: self.module_path.as_deref().map(MaybeStaticStr::Str),
             file: self.file.as_deref().map(MaybeStaticStr::Str),
             line: self.line,
-            args: format_args!("{}", self.args),
+            payload: self.payload.clone(),
             kvs: KeyValues::from(self.kvs.as_slice()),
-        })
+        }
     }
 }
 

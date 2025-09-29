@@ -49,7 +49,7 @@ fn current_exe_identifier() -> Option<String> {
 /// The journald appender always sets the following standard [journal fields]:
 ///
 /// - `PRIORITY`: The log level mapped to a priority (see below).
-/// - `MESSAGE`: The formatted log message (see [`Record::args()`]).
+/// - `MESSAGE`: The formatted log message (see [`Record::payload()`]).
 /// - `SYSLOG_PID`: The PID of the running process (see [`std::process::id()`]).
 /// - `CODE_FILE`: The filename the log message originates from (see [`Record::file()`], only if
 ///   present).
@@ -263,7 +263,11 @@ impl Append for Journald {
         };
 
         put_field_bytes(&mut buffer, FieldName::WellFormed("PRIORITY"), priority);
-        put_field_length_encoded(&mut buffer, FieldName::WellFormed("MESSAGE"), record.args());
+        put_field_length_encoded(
+            &mut buffer,
+            FieldName::WellFormed("MESSAGE"),
+            record.payload(),
+        );
         // Syslog compatibility fields
         // SAFETY: write to a Vec<u8> always succeeds
         writeln!(&mut buffer, "SYSLOG_PID={}", std::process::id()).unwrap();

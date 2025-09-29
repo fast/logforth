@@ -16,7 +16,6 @@
 
 //! Write well-formatted journal fields to buffers.
 
-use std::fmt::Arguments;
 use std::io::Write;
 
 use logforth_core::kv::Value;
@@ -77,16 +76,9 @@ impl PutAsFieldValue for &[u8] {
     }
 }
 
-impl PutAsFieldValue for &Arguments<'_> {
+impl PutAsFieldValue for &str {
     fn put_field_value(self, buffer: &mut Vec<u8>) {
-        match self.as_str() {
-            Some(s) => buffer.extend_from_slice(s.as_bytes()),
-            None => {
-                // SAFETY: no more than an allocate-less version
-                //  buffer.extend_from_slice(format!("{}", self))
-                write!(buffer, "{self}").unwrap()
-            }
-        }
+        buffer.extend_from_slice(self.as_bytes())
     }
 }
 

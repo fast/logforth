@@ -101,7 +101,7 @@ impl SyslogBuilder {
 
     /// Set the layout of the [`Syslog`] appender.
     ///
-    /// Default to `None`, the message will construct with only [`Record::args`].
+    /// Default to `None`, the message will construct with only [`Record::payload`].
     pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
         self.formatter.layout = Some(layout.into());
         self
@@ -337,7 +337,8 @@ impl SyslogFormatter {
             SyslogFormat::RFC3164 => match self.layout {
                 None => format!(
                     "{}",
-                    self.context.format_rfc3164(severity, Some(record.args()))
+                    self.context
+                        .format_rfc3164(severity, Some(record.payload()))
                 ),
                 Some(ref layout) => {
                     let message = layout.format(record, diags)?;
@@ -356,7 +357,7 @@ impl SyslogFormatter {
                             severity,
                             EMPTY_MSGID,
                             EMPTY_STRUCTURED_DATA,
-                            Some(record.args())
+                            Some(record.payload())
                         )
                     ),
                     Some(ref layout) => {

@@ -19,7 +19,7 @@
 //! [`Cow`] to access because it doesn't need to hop through enum variants.
 //!
 //! Values can be converted into [`Str`]s either directly using methods like [`Str::new`], or
-//! generically through the [`ToStr`] trait.
+//! generically through the [`IntoStr`] trait.
 
 // This file is derived from https://github.com/emit-rs/emit/blob/097f5254/core/src/str.rs
 
@@ -317,45 +317,39 @@ impl<'k> AsRef<str> for Str<'k> {
     }
 }
 
-/// Convert a reference to a [`Str`].
-pub trait ToStr {
+/// Convert something into a [`Str`].
+pub trait IntoStr<'k> {
     /// Perform the conversion.
-    fn to_str(&self) -> Str<'_>;
+    fn into_str(self) -> Str<'k>;
 }
 
-impl<T: ToStr + ?Sized> ToStr for &T {
-    fn to_str(&self) -> Str<'_> {
-        (**self).to_str()
+impl<'k> IntoStr<'k> for Str<'k> {
+    fn into_str(self) -> Str<'k> {
+        self
     }
 }
 
-impl<'k> ToStr for Str<'k> {
-    fn to_str(&self) -> Str<'_> {
-        self.by_ref()
-    }
-}
-
-impl ToStr for str {
-    fn to_str(&self) -> Str<'_> {
+impl<'k> IntoStr<'k> for &'k str {
+    fn into_str(self) -> Str<'k> {
         Str::new_ref(self)
     }
 }
 
-impl ToStr for String {
-    fn to_str(&self) -> Str<'_> {
-        Str::new_ref(self)
+impl IntoStr<'static> for String {
+    fn into_str(self) -> Str<'static> {
+        Str::new_owned(self)
     }
 }
 
-impl ToStr for Box<str> {
-    fn to_str(&self) -> Str<'_> {
-        Str::new_ref(self)
+impl IntoStr<'static> for Box<str> {
+    fn into_str(self) -> Str<'static> {
+        Str::new_owned(self)
     }
 }
 
-impl ToStr for Arc<str> {
-    fn to_str(&self) -> Str<'_> {
-        Str::new_shared(self.clone())
+impl IntoStr<'static> for Arc<str> {
+    fn into_str(self) -> Str<'static> {
+        Str::new_shared(self)
     }
 }
 

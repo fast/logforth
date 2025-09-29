@@ -234,7 +234,7 @@ impl Append for OpentelemetryLog {
         log_record.set_severity_text(record.level().as_str());
         log_record.set_target(record.target().to_string());
         log_record.set_body(match self.make_body.as_ref() {
-            None => AnyValue::String(record.args().to_string().into()),
+            None => AnyValue::String(record.payload().to_string().into()),
             Some(make_body) => make_body.create(record, diags)?,
         });
 
