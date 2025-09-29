@@ -95,7 +95,6 @@ struct RecordLine<'a> {
     target: &'a str,
     file: &'a str,
     line: u32,
-    #[serde(serialize_with = "serialize_args")]
     message: &'a Arguments<'a>,
     #[serde(skip_serializing_if = "Map::is_empty")]
     kvs: Map<String, serde_json::Value>,
@@ -111,13 +110,6 @@ where
     S: serde::Serializer,
 {
     serializer.collect_str(&format_args!("{timestamp:.6}"))
-}
-
-fn serialize_args<S>(args: &Arguments, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serializer.collect_str(args)
 }
 
 impl Layout for JsonLayout {

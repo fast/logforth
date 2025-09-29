@@ -183,7 +183,6 @@ struct RecordLine<'a> {
     extra_fields: BTreeMap<String, serde_json::Value>,
     severity: &'a str,
     timestamp: jiff::Timestamp,
-    #[serde(serialize_with = "serialize_args")]
     message: &'a Arguments<'a>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     #[serde(rename = "logging.googleapis.com/labels")]
@@ -200,13 +199,6 @@ struct RecordLine<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "logging.googleapis.com/sourceLocation")]
     source_location: Option<SourceLocation<'a>>,
-}
-
-fn serialize_args<S>(args: &Arguments, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serializer.collect_str(args)
 }
 
 impl Layout for GoogleCloudLoggingLayout {
