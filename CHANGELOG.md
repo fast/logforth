@@ -11,8 +11,7 @@ All notable changes to this project will be documented in this file.
 * To work with the `log` crate, now it's recommended to add the "starter-log" feature flag and set both:
     ```rust
     fn main() {
-        logforth::bridge::setup_log_crate();
-        logforth::builder().apply();
+        logforth::starter_log::builder().apply();
     }
     ```
 * `TextLayout` is now behind `layout-text` feature flag, and colored is always available when the feature is enabled.
