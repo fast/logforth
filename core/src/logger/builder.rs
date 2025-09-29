@@ -77,8 +77,12 @@ impl LoggerBuilder {
     /// # Examples
     ///
     /// ```
+    /// use logforth_core::record::Record;
+    /// use logforth_core::record::RecordBuilder;
+    ///
     /// let l = logforth_core::builder().build();
-    /// log::error!(logger: l, "Hello error!");
+    /// let r = RecordBuilder::default().payload("hello world!").build();
+    /// l.log(&r);
     /// ```
     pub fn build(self) -> Logger {
         Logger::new(self.dispatches)

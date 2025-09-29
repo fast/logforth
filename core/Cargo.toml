@@ -29,23 +29,14 @@ rust-version.workspace = true
 
 [features]
 default = []
-
-# Bridge logging interfaces
-bridge-log = ["dep:log"]
-
-# Common features
 serde = ["value-bag/serde"]
 
 [dependencies]
 anyhow = { workspace = true }
 value-bag = { workspace = true }
 
-# Optional dependencies
-log = { workspace = true, optional = true }
-
 [dev-dependencies]
 insta = { workspace = true }
-log = { workspace = true }
 
 [lints]
 workspace = true

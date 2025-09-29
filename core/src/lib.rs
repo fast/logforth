@@ -34,5 +34,3 @@ pub use self::error::*;
 
 mod logger;
 pub use self::logger::*;
-
-mod bridge;
