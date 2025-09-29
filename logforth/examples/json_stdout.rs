@@ -18,8 +18,7 @@ use logforth::append;
 use logforth::layout::JsonLayout;
 
 fn main() {
-    logforth::bridge::setup_log_crate();
-    logforth::builder()
+    logforth::starter_log::builder()
         .dispatch(|d| d.append(append::Stdout::default().with_layout(JsonLayout::default())))
         .apply();
 

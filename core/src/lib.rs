@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Core structs and functions for the Logforth logging framework.
+//! Core structs and functions for the logforth logging framework.
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
@@ -34,5 +34,3 @@ pub use self::error::*;
 
 mod logger;
 pub use self::logger::*;
-
-mod bridge;

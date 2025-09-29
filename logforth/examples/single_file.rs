@@ -19,15 +19,13 @@ use logforth::layout::JsonLayout;
 use logforth::record::LevelFilter;
 
 fn main() {
-    logforth::bridge::setup_log_crate();
-
     let file = FileBuilder::new("logs", "my_app")
         .filename_suffix("log")
         .layout(JsonLayout::default())
         .build()
         .unwrap();
 
-    logforth::builder()
+    logforth::starter_log::builder()
         .dispatch(|d| d.filter(LevelFilter::Trace).append(file))
         .apply();
 

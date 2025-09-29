@@ -31,7 +31,7 @@ use crate::logger::log_impl::set_default_logger;
 ///     .apply();
 /// ```
 pub fn builder() -> LoggerBuilder {
-    LoggerBuilder::new()
+    LoggerBuilder { dispatches: vec![] }
 }
 
 /// A builder for configuring log dispatching and setting up the global logger.
@@ -53,10 +53,6 @@ pub struct LoggerBuilder {
 }
 
 impl LoggerBuilder {
-    fn new() -> Self {
-        LoggerBuilder { dispatches: vec![] }
-    }
-
     /// Register a new dispatch with the [`LoggerBuilder`].
     ///
     /// # Examples
@@ -81,8 +77,12 @@ impl LoggerBuilder {
     /// # Examples
     ///
     /// ```
+    /// use logforth_core::record::Record;
+    /// use logforth_core::record::RecordBuilder;
+    ///
     /// let l = logforth_core::builder().build();
-    /// log::error!(logger: l, "Hello error!");
+    /// let r = RecordBuilder::default().payload("hello world!").build();
+    /// l.log(&r);
     /// ```
     pub fn build(self) -> Logger {
         Logger::new(self.dispatches)

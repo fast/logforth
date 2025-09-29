@@ -33,7 +33,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 log = { workspace = true }
-logforth-core = { workspace = true, features = ["bridge-log"] }
+logforth-core = { workspace = true }
 
 [lints]
 workspace = true

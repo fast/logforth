@@ -15,7 +15,7 @@
 use std::fmt;
 use std::io;
 
-/// The error struct of Logforth.
+/// The error struct of logforth.
 pub struct Error {
     message: String,
     source: Option<anyhow::Error>,

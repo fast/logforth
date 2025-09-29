@@ -48,8 +48,7 @@ impl Layout for CustomLayout {
 }
 
 fn main() {
-    logforth::bridge::setup_log_crate();
-    logforth::builder()
+    logforth::starter_log::builder()
         .dispatch(|d| {
             d.filter(CustomFilter)
                 .append(append::Stdout::default().with_layout(CustomLayout))

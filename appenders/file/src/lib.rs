@@ -22,7 +22,7 @@
 //! use logforth_core::record::LevelFilter;
 //! use logforth_layout_json::JsonLayout;
 //!
-//! logforth_bridge_log::setup_log_crate();
+//! logforth_bridge_log::setup();
 //!
 //! let rolling = FileBuilder::new("logs", "app_log")
 //!     .layout(JsonLayout::default())
