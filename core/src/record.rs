@@ -42,6 +42,13 @@ impl<'a> MaybeStaticStr<'a> {
         }
     }
 
+    fn get_static(&self) -> Option<&'static str> {
+        match *self {
+            MaybeStaticStr::Str(_) => None,
+            MaybeStaticStr::Static(s) => Some(s),
+        }
+    }
+
     fn into_str(self) -> Str<'static> {
         match self {
             MaybeStaticStr::Str(s) => Str::new_owned(s.to_owned()),
@@ -95,9 +102,19 @@ impl<'a> Record<'a> {
         self.module_path.map(|s| s.get())
     }
 
+    /// The module path of the message, if it is a `'static` str.
+    pub fn module_path_static(&self) -> Option<&'static str> {
+        self.module_path.and_then(|s| s.get_static())
+    }
+
     /// The source file containing the message.
     pub fn file(&self) -> Option<&'a str> {
         self.file.map(|s| s.get())
+    }
+
+    /// The source file containing the message, if it is a `'static` str.
+    pub fn file_static(&self) -> Option<&'static str> {
+        self.file.and_then(|s| s.get_static())
     }
 
     /// The filename of the source file.
@@ -119,6 +136,11 @@ impl<'a> Record<'a> {
     /// The message body.
     pub fn payload(&self) -> &str {
         self.payload.get()
+    }
+
+    /// The message body, if it is a `'static` str.
+    pub fn payload_static(&self) -> Option<&'static str> {
+        self.payload.get_static()
     }
 
     /// The key-values.

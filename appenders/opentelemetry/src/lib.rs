@@ -232,18 +232,28 @@ impl Append for OpentelemetryLog {
         log_record.set_observed_timestamp(now);
         log_record.set_severity_number(log_level_to_otel_severity(record.level()));
         log_record.set_severity_text(record.level().as_str());
-        log_record.set_target(record.target().to_string());
-        log_record.set_body(match self.make_body.as_ref() {
-            None => AnyValue::String(record.payload().to_string().into()),
-            Some(make_body) => make_body.create(record, diags)?,
-        });
+        log_record.set_target(record.target().to_owned());
 
-        if let Some(module_path) = record.module_path() {
-            log_record.add_attribute("module_path", module_path.to_string());
+        if let Some(make_body) = self.make_body.as_ref() {
+            log_record.set_body(make_body.create(record, diags)?);
+        } else if let Some(payload) = record.payload_static() {
+            log_record.set_body(AnyValue::from(payload));
+        } else {
+            log_record.set_body(AnyValue::from(record.payload().to_owned()));
         }
-        if let Some(file) = record.file() {
-            log_record.add_attribute("file", file.to_string());
+
+        if let Some(module_path) = record.module_path_static() {
+            log_record.add_attribute("module_path", module_path);
+        } else if let Some(module_path) = record.module_path() {
+            log_record.add_attribute("module_path", module_path.to_owned());
         }
+
+        if let Some(file) = record.file_static() {
+            log_record.add_attribute("file", file);
+        } else if let Some(file) = record.file() {
+            log_record.add_attribute("file", file.to_owned());
+        }
+
         if let Some(line) = record.line() {
             log_record.add_attribute("line", line);
         }
