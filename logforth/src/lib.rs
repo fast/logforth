@@ -63,20 +63,13 @@
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-pub use logforth_core::DispatchBuilder;
 pub use logforth_core::Error;
-pub use logforth_core::Logger;
-pub use logforth_core::LoggerBuilder;
 pub use logforth_core::append::Append;
-pub use logforth_core::builder;
-pub use logforth_core::default_logger;
 pub use logforth_core::diagnostic::Diagnostic;
 pub use logforth_core::filter::Filter;
 pub use logforth_core::kv;
 pub use logforth_core::layout::Layout;
 pub use logforth_core::record;
-pub use logforth_core::set_default_logger;
-pub use logforth_core::str;
 
 /// Dispatch log records to various targets.
 pub mod append {
@@ -101,8 +94,26 @@ pub mod append {
 
 /// Bridge logforth with other logging frameworks.
 pub mod bridge {
+    /// Bridge logforth with [`log`].
     #[cfg(feature = "bridge-log")]
-    pub use logforth_bridge_log::*;
+    pub mod log {
+        #[cfg(feature = "bridge-log")]
+        pub use logforth_bridge_log::*;
+    }
+}
+
+/// Core components of the logforth logging framework.
+pub mod core {
+    // structs
+    pub use logforth_core::DispatchBuilder;
+    pub use logforth_core::Logger;
+    pub use logforth_core::LoggerBuilder;
+    // methods
+    pub use logforth_core::builder;
+    pub use logforth_core::default_logger;
+    pub use logforth_core::set_default_logger;
+    // modules
+    pub use logforth_core::str;
 }
 
 /// Mapped Diagnostic Context (MDC).
@@ -132,5 +143,5 @@ pub mod layout {
     pub use logforth_layout_text::TextLayout;
 }
 
-mod utility;
-pub use self::utility::*;
+#[cfg(feature = "bridge-log")]
+pub mod starter_log;

@@ -16,21 +16,22 @@
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-use logforth_core::default_logger;
-
 struct LogCrateLogger(());
 
 impl log::Log for LogCrateLogger {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
-        log::Log::enabled(default_logger(), metadata)
+        let logger = logforth_core::default_logger();
+        log::Log::enabled(logger, metadata)
     }
 
     fn log(&self, record: &log::Record) {
-        log::Log::log(default_logger(), record)
+        let logger = logforth_core::default_logger();
+        log::Log::log(logger, record)
     }
 
     fn flush(&self) {
-        log::Log::flush(default_logger())
+        let logger = logforth_core::default_logger();
+        log::Log::flush(logger)
     }
 }
 
@@ -52,11 +53,11 @@ impl log::Log for LogCrateLogger {
 /// # Examples
 ///
 /// ```
-/// if let Err(err) = logforth_bridge_log::try_setup_log_crate() {
+/// if let Err(err) = logforth_bridge_log::try_setup() {
 ///     eprintln!("failed to setup log crate: {err}");
 /// }
 /// ```
-pub fn try_setup_log_crate() -> Result<(), log::SetLoggerError> {
+pub fn try_setup() -> Result<(), log::SetLoggerError> {
     static LOGGER: LogCrateLogger = LogCrateLogger(());
     log::set_logger(&LOGGER)?;
     log::set_max_level(log::LevelFilter::Trace);
@@ -84,11 +85,11 @@ pub fn try_setup_log_crate() -> Result<(), log::SetLoggerError> {
 /// # Examples
 ///
 /// ```
-/// logforth_bridge_log::setup_log_crate();
+/// logforth_bridge_log::setup();
 /// logforth_core::builder().apply()
 /// ```
-pub fn setup_log_crate() {
-    try_setup_log_crate().expect(
-        "logforth::bridge::setup_log_crate must be called before the log crate global logger initialized",
+pub fn setup() {
+    try_setup().expect(
+        "logforth_bridge_log::setup must be called before the log crate global logger initialized",
     )
 }

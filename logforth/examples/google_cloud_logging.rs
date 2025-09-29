@@ -38,8 +38,7 @@ struct MyStructuredValue {
 }
 
 fn main() {
-    logforth::bridge::setup_log_crate();
-    logforth::builder()
+    logforth::starter_log::builder()
         .dispatch(|d| {
             d.diagnostic(diagnostic::FastraceDiagnostic::default())
                 .append(

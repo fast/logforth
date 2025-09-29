@@ -15,8 +15,7 @@
 //! An example of simple logging to stdout.
 
 fn main() {
-    logforth::bridge::setup_log_crate();
-    logforth::stdout().apply();
+    logforth::starter_log::stdout().apply();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

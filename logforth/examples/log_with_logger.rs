@@ -15,10 +15,13 @@
 //! An example of logging with a specific logger instance.
 
 use log::LevelFilter;
+use logforth_core::append;
 
 fn main() {
     log::set_max_level(LevelFilter::Trace);
-    let l = logforth::stdout().build();
+    let l = logforth::core::builder()
+        .dispatch(|d| d.append(append::Stdout::default()))
+        .build();
 
     log::error!(logger: l, "Hello error!");
     log::warn!(logger: l, "Hello warn!");

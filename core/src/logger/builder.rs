@@ -31,7 +31,7 @@ use crate::logger::log_impl::set_default_logger;
 ///     .apply();
 /// ```
 pub fn builder() -> LoggerBuilder {
-    LoggerBuilder::new()
+    LoggerBuilder { dispatches: vec![] }
 }
 
 /// A builder for configuring log dispatching and setting up the global logger.
@@ -53,10 +53,6 @@ pub struct LoggerBuilder {
 }
 
 impl LoggerBuilder {
-    fn new() -> Self {
-        LoggerBuilder { dispatches: vec![] }
-    }
-
     /// Register a new dispatch with the [`LoggerBuilder`].
     ///
     /// # Examples

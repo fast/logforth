@@ -18,10 +18,8 @@ use logforth::append::syslog::SyslogBuilder;
 use logforth::record::LevelFilter;
 
 fn main() {
-    logforth::bridge::setup_log_crate();
-
     let append = SyslogBuilder::tcp_well_known().unwrap().build();
-    logforth::builder()
+    logforth::starter_log::builder()
         .dispatch(|d| d.filter(LevelFilter::Trace).append(append))
         .apply();
 

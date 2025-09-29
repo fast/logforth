@@ -48,8 +48,7 @@ fn test_meta_logging_in_format_works() {
         .build()
         .unwrap();
 
-    logforth::bridge::setup_log_crate();
-    logforth::builder()
+    logforth::starter_log::builder()
         .dispatch(|d| d.append(stdout))
         .dispatch(|d| d.append(stderr))
         .dispatch(|d| d.append(rolling))

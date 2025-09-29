@@ -16,10 +16,10 @@
 
 #[cfg(unix)]
 fn main() {
-    logforth::bridge::setup_log_crate();
-
     let append = logforth::append::Journald::new().unwrap();
-    logforth::builder().dispatch(|d| d.append(append)).apply();
+    logforth::starter_log::builder()
+        .dispatch(|d| d.append(append))
+        .apply();
 
     log::error!("Hello, journald at ERROR!");
     log::warn!("Hello, journald at WARN!");
