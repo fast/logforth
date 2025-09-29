@@ -37,7 +37,7 @@ impl log::Log for LogCrateLogger {
 /// Set up the log crate global logger.
 ///
 /// This function calls [`log::set_logger`] to set up a `LogCrateProxy` and
-/// all logs from log crate will be forwarded to `logforth`'s logger.
+/// all logs from log crate will be forwarded to `logforth`'s default logger.
 ///
 /// This should be called early in the execution of a Rust program. Any log events that occur
 /// before initialization will be ignored.
@@ -52,8 +52,9 @@ impl log::Log for LogCrateLogger {
 /// # Examples
 ///
 /// ```
-/// logforth_bridge_log::setup_log_crate();
-/// logforth_core::builder().apply()
+/// if let Err(err) = logforth_bridge_log::try_setup_log_crate() {
+///     eprintln!("failed to setup log crate: {err}");
+/// }
 /// ```
 pub fn try_setup_log_crate() -> Result<(), log::SetLoggerError> {
     static LOGGER: LogCrateLogger = LogCrateLogger(());
@@ -65,7 +66,7 @@ pub fn try_setup_log_crate() -> Result<(), log::SetLoggerError> {
 /// Set up the log crate global logger.
 ///
 /// This function calls [`log::set_logger`] to set up a `LogCrateProxy` and
-/// all logs from log crate will be forwarded to `logforth`'s logger.
+/// all logs from log crate will be forwarded to `logforth`'s default logger.
 ///
 /// This should be called early in the execution of a Rust program. Any log events that occur
 /// before initialization will be ignored.
