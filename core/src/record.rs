@@ -22,7 +22,6 @@ use std::time::SystemTime;
 
 use crate::kv;
 use crate::kv::KeyValues;
-use crate::str::IntoStr;
 use crate::str::Str;
 
 // This struct is preferred over `Str` because we need to return a &'a str
@@ -51,7 +50,7 @@ impl<'a> MaybeStaticStr<'a> {
 
     fn into_str(self) -> Str<'static> {
         match self {
-            MaybeStaticStr::Str(s) => Str::new_owned(s.to_owned()),
+            MaybeStaticStr::Str(s) => Str::new_shared(s),
             MaybeStaticStr::Static(s) => Str::new(s),
         }
     }
@@ -154,7 +153,7 @@ impl<'a> Record<'a> {
             now: self.now,
             metadata: MetadataOwned {
                 level: self.metadata.level,
-                target: Str::new_owned(self.metadata.target),
+                target: Str::new_shared(self.metadata.target),
             },
             module_path: self.module_path.map(MaybeStaticStr::into_str),
             file: self.file.map(MaybeStaticStr::into_str),
@@ -216,9 +215,11 @@ impl Default for RecordBuilder<'_> {
 
 impl<'a> RecordBuilder<'a> {
     /// Set [`payload`](Record::payload).
-    pub fn payload(mut self, payload: impl IntoStr<'static>) -> Self {
-        let payload = payload.into_str();
-        self.record.payload = payload.to_shared();
+    pub fn payload(mut self, payload: impl Into<Cow<'static, str>>) -> Self {
+        self.record.payload = match payload.into() {
+            Cow::Borrowed(s) => Str::new(s),
+            Cow::Owned(s) => Str::new_shared(s),
+        };
         self
     }
 

@@ -110,8 +110,6 @@ pub mod core {
     pub use logforth_core::builder;
     pub use logforth_core::default_logger;
     pub use logforth_core::set_default_logger;
-    // modules
-    pub use logforth_core::str;
 }
 
 /// Mapped Diagnostic Context (MDC).

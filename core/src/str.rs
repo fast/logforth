@@ -15,11 +15,8 @@
 //! The [`Str`] type.
 //!
 //! This module implements a string type that combines `Cow<'static, str>` with `Cow<'a, str>`. A
-//! [`Str`] can hold borrowed, static, owned, or shared data. Internally, it's more efficient than a
+//! [`Str`] can hold borrowed, static, or shared data. Internally, it's more efficient than a
 //! [`Cow`] to access because it doesn't need to hop through enum variants.
-//!
-//! Values can be converted into [`Str`]s either directly using methods like [`Str::new`], or
-//! generically through the [`IntoStr`] trait.
 
 // This file is derived from https://github.com/emit-rs/emit/blob/097f5254/core/src/str.rs
 
@@ -47,14 +44,13 @@ unsafe impl<'k> Sync for Str<'k> {}
 
 impl<'k> Default for Str<'k> {
     fn default() -> Self {
-        Str::new("")
+        Str::new(Default::default())
     }
 }
 
 enum StrOwner {
     None,
     Static(&'static str),
-    Box(*mut str),
     Shared(Arc<str>),
 }
 
@@ -73,7 +69,6 @@ impl<'k> fmt::Display for Str<'k> {
 impl<'k> Clone for Str<'k> {
     fn clone(&self) -> Self {
         match self.owner {
-            StrOwner::Box(_) => Str::new_owned(unsafe { &*self.value }),
             StrOwner::Shared(ref value) => Str::new_shared(value.clone()),
             StrOwner::Static(owner) => Str {
                 value: self.value,
@@ -89,37 +84,12 @@ impl<'k> Clone for Str<'k> {
     }
 }
 
-impl<'k> Drop for Str<'k> {
-    fn drop(&mut self) {
-        if let StrOwner::Box(boxed) = self.owner {
-            drop(unsafe { Box::from_raw(boxed) });
-        }
-
-        // other cases handled normally
-    }
-}
-
 impl Str<'static> {
     /// Create a new string from a value borrowed for `'static`.
     pub const fn new(k: &'static str) -> Self {
         Str {
             value: k as *const str,
             owner: StrOwner::Static(k),
-            marker: PhantomData,
-        }
-    }
-
-    /// Create a string from an owned value.
-    ///
-    /// Cloning the string will involve cloning the value.
-    pub fn new_owned(key: impl Into<Box<str>>) -> Self {
-        let value = key.into();
-
-        let raw = Box::into_raw(value);
-
-        Str {
-            value: raw as *const str,
-            owner: StrOwner::Box(raw),
             marker: PhantomData,
         }
     }
@@ -151,24 +121,13 @@ impl<'k> Str<'k> {
         }
     }
 
-    /// Create a string from a potentially owned value.
-    ///
-    /// If the value is `Cow::Borrowed` then this method will defer to [`Str::new_ref`]. If the
-    /// value is `Cow::Owned` then this method will defer to [`Str::new_owned`].
-    pub fn new_cow_ref(key: Cow<'k, str>) -> Self {
-        match key {
-            Cow::Borrowed(key) => Str::new_ref(key),
-            Cow::Owned(key) => Str::new_owned(key),
-        }
-    }
-
     /// Get a new [`Str`], borrowing data from this one.
     pub const fn by_ref(&self) -> Str<'_> {
         Str {
             value: self.value,
             owner: match self.owner {
                 StrOwner::Static(owner) => StrOwner::Static(owner),
-                _ => StrOwner::None,
+                StrOwner::None | StrOwner::Shared(_) => StrOwner::None,
             },
             marker: PhantomData,
         }
@@ -195,17 +154,6 @@ impl<'k> Str<'k> {
         }
     }
 
-    /// Get the underlying value as a potentially owned string.
-    ///
-    /// If the string contains a `'static` value then this method will return `Cow::Borrowed`.
-    /// Otherwise, it will return `Cow::Owned`.
-    pub fn to_cow(&self) -> Cow<'static, str> {
-        match self.owner {
-            StrOwner::Static(key) => Cow::Borrowed(key),
-            _ => Cow::Owned(self.get().to_owned()),
-        }
-    }
-
     /// Get a new string, taking an owned copy of the data in this one.
     ///
     /// If the string contains a `'static` or `Arc` value then this method is cheap. In other cases
@@ -214,36 +162,18 @@ impl<'k> Str<'k> {
         match self.owner {
             StrOwner::Static(owner) => Str::new(owner),
             StrOwner::Shared(ref owner) => Str::new_shared(owner.clone()),
-            _ => Str::new_shared(self.get()),
+            StrOwner::None => Str::new_shared(self.get()),
         }
     }
 
-    /// Get a new string, taking an owned copy of the data in this one.
+    /// Get the underlying value as a potentially owned string.
     ///
-    /// If the string contains a `'static` or `Arc` value then this method is cheap and doesn't
-    /// involve cloning. In other cases the underlying value will be passed through
-    /// [`Str::new_owned`].
-    pub fn to_owned(&self) -> Str<'static> {
+    /// If the string contains a `'static` value then this method will return `Cow::Borrowed`.
+    /// Otherwise, it will return `Cow::Owned`.
+    pub fn to_cow(&self) -> Cow<'static, str> {
         match self.owner {
-            StrOwner::Static(owner) => Str::new(owner),
-            StrOwner::Shared(ref owner) => Str::new_shared(owner.clone()),
-            _ => Str::new_owned(self.get()),
-        }
-    }
-
-    /// Convert this string into an owned `String`.
-    ///
-    /// If the underlying value is already an owned string then this method will return it without
-    /// allocating.
-    pub fn into_string(self) -> String {
-        match self.owner {
-            StrOwner::Box(boxed) => {
-                // Ensure `Drop` doesn't run over this value
-                // and clean up the box we've just moved out of
-                std::mem::forget(self);
-                unsafe { Box::from_raw(boxed) }.into()
-            }
-            _ => self.get().to_owned(),
+            StrOwner::Static(key) => Cow::Borrowed(key),
+            StrOwner::None | StrOwner::Shared(_) => Cow::Owned(self.get().to_owned()),
         }
     }
 }
@@ -315,83 +245,5 @@ impl<'k> Borrow<str> for Str<'k> {
 impl<'k> AsRef<str> for Str<'k> {
     fn as_ref(&self) -> &str {
         self.get()
-    }
-}
-
-/// Convert something into a [`Str`].
-pub trait IntoStr<'k> {
-    /// Perform the conversion.
-    fn into_str(self) -> Str<'k>;
-}
-
-impl<'k> IntoStr<'k> for Str<'k> {
-    fn into_str(self) -> Str<'k> {
-        self
-    }
-}
-
-impl<'k> IntoStr<'k> for &'k str {
-    fn into_str(self) -> Str<'k> {
-        Str::new_ref(self)
-    }
-}
-
-impl IntoStr<'static> for String {
-    fn into_str(self) -> Str<'static> {
-        Str::new_owned(self)
-    }
-}
-
-impl IntoStr<'static> for Box<str> {
-    fn into_str(self) -> Str<'static> {
-        Str::new_owned(self)
-    }
-}
-
-impl IntoStr<'static> for Arc<str> {
-    fn into_str(self) -> Str<'static> {
-        Str::new_shared(self)
-    }
-}
-
-impl From<String> for Str<'static> {
-    fn from(value: String) -> Self {
-        Str::new_owned(value)
-    }
-}
-
-impl From<Box<str>> for Str<'static> {
-    fn from(value: Box<str>) -> Self {
-        Str::new_owned(value)
-    }
-}
-
-impl From<Arc<str>> for Str<'static> {
-    fn from(value: Arc<str>) -> Self {
-        Str::new_shared(value)
-    }
-}
-
-impl<'k> From<&'k String> for Str<'k> {
-    fn from(value: &'k String) -> Self {
-        Str::new_ref(value)
-    }
-}
-
-impl<'k> From<Str<'k>> for String {
-    fn from(value: Str<'k>) -> String {
-        value.into_string()
-    }
-}
-
-impl<'a> From<&'a str> for Str<'a> {
-    fn from(value: &'a str) -> Self {
-        Str::new_ref(value)
-    }
-}
-
-impl<'a, 'b> From<&'a Str<'b>> for Str<'a> {
-    fn from(value: &'a Str<'b>) -> Self {
-        value.by_ref()
     }
 }
