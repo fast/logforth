@@ -18,6 +18,7 @@
 
 use logforth_core::Diagnostic;
 use logforth_core::Error;
+use logforth_core::kv::Key;
 use logforth_core::kv::Value;
 use logforth_core::kv::Visitor;
 
@@ -47,9 +48,9 @@ pub struct FastraceDiagnostic {}
 impl Diagnostic for FastraceDiagnostic {
     fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
         if let Some(span) = fastrace::collector::SpanContext::current_local_parent() {
-            visitor.visit("trace_id".into(), Value::from_u128(span.trace_id.0))?;
-            visitor.visit("span_id".into(), Value::from_u64(span.span_id.0))?;
-            visitor.visit("sampled".into(), Value::from_bool(span.sampled))?;
+            visitor.visit(Key::new("trace_id"), Value::from_u128(span.trace_id.0))?;
+            visitor.visit(Key::new("span_id"), Value::from_u64(span.span_id.0))?;
+            visitor.visit(Key::new("sampled"), Value::from_bool(span.sampled))?;
         }
 
         Ok(())

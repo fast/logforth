@@ -81,7 +81,7 @@ struct KvCollector {
 
 impl Visitor for KvCollector {
     fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
-        self.kv.push((key.into_string(), value.to_string()));
+        self.kv.push((key.to_string(), value.to_string()));
         Ok(())
     }
 }

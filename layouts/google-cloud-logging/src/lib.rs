@@ -132,20 +132,20 @@ struct KvCollector<'a> {
 
 impl Visitor for KvCollector<'_> {
     fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
-        let key = key.into_string();
+        let key = key.as_str();
 
         if let Some(trace_project_id) = self.layout.trace_project_id.as_ref() {
-            if self.trace.is_none() && self.layout.trace_keys.contains(&key) {
+            if self.trace.is_none() && self.layout.trace_keys.contains(key) {
                 self.trace = Some(format!("projects/{trace_project_id}/traces/{value}"));
                 return Ok(());
             }
 
-            if self.span_id.is_none() && self.layout.span_id_keys.contains(&key) {
+            if self.span_id.is_none() && self.layout.span_id_keys.contains(key) {
                 self.span_id = Some(value.to_string());
                 return Ok(());
             }
 
-            if self.trace_sampled.is_none() && self.layout.trace_sampled_keys.contains(&key) {
+            if self.trace_sampled.is_none() && self.layout.trace_sampled_keys.contains(key) {
                 self.trace_sampled = value.to_bool();
                 return Ok(());
             }
@@ -156,10 +156,10 @@ impl Visitor for KvCollector<'_> {
             Err(_) => value.to_string().into(),
         };
 
-        if self.layout.label_keys.contains(&key) {
-            self.labels.insert(key, value);
+        if self.layout.label_keys.contains(key) {
+            self.labels.insert(key.to_owned(), value);
         } else {
-            self.payload_fields.insert(key, value);
+            self.payload_fields.insert(key.to_owned(), value);
         }
 
         Ok(())

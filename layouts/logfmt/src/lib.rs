@@ -115,13 +115,13 @@ impl Layout for LogfmtLayout {
             text: format!("timestamp={time:.6}"),
         };
 
-        visitor.visit("level".into(), level.as_str().into())?;
-        visitor.visit("module".into(), target.into())?;
+        visitor.visit(Key::new("level"), level.as_str().into())?;
+        visitor.visit(Key::new("module"), target.into())?;
         visitor.visit(
-            "position".into(),
+            Key::new("position"),
             Value::from_display(&format_args!("{file}:{line}")),
         )?;
-        visitor.visit("message".into(), Value::from_str(message))?;
+        visitor.visit(Key::new("message"), Value::from_str(message))?;
 
         record.key_values().visit(&mut visitor)?;
         for d in diags {

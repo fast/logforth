@@ -327,7 +327,7 @@ struct KvExtractor<'a> {
 
 impl Visitor for KvExtractor<'_> {
     fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
-        let key = key.into_string();
+        let key = key.to_cow();
         let value = value.to_string();
         self.record.add_attribute(key, value);
         Ok(())

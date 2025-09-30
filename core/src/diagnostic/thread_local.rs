@@ -17,6 +17,8 @@ use std::collections::BTreeMap;
 
 use crate::Diagnostic;
 use crate::Error;
+use crate::kv::Key;
+use crate::kv::Value;
 use crate::kv::Visitor;
 
 thread_local! {
@@ -61,7 +63,9 @@ impl Diagnostic for ThreadLocalDiagnostic {
         CONTEXT.with(|map| {
             let map = map.borrow();
             for (key, value) in map.iter() {
-                visitor.visit(key.as_str().into(), value.as_str().into())?;
+                let key = Key::new_ref(key.as_str());
+                let value = Value::from(value);
+                visitor.visit(key, value)?;
             }
             Ok(())
         })

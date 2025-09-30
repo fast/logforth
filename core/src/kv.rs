@@ -18,8 +18,10 @@
 
 pub extern crate value_bag;
 
+use std::borrow::Cow;
 use std::fmt;
 use std::slice;
+use std::sync::Arc;
 
 use value_bag::OwnedValueBag;
 use value_bag::ValueBag;
@@ -40,43 +42,48 @@ pub type Value<'a> = ValueBag<'a>;
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Key<'a>(Str<'a>);
 
+impl Key<'static> {
+    /// Create a new key from a static `&str`.
+    pub const fn new(k: &'static str) -> Key<'static> {
+        Key(Str::new(k))
+    }
+
+    /// Create a new key from a shared value.
+    ///
+    /// Cloning the key will involve cloning the `Arc`, which may be cheaper than cloning the
+    /// value itself.
+    pub fn new_shared(key: impl Into<Arc<str>>) -> Self {
+        Key(Str::new_shared(key))
+    }
+}
+
 impl<'a> Key<'a> {
-    /// Convert to an owned `String`.
-    pub fn into_string(self) -> String {
-        self.0.into_string()
+    /// Create a new key from a `&str`.
+    ///
+    /// The [`Key::new`] method should be preferred where possible.
+    pub const fn new_ref(k: &'a str) -> Key<'a> {
+        Key(Str::new_ref(k))
     }
 
     /// Convert to an owned key.
     pub fn to_owned(&self) -> KeyOwned {
-        KeyOwned(self.0.to_owned())
+        KeyOwned(self.0.to_shared())
+    }
+
+    /// Convert to a `Cow` str.
+    pub fn to_cow(&self) -> Cow<'static, str> {
+        self.0.to_cow()
     }
 
     /// Get the key string.
     pub fn as_str(&self) -> &str {
         self.0.get()
     }
-
-    /// Coerce to a key with a shorter lifetime.
-    pub fn coerce(&self) -> Key<'_> {
-        Key(self.0.by_ref())
-    }
 }
 
 impl fmt::Display for Key<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
-    }
-}
-
-impl<'a> From<Str<'a>> for Key<'a> {
-    fn from(s: Str<'a>) -> Self {
-        Key(s)
-    }
-}
-
-impl<'a> From<&'a str> for Key<'a> {
-    fn from(s: &'a str) -> Self {
-        Key(Str::from(s))
     }
 }
 

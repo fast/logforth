@@ -76,7 +76,7 @@ struct KvCollector<'a> {
 
 impl Visitor for KvCollector<'_> {
     fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
-        let key = key.into_string();
+        let key = key.to_string();
         match serde_json::to_value(&value) {
             Ok(value) => self.kvs.insert(key, value),
             Err(_) => self.kvs.insert(key, value.to_string().into()),
