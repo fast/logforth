@@ -25,6 +25,7 @@
 
 use std::borrow::Borrow;
 use std::borrow::Cow;
+use std::cmp::Ordering;
 use std::fmt;
 use std::hash;
 use std::marker::PhantomData;
@@ -294,13 +295,13 @@ impl<'b> PartialEq<Str<'b>> for &str {
 }
 
 impl<'a, 'b> PartialOrd<Str<'b>> for Str<'a> {
-    fn partial_cmp(&self, other: &Str<'b>) -> Option<core::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Str<'b>) -> Option<Ordering> {
         self.get().partial_cmp(other.get())
     }
 }
 
 impl<'a> Ord for Str<'a> {
-    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> Ordering {
         self.get().cmp(other.get())
     }
 }
