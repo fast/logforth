@@ -33,4 +33,9 @@ impl Append for Async {
     fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
         self.appender.append(record, diags)
     }
+
+    fn flush(&self) -> Result<(), Error> {
+        // TODO(@tisonkun): implement actual async flushing.
+        Ok(())
+    }
 }
