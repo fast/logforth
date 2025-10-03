@@ -33,11 +33,7 @@ pub trait Append: fmt::Debug + Send + Sync + 'static {
     fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error>;
 
     /// Flush any buffered records.
-    ///
-    /// Default to a no-op.
-    fn flush(&self) -> Result<(), Error> {
-        Ok(())
-    }
+    fn flush(&self) -> Result<(), Error>;
 }
 
 impl<T: Append> From<T> for Box<dyn Append> {

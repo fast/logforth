@@ -67,4 +67,9 @@ impl Append for Testing {
         eprintln!("{}", String::from_utf8_lossy(&bytes));
         Ok(())
     }
+
+    fn flush(&self) -> Result<(), Error> {
+        // nothing to flush for eprintln
+        Ok(())
+    }
 }

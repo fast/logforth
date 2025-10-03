@@ -312,4 +312,9 @@ impl Append for Journald {
         self.send_payload(&buffer)?;
         Ok(())
     }
+
+    fn flush(&self) -> Result<(), Error> {
+        // UnixDatagram doesn't buffer anything, so nothing to do here.
+        Ok(())
+    }
 }
