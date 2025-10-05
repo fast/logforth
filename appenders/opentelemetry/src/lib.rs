@@ -277,6 +277,12 @@ impl Append for OpentelemetryLog {
     }
 }
 
+impl Drop for OpentelemetryLog {
+    fn drop(&mut self) {
+        let _ = self.provider.force_flush();
+    }
+}
+
 fn log_level_to_otel_severity(level: Level) -> opentelemetry::logs::Severity {
     match level {
         Level::Error => opentelemetry::logs::Severity::Error,

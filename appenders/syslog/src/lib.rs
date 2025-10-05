@@ -308,6 +308,13 @@ impl Append for Syslog {
     }
 }
 
+impl Drop for Syslog {
+    fn drop(&mut self) {
+        let sender = self.sender.get_mut().unwrap_or_else(|e| e.into_inner());
+        let _ = sender.flush();
+    }
+}
+
 #[derive(Debug)]
 struct SyslogFormatter {
     format: SyslogFormat,

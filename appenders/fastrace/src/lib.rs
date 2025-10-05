@@ -75,6 +75,12 @@ impl Append for FastraceEvent {
     }
 }
 
+impl Drop for FastraceEvent {
+    fn drop(&mut self) {
+        fastrace::flush();
+    }
+}
+
 struct KvCollector {
     kv: Vec<(String, String)>,
 }

@@ -151,3 +151,10 @@ impl Append for File {
         Ok(())
     }
 }
+
+impl Drop for File {
+    fn drop(&mut self) {
+        let writer = self.writer.get_mut().unwrap_or_else(|e| e.into_inner());
+        let _ = writer.flush();
+    }
+}
