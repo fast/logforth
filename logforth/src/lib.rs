@@ -93,6 +93,8 @@ pub mod append {
 /// Bridge logforth with other logging frameworks.
 pub mod bridge {
     /// Bridge logforth with [`log`].
+    ///
+    /// [`log`]: https://docs.rs/log/
     #[cfg(feature = "bridge-log")]
     pub mod log {
         #[cfg(feature = "bridge-log")]
