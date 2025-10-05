@@ -51,6 +51,7 @@ logforth-layout-text = { version = "0.2.0", path = "layouts/text" }
 # Crates.io dependencies
 anyhow = { version = "1.0" }
 colored = { version = "3.0" }
+crossbeam-channel = { version = "0.5.15" }
 fastrace = { version = "0.7" }
 fasyslog = { version = "1.0.0" }
 insta = { version = "1.43.2" }

@@ -28,6 +28,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+crossbeam-channel = { workspace = true }
 logforth-core = { workspace = true }
 
 [lints]

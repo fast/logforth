@@ -16,12 +16,12 @@
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-use std::sync::Arc;
-
+use crossbeam_channel::Receiver;
 use logforth_core::Append;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
-use logforth_core::record::Record;
+use logforth_core::record::{Record, RecordOwned};
+use std::sync::Arc;
 
 /// A composable appender, logging and flushing asynchronously.
 #[derive(Debug)]
@@ -37,5 +37,38 @@ impl Append for Async {
     fn flush(&self) -> Result<(), Error> {
         // TODO(@tisonkun): implement actual async flushing.
         Ok(())
+    }
+}
+
+enum Task {
+    Log {
+        appender: Arc<dyn Append>,
+        record: RecordOwned,
+    },
+    Flush {
+        appender: Arc<dyn Append>,
+    },
+}
+
+struct Worker {
+    receiver: Receiver<Task>,
+}
+
+impl Worker {
+    fn run(&self) {
+        while let Ok(task) = self.receiver.recv() {
+            match task {
+                Task::Log { appender, record } => {
+                    if let Err(err) = appender.append(&record.as_record(), &[]) {
+                        eprintln!("failed to append record asynchronously: {err:?}");
+                    }
+                }
+                Task::Flush { appender } => {
+                    if let Err(err) = appender.flush() {
+                        eprintln!("failed to flush asynchronously: {err:?}");
+                    }
+                }
+            }
+        }
     }
 }
