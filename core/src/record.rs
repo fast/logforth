@@ -73,9 +73,6 @@ pub struct Record<'a> {
 
     // structural logging
     kvs: KeyValues<'a>,
-
-    // Mapped Diagnostic Context (MDC)
-    diags: KeyValues<'a>,
 }
 
 impl<'a> Record<'a> {
@@ -167,11 +164,6 @@ impl<'a> Record<'a> {
                 .iter()
                 .map(|(k, v)| (k.to_owned(), v.to_owned()))
                 .collect(),
-            diags: self
-                .diags
-                .iter()
-                .map(|(k, v)| (k.to_owned(), v.to_owned()))
-                .collect(),
         }
     }
 
@@ -189,7 +181,6 @@ impl<'a> Record<'a> {
                 line: self.line,
                 payload: self.payload.clone(),
                 kvs: self.kvs.clone(),
-                diags: self.diags.clone(),
             },
         }
     }
@@ -217,7 +208,6 @@ impl Default for RecordBuilder<'_> {
                 line: None,
                 payload: Default::default(),
                 kvs: Default::default(),
-                diags: Default::default(),
             },
         }
     }
@@ -292,15 +282,6 @@ impl<'a> RecordBuilder<'a> {
     /// Invoke the builder and return a `Record`
     pub fn build(self) -> Record<'a> {
         self.record
-    }
-
-    /// Set [`diags`](struct.Record.html#method.diags)
-    ///
-    /// This is only called by the logging framework to set the current
-    /// diagnostic context.
-    pub(crate) fn diags(mut self, diags: impl Into<KeyValues<'a>>) -> Self {
-        self.record.diags = diags.into();
-        self
     }
 }
 
@@ -391,9 +372,6 @@ pub struct RecordOwned {
 
     // structural logging
     kvs: Vec<(kv::KeyOwned, kv::ValueOwned)>,
-
-    // Mapped Diagnostic Context (MDC)
-    diags: Vec<(kv::KeyOwned, kv::ValueOwned)>,
 }
 
 /// Owned version of metadata about a log message.
@@ -417,7 +395,6 @@ impl RecordOwned {
             line: self.line,
             payload: self.payload.clone(),
             kvs: KeyValues::from(self.kvs.as_slice()),
-            diags: KeyValues::from(self.diags.as_slice()),
         }
     }
 }
