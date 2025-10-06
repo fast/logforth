@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## [0.28.0] 2025-10-06
+
 ### Breaking changes
 
 #### Interfaces

@@ -14,7 +14,7 @@
 
 [package]
 name = "logforth"
-version = "0.27.0"
+version = "0.28.0"
 
 description = "A versatile and extensible logging implementation."
 keywords = ["logging", "log", "opentelemetry", "fastrace"]
