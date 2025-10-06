@@ -13,10 +13,10 @@
 # limitations under the License.
 
 [package]
-name = "logforth-append-async"
+name = "logforth-append-asynchronous"
 version = "0.2.0"
 
-description = "Async appender for Logforth."
+description = "Asynchronous appender for Logforth."
 keywords = ["logging", "log", "async"]
 
 categories.workspace = true

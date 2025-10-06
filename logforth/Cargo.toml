@@ -41,6 +41,7 @@ starter-log = ["bridge-log", "append-file", "layout-text", "layout-json"]
 bridge-log = ["dep:logforth-bridge-log"]
 
 # Appenders
+append-asynchronous = ["dep:logforth-append-asynchronous"]
 append-fastrace = ["dep:logforth-append-fastrace"]
 append-file = ["dep:logforth-append-file"]
 append-journald = ["dep:logforth-append-journald"]
@@ -64,6 +65,7 @@ rustls = ["logforth-append-syslog?/rustls"]
 logforth-core = { workspace = true }
 
 # Optional dependencies
+logforth-append-asynchronous = { workspace = true, optional = true }
 logforth-append-fastrace = { workspace = true, optional = true }
 logforth-append-file = { workspace = true, optional = true }
 logforth-append-journald = { workspace = true, optional = true }
