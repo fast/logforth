@@ -14,7 +14,7 @@
 
 //! Core structs and functions for the logforth logging framework.
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod append;
 pub mod diagnostic;

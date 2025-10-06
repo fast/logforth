@@ -15,7 +15,7 @@
 //! Appender for integrating with systemd's journald.
 
 #![cfg(unix)]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use std::io::Write;
 use std::os::unix::net::UnixDatagram;

@@ -14,7 +14,7 @@
 
 //! A diagnostic that enriches log records with trace context provided by the Fastrace library.
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use logforth_core::Diagnostic;
 use logforth_core::Error;

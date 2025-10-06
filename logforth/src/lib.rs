@@ -59,7 +59,7 @@
 //! log::info!("Info message.");
 //! ```
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub use logforth_core::Error;
 pub use logforth_core::append::Append;

@@ -14,7 +14,7 @@
 
 //! A composable appender, logging and flushing asynchronously.
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use std::sync::Arc;
 

@@ -30,7 +30,7 @@
 //! log::info!("This log will be written to syslog.");
 //! ```
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use std::io;
 use std::sync::Mutex;

@@ -14,7 +14,7 @@
 
 //! A logfmt layout for formatting log records.
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use jiff::Timestamp;
 use jiff::tz::TimeZone;

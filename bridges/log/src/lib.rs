@@ -14,7 +14,7 @@
 
 //! A bridge to forward logs from the `log` crate to `logforth`.
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use log::Metadata;
 use log::Record;

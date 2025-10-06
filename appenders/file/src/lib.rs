@@ -37,7 +37,7 @@
 //! log::info!("This log will be written to a rolling file.");
 //! ```
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub use self::append::File;
 pub use self::append::FileBuilder;
