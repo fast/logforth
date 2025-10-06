@@ -14,7 +14,7 @@
 
 [package]
 name = "logforth-layout-text"
-version = "0.2.0"
+version = "0.2.1"
 
 description = "Optionally colored text layout for Logforth."
 keywords = ["logging", "log", "colored", "terminal"]

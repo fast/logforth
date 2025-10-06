@@ -14,7 +14,7 @@
 
 [package]
 name = "logforth-append-fastrace"
-version = "0.2.0"
+version = "0.2.1"
 
 description = "Fastrace appender for Logforth."
 keywords = ["logging", "log", "fastrace"]

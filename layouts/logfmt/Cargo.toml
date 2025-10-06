@@ -14,7 +14,7 @@
 
 [package]
 name = "logforth-layout-logfmt"
-version = "0.2.0"
+version = "0.2.1"
 
 description = "Logfmt layout for Logforth."
 keywords = ["logging", "log", "logfmt"]
