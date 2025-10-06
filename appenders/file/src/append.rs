@@ -78,7 +78,7 @@ impl FileBuilder {
         self
     }
 
-    /// Set the trap for handling errors during logging.
+    /// Set the trap for the file writer.
     ///
     /// Default to [`DefaultTrap`].
     ///

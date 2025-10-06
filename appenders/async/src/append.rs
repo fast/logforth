@@ -34,6 +34,7 @@ pub struct Async {
     appends: Arc<[Box<dyn Append>]>,
     overflow: Overflow,
     state: AsyncState,
+    trap: Arc<dyn Trap>,
 }
 
 impl Append for Async {
@@ -61,6 +62,23 @@ impl Append for Async {
         };
         self.state.send_task(task, overflow)
     }
+
+    fn exit(&self) -> Result<(), Error> {
+        // https://github.com/SpriteOvO/spdlog-rs/issues/64
+        //
+        // If the program is tearing down, this will be the final flush. `crossbeam`
+        // uses thread-local internally, which is not supported in `atexit` callback.
+        // This can be bypassed by flushing sinks directly on the current thread, but
+        // before we do that we have to destroy the thread pool to ensure that any
+        // pending log tasks are completed.
+        self.state.destroy();
+        for append in self.appends.iter() {
+            if let Err(err) = append.exit() {
+                self.trap.trap(&err);
+            }
+        }
+        Ok(())
+    }
 }
 
 /// A builder for configuring an async appender.
@@ -68,7 +86,7 @@ pub struct AsyncBuilder {
     thread_name: String,
     appends: Vec<Box<dyn Append>>,
     buffered_lines_limit: Option<usize>,
-    trap: Box<dyn Trap>,
+    trap: Arc<dyn Trap>,
     overflow: Overflow,
 }
 
@@ -79,7 +97,7 @@ impl AsyncBuilder {
             thread_name: thread_name.into(),
             appends: vec![],
             buffered_lines_limit: None,
-            trap: Box::new(DefaultTrap::default()),
+            trap: Arc::new(DefaultTrap::default()),
             overflow: Overflow::Block,
         }
     }
@@ -104,6 +122,7 @@ impl AsyncBuilder {
 
     /// Set the trap for this async appender.
     pub fn trap(mut self, trap: impl Into<Box<dyn Trap>>) -> Self {
+        let trap = trap.into();
         self.trap = trap.into();
         self
     }
@@ -120,7 +139,7 @@ impl AsyncBuilder {
             thread_name,
             appends,
             buffered_lines_limit,
-            trap: error_sink,
+            trap,
             overflow,
         } = self;
 
@@ -131,7 +150,7 @@ impl AsyncBuilder {
             None => crossbeam_channel::unbounded(),
         };
 
-        let worker = Worker::new(receiver, error_sink);
+        let worker = Worker::new(receiver, trap.clone());
         let thread_handle = std::thread::Builder::new()
             .name(thread_name)
             .spawn(move || worker.run())
@@ -142,6 +161,7 @@ impl AsyncBuilder {
             appends,
             overflow,
             state,
+            trap,
         }
     }
 }

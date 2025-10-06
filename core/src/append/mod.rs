@@ -34,6 +34,11 @@ pub trait Append: fmt::Debug + Send + Sync + 'static {
 
     /// Flush any buffered records.
     fn flush(&self) -> Result<(), Error>;
+
+    /// Perform any cleanup work before the program exits.
+    fn exit(&self) -> Result<(), Error> {
+        self.flush()
+    }
 }
 
 impl<T: Append> From<T> for Box<dyn Append> {

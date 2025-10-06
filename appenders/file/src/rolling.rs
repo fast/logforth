@@ -109,7 +109,7 @@ impl RollingFileWriterBuilder {
         }
     }
 
-    /// Set the trap for handling internal errors.
+    /// Set the trap for the rolling file writer.
     pub fn trap(mut self, trap: impl Into<Box<dyn Trap>>) -> Self {
         self.trap = trap.into();
         self

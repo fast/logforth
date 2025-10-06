@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use crossbeam_channel::Receiver;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
@@ -23,11 +25,11 @@ use crate::Task;
 
 pub(crate) struct Worker {
     receiver: Receiver<Task>,
-    trap: Box<dyn Trap>,
+    trap: Arc<dyn Trap>,
 }
 
 impl Worker {
-    pub(crate) fn new(receiver: Receiver<Task>, trap: Box<dyn Trap>) -> Self {
+    pub(crate) fn new(receiver: Receiver<Task>, trap: Arc<dyn Trap>) -> Self {
         Self { receiver, trap }
     }
 
