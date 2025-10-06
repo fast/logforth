@@ -14,7 +14,7 @@
 
 //! This case ensures our impl does properly handle recursive logging.
 
-#![cfg(feature = "append-file")]
+#![cfg(feature = "starter-log")]
 
 use std::num::NonZeroUsize;
 

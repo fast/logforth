@@ -87,6 +87,17 @@ serde = { workspace = true }
 [lints]
 workspace = true
 
+[[test]]
+harness = false
+name = "global_async_sink"
+required-features = ["starter-log", "append-async"]
+
+[[example]]
+doc-scrape-examples = true
+name = "asynchronous"
+path = "examples/asynchronous.rs"
+required-features = ["starter-log", "append-async"]
+
 [[example]]
 doc-scrape-examples = true
 name = "testing"
