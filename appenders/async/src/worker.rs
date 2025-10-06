@@ -19,7 +19,7 @@ use logforth_core::ErrorSink;
 use logforth_core::kv;
 use logforth_core::kv::Visitor;
 
-use crate::Task;
+use crate::append::Task;
 
 pub(crate) struct Worker {
     receiver: Receiver<Task>,

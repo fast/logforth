@@ -71,10 +71,10 @@ pub use logforth_core::record;
 
 /// Dispatch log records to various targets.
 pub mod append {
-    #[cfg(feature = "append-asynchronous")]
-    pub use logforth_append_asynchronous as asynchronous;
-    #[cfg(feature = "append-asynchronous")]
-    pub use logforth_append_asynchronous::Asynchronous;
+    #[cfg(feature = "append-async")]
+    pub use logforth_append_async as asynchronous; // `async` is a keyword
+    #[cfg(feature = "append-async")]
+    pub use logforth_append_async::Async;
     #[cfg(feature = "append-fastrace")]
     pub use logforth_append_fastrace::FastraceEvent;
     #[cfg(feature = "append-file")]

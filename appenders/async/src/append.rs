@@ -21,20 +21,20 @@ use logforth_core::ErrorSink;
 use logforth_core::kv;
 use logforth_core::kv::Visitor;
 use logforth_core::record::Record;
+use logforth_core::record::RecordOwned;
 
-use crate::Task;
-use crate::state::AppendState;
+use crate::state::AsyncState;
 use crate::worker::Worker;
 
 /// A composable appender, logging and flushing asynchronously.
 #[derive(Debug)]
-pub struct Asynchronous {
+pub struct Async {
     appends: Arc<[Box<dyn Append>]>,
     overflow: Overflow,
-    state: AppendState,
+    state: AsyncState,
 }
 
-impl Append for Asynchronous {
+impl Append for Async {
     fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
         let mut diagnostics = vec![];
 
@@ -61,7 +61,7 @@ impl Append for Asynchronous {
     }
 }
 
-/// A builder for configuring an asynchronous appender.
+/// A builder for configuring an async appender.
 pub struct AsyncBuilder {
     thread_name: String,
     appends: Vec<Box<dyn Append>>,
@@ -71,7 +71,7 @@ pub struct AsyncBuilder {
 }
 
 impl AsyncBuilder {
-    /// Create a new asynchronous appender builder.
+    /// Create a new async appender builder.
     pub fn new(thread_name: impl Into<String>) -> AsyncBuilder {
         AsyncBuilder {
             thread_name: thread_name.into(),
@@ -88,26 +88,32 @@ impl AsyncBuilder {
         self
     }
 
-    /// Set the overflow policy for this asynchronous appender.
-    pub fn overflow(mut self, overflow: Overflow) -> Self {
-        self.overflow = overflow;
+    /// Set the overflow policy to block when the buffer is full.
+    pub fn overflow_block(mut self) -> Self {
+        self.overflow = Overflow::Block;
         self
     }
 
-    /// Set the error sink for this asynchronous appender.
+    /// Set the overflow policy to drop incoming messages when the buffer is full.
+    pub fn overflow_drop_incoming(mut self) -> Self {
+        self.overflow = Overflow::DropIncoming;
+        self
+    }
+
+    /// Set the error sink for this async appender.
     pub fn error_sink(mut self, error_sink: impl Into<Box<dyn ErrorSink>>) -> Self {
         self.error_sink = error_sink.into();
         self
     }
 
-    /// Add an appender to this asynchronous appender.
+    /// Add an appender to this async appender.
     pub fn append(mut self, append: impl Into<Box<dyn Append>>) -> Self {
         self.appends.push(append.into());
         self
     }
 
-    /// Build the asynchronous appender.
-    pub fn build(self) -> Asynchronous {
+    /// Build the async appender.
+    pub fn build(self) -> Async {
         let Self {
             thread_name,
             appends,
@@ -127,10 +133,10 @@ impl AsyncBuilder {
         let thread_handle = std::thread::Builder::new()
             .name(thread_name)
             .spawn(move || worker.run())
-            .expect("failed to spawn asynchronous appender thread");
-        let state = AppendState::new(sender, thread_handle);
+            .expect("failed to spawn async appender thread");
+        let state = AsyncState::new(sender, thread_handle);
 
-        Asynchronous {
+        Async {
             appends,
             overflow,
             state,
@@ -138,13 +144,20 @@ impl AsyncBuilder {
     }
 }
 
-/// Overflow policy for [`Asynchronous`].
-///
-/// When the channel is full, an incoming operation is handled according to the
-/// specified policy.
+pub(crate) enum Task {
+    Log {
+        appends: Arc<[Box<dyn Append>]>,
+        record: Box<RecordOwned>,
+        diags: Vec<(kv::KeyOwned, kv::ValueOwned)>,
+    },
+    Flush {
+        appends: Arc<[Box<dyn Append>]>,
+    },
+}
+
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[non_exhaustive]
-pub enum Overflow {
+pub(crate) enum Overflow {
     /// Blocks until the channel is not full.
     Block,
     /// Drops the incoming operation.

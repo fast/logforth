@@ -19,11 +19,11 @@ use arc_swap::ArcSwapOption;
 use crossbeam_channel::Sender;
 use logforth_core::Error;
 
-use crate::Task;
 use crate::append::Overflow;
+use crate::append::Task;
 
 #[derive(Debug)]
-pub(crate) struct AppendState(ArcSwapOption<State>);
+pub(crate) struct AsyncState(ArcSwapOption<State>);
 
 #[derive(Debug)]
 struct State {
@@ -31,7 +31,7 @@ struct State {
     handle: JoinHandle<()>,
 }
 
-impl AppendState {
+impl AsyncState {
     pub(crate) fn new(sender: Sender<Task>, handle: JoinHandle<()>) -> Self {
         let state = State { sender, handle };
         Self(ArcSwapOption::from(Some(Arc::new(state))))
@@ -46,8 +46,8 @@ impl AppendState {
         match overflow {
             Overflow::Block => sender.send(task).map_err(|err| {
                 Error::new(match err.0 {
-                    Task::Log { .. } => "failed to send log task to asynchronous appender",
-                    Task::Flush { .. } => "failed to send flush task to asynchronous appender",
+                    Task::Log { .. } => "failed to send log task to async appender",
+                    Task::Flush { .. } => "failed to send flush task to async appender",
                 })
             }),
             Overflow::DropIncoming => match sender.try_send(task) {
@@ -55,8 +55,8 @@ impl AppendState {
                 Err(crossbeam_channel::TrySendError::Full(_)) => Ok(()),
                 Err(crossbeam_channel::TrySendError::Disconnected(task)) => {
                     Err(Error::new(match task {
-                        Task::Log { .. } => "failed to send log task to asynchronous appender",
-                        Task::Flush { .. } => "failed to send flush task to asynchronous appender",
+                        Task::Log { .. } => "failed to send log task to async appender",
+                        Task::Flush { .. } => "failed to send flush task to async appender",
                     }))
                 }
             },
@@ -72,14 +72,12 @@ impl AppendState {
             drop(sender);
 
             // wait for the thread to finish
-            handle
-                .join()
-                .expect("failed to join asynchronous appender thread");
+            handle.join().expect("failed to join async appender thread");
         }
     }
 }
 
-impl Drop for AppendState {
+impl Drop for AsyncState {
     fn drop(&mut self) {
         self.destroy();
     }
