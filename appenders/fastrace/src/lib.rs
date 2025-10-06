@@ -36,6 +36,16 @@ use logforth_core::record::Record;
 ///
 /// let fastrace_appender = FastraceEvent::default();
 /// ```
+///
+/// # Caveats
+///
+/// The caller or application should ensure that the `flush` method or [`fastrace::flush`] is called
+/// before the program exits to collect the final events, especially when this appender is used
+/// in a global context.
+///
+/// Both the `exit` method and the drop glue do not call `fastrace::flush`, because it uses
+/// thread-local storage internally, which is not supported in `atexit` callbacks or arbitrary
+/// drop cases.
 #[derive(Default, Debug, Clone)]
 #[non_exhaustive]
 pub struct FastraceEvent {}
@@ -75,8 +85,8 @@ impl Append for FastraceEvent {
     }
 
     fn exit(&self) -> Result<(), Error> {
-        // fastrace flush accesses thread-local storage,
-        // which is not supported in atexit handlers
+        // do nothing - because fastrace::flush uses thread-local storage internally,
+        // which is not supported in atexit callbacks.
         Ok(())
     }
 }

@@ -64,13 +64,13 @@ impl Append for Async {
     }
 
     fn exit(&self) -> Result<(), Error> {
-        // https://github.com/SpriteOvO/spdlog-rs/issues/64
-        //
         // If the program is tearing down, this will be the final flush. `crossbeam`
         // uses thread-local internally, which is not supported in `atexit` callback.
         // This can be bypassed by flushing sinks directly on the current thread, but
-        // before we do that we have to destroy the thread pool to ensure that any
-        // pending log tasks are completed.
+        // before we do that we have to join the thread to ensure that any pending log
+        // tasks are completed.
+        //
+        // @see https://github.com/SpriteOvO/spdlog-rs/issues/64
         self.state.destroy();
         for append in self.appends.iter() {
             if let Err(err) = append.exit() {
