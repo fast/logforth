@@ -27,6 +27,10 @@ readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
 default = []
 serde = ["value-bag/serde"]

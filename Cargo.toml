@@ -16,7 +16,6 @@
 members = [
   "core",
   "logforth",
-
   "appenders/*",
   "bridges/*",
   "diagnostics/*",
@@ -50,6 +49,7 @@ logforth-layout-text = { version = "0.2.0", path = "layouts/text" }
 
 # Crates.io dependencies
 anyhow = { version = "1.0" }
+arc-swap = { version = "1.7.1" }
 colored = { version = "3.0" }
 crossbeam-channel = { version = "0.5.15" }
 fastrace = { version = "0.7" }

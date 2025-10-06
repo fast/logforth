@@ -12,8 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Error type and error sink trait.
+
 use std::fmt;
 use std::io;
+
+/// An error sink to receive errors.
+pub trait ErrorSink: Send + Sync + 'static {
+    /// Receive an error
+    fn sink(&self, err: &Error);
+}
+
+impl<T: ErrorSink> From<T> for Box<dyn ErrorSink> {
+    fn from(value: T) -> Self {
+        Box::new(value)
+    }
+}
 
 /// The error struct of logforth.
 pub struct Error {

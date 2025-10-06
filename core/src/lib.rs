@@ -28,7 +28,7 @@ pub use self::diagnostic::Diagnostic;
 pub use self::filter::Filter;
 pub use self::layout::Layout;
 
-mod error;
+pub mod error;
 pub use self::error::*;
 
 mod logger;
