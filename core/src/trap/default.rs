@@ -12,28 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Core structs and functions for the logforth logging framework.
+use std::io;
+use std::io::Write;
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+use crate::Error;
+use crate::trap::Trap;
 
-pub mod append;
-pub mod diagnostic;
-pub mod filter;
-pub mod kv;
-pub mod layout;
-pub mod record;
-pub mod trap;
+/// A default trap that sends errors to standard error if possible.
+///
+/// If standard error is not available, it does nothing.
+#[derive(Debug, Default)]
+#[non_exhaustive]
+pub struct DefaultTrap {}
 
-pub use self::append::Append;
-pub use self::diagnostic::Diagnostic;
-pub use self::filter::Filter;
-pub use self::layout::Layout;
-pub use self::trap::Trap;
-
-mod error;
-pub use self::error::*;
-
-mod logger;
-pub use self::logger::*;
-
-mod str;
+impl Trap for DefaultTrap {
+    fn trap(&self, err: &Error) {
+        let _ = writeln!(io::stderr(), "{err}");
+    }
+}

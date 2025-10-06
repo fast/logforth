@@ -16,7 +16,6 @@
 members = [
   "core",
   "logforth",
-
   "appenders/*",
   "bridges/*",
   "diagnostics/*",
@@ -35,22 +34,25 @@ rust-version = "1.85.0"
 
 [workspace.dependencies]
 # Workspace dependencies
-logforth-append-fastrace = { version = "0.1.0", path = "appenders/fastrace" }
-logforth-append-file = { version = "0.1.0", path = "appenders/file" }
-logforth-append-journald = { version = "0.1.0", path = "appenders/journald" }
-logforth-append-opentelemetry = { version = "0.1.0", path = "appenders/opentelemetry" }
-logforth-append-syslog = { version = "0.1.0", path = "appenders/syslog" }
-logforth-bridge-log = { version = "0.1.0", path = "bridges/log" }
-logforth-core = { version = "0.1.0", path = "core" }
-logforth-diagnostic-fastrace = { version = "0.1.0", path = "diagnostics/fastrace" }
-logforth-layout-google-cloud-logging = { version = "0.1.0", path = "layouts/google-cloud-logging" }
-logforth-layout-json = { version = "0.1.0", path = "layouts/json" }
-logforth-layout-logfmt = { version = "0.1.0", path = "layouts/logfmt" }
-logforth-layout-text = { version = "0.1.0", path = "layouts/text" }
+logforth-append-async = { version = "0.2.0", path = "appenders/async" }
+logforth-append-fastrace = { version = "0.2.0", path = "appenders/fastrace" }
+logforth-append-file = { version = "0.2.0", path = "appenders/file" }
+logforth-append-journald = { version = "0.2.0", path = "appenders/journald" }
+logforth-append-opentelemetry = { version = "0.2.0", path = "appenders/opentelemetry" }
+logforth-append-syslog = { version = "0.2.0", path = "appenders/syslog" }
+logforth-bridge-log = { version = "0.2.0", path = "bridges/log" }
+logforth-core = { version = "0.2.0", path = "core" }
+logforth-diagnostic-fastrace = { version = "0.2.0", path = "diagnostics/fastrace" }
+logforth-layout-google-cloud-logging = { version = "0.2.0", path = "layouts/google-cloud-logging" }
+logforth-layout-json = { version = "0.2.0", path = "layouts/json" }
+logforth-layout-logfmt = { version = "0.2.0", path = "layouts/logfmt" }
+logforth-layout-text = { version = "0.2.0", path = "layouts/text" }
 
 # Crates.io dependencies
 anyhow = { version = "1.0" }
+arc-swap = { version = "1.7.1" }
 colored = { version = "3.0" }
+crossbeam-channel = { version = "0.5.15" }
 fastrace = { version = "0.7" }
 fasyslog = { version = "1.0.0" }
 insta = { version = "1.43.2" }

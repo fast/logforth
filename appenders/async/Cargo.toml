@@ -13,11 +13,11 @@
 # limitations under the License.
 
 [package]
-name = "logforth-append-journald"
+name = "logforth-append-async"
 version = "0.2.0"
 
-description = "Journald appender for Logforth."
-keywords = ["logging", "log", "journald"]
+description = "Asynchronous appender for Logforth."
+keywords = ["logging", "log", "async"]
 
 categories.workspace = true
 edition.workspace = true
@@ -32,7 +32,8 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-libc = { workspace = true }
+arc-swap = { workspace = true }
+crossbeam-channel = { workspace = true }
 logforth-core = { workspace = true }
 
 [lints]

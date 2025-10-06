@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Starter configurations for quickly setting up logforth with the [`log`] crate
+//! Starter configurations for quickly setting up logforth with the `log` crate
 
 use crate::Append;
 use crate::Error;
@@ -23,7 +23,7 @@ use crate::core::DispatchBuilder;
 use crate::core::LoggerBuilder;
 use crate::filter::env_filter::EnvFilterBuilder;
 
-/// A builder for setting up logforth with the [`log`] crate.
+/// A builder for setting up logforth with the `log` crate.
 pub struct LogStarterBuilder {
     builder: LoggerBuilder,
 }
@@ -70,7 +70,7 @@ impl LogStarterBuilder {
     /// before initialization will be ignored.
     ///
     /// This function will set the global maximum log level to `Trace`. To override this, call
-    /// [`log::set_max_level`] after this function.
+    /// `log::set_max_level` after this function.
     ///
     /// # Errors
     ///
@@ -103,7 +103,7 @@ impl LogStarterBuilder {
     /// initialized a global logger.
     ///
     /// This function will set the global maximum log level to `Trace`. To override this, call
-    /// [`log::set_max_level`] after this function.
+    /// `log::set_max_level` after this function.
     ///
     /// # Panics
     ///
@@ -125,7 +125,7 @@ enum StdStream {
     Stderr(append::Stderr),
 }
 
-/// A builder for setting up logforth with the [`log`] crate, using standard output/error streams.
+/// A builder for setting up logforth with the `log` crate, using standard output/error streams.
 pub struct LogStarterStdStreamBuilder {
     append: StdStream,
     filter: Box<dyn Filter>,
@@ -207,7 +207,7 @@ impl LogStarterStdStreamBuilder {
     /// before initialization will be ignored.
     ///
     /// This function will set the global maximum log level to `Trace`. To override this, call
-    /// [`log::set_max_level`] after this function.
+    /// `log::set_max_level` after this function.
     ///
     /// # Errors
     ///
@@ -246,7 +246,7 @@ impl LogStarterStdStreamBuilder {
     /// initialized a global logger.
     ///
     /// This function will set the global maximum log level to `Trace`. To override this, call
-    /// [`log::set_max_level`] after this function.
+    /// `log::set_max_level` after this function.
     ///
     /// # Panics
     ///

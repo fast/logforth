@@ -68,6 +68,8 @@ All notable changes to this project will be documented in this file.
 ### New features
 
 * `PlainTextLayout` is added to support plain text format without any extra dependency.
+* `Async` appender is added to support async logging with configurable buffer size and worker threads.
+* `Trap` trait and a default `DefaultTrap` is added to support handling internal errors.
 
 ## [0.27.0] 2025-08-18
 

@@ -26,6 +26,8 @@ use std::str::FromStr;
 use jiff::Zoned;
 use jiff::civil::DateTime;
 use logforth_core::Error;
+use logforth_core::Trap;
+use logforth_core::trap::DefaultTrap;
 
 use crate::clock::Clock;
 use crate::rotation::Rotation;
@@ -40,7 +42,8 @@ pub struct RollingFileWriter {
 impl Drop for RollingFileWriter {
     fn drop(&mut self) {
         if let Err(err) = self.writer.flush() {
-            eprintln!("failed to flush file writer on dropped: {err}");
+            let err = Error::new("failed to flush file writer on dropped").set_source(err);
+            self.state.trap.trap(&err);
         }
     }
 }
@@ -87,6 +90,7 @@ pub struct RollingFileWriterBuilder {
     max_size: Option<NonZeroUsize>,
     max_files: Option<NonZeroUsize>,
     clock: Clock,
+    trap: Box<dyn Trap>,
 }
 
 impl RollingFileWriterBuilder {
@@ -101,7 +105,14 @@ impl RollingFileWriterBuilder {
             max_size: None,
             max_files: None,
             clock: Clock::DefaultClock,
+            trap: Box::new(DefaultTrap::default()),
         }
+    }
+
+    /// Set the trap for the rolling file writer.
+    pub fn trap(mut self, trap: impl Into<Box<dyn Trap>>) -> Self {
+        self.trap = trap.into();
+        self
     }
 
     /// Set the rotation policy.
@@ -153,6 +164,7 @@ impl RollingFileWriterBuilder {
             max_size,
             max_files,
             clock,
+            trap,
         } = self;
 
         if filename.is_empty() {
@@ -167,6 +179,7 @@ impl RollingFileWriterBuilder {
             max_size,
             max_files,
             clock,
+            trap,
         )?;
 
         Ok(RollingFileWriter { state, writer })
@@ -206,9 +219,11 @@ struct State {
     max_size: Option<NonZeroUsize>,
     max_files: Option<NonZeroUsize>,
     clock: Clock,
+    trap: Box<dyn Trap>,
 }
 
 impl State {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         rotation: Rotation,
         dir: impl AsRef<Path>,
@@ -217,6 +232,7 @@ impl State {
         max_size: Option<NonZeroUsize>,
         max_files: Option<NonZeroUsize>,
         clock: Clock,
+        trap: Box<dyn Trap>,
     ) -> Result<(Self, File), Error> {
         let now = clock.now();
         let log_dir = dir.as_ref().to_path_buf();
@@ -235,6 +251,7 @@ impl State {
             max_size,
             max_files,
             clock,
+            trap,
         };
 
         let files = {
@@ -433,7 +450,8 @@ impl State {
 
         if let Some(max_files) = self.max_files {
             if let Err(err) = self.delete_oldest_logs(max_files.get()) {
-                eprintln!("failed to delete oldest logs: {err}");
+                let err = Error::new("failed to delete oldest logs").set_source(err);
+                self.trap.trap(&err);
             }
         }
 
@@ -444,11 +462,15 @@ impl State {
         match self.rotate_log_writer(now) {
             Ok(new_file) => {
                 if let Err(err) = file.flush() {
-                    eprintln!("failed to flush previous writer: {err}");
+                    let err = Error::new("failed to flush previous writer").set_source(err);
+                    self.trap.trap(&err);
                 }
                 *file = new_file;
             }
-            Err(err) => eprintln!("failed to rotate log writer: {err}"),
+            Err(err) => {
+                let err = Error::new("failed to rotate log writer").set_source(err);
+                self.trap.trap(&err);
+            }
         }
     }
 

@@ -21,6 +21,7 @@ use std::sync::MutexGuard;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::Layout;
+use logforth_core::Trap;
 use logforth_core::append::Append;
 use logforth_core::layout::PlainTextLayout;
 use logforth_core::record::Record;
@@ -74,6 +75,24 @@ impl FileBuilder {
     /// ```
     pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
         self.layout = layout.into();
+        self
+    }
+
+    /// Set the trap for the file writer.
+    ///
+    /// Default to [`DefaultTrap`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth_append_file::FileBuilder;
+    /// use logforth_core::trap::DefaultTrap;
+    ///
+    /// let builder = FileBuilder::new("my_service", "my_app");
+    /// builder.trap(DefaultTrap::default());
+    /// ```
+    pub fn trap(mut self, trap: impl Into<Box<dyn Trap>>) -> Self {
+        self.builder = self.builder.trap(trap);
         self
     }
 
@@ -149,5 +168,12 @@ impl Append for File {
         let mut writer = self.writer();
         writer.flush().map_err(Error::from_io_error)?;
         Ok(())
+    }
+}
+
+impl Drop for File {
+    fn drop(&mut self) {
+        let writer = self.writer.get_mut().unwrap_or_else(|e| e.into_inner());
+        let _ = writer.flush();
     }
 }

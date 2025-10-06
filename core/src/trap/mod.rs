@@ -12,28 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Core structs and functions for the logforth logging framework.
+//! Traps for processing errors.
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+use core::fmt;
 
-pub mod append;
-pub mod diagnostic;
-pub mod filter;
-pub mod kv;
-pub mod layout;
-pub mod record;
-pub mod trap;
+use crate::Error;
 
-pub use self::append::Append;
-pub use self::diagnostic::Diagnostic;
-pub use self::filter::Filter;
-pub use self::layout::Layout;
-pub use self::trap::Trap;
+mod default;
 
-mod error;
-pub use self::error::*;
+pub use self::default::DefaultTrap;
 
-mod logger;
-pub use self::logger::*;
+/// A trap for processing errors.
+pub trait Trap: fmt::Debug + Send + Sync + 'static {
+    /// Process an error.
+    fn trap(&self, err: &Error);
+}
 
-mod str;
+impl<T: Trap> From<T> for Box<dyn Trap> {
+    fn from(value: T) -> Self {
+        Box::new(value)
+    }
+}

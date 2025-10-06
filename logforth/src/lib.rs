@@ -71,6 +71,10 @@ pub use logforth_core::record;
 
 /// Dispatch log records to various targets.
 pub mod append {
+    #[cfg(feature = "append-async")]
+    pub use logforth_append_async as asynchronous; // `async` is a keyword
+    #[cfg(feature = "append-async")]
+    pub use logforth_append_async::Async;
     #[cfg(feature = "append-fastrace")]
     pub use logforth_append_fastrace::FastraceEvent;
     #[cfg(feature = "append-file")]
@@ -93,6 +97,8 @@ pub mod append {
 /// Bridge logforth with other logging frameworks.
 pub mod bridge {
     /// Bridge logforth with [`log`].
+    ///
+    /// [`log`]: https://docs.rs/log/
     #[cfg(feature = "bridge-log")]
     pub mod log {
         #[cfg(feature = "bridge-log")]
@@ -137,6 +143,11 @@ pub mod layout {
     pub use logforth_layout_text as text;
     #[cfg(feature = "layout-text")]
     pub use logforth_layout_text::TextLayout;
+}
+
+/// Traps for processing errors.
+pub mod trap {
+    pub use logforth_core::trap::*;
 }
 
 #[cfg(feature = "bridge-log")]
