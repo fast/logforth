@@ -86,10 +86,10 @@ impl FileBuilder {
     ///
     /// ```
     /// use logforth_append_file::FileBuilder;
-    /// use logforth_core::trap::DefaultTrap;
+    /// use logforth_core::trap::BestEffortTrap;
     ///
     /// let builder = FileBuilder::new("my_service", "my_app");
-    /// builder.trap(DefaultTrap::default());
+    /// builder.trap(BestEffortTrap::default());
     /// ```
     pub fn trap(mut self, trap: impl Into<Box<dyn Trap>>) -> Self {
         self.builder = self.builder.trap(trap);

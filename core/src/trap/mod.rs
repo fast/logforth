@@ -18,9 +18,9 @@ use core::fmt;
 
 use crate::Error;
 
-mod default;
+mod best_effort;
 
-pub use self::default::DefaultTrap;
+pub use self::best_effort::BestEffortTrap;
 
 /// A trap for processing errors.
 pub trait Trap: fmt::Debug + Send + Sync + 'static {

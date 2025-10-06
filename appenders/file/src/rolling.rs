@@ -27,7 +27,7 @@ use jiff::Zoned;
 use jiff::civil::DateTime;
 use logforth_core::Error;
 use logforth_core::Trap;
-use logforth_core::trap::DefaultTrap;
+use logforth_core::trap::BestEffortTrap;
 
 use crate::clock::Clock;
 use crate::rotation::Rotation;
@@ -105,7 +105,7 @@ impl RollingFileWriterBuilder {
             max_size: None,
             max_files: None,
             clock: Clock::DefaultClock,
-            trap: Box::new(DefaultTrap::default()),
+            trap: Box::new(BestEffortTrap::default()),
         }
     }
 

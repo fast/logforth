@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### Breaking changes
+
+* Rename `DefaultTrap` to `BestEffortTrap` for better clarity.
+
 ## [0.28.1] 2025-10-06
 
 ### Documentation changes

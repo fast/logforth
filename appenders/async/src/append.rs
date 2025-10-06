@@ -21,7 +21,7 @@ use logforth_core::Trap;
 use logforth_core::kv;
 use logforth_core::kv::Visitor;
 use logforth_core::record::Record;
-use logforth_core::trap::DefaultTrap;
+use logforth_core::trap::BestEffortTrap;
 
 use crate::Overflow;
 use crate::Task;
@@ -97,7 +97,7 @@ impl AsyncBuilder {
             thread_name: thread_name.into(),
             appends: vec![],
             buffered_lines_limit: None,
-            trap: Arc::new(DefaultTrap::default()),
+            trap: Arc::new(BestEffortTrap::default()),
             overflow: Overflow::Block,
         }
     }
