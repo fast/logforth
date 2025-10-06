@@ -73,6 +73,12 @@ impl Append for FastraceEvent {
         fastrace::flush();
         Ok(())
     }
+
+    fn exit(&self) -> Result<(), Error> {
+        // fastrace flush accesses thread-local storage,
+        // which is not supported in atexit handlers
+        Ok(())
+    }
 }
 
 impl Drop for FastraceEvent {
