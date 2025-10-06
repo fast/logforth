@@ -114,34 +114,12 @@ The policy is that the minimum Rust version required to use this crate can be in
 
 ## Maturity
 
-This crates has been in development since 2024-08. It is being used in several production systems stable enough to be considered mature, but it is still evolving.
+This crate has been in development since 2024-08. It is being used in several production systems stable enough to be considered mature, but it is still evolving.
 
-All modular components are factored out into separate crates. We are undergoing to stabilize the core APIs and several core components, and then release them as `logforth-core` 1.0. Other components will be released as separate crates that depend on `logforth-core`.
-
-### Stabilize targets
-
-Fundamental logging APIs are stabilized, including:
-
-* Traits: `Append`, `Layout`, `Filter`, `Diagnostic` and its `Visitor`
-* Facades: `DispatchBuilder`, `LoggerBuilder`, and `Logger`
-
-Core appenders, filters, layouts, and diagnostics are also stabilized, including:
-
-* Appenders: `Stdout`, `Stderr`, and `Testing`
-* Filters: `EnvFilter`
-* Layouts: `TextLayout` and `JsonLayout`
-* Diagnostics: `StaticDiagnostic` and `ThreadLocalDiagnostic`
-
-Other appenders, filters, layouts, and diagnostics are still evolving and may change in future versions.
-
-The following components yet to be unstabilized have known production usage and are considered reliable:
-
-* Appenders: `Fastrace`, `OpentelemetryLog`, and `RollingFile`
-* Layouts: `LogfmtLayout` and `GoogleCloudLoggingLayout`
-* Diagnostics: `FastraceDiagnostic`
+All modular components are factored out into separate crates. We are working to stabilize the core APIs and several core components, and then release them as `logforth-core` 1.0. Other components will be released as separate crates that depend on `logforth-core`.
 
 ## License and Origin
 
 This project is licensed under [Apache License, Version 2.0](LICENSE).
 
-The name `Logforth` comes from an antonym to the [`Logback`](https://logback.qos.ch/) project, and may also be read as a homophone of "log force".
+The name `Logforth` comes from an antonym of the [`Logback`](https://logback.qos.ch/) project, and may also be read as a homophone of "log force".
