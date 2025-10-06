@@ -145,5 +145,10 @@ pub mod layout {
     pub use logforth_layout_text::TextLayout;
 }
 
+/// Traps for processing errors.
+pub mod trap {
+    pub use logforth_core::trap::*;
+}
+
 #[cfg(feature = "bridge-log")]
 pub mod starter_log;

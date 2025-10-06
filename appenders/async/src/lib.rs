@@ -16,9 +16,34 @@
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
+use std::sync::Arc;
+
+use logforth_core::Append;
+use logforth_core::kv;
+use logforth_core::record::RecordOwned;
+
 mod append;
 mod state;
 mod worker;
 
 pub use self::append::Async;
 pub use self::append::AsyncBuilder;
+
+enum Task {
+    Log {
+        appends: Arc<[Box<dyn Append>]>,
+        record: Box<RecordOwned>,
+        diags: Vec<(kv::KeyOwned, kv::ValueOwned)>,
+    },
+    Flush {
+        appends: Arc<[Box<dyn Append>]>,
+    },
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+enum Overflow {
+    /// Blocks until the channel is not full.
+    Block,
+    /// Drops the incoming operation.
+    DropIncoming,
+}

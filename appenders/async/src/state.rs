@@ -19,8 +19,8 @@ use arc_swap::ArcSwapOption;
 use crossbeam_channel::Sender;
 use logforth_core::Error;
 
-use crate::append::Overflow;
-use crate::append::Task;
+use crate::Overflow;
+use crate::Task;
 
 #[derive(Debug)]
 pub(crate) struct AsyncState(ArcSwapOption<State>);

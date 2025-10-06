@@ -15,30 +15,24 @@
 use crossbeam_channel::Receiver;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
-use logforth_core::ErrorSink;
+use logforth_core::Trap;
 use logforth_core::kv;
 use logforth_core::kv::Visitor;
 
-use crate::append::Task;
+use crate::Task;
 
 pub(crate) struct Worker {
     receiver: Receiver<Task>,
-    error_sink: Box<dyn ErrorSink>,
+    trap: Box<dyn Trap>,
 }
 
 impl Worker {
-    pub(crate) fn new(receiver: Receiver<Task>, error_sink: Box<dyn ErrorSink>) -> Self {
-        Self {
-            receiver,
-            error_sink,
-        }
+    pub(crate) fn new(receiver: Receiver<Task>, trap: Box<dyn Trap>) -> Self {
+        Self { receiver, trap }
     }
 
     pub(crate) fn run(self) {
-        let Self {
-            receiver,
-            error_sink,
-        } = self;
+        let Self { receiver, trap } = self;
 
         while let Ok(task) = receiver.recv() {
             match task {
@@ -53,7 +47,7 @@ impl Worker {
                     for append in appends.iter() {
                         if let Err(err) = append.append(&record, diags) {
                             let err = Error::new("failed to append record").set_source(err);
-                            error_sink.sink(&err);
+                            trap.trap(&err);
                         }
                     }
                 }
@@ -61,7 +55,7 @@ impl Worker {
                     for append in appends.iter() {
                         if let Err(err) = append.flush() {
                             let err = Error::new("failed to flush").set_source(err);
-                            error_sink.sink(&err);
+                            trap.trap(&err);
                         }
                     }
                 }

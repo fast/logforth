@@ -17,12 +17,14 @@ use std::sync::Arc;
 use logforth_core::Append;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
-use logforth_core::ErrorSink;
+use logforth_core::Trap;
 use logforth_core::kv;
 use logforth_core::kv::Visitor;
 use logforth_core::record::Record;
-use logforth_core::record::RecordOwned;
+use logforth_core::trap::DefaultTrap;
 
+use crate::Overflow;
+use crate::Task;
 use crate::state::AsyncState;
 use crate::worker::Worker;
 
@@ -66,7 +68,7 @@ pub struct AsyncBuilder {
     thread_name: String,
     appends: Vec<Box<dyn Append>>,
     buffered_lines_limit: Option<usize>,
-    error_sink: Box<dyn ErrorSink>,
+    trap: Box<dyn Trap>,
     overflow: Overflow,
 }
 
@@ -77,7 +79,7 @@ impl AsyncBuilder {
             thread_name: thread_name.into(),
             appends: vec![],
             buffered_lines_limit: None,
-            error_sink: Box::new(PrintErrorSink),
+            trap: Box::new(DefaultTrap::default()),
             overflow: Overflow::Block,
         }
     }
@@ -100,9 +102,9 @@ impl AsyncBuilder {
         self
     }
 
-    /// Set the error sink for this async appender.
-    pub fn error_sink(mut self, error_sink: impl Into<Box<dyn ErrorSink>>) -> Self {
-        self.error_sink = error_sink.into();
+    /// Set the trap for this async appender.
+    pub fn trap(mut self, trap: impl Into<Box<dyn Trap>>) -> Self {
+        self.trap = trap.into();
         self
     }
 
@@ -118,7 +120,7 @@ impl AsyncBuilder {
             thread_name,
             appends,
             buffered_lines_limit,
-            error_sink,
+            trap: error_sink,
             overflow,
         } = self;
 
@@ -141,34 +143,6 @@ impl AsyncBuilder {
             overflow,
             state,
         }
-    }
-}
-
-pub(crate) enum Task {
-    Log {
-        appends: Arc<[Box<dyn Append>]>,
-        record: Box<RecordOwned>,
-        diags: Vec<(kv::KeyOwned, kv::ValueOwned)>,
-    },
-    Flush {
-        appends: Arc<[Box<dyn Append>]>,
-    },
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-#[non_exhaustive]
-pub(crate) enum Overflow {
-    /// Blocks until the channel is not full.
-    Block,
-    /// Drops the incoming operation.
-    DropIncoming,
-}
-
-struct PrintErrorSink;
-
-impl ErrorSink for PrintErrorSink {
-    fn sink(&self, err: &Error) {
-        eprintln!("{err}");
     }
 }
 
