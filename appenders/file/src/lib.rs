@@ -31,7 +31,7 @@
 //!     .unwrap();
 //!
 //! logforth_core::builder()
-//!     .dispatch(|d| d.filter(LevelFilter::Trace).append(rolling))
+//!     .dispatch(|d| d.filter(LevelFilter::All).append(rolling))
 //!     .apply();
 //!
 //! log::info!("This log will be written to a rolling file.");

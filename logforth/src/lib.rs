@@ -42,15 +42,16 @@
 //!
 //! ```
 //! use logforth::append;
+//! use logforth::record::Level;
 //! use logforth::record::LevelFilter;
 //!
 //! logforth::starter_log::builder()
 //!     .dispatch(|d| {
-//!         d.filter(LevelFilter::Error)
+//!         d.filter(LevelFilter::MoreSevereEqual(Level::Error))
 //!             .append(append::Stderr::default())
 //!     })
 //!     .dispatch(|d| {
-//!         d.filter(LevelFilter::Info)
+//!         d.filter(LevelFilter::MoreSevereEqual(Level::Info))
 //!             .append(append::Stdout::default())
 //!     })
 //!     .apply();

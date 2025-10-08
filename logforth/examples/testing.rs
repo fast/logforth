@@ -34,7 +34,7 @@ mod tests {
     #[test]
     fn testing() {
         logforth::starter_log::builder()
-            .dispatch(|d| d.filter(LevelFilter::Trace).append(Testing::default()))
+            .dispatch(|d| d.filter(LevelFilter::All).append(Testing::default()))
             .apply();
 
         log::error!("Hello error!");

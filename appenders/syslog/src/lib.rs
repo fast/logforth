@@ -24,7 +24,7 @@
 //! let append = SyslogBuilder::tcp_well_known().unwrap().build();
 //!
 //! logforth_core::builder()
-//!     .dispatch(|d| d.filter(LevelFilter::Trace).append(append))
+//!     .dispatch(|d| d.filter(LevelFilter::All).append(append))
 //!     .apply();
 //!
 //! log::info!("This log will be written to syslog.");
