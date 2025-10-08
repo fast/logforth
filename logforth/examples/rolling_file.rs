@@ -26,7 +26,7 @@ fn main() {
         .unwrap();
 
     logforth::starter_log::builder()
-        .dispatch(|d| d.filter(LevelFilter::Trace).append(rolling))
+        .dispatch(|d| d.filter(LevelFilter::All).append(rolling))
         .apply();
 
     let repeat = 1;

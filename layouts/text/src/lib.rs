@@ -32,51 +32,6 @@ use logforth_core::layout::Layout;
 use logforth_core::record::Level;
 use logforth_core::record::Record;
 
-/// Colors for different log levels.
-#[derive(Debug, Clone)]
-pub struct LevelColor {
-    /// Color for error level logs.
-    pub error: Color,
-    /// Color for warning level logs.
-    pub warn: Color,
-    /// Color for info level logs.
-    pub info: Color,
-    /// Color for debug level logs.
-    pub debug: Color,
-    /// Color for trace level logs.
-    pub trace: Color,
-}
-
-impl Default for LevelColor {
-    fn default() -> Self {
-        Self {
-            error: Color::Red,
-            warn: Color::Yellow,
-            info: Color::Green,
-            debug: Color::Blue,
-            trace: Color::Magenta,
-        }
-    }
-}
-
-impl LevelColor {
-    /// Colorize the log level.
-    fn colorize_record_level(&self, no_color: bool, level: Level) -> ColoredString {
-        if no_color {
-            ColoredString::from(level.to_string())
-        } else {
-            let color = match level {
-                Level::Error => self.error,
-                Level::Warn => self.warn,
-                Level::Info => self.info,
-                Level::Debug => self.debug,
-                Level::Trace => self.trace,
-            };
-            ColoredString::from(level.to_string()).color(color)
-        }
-    }
-}
-
 /// A layout that formats log record as optionally colored text.
 ///
 /// Output format:
@@ -113,14 +68,6 @@ pub struct TextLayout {
 }
 
 impl TextLayout {
-    /// Customize the color of each log level.
-    ///
-    /// No effect if `no_color` is set to `true`.
-    pub fn colors(mut self, colors: LevelColor) -> Self {
-        self.colors = colors;
-        self
-    }
-
     /// Customize the color of the error log level. Default to red.
     ///
     /// No effect if `no_color` is set to `true`.
@@ -225,5 +172,54 @@ impl Layout for TextLayout {
         }
 
         Ok(visitor.text.into_bytes())
+    }
+}
+
+/// Colors for different log levels.
+#[derive(Debug, Clone)]
+struct LevelColor {
+    /// Color for critical level logs.
+    critical: Color,
+    /// Color for error level logs.
+    error: Color,
+    /// Color for warning level logs.
+    warn: Color,
+    /// Color for info level logs.
+    info: Color,
+    /// Color for debug level logs.
+    debug: Color,
+    /// Color for trace level logs.
+    trace: Color,
+}
+
+impl Default for LevelColor {
+    fn default() -> Self {
+        Self {
+            critical: Color::BrightRed,
+            error: Color::Red,
+            warn: Color::Yellow,
+            info: Color::Green,
+            debug: Color::Blue,
+            trace: Color::Magenta,
+        }
+    }
+}
+
+impl LevelColor {
+    /// Colorize the log level.
+    fn colorize_record_level(&self, no_color: bool, level: Level) -> ColoredString {
+        if no_color {
+            ColoredString::from(level.to_string())
+        } else {
+            let color = match level {
+                Level::Critical => self.critical,
+                Level::Error => self.error,
+                Level::Warn => self.warn,
+                Level::Info => self.info,
+                Level::Debug => self.debug,
+                Level::Trace => self.trace,
+            };
+            ColoredString::from(level.to_string()).color(color)
+        }
     }
 }

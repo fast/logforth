@@ -324,6 +324,7 @@ struct SyslogFormatter {
 
 fn log_level_to_syslog_severity(level: Level) -> fasyslog::Severity {
     match level {
+        Level::Critical => fasyslog::Severity::CRITICAL,
         Level::Error => fasyslog::Severity::ERROR,
         Level::Warn => fasyslog::Severity::WARNING,
         Level::Info => fasyslog::Severity::NOTICE,

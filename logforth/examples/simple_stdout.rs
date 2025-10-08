@@ -14,8 +14,12 @@
 
 //! An example of simple logging to stdout.
 
+use logforth_core::record::LevelFilter;
+
 fn main() {
-    logforth::starter_log::stdout().apply();
+    logforth::starter_log::stdout()
+        .with_filter(LevelFilter::All)
+        .apply();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

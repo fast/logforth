@@ -24,7 +24,7 @@ use logforth::record::LevelFilter;
 fn main() {
     logforth::starter_log::builder()
         .dispatch(|d| {
-            d.filter(LevelFilter::Trace)
+            d.filter(LevelFilter::All)
                 .append(logforth::append::FastraceEvent::default())
         })
         .dispatch(|d| {

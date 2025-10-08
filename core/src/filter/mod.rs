@@ -49,7 +49,7 @@ pub trait Filter: fmt::Debug + Send + Sync + 'static {
 
 impl Filter for LevelFilter {
     fn enabled(&self, metadata: &Metadata, _: &[Box<dyn Diagnostic>]) -> FilterResult {
-        if metadata.level() <= *self {
+        if self.test(metadata.level()) {
             FilterResult::Neutral
         } else {
             FilterResult::Reject

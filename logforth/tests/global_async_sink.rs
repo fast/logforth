@@ -66,7 +66,7 @@ fn run_test() {
         let asynchronous = AsyncBuilder::new("async-appender").append(SetFlags).build();
 
         logforth::starter_log::builder()
-            .dispatch(|d| d.filter(LevelFilter::Trace).append(asynchronous))
+            .dispatch(|d| d.filter(LevelFilter::All).append(asynchronous))
             .apply();
     }
 

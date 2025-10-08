@@ -29,7 +29,7 @@ fn main() {
     let asynchronous = AsyncBuilder::new("logforth-async").append(file).build();
 
     logforth::starter_log::builder()
-        .dispatch(|d| d.filter(LevelFilter::Trace).append(asynchronous))
+        .dispatch(|d| d.filter(LevelFilter::All).append(asynchronous))
         .apply();
 
     log::error!("Hello single error!");
