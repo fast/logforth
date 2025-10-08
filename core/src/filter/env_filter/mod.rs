@@ -77,6 +77,7 @@ use crate::Diagnostic;
 use crate::Error;
 use crate::Filter;
 use crate::filter::FilterResult;
+use crate::record::Level;
 use crate::record::LevelFilter;
 use crate::record::Metadata;
 
@@ -96,7 +97,6 @@ pub const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
 ///
 /// Read more from the [module level documentation](self) about the directive syntax and use cases.
 ///
-/// [`Level`]: crate::record::Level
 /// [`Record`]: crate::record::Record
 #[derive(Debug)]
 pub struct EnvFilter {
@@ -121,10 +121,10 @@ impl Filter for EnvFilter {
             let name = directive.name.as_deref();
             if name.is_none_or(|n| target.starts_with(n)) {
                 // longest match wins; return immediately
-                return if directive.level < level {
-                    FilterResult::Reject
-                } else {
+                return if directive.level.test(level) {
                     FilterResult::Neutral
+                } else {
+                    FilterResult::Reject
                 };
             }
         }
@@ -325,7 +325,7 @@ impl EnvFilterBuilder {
         if directives.is_empty() {
             EnvFilter::from_directives(vec![Directive {
                 name: None,
-                level: LevelFilter::Error,
+                level: LevelFilter::MoreSevereEqual(Level::Error),
             }])
         } else {
             EnvFilter::from_directives(directives)
@@ -422,17 +422,17 @@ fn parse_spec(spec: &str) -> ParseResult {
 
         let (level, name) = match part1 {
             None => {
-                if let Ok(level) = part0.parse() {
+                if let Some(level) = from_str_for_env(part0) {
                     // if the single argument is a log level string, treat that as a global fallback
                     (level, None)
                 } else {
-                    (LevelFilter::Trace, Some(part0.to_owned()))
+                    (LevelFilter::All, Some(part0.to_owned()))
                 }
             }
             Some(part1) => {
                 if part1.is_empty() {
-                    (LevelFilter::Trace, Some(part0.to_owned()))
-                } else if let Ok(level) = part1.parse() {
+                    (LevelFilter::All, Some(part0.to_owned()))
+                } else if let Some(level) = from_str_for_env(part1) {
                     (level, Some(part0.to_owned()))
                 } else {
                     errors.push(format!("malformed logging spec '{part1}'"));
@@ -445,4 +445,16 @@ fn parse_spec(spec: &str) -> ParseResult {
     }
 
     ParseResult { directives, errors }
+}
+
+fn from_str_for_env(text: &str) -> Option<LevelFilter> {
+    if let Ok(level) = Level::from_str(text) {
+        Some(LevelFilter::MoreSevereEqual(level))
+    } else if text.eq_ignore_ascii_case("off") {
+        Some(LevelFilter::Off)
+    } else if text.eq_ignore_ascii_case("all") {
+        Some(LevelFilter::All)
+    } else {
+        None
+    }
 }

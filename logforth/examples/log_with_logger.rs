@@ -14,17 +14,17 @@
 
 //! An example of logging with a specific logger instance.
 
-use log::LevelFilter;
 use logforth::append;
 use logforth::bridge::log::OwnedLogProxy;
 
 fn main() {
-    log::set_max_level(LevelFilter::Trace);
+    log::set_max_level(log::LevelFilter::Trace);
+
     let l = logforth::core::builder()
         .dispatch(|d| d.append(append::Stdout::default()))
         .build();
-    let l = OwnedLogProxy::new(l);
 
+    let l = OwnedLogProxy::new(l);
     log::error!(logger: l, "Hello error!");
     log::warn!(logger: l, "Hello warn!");
     log::info!(logger: l, "Hello info!");

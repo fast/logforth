@@ -15,11 +15,11 @@
 //! Log record and metadata.
 
 use std::borrow::Cow;
-use std::cmp;
 use std::fmt;
 use std::str::FromStr;
 use std::time::SystemTime;
 
+use crate::Error;
 use crate::kv;
 use crate::kv::KeyValues;
 use crate::str::Str;
@@ -400,29 +400,20 @@ impl RecordOwned {
 }
 
 /// An enum representing the available verbosity levels of the logger.
-#[repr(usize)]
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Level {
-    /// The "error" level.
-    ///
+    /// Designates critical errors.
+    Critical,
     /// Designates very serious errors.
-    Error = 100,
-    /// The "warn" level.
-    ///
+    Error,
     /// Designates hazardous situations.
-    Warn = 200,
-    /// The "info" level.
-    ///
+    Warn,
     /// Designates useful information.
-    Info = 300,
-    /// The "debug" level.
-    ///
+    Info,
     /// Designates lower priority information.
-    Debug = 400,
-    /// The "trace" level.
-    ///
+    Debug,
     /// Designates very low priority, often extremely verbose, information.
-    Trace = 500,
+    Trace,
 }
 
 impl Level {
@@ -431,6 +422,7 @@ impl Level {
     /// This returns the same string as the `fmt::Display` implementation.
     pub fn as_str(&self) -> &'static str {
         match self {
+            Level::Critical => "CRITICAL",
             Level::Error => "ERROR",
             Level::Warn => "WARN",
             Level::Info => "INFO",
@@ -438,16 +430,11 @@ impl Level {
             Level::Trace => "TRACE",
         }
     }
+}
 
-    /// Convert the `Level` to the equivalent `LevelFilter`.
-    pub fn to_level_filter(&self) -> LevelFilter {
-        match self {
-            Level::Error => LevelFilter::Error,
-            Level::Warn => LevelFilter::Warn,
-            Level::Info => LevelFilter::Info,
-            Level::Debug => LevelFilter::Debug,
-            Level::Trace => LevelFilter::Trace,
-        }
+impl fmt::Debug for Level {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.pad(self.as_str())
     }
 }
 
@@ -458,86 +445,63 @@ impl fmt::Display for Level {
 }
 
 /// An enum representing the available verbosity level filters of the logger.
-#[repr(usize)]
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub enum LevelFilter {
-    /// A level lower than all log levels.
-    Off = 0,
-    /// Corresponds to the `Error` log level.
-    Error = 100,
-    /// Corresponds to the `Warn` log level.
-    Warn = 200,
-    /// Corresponds to the `Info` log level.
-    Info = 300,
-    /// Corresponds to the `Debug` log level.
-    Debug = 400,
-    /// Corresponds to the `Trace` log level.
-    Trace = 500,
+    /// Disables all levels.
+    Off,
+    /// Enables if the target level is equal to the filter level.
+    Equal(Level),
+    /// Enables if the target level is not equal to the filter level.
+    NotEqual(Level),
+    /// Enables if the target level is more severe than the filter level.
+    MoreSevere(Level),
+    /// Enables if the target level is more severe than or equal to the filter
+    /// level.
+    MoreSevereEqual(Level),
+    /// Enables if the target level is more verbose than the filter level.
+    MoreVerbose(Level),
+    /// Enables if the target level is more verbose than or equal to the filter
+    /// level.
+    MoreVerboseEqual(Level),
+    /// Enables all levels.
+    All,
 }
 
 impl LevelFilter {
-    /// Return the string representation of the `LevelFilter`.
+    /// Checks the given level if satisfies the filter condition.
     ///
-    /// This returns the same string as the `fmt::Display` implementation.
-    pub fn as_str(&self) -> &'static str {
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth_core::record::Level;
+    /// use logforth_core::record::LevelFilter;
+    ///
+    /// let level_filter = LevelFilter::MoreSevere(Level::Info);
+    ///
+    /// assert_eq!(level_filter.test(Level::Trace), false);
+    /// assert_eq!(level_filter.test(Level::Info), false);
+    /// assert_eq!(level_filter.test(Level::Warn), true);
+    /// assert_eq!(level_filter.test(Level::Error), true);
+    /// ```
+    pub fn test(&self, level: Level) -> bool {
         match self {
-            LevelFilter::Off => "OFF",
-            LevelFilter::Error => "ERROR",
-            LevelFilter::Warn => "WARN",
-            LevelFilter::Info => "INFO",
-            LevelFilter::Debug => "DEBUG",
-            LevelFilter::Trace => "TRACE",
+            LevelFilter::Off => false,
+            LevelFilter::Equal(l) => level == *l,
+            LevelFilter::NotEqual(l) => level != *l,
+            LevelFilter::MoreSevere(l) => level < *l,
+            LevelFilter::MoreSevereEqual(l) => level <= *l,
+            LevelFilter::MoreVerbose(l) => level > *l,
+            LevelFilter::MoreVerboseEqual(l) => level >= *l,
+            LevelFilter::All => true,
         }
     }
 }
 
-impl fmt::Display for LevelFilter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.pad(self.as_str())
-    }
-}
-
-impl PartialEq<LevelFilter> for Level {
-    fn eq(&self, other: &LevelFilter) -> bool {
-        PartialEq::eq(&(*self as usize), &(*other as usize))
-    }
-}
-
-impl PartialOrd<LevelFilter> for Level {
-    fn partial_cmp(&self, other: &LevelFilter) -> Option<cmp::Ordering> {
-        Some(Ord::cmp(&(*self as usize), &(*other as usize)))
-    }
-}
-
-impl PartialEq<Level> for LevelFilter {
-    fn eq(&self, other: &Level) -> bool {
-        other.eq(self)
-    }
-}
-
-impl PartialOrd<Level> for LevelFilter {
-    fn partial_cmp(&self, other: &Level) -> Option<cmp::Ordering> {
-        Some(Ord::cmp(&(*self as usize), &(*other as usize)))
-    }
-}
-
-/// The type returned by `from_str` when the string doesn't match any of the log levels.
-#[derive(Debug, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct ParseLevelError {}
-
-impl fmt::Display for ParseLevelError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str("malformed log level")
-    }
-}
-
-impl std::error::Error for ParseLevelError {}
-
 impl FromStr for Level {
-    type Err = ParseLevelError;
+    type Err = Error;
     fn from_str(s: &str) -> Result<Level, Self::Err> {
         for (name, level) in [
+            ("critical", Level::Critical),
             ("error", Level::Error),
             ("warn", Level::Warn),
             ("info", Level::Info),
@@ -549,26 +513,6 @@ impl FromStr for Level {
             }
         }
 
-        Err(ParseLevelError {})
-    }
-}
-
-impl FromStr for LevelFilter {
-    type Err = ParseLevelError;
-    fn from_str(s: &str) -> Result<LevelFilter, Self::Err> {
-        for (name, level) in [
-            ("off", LevelFilter::Off),
-            ("error", LevelFilter::Error),
-            ("warn", LevelFilter::Warn),
-            ("info", LevelFilter::Info),
-            ("debug", LevelFilter::Debug),
-            ("trace", LevelFilter::Trace),
-        ] {
-            if s.eq_ignore_ascii_case(name) {
-                return Ok(level);
-            }
-        }
-
-        Err(ParseLevelError {})
+        Err(Error::new(format!("malformed level: {s:?}")))
     }
 }

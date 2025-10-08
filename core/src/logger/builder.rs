@@ -137,11 +137,12 @@ impl LoggerBuilder {
 ///
 /// ```
 /// use logforth_core::append;
+/// use logforth_core::record::Level;
 /// use logforth_core::record::LevelFilter;
 ///
 /// logforth_core::builder()
 ///     .dispatch(|d| {
-///         d.filter(LevelFilter::Info)
+///         d.filter(LevelFilter::MoreSevereEqual(Level::Info))
 ///             .append(append::Stdout::default())
 ///     })
 ///     .apply();
@@ -168,11 +169,12 @@ impl DispatchBuilder<false> {
     ///
     /// ```
     /// use logforth_core::append;
+    /// use logforth_core::record::Level;
     /// use logforth_core::record::LevelFilter;
     ///
     /// logforth_core::builder()
     ///     .dispatch(|d| {
-    ///         d.filter(LevelFilter::Error)
+    ///         d.filter(LevelFilter::MoreSevereEqual(Level::Error))
     ///             .append(append::Stderr::default())
     ///     })
     ///     .apply();
@@ -189,11 +191,12 @@ impl DispatchBuilder<false> {
     /// ```
     /// use logforth_core::append;
     /// use logforth_core::diagnostic;
+    /// use logforth_core::record::Level;
     /// use logforth_core::record::LevelFilter;
     ///
     /// logforth_core::builder()
     ///     .dispatch(|d| {
-    ///         d.filter(LevelFilter::Error)
+    ///         d.filter(LevelFilter::MoreSevereEqual(Level::Error))
     ///             .diagnostic(diagnostic::ThreadLocalDiagnostic::default())
     ///             .append(append::Stderr::default())
     ///     })

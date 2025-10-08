@@ -59,15 +59,16 @@ Configure multiple dispatches with different filters and appenders:
 
 ```rust
 use logforth::append;
+use logforth::record::Level;
 use logforth::record::LevelFilter;
 
 fn main() {
     logforth::starter_log::builder()
         .dispatch(|d| d
-            .filter(LevelFilter::Error)
+            .filter(LevelFilter::MoreSevereEqual(Level::Error))
             .append(append::Stderr::default()))
         .dispatch(|d| d
-            .filter(LevelFilter::Info)
+            .filter(LevelFilter::MoreSevereEqual(Level::Info))
             .append(append::Stdout::default()))
         .apply();
 

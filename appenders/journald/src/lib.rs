@@ -255,6 +255,7 @@ impl Append for Journald {
         // write them directly, everything else goes through the put functions
         // for property mangling and length-encoding
         let priority = match record.level() {
+            Level::Critical => b"2",
             Level::Error => b"3",
             Level::Warn => b"4",
             Level::Info => b"5",

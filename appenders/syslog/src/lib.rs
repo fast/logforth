@@ -24,7 +24,7 @@
 //! let append = SyslogBuilder::tcp_well_known().unwrap().build();
 //!
 //! logforth_core::builder()
-//!     .dispatch(|d| d.filter(LevelFilter::Trace).append(append))
+//!     .dispatch(|d| d.filter(LevelFilter::All).append(append))
 //!     .apply();
 //!
 //! log::info!("This log will be written to syslog.");
@@ -324,6 +324,7 @@ struct SyslogFormatter {
 
 fn log_level_to_syslog_severity(level: Level) -> fasyslog::Severity {
     match level {
+        Level::Critical => fasyslog::Severity::CRITICAL,
         Level::Error => fasyslog::Severity::ERROR,
         Level::Warn => fasyslog::Severity::WARNING,
         Level::Info => fasyslog::Severity::NOTICE,

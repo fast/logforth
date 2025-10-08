@@ -44,13 +44,13 @@ fn parse_spec_valid() {
 
     assert_eq!(dirs.len(), 3);
     assert_eq!(dirs[0].name, Some("crate1::mod1".to_owned()));
-    assert_eq!(dirs[0].level, LevelFilter::Error);
+    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Error));
 
     assert_eq!(dirs[1].name, Some("crate1::mod2".to_owned()));
-    assert_eq!(dirs[1].level, LevelFilter::Trace);
+    assert_eq!(dirs[1].level, LevelFilter::All);
 
     assert_eq!(dirs[2].name, Some("crate2".to_owned()));
-    assert_eq!(dirs[2].level, LevelFilter::Debug);
+    assert_eq!(dirs[2].level, LevelFilter::MoreSevereEqual(Level::Debug));
 
     assert!(errors.is_empty());
 }
@@ -65,7 +65,7 @@ fn parse_spec_invalid_crate() {
 
     assert_eq!(dirs.len(), 1);
     assert_eq!(dirs[0].name, Some("crate2".to_owned()));
-    assert_eq!(dirs[0].level, LevelFilter::Debug);
+    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Debug));
 
     assert_eq!(errors.len(), 1);
     assert_snapshot!(
@@ -84,7 +84,7 @@ fn parse_spec_invalid_level() {
 
     assert_eq!(dirs.len(), 1);
     assert_eq!(dirs[0].name, Some("crate2".to_owned()));
-    assert_eq!(dirs[0].level, LevelFilter::Debug);
+    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Debug));
 
     assert_eq!(errors.len(), 1);
     assert_snapshot!(&errors[0], @"malformed logging spec 'noNumber'");
@@ -100,7 +100,7 @@ fn parse_spec_string_level() {
 
     assert_eq!(dirs.len(), 1);
     assert_eq!(dirs[0].name, Some("crate2".to_owned()));
-    assert_eq!(dirs[0].level, LevelFilter::Warn);
+    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Warn));
 
     assert_eq!(errors.len(), 1);
     assert_snapshot!(&errors[0], @"malformed logging spec 'wrong'");
@@ -116,7 +116,7 @@ fn parse_spec_empty_level() {
 
     assert_eq!(dirs.len(), 1);
     assert_eq!(dirs[0].name, Some("crate2".to_owned()));
-    assert_eq!(dirs[0].level, LevelFilter::Trace);
+    assert_eq!(dirs[0].level, LevelFilter::All);
 
     assert_eq!(errors.len(), 1);
     assert_snapshot!(&errors[0], @"malformed logging spec 'wrong'");
@@ -197,9 +197,9 @@ fn parse_spec_global() {
     } = parse_spec("warn,crate2=debug");
     assert_eq!(dirs.len(), 2);
     assert_eq!(dirs[0].name, None);
-    assert_eq!(dirs[0].level, LevelFilter::Warn);
+    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Warn));
     assert_eq!(dirs[1].name, Some("crate2".to_owned()));
-    assert_eq!(dirs[1].level, LevelFilter::Debug);
+    assert_eq!(dirs[1].level, LevelFilter::MoreSevereEqual(Level::Debug));
 
     assert!(errors.is_empty());
 }
@@ -213,7 +213,7 @@ fn parse_spec_global_bare_warn_lc() {
     } = parse_spec("warn");
     assert_eq!(dirs.len(), 1);
     assert_eq!(dirs[0].name, None);
-    assert_eq!(dirs[0].level, LevelFilter::Warn);
+    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Warn));
 
     assert!(errors.is_empty());
 }
@@ -227,7 +227,7 @@ fn parse_spec_global_bare_warn_uc() {
     } = parse_spec("WARN");
     assert_eq!(dirs.len(), 1);
     assert_eq!(dirs[0].name, None);
-    assert_eq!(dirs[0].level, LevelFilter::Warn);
+    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Warn));
 
     assert!(errors.is_empty());
 }
@@ -241,7 +241,7 @@ fn parse_spec_global_bare_warn_mixed() {
     } = parse_spec("wArN");
     assert_eq!(dirs.len(), 1);
     assert_eq!(dirs[0].name, None);
-    assert_eq!(dirs[0].level, LevelFilter::Warn);
+    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Warn));
 
     assert!(errors.is_empty());
 }
@@ -256,7 +256,7 @@ fn parse_spec_multiple_invalid_crates() {
 
     assert_eq!(dirs.len(), 1);
     assert_eq!(dirs[0].name, Some("crate2".to_owned()));
-    assert_eq!(dirs[0].level, LevelFilter::Debug);
+    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Debug));
 
     assert_eq!(errors.len(), 2);
     assert_snapshot!(
@@ -279,7 +279,7 @@ fn parse_spec_multiple_invalid_levels() {
 
     assert_eq!(dirs.len(), 1);
     assert_eq!(dirs[0].name, Some("crate2".to_owned()));
-    assert_eq!(dirs[0].level, LevelFilter::Debug);
+    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Debug));
 
     assert_eq!(errors.len(), 2);
     assert_snapshot!(&errors[0], @"malformed logging spec 'noNumber'");
@@ -296,7 +296,7 @@ fn parse_spec_invalid_crate_and_level() {
 
     assert_eq!(dirs.len(), 1);
     assert_eq!(dirs[0].name, Some("crate2".to_owned()));
-    assert_eq!(dirs[0].level, LevelFilter::Debug);
+    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Debug));
 
     assert_eq!(errors.len(), 2);
     assert_snapshot!(
@@ -328,7 +328,7 @@ fn parse_error_message_multiple_errors() {
 #[test]
 fn filter_info() {
     let logger = EnvFilterBuilder::default()
-        .filter_level(LevelFilter::Info)
+        .filter_level(LevelFilter::MoreSevereEqual(Level::Info))
         .build();
     assert!(!logger.rejected(Level::Info, "crate1"));
     assert!(logger.rejected(Level::Debug, "crate1"));
@@ -337,9 +337,9 @@ fn filter_info() {
 #[test]
 fn filter_beginning_longest_match() {
     let logger = EnvFilterBuilder::default()
-        .filter_module("crate2", LevelFilter::Info)
-        .filter_module("crate2::mod", LevelFilter::Debug)
-        .filter_module("crate1::mod1", LevelFilter::Warn)
+        .filter_module("crate2", LevelFilter::MoreSevereEqual(Level::Info))
+        .filter_module("crate2::mod", LevelFilter::MoreSevereEqual(Level::Debug))
+        .filter_module("crate1::mod1", LevelFilter::MoreSevereEqual(Level::Warn))
         .build();
     assert!(!logger.rejected(Level::Debug, "crate2::mod1"));
     assert!(logger.rejected(Level::Debug, "crate2"));
@@ -361,7 +361,12 @@ fn filter_beginning_longest_match() {
 fn ensure_tests_cover_level_universe() {
     let level_universe: Level = Level::Trace; // use of trace variant is arbitrary
     match level_universe {
-        Level::Error | Level::Warn | Level::Info | Level::Debug | Level::Trace => (),
+        Level::Critical
+        | Level::Error
+        | Level::Warn
+        | Level::Info
+        | Level::Debug
+        | Level::Trace => (),
     }
 }
 
@@ -552,11 +557,11 @@ fn match_full_path() {
     let logger = EnvFilter::from_directives(vec![
         Directive {
             name: Some("crate2".to_owned()),
-            level: LevelFilter::Info,
+            level: LevelFilter::MoreSevereEqual(Level::Info),
         },
         Directive {
             name: Some("crate1::mod1".to_owned()),
-            level: LevelFilter::Warn,
+            level: LevelFilter::MoreSevereEqual(Level::Warn),
         },
     ]);
     assert!(!logger.rejected(Level::Warn, "crate1::mod1"));
@@ -570,11 +575,11 @@ fn no_match() {
     let logger = EnvFilter::from_directives(vec![
         Directive {
             name: Some("crate2".to_owned()),
-            level: LevelFilter::Info,
+            level: LevelFilter::MoreSevereEqual(Level::Info),
         },
         Directive {
             name: Some("crate1::mod1".to_owned()),
-            level: LevelFilter::Warn,
+            level: LevelFilter::MoreSevereEqual(Level::Warn),
         },
     ]);
     assert!(logger.rejected(Level::Warn, "crate3"));
@@ -585,11 +590,11 @@ fn match_beginning() {
     let logger = EnvFilter::from_directives(vec![
         Directive {
             name: Some("crate2".to_owned()),
-            level: LevelFilter::Info,
+            level: LevelFilter::MoreSevereEqual(Level::Info),
         },
         Directive {
             name: Some("crate1::mod1".to_owned()),
-            level: LevelFilter::Warn,
+            level: LevelFilter::MoreSevereEqual(Level::Warn),
         },
     ]);
     assert!(!logger.rejected(Level::Info, "crate2::mod1"));
@@ -600,15 +605,15 @@ fn match_beginning_longest_match() {
     let logger = EnvFilter::from_directives(vec![
         Directive {
             name: Some("crate2".to_owned()),
-            level: LevelFilter::Info,
+            level: LevelFilter::MoreSevereEqual(Level::Info),
         },
         Directive {
             name: Some("crate2::mod".to_owned()),
-            level: LevelFilter::Debug,
+            level: LevelFilter::MoreSevereEqual(Level::Debug),
         },
         Directive {
             name: Some("crate1::mod1".to_owned()),
-            level: LevelFilter::Warn,
+            level: LevelFilter::MoreSevereEqual(Level::Warn),
         },
     ]);
     assert!(!logger.rejected(Level::Debug, "crate2::mod1"));
@@ -620,11 +625,11 @@ fn match_default() {
     let logger = EnvFilter::from_directives(vec![
         Directive {
             name: None,
-            level: LevelFilter::Info,
+            level: LevelFilter::MoreSevereEqual(Level::Info),
         },
         Directive {
             name: Some("crate1::mod1".to_owned()),
-            level: LevelFilter::Warn,
+            level: LevelFilter::MoreSevereEqual(Level::Warn),
         },
     ]);
     assert!(!logger.rejected(Level::Warn, "crate1::mod1"));
@@ -636,7 +641,7 @@ fn zero_level() {
     let logger = EnvFilter::from_directives(vec![
         Directive {
             name: None,
-            level: LevelFilter::Info,
+            level: LevelFilter::MoreSevereEqual(Level::Info),
         },
         Directive {
             name: Some("crate1::mod1".to_owned()),

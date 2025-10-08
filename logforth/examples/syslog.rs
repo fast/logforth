@@ -20,7 +20,7 @@ use logforth::record::LevelFilter;
 fn main() {
     let append = SyslogBuilder::tcp_well_known().unwrap().build();
     logforth::starter_log::builder()
-        .dispatch(|d| d.filter(LevelFilter::Trace).append(append))
+        .dispatch(|d| d.filter(LevelFilter::All).append(append))
         .apply();
 
     let repeat = 1;
