@@ -14,7 +14,7 @@
 
 [package]
 name = "logforth-bridge-log"
-version = "0.2.1"
+version = "0.3.0"
 
 description = "Bridge Logforth with the log crate."
 keywords = ["logging", "log"]
