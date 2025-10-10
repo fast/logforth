@@ -80,7 +80,7 @@ impl FileBuilder {
 
     /// Set the trap for the file writer.
     ///
-    /// Default to [`DefaultTrap`].
+    /// Default to [`BestEffortTrap`].
     ///
     /// # Examples
     ///
@@ -91,6 +91,8 @@ impl FileBuilder {
     /// let builder = FileBuilder::new("my_service", "my_app");
     /// builder.trap(BestEffortTrap::default());
     /// ```
+    ///
+    /// [`BestEffortTrap`]: logforth_core::trap::BestEffortTrap
     pub fn trap(mut self, trap: impl Into<Box<dyn Trap>>) -> Self {
         self.builder = self.builder.trap(trap);
         self

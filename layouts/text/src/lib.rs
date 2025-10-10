@@ -47,8 +47,8 @@ use logforth_core::record::Record;
 /// By default, log levels are colored. You can set the `no_color` field to `true` to disable
 /// coloring.
 ///
-/// You can also customize the color of each log level by setting the `colors` field with a
-/// [`LevelColor`] instance.
+/// You can also customize the color of each log level with [`error_color`](TextLayout::error_color)
+/// and so on.
 ///
 /// You can customize the timezone of the timestamp by setting the `tz` field with a [`TimeZone`]
 /// instance. Otherwise, the system timezone is used.

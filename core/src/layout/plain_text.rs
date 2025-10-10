@@ -28,11 +28,11 @@ use crate::record::Record;
 /// Output format:
 ///
 /// ```text
-/// 2024-08-11T22:44:57.172105+08:00 ERROR file: examples/file.rs:51 Hello error!
-/// 2024-08-11T22:44:57.172219+08:00  WARN file: examples/file.rs:52 Hello warn!
-/// 2024-08-11T22:44:57.172276+08:00  INFO file: examples/file.rs:53 Hello info!
-/// 2024-08-11T22:44:57.172329+08:00 DEBUG file: examples/file.rs:54 Hello debug!
-/// 2024-08-11T22:44:57.172382+08:00 TRACE file: examples/file.rs:55 Hello trace!
+/// 1760092868730397000 ERROR simple: simple.rs:24 Hello error!
+/// 1760092868730572000  WARN simple: simple.rs:25 Hello warn!
+/// 1760092868730576000  INFO simple: simple.rs:26 Hello info!
+/// 1760092868730579000 DEBUG simple: simple.rs:27 Hello debug!
+/// 1760092868730581000 TRACE simple: simple.rs:28 Hello trace!
 /// ```
 ///
 /// # Examples
