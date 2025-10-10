@@ -13,11 +13,11 @@
 # limitations under the License.
 
 [package]
-name = "logforth-append-opentelemetry"
+name = "logforth-diagnostic-task-local"
 version = "0.3.0"
 
-description = "Opemtelemetry appender for Logforth."
-keywords = ["logging", "log", "opentelemtry"]
+description = "Task-local diagnostic for Logforth."
+keywords = ["logging", "log", "async", "task", "future"]
 
 categories.workspace = true
 edition.workspace = true
@@ -33,15 +33,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 logforth-core = { workspace = true }
-logforth-layout-json = { workspace = true }
-opentelemetry = { workspace = true, features = ["logs"] }
-opentelemetry-otlp = { workspace = true, features = ["http-proto", "logs"] }
-opentelemetry_sdk = { workspace = true, features = ["logs"] }
+pin-project = { workspace = true }
 
 [dev-dependencies]
-opentelemetry = { workspace = true, features = ["default"] }
-opentelemetry-otlp = { workspace = true, features = ["default"] }
-opentelemetry_sdk = { workspace = true, features = ["default"] }
+log = { workspace = true }
 
 [lints]
 workspace = true

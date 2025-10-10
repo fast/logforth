@@ -124,6 +124,10 @@ pub mod diagnostic {
     pub use logforth_core::diagnostic::*;
     #[cfg(feature = "diagnostic-fastrace")]
     pub use logforth_diagnostic_fastrace::FastraceDiagnostic;
+    #[cfg(feature = "diagnostic-task-local")]
+    pub use logforth_diagnostic_task_local as task_local;
+    #[cfg(feature = "diagnostic-task-local")]
+    pub use logforth_diagnostic_task_local::TaskLocalDiagnostic;
 }
 
 /// Filters for log records.

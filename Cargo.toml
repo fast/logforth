@@ -34,19 +34,20 @@ rust-version = "1.85.0"
 
 [workspace.dependencies]
 # Workspace dependencies
-logforth-append-async = { version = "0.2.1", path = "appenders/async" }
-logforth-append-fastrace = { version = "0.2.1", path = "appenders/fastrace" }
-logforth-append-file = { version = "0.2.1", path = "appenders/file" }
-logforth-append-journald = { version = "0.2.1", path = "appenders/journald" }
-logforth-append-opentelemetry = { version = "0.2.1", path = "appenders/opentelemetry" }
-logforth-append-syslog = { version = "0.2.1", path = "appenders/syslog" }
-logforth-bridge-log = { version = "0.2.1", path = "bridges/log" }
-logforth-core = { version = "0.2.1", path = "core" }
-logforth-diagnostic-fastrace = { version = "0.2.1", path = "diagnostics/fastrace" }
-logforth-layout-google-cloud-logging = { version = "0.2.1", path = "layouts/google-cloud-logging" }
-logforth-layout-json = { version = "0.2.1", path = "layouts/json" }
-logforth-layout-logfmt = { version = "0.2.1", path = "layouts/logfmt" }
-logforth-layout-text = { version = "0.2.1", path = "layouts/text" }
+logforth-append-async = { version = "0.3.0", path = "appenders/async" }
+logforth-append-fastrace = { version = "0.3.0", path = "appenders/fastrace" }
+logforth-append-file = { version = "0.3.0", path = "appenders/file" }
+logforth-append-journald = { version = "0.3.0", path = "appenders/journald" }
+logforth-append-opentelemetry = { version = "0.3.0", path = "appenders/opentelemetry" }
+logforth-append-syslog = { version = "0.3.0", path = "appenders/syslog" }
+logforth-bridge-log = { version = "0.3.0", path = "bridges/log" }
+logforth-core = { version = "0.3.0", path = "core" }
+logforth-diagnostic-fastrace = { version = "0.3.0", path = "diagnostics/fastrace" }
+logforth-diagnostic-task-local = { version = "0.3.0", path = "diagnostics/task-local" }
+logforth-layout-google-cloud-logging = { version = "0.3.0", path = "layouts/google-cloud-logging" }
+logforth-layout-json = { version = "0.3.0", path = "layouts/json" }
+logforth-layout-logfmt = { version = "0.3.0", path = "layouts/logfmt" }
+logforth-layout-text = { version = "0.3.0", path = "layouts/text" }
 
 # Crates.io dependencies
 anyhow = { version = "1.0" }
@@ -62,10 +63,12 @@ log = { version = "0.4.27", features = ["kv_std", "kv_sval"] }
 opentelemetry = { version = "0.31.0", default-features = false }
 opentelemetry-otlp = { version = "0.31.0", default-features = false }
 opentelemetry_sdk = { version = "0.31.0", default-features = false }
+pin-project = { version = "1.1.10" }
 rand = { version = "0.9" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 tempfile = { version = "3.16" }
+tokio = { version = "1.47.1" }
 value-bag = { version = "1.11.1", features = ["inline-i128", "owned", "sval"] }
 
 [workspace.lints.rust]

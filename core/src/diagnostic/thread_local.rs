@@ -22,7 +22,7 @@ use crate::kv::Value;
 use crate::kv::Visitor;
 
 thread_local! {
-    static CONTEXT: RefCell<BTreeMap<String, String>> = const { RefCell::new(BTreeMap::new()) };
+    static THREAD_LOCAL_MAP: RefCell<BTreeMap<String, String>> = const { RefCell::new(BTreeMap::new()) };
 }
 
 /// A diagnostic that stores key-value pairs in a thread-local map.
@@ -45,14 +45,14 @@ impl ThreadLocalDiagnostic {
         K: Into<String>,
         V: Into<String>,
     {
-        CONTEXT.with(|map| {
+        THREAD_LOCAL_MAP.with(|map| {
             map.borrow_mut().insert(key.into(), value.into());
         });
     }
 
     /// Remove a key-value pair from the thread local diagnostic.
     pub fn remove(key: &str) {
-        CONTEXT.with(|map| {
+        THREAD_LOCAL_MAP.with(|map| {
             map.borrow_mut().remove(key);
         });
     }
@@ -60,7 +60,7 @@ impl ThreadLocalDiagnostic {
 
 impl Diagnostic for ThreadLocalDiagnostic {
     fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
-        CONTEXT.with(|map| {
+        THREAD_LOCAL_MAP.with(|map| {
             let map = map.borrow();
             for (key, value) in map.iter() {
                 let key = Key::new_ref(key.as_str());
