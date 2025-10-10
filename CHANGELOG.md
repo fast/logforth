@@ -10,6 +10,10 @@ All notable changes to this project will be documented in this file.
 * Add `Level::Critical` variant to represent critical level logs.
 * Redesign `LevelFilter`.
 
+### New features
+
+* Add `logforth-diagnostic-task-local` and `TaskLocalDiagnostic` to support task-local key-value context.
+
 ## [0.28.1] 2025-10-06
 
 ### Documentation changes
