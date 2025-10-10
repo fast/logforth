@@ -56,6 +56,7 @@ layout-text = ["dep:logforth-layout-text"]
 
 # Diagnostics
 diagnostic-fastrace = ["dep:logforth-diagnostic-fastrace"]
+diagnostic-task-local = ["dep:logforth-diagnostic-task-local"]
 
 # Standalone features
 native-tls = ["logforth-append-syslog?/native-tls"]
@@ -73,6 +74,7 @@ logforth-append-opentelemetry = { workspace = true, optional = true }
 logforth-append-syslog = { workspace = true, optional = true }
 logforth-bridge-log = { workspace = true, optional = true }
 logforth-diagnostic-fastrace = { workspace = true, optional = true }
+logforth-diagnostic-task-local = { workspace = true, optional = true }
 logforth-layout-google-cloud-logging = { workspace = true, optional = true }
 logforth-layout-json = { workspace = true, optional = true }
 logforth-layout-logfmt = { workspace = true, optional = true }
@@ -83,6 +85,7 @@ fastrace = { workspace = true, features = ["enable"] }
 log = { workspace = true, features = ["kv_serde"] }
 logforth-append-file = { workspace = true }
 serde = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 
 [lints]
 workspace = true
@@ -139,6 +142,12 @@ doc-scrape-examples = true
 name = "single_file"
 path = "examples/single_file.rs"
 required-features = ["starter-log"]
+
+[[example]]
+doc-scrape-examples = true
+name = "task_local"
+path = "examples/task_local.rs"
+required-features = ["starter-log", "diagnostic-task-local"]
 
 [[example]]
 doc-scrape-examples = true

@@ -43,6 +43,7 @@ logforth-append-syslog = { version = "0.3.0", path = "appenders/syslog" }
 logforth-bridge-log = { version = "0.3.0", path = "bridges/log" }
 logforth-core = { version = "0.3.0", path = "core" }
 logforth-diagnostic-fastrace = { version = "0.3.0", path = "diagnostics/fastrace" }
+logforth-diagnostic-task-local = { version = "0.3.0", path = "diagnostics/task-local" }
 logforth-layout-google-cloud-logging = { version = "0.3.0", path = "layouts/google-cloud-logging" }
 logforth-layout-json = { version = "0.3.0", path = "layouts/json" }
 logforth-layout-logfmt = { version = "0.3.0", path = "layouts/logfmt" }
@@ -62,6 +63,7 @@ log = { version = "0.4.27", features = ["kv_std", "kv_sval"] }
 opentelemetry = { version = "0.31.0", default-features = false }
 opentelemetry-otlp = { version = "0.31.0", default-features = false }
 opentelemetry_sdk = { version = "0.31.0", default-features = false }
+pin-project = { version = "1.1.10" }
 rand = { version = "0.9" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
