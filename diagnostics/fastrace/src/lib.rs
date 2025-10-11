@@ -16,6 +16,7 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+use fastrace::collector::SpanContext;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::kv::Key;
@@ -47,9 +48,13 @@ pub struct FastraceDiagnostic {}
 
 impl Diagnostic for FastraceDiagnostic {
     fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
-        if let Some(span) = fastrace::collector::SpanContext::current_local_parent() {
-            visitor.visit(Key::new("trace_id"), Value::from_u128(span.trace_id.0))?;
-            visitor.visit(Key::new("span_id"), Value::from_u64(span.span_id.0))?;
+        if let Some(span) = SpanContext::current_local_parent() {
+            // NOTE: TraceId and SpanId should be represented as hex strings.
+            let trace_id = span.trace_id.to_string();
+            let span_id = span.span_id.to_string();
+
+            visitor.visit(Key::new("trace_id"), Value::from_str(&trace_id))?;
+            visitor.visit(Key::new("span_id"), Value::from_str(&span_id))?;
             visitor.visit(Key::new("sampled"), Value::from_bool(span.sampled))?;
         }
 
