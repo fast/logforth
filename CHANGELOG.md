@@ -14,6 +14,10 @@ All notable changes to this project will be documented in this file.
 
 * Add `logforth-diagnostic-task-local` and `TaskLocalDiagnostic` to support task-local key-value context.
 
+### Bug fixes
+
+* Fix `FastraceDiagnostic` does not format `trace_id` and `span_id` as hex strings.
+
 ## [0.28.1] 2025-10-06
 
 ### Documentation changes
