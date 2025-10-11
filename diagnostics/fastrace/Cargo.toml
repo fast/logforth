@@ -35,5 +35,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 fastrace = { workspace = true }
 logforth-core = { workspace = true }
 
+[dev-dependencies]
+fastrace = { workspace = true, features = ["enable"] }
+
 [lints]
 workspace = true

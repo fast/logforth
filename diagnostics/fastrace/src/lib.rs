@@ -61,3 +61,45 @@ impl Diagnostic for FastraceDiagnostic {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use fastrace::Span;
+    use logforth_core::kv::ValueOwned;
+
+    use super::*;
+
+    #[test]
+    fn key_values() {
+        struct Collector(BTreeMap<String, ValueOwned>);
+
+        impl Visitor for Collector {
+            fn visit(&mut self, key: Key<'_>, value: Value<'_>) -> Result<(), Error> {
+                self.0.insert(key.to_string(), value.to_owned());
+                Ok(())
+            }
+        }
+
+        let diagnostic = FastraceDiagnostic::default();
+
+        let mut map = {
+            let span = Span::root("test", SpanContext::random());
+            let _guard = span.set_local_parent();
+
+            let mut collector = Collector(BTreeMap::new());
+            diagnostic.visit(&mut collector).unwrap();
+            collector.0
+        };
+
+        let trace_id = map.remove("trace_id").unwrap();
+        assert_eq!(32, trace_id.to_string().len());
+        let span_id = map.remove("span_id").unwrap();
+        assert_eq!(16, span_id.to_string().len());
+        let sampled = map.remove("sampled").unwrap();
+        assert!(sampled.by_ref().to_bool().unwrap());
+
+        assert!(map.is_empty());
+    }
+}
