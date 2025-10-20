@@ -19,6 +19,7 @@
 use std::sync::Arc;
 
 use logforth_core::Append;
+use logforth_core::Error;
 use logforth_core::kv;
 use logforth_core::record::RecordOwned;
 
@@ -37,6 +38,7 @@ enum Task {
     },
     Flush {
         appends: Arc<[Box<dyn Append>]>,
+        completion: crossbeam_channel::Sender<Result<(), Error>>,
     },
 }
 

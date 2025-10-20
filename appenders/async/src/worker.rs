@@ -53,12 +53,24 @@ impl Worker {
                         }
                     }
                 }
-                Task::Flush { appends } => {
+                Task::Flush {
+                    appends,
+                    completion,
+                } => {
+                    let mut first_error = None;
                     for append in appends.iter() {
                         if let Err(err) = append.flush() {
                             let err = Error::new("failed to flush").set_source(err);
                             trap.trap(&err);
+                            if first_error.is_none() {
+                                first_error = Some(err);
+                            }
                         }
+                    }
+                    if let Some(err) = first_error {
+                        let _ = completion.send(Err(err));
+                    } else {
+                        let _ = completion.send(Ok(()));
                     }
                 }
             }
