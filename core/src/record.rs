@@ -403,7 +403,7 @@ impl RecordOwned {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Level {
     /// Designates critical errors.
-    Critical,
+    Crit,
     /// Designates very serious errors.
     Error,
     /// Designates hazardous situations.
@@ -422,7 +422,7 @@ impl Level {
     /// This returns the same string as the `fmt::Display` implementation.
     pub fn as_str(&self) -> &'static str {
         match self {
-            Level::Critical => "CRITICAL",
+            Level::Crit => "CRIT",
             Level::Error => "ERROR",
             Level::Warn => "WARN",
             Level::Info => "INFO",
@@ -501,7 +501,7 @@ impl FromStr for Level {
     type Err = Error;
     fn from_str(s: &str) -> Result<Level, Self::Err> {
         for (name, level) in [
-            ("critical", Level::Critical),
+            ("crit", Level::Crit),
             ("error", Level::Error),
             ("warn", Level::Warn),
             ("info", Level::Info),

@@ -361,12 +361,7 @@ fn filter_beginning_longest_match() {
 fn ensure_tests_cover_level_universe() {
     let level_universe: Level = Level::Trace; // use of trace variant is arbitrary
     match level_universe {
-        Level::Critical
-        | Level::Error
-        | Level::Warn
-        | Level::Info
-        | Level::Debug
-        | Level::Trace => (),
+        Level::Crit | Level::Error | Level::Warn | Level::Info | Level::Debug | Level::Trace => (),
     }
 }
 
