@@ -178,8 +178,8 @@ impl Layout for TextLayout {
 /// Colors for different log levels.
 #[derive(Debug, Clone)]
 struct LevelColor {
-    /// Color for critical level logs.
-    critical: Color,
+    /// Color for crit level logs.
+    crit: Color,
     /// Color for error level logs.
     error: Color,
     /// Color for warning level logs.
@@ -195,7 +195,7 @@ struct LevelColor {
 impl Default for LevelColor {
     fn default() -> Self {
         Self {
-            critical: Color::BrightRed,
+            crit: Color::BrightRed,
             error: Color::Red,
             warn: Color::Yellow,
             info: Color::Green,
@@ -212,7 +212,7 @@ impl LevelColor {
             ColoredString::from(level.to_string())
         } else {
             let color = match level {
-                Level::Critical => self.critical,
+                Level::Crit => self.crit,
                 Level::Error => self.error,
                 Level::Warn => self.warn,
                 Level::Info => self.info,

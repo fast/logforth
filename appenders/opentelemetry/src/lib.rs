@@ -285,7 +285,7 @@ impl Drop for OpentelemetryLog {
 
 fn log_level_to_otel_severity(level: Level) -> opentelemetry::logs::Severity {
     match level {
-        Level::Critical => opentelemetry::logs::Severity::Fatal,
+        Level::Crit => opentelemetry::logs::Severity::Fatal,
         Level::Error => opentelemetry::logs::Severity::Error,
         Level::Warn => opentelemetry::logs::Severity::Warn,
         Level::Info => opentelemetry::logs::Severity::Info,
