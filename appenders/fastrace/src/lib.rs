@@ -63,7 +63,7 @@ impl Append for FastraceEvent {
         fastrace::local::LocalSpan::add_event(fastrace::Event::new(message).with_properties(
             || {
                 [
-                    (Cow::from("level"), Cow::from(record.level().as_str())),
+                    (Cow::from("level"), Cow::from(record.level().name())),
                     (Cow::from("timestamp"), Cow::from(Zoned::now().to_string())),
                 ]
                 .into_iter()

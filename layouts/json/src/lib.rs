@@ -133,7 +133,7 @@ impl Layout for JsonLayout {
 
         let record_line = RecordLine {
             timestamp,
-            level: record.level().as_str(),
+            level: record.level().name(),
             target: record.target(),
             file: record.file().unwrap_or_default(),
             line: record.line().unwrap_or_default(),

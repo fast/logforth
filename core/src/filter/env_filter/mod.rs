@@ -67,8 +67,6 @@
 //! * `error,hello=off`  turn on global error logging, but turn off logging for hello
 //! * `off` turns off all logging for the application
 //! * `OFF` turns off all logging for the application (same as previous)
-//!
-//! [`Level`]: crate::record::Level
 
 use std::borrow::Cow;
 use std::str::FromStr;
