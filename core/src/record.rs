@@ -399,48 +399,123 @@ impl RecordOwned {
     }
 }
 
-/// An enum representing the available verbosity levels of the logger.
+/// A Level is the importance or severity of a log event.
+///
+/// The higher the level, the more important or severe the event.
+///
+/// The level design follows the [OpenTelemetry severity number specification][severity-number]
+/// and [mapping guideline][mapping-guideline].
+///
+/// [severity-number]: https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitynumber
+/// [mapping-guideline]: https://opentelemetry.io/docs/specs/otel/logs/data-model-appendix/#appendix-b-severitynumber-example-mappings
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(u8)]
 pub enum Level {
-    /// Designates critical errors.
-    Crit,
-    /// Designates very serious errors.
-    Error,
-    /// Designates hazardous situations.
-    Warn,
-    /// Designates useful information.
-    Info,
-    /// Designates lower priority information.
-    Debug,
-    /// Designates very low priority, often extremely verbose, information.
-    Trace,
+    /// TRACE. A fine-grained debugging event.
+    ///
+    /// Typically disabled in default configurations.
+    Trace = 1,
+    /// TRACE2. A fine-grained debugging event.
+    ///
+    /// Typically disabled in default configurations.
+    Trace2 = 2,
+    /// TRACE3. A fine-grained debugging event.
+    ///
+    /// Typically disabled in default configurations.
+    Trace3 = 3,
+    /// TRACE4. A fine-grained debugging event.
+    ///
+    /// Typically disabled in default configurations.
+    Trace4 = 4,
+    /// DEBUG. A debugging event.
+    Debug = 5,
+    /// DEBUG2. A debugging event.
+    Debug2 = 6,
+    /// DEBUG2. A debugging event.
+    Debug3 = 7,
+    /// DEBUG3. A debugging event.
+    Debug4 = 8,
+    /// INFO. An informational event.
+    ///
+    /// Indicates that an event happened.
+    Info = 9,
+    /// INFO2. An informational event.
+    ///
+    /// Indicates that an event happened.
+    Info2 = 10,
+    /// INFO3. An informational event.
+    ///
+    /// Indicates that an event happened.
+    Info3 = 11,
+    /// INFO4. An informational event.
+    ///
+    /// Indicates that an event happened.
+    Info4 = 12,
+    /// WARN. A warning event.
+    ///
+    /// Not an error but is likely more important than an informational event.
+    Warn = 13,
+    /// WARN2. A warning event.
+    ///
+    /// Not an error but is likely more important than an informational event.
+    Warn2 = 14,
+    /// WARN3. A warning event.
+    ///
+    /// Not an error but is likely more important than an informational event.
+    Warn3 = 15,
+    /// WARN4. A warning event.
+    ///
+    /// Not an error but is likely more important than an informational event.
+    Warn4 = 16,
+    /// ERROR. An error event.
+    ///
+    /// Something went wrong.
+    Error = 17,
+    /// ERROR2. An error event.
+    ///
+    /// Something went wrong.
+    Error2 = 18,
+    /// ERROR3. An error event.
+    ///
+    /// Something went wrong.
+    Error3 = 19,
+    /// ERROR4. An error event.
+    ///
+    /// Something went wrong.
+    Error4 = 20,
+    /// FATAL. A fatal error such as application or system crash.
+    Fatal = 21,
+    /// FATAL2. A fatal error such as application or system crash.
+    Fatal2 = 22,
+    /// FATAL3. A fatal error such as application or system crash.
+    Fatal3 = 23,
+    /// FATAL4. A fatal error such as application or system crash.
+    Fatal4 = 24,
 }
 
 impl Level {
-    /// Return the string representation of the `Level`.
+    /// Return the string representation the short name for the `Level`.
     ///
     /// This returns the same string as the `fmt::Display` implementation.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Level::Crit => "CRIT",
-            Level::Error => "ERROR",
-            Level::Warn => "WARN",
-            Level::Info => "INFO",
-            Level::Debug => "DEBUG",
-            Level::Trace => "TRACE",
-        }
+    pub const fn name(&self) -> &'static str {
+        const LEVEL_NAMES: [&str; 24] = [
+            "TRACE", "TRACE2", "TRACE3", "TRACE4", "DEBUG", "DEBUG2", "DEBUG3", "DEBUG4", "INFO",
+            "INFO2", "INFO3", "INFO4", "WARN", "WARN2", "WARN3", "WARN4", "ERROR", "ERROR2",
+            "ERROR3", "ERROR4", "FATAL", "FATAL2", "FATAL3", "FATAL4",
+        ];
+        LEVEL_NAMES[*self as usize - 1]
     }
 }
 
 impl fmt::Debug for Level {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.pad(self.as_str())
+        f.pad(self.name())
     }
 }
 
 impl fmt::Display for Level {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.pad(self.as_str())
+        f.pad(self.name())
     }
 }
 
@@ -488,10 +563,10 @@ impl LevelFilter {
             LevelFilter::Off => false,
             LevelFilter::Equal(l) => level == *l,
             LevelFilter::NotEqual(l) => level != *l,
-            LevelFilter::MoreSevere(l) => level < *l,
-            LevelFilter::MoreSevereEqual(l) => level <= *l,
-            LevelFilter::MoreVerbose(l) => level > *l,
-            LevelFilter::MoreVerboseEqual(l) => level >= *l,
+            LevelFilter::MoreSevere(l) => level > *l,
+            LevelFilter::MoreSevereEqual(l) => level >= *l,
+            LevelFilter::MoreVerbose(l) => level < *l,
+            LevelFilter::MoreVerboseEqual(l) => level <= *l,
             LevelFilter::All => true,
         }
     }
@@ -500,19 +575,78 @@ impl LevelFilter {
 impl FromStr for Level {
     type Err = Error;
     fn from_str(s: &str) -> Result<Level, Self::Err> {
-        for (name, level) in [
-            ("crit", Level::Crit),
+        for (repr, level) in [
+            // common cases
+            ("fatal", Level::Fatal),
             ("error", Level::Error),
             ("warn", Level::Warn),
             ("info", Level::Info),
             ("debug", Level::Debug),
             ("trace", Level::Trace),
+            // other offset levels
+            ("fatal2", Level::Fatal2),
+            ("fatal3", Level::Fatal3),
+            ("fatal4", Level::Fatal4),
+            ("error2", Level::Error2),
+            ("error3", Level::Error3),
+            ("error4", Level::Error4),
+            ("warn2", Level::Warn2),
+            ("warn3", Level::Warn3),
+            ("warn4", Level::Warn4),
+            ("info2", Level::Info2),
+            ("info3", Level::Info3),
+            ("info4", Level::Info4),
+            ("debug2", Level::Debug2),
+            ("debug3", Level::Debug3),
+            ("debug4", Level::Debug4),
+            ("trace2", Level::Trace2),
+            ("trace3", Level::Trace3),
+            ("trace4", Level::Trace4),
         ] {
-            if s.eq_ignore_ascii_case(name) {
+            if s.eq_ignore_ascii_case(repr) {
                 return Ok(level);
             }
         }
 
         Err(Error::new(format!("malformed level: {s:?}")))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn round_trip_level() {
+        let levels = [
+            super::Level::Trace,
+            super::Level::Trace2,
+            super::Level::Trace3,
+            super::Level::Trace4,
+            super::Level::Debug,
+            super::Level::Debug2,
+            super::Level::Debug3,
+            super::Level::Debug4,
+            super::Level::Info,
+            super::Level::Info2,
+            super::Level::Info3,
+            super::Level::Info4,
+            super::Level::Warn,
+            super::Level::Warn2,
+            super::Level::Warn3,
+            super::Level::Warn4,
+            super::Level::Error,
+            super::Level::Error2,
+            super::Level::Error3,
+            super::Level::Error4,
+            super::Level::Fatal,
+            super::Level::Fatal2,
+            super::Level::Fatal3,
+            super::Level::Fatal4,
+        ];
+
+        for &level in &levels {
+            let s = level.name();
+            let parsed = s.parse::<super::Level>().unwrap();
+            assert_eq!(level, parsed);
+        }
     }
 }

@@ -68,6 +68,14 @@ pub struct TextLayout {
 }
 
 impl TextLayout {
+    /// Customize the color of the error log level. Default to bright red.
+    ///
+    /// No effect if `no_color` is set to `true`.
+    pub fn fatal_color(mut self, color: Color) -> Self {
+        self.colors.fatal = color;
+        self
+    }
+
     /// Customize the color of the error log level. Default to red.
     ///
     /// No effect if `no_color` is set to `true`.
@@ -164,7 +172,7 @@ impl Layout for TextLayout {
         let message = record.payload();
 
         let mut visitor = KvWriter {
-            text: format!("{time:.6} {level:>5} {target}: {file}:{line} {message}"),
+            text: format!("{time:.6} {level:>6} {target}: {file}:{line} {message}"),
         };
         record.key_values().visit(&mut visitor)?;
         for d in diags {
@@ -178,8 +186,8 @@ impl Layout for TextLayout {
 /// Colors for different log levels.
 #[derive(Debug, Clone)]
 struct LevelColor {
-    /// Color for crit level logs.
-    crit: Color,
+    /// Color for fatal level logs.
+    fatal: Color,
     /// Color for error level logs.
     error: Color,
     /// Color for warning level logs.
@@ -195,7 +203,7 @@ struct LevelColor {
 impl Default for LevelColor {
     fn default() -> Self {
         Self {
-            crit: Color::BrightRed,
+            fatal: Color::BrightRed,
             error: Color::Red,
             warn: Color::Yellow,
             info: Color::Green,
@@ -212,12 +220,12 @@ impl LevelColor {
             ColoredString::from(level.to_string())
         } else {
             let color = match level {
-                Level::Crit => self.crit,
-                Level::Error => self.error,
-                Level::Warn => self.warn,
-                Level::Info => self.info,
-                Level::Debug => self.debug,
-                Level::Trace => self.trace,
+                Level::Fatal | Level::Fatal2 | Level::Fatal3 | Level::Fatal4 => self.fatal,
+                Level::Error | Level::Error2 | Level::Error3 | Level::Error4 => self.error,
+                Level::Warn | Level::Warn2 | Level::Warn3 | Level::Warn4 => self.warn,
+                Level::Info | Level::Info2 | Level::Info3 | Level::Info4 => self.info,
+                Level::Debug | Level::Debug2 | Level::Debug3 | Level::Debug4 => self.debug,
+                Level::Trace | Level::Trace2 | Level::Trace3 | Level::Trace4 => self.trace,
             };
             ColoredString::from(level.to_string()).color(color)
         }

@@ -322,14 +322,26 @@ struct SyslogFormatter {
     layout: Option<Box<dyn Layout>>,
 }
 
+// @see https://opentelemetry.io/docs/specs/otel/logs/data-model-appendix/#appendix-b-severitynumber-example-mappings
 fn log_level_to_syslog_severity(level: Level) -> fasyslog::Severity {
     match level {
-        Level::Crit => fasyslog::Severity::CRITICAL,
+        Level::Fatal | Level::Fatal2 | Level::Fatal3 | Level::Fatal4 => {
+            fasyslog::Severity::EMERGENCY
+        }
+        Level::Error3 | Level::Error4 => fasyslog::Severity::ALERT,
+        Level::Error2 => fasyslog::Severity::CRITICAL,
         Level::Error => fasyslog::Severity::ERROR,
-        Level::Warn => fasyslog::Severity::WARNING,
-        Level::Info => fasyslog::Severity::NOTICE,
-        Level::Debug => fasyslog::Severity::INFORMATIONAL,
-        Level::Trace => fasyslog::Severity::DEBUG,
+        Level::Warn | Level::Warn2 | Level::Warn3 | Level::Warn4 => fasyslog::Severity::WARNING,
+        Level::Info2 | Level::Info3 | Level::Info4 => fasyslog::Severity::NOTICE,
+        Level::Info => fasyslog::Severity::INFORMATIONAL,
+        Level::Debug
+        | Level::Debug2
+        | Level::Debug3
+        | Level::Debug4
+        | Level::Trace
+        | Level::Trace2
+        | Level::Trace3
+        | Level::Trace4 => fasyslog::Severity::DEBUG,
     }
 }
 

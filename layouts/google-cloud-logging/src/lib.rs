@@ -223,7 +223,7 @@ impl Layout for GoogleCloudLoggingLayout {
         let record_line = RecordLine {
             extra_fields: visitor.payload_fields,
             timestamp,
-            severity: record.level().as_str(),
+            severity: record.level().name(),
             message: record.payload(),
             labels: visitor.labels,
             trace: visitor.trace,

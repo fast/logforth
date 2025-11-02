@@ -7,8 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Breaking changes
 
 * Rename `DefaultTrap` to `BestEffortTrap` for better clarity.
-* Add `Level::Crit` variant to represent critical level logs.
 * Redesign `LevelFilter` to allow different comparison methods.
+* Redesign `Level` as opentelemetry severity numbers.
+    * Add `Level::Fatal` variant to represent fatal level logs.
 
 ### New features
 

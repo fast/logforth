@@ -254,13 +254,25 @@ impl Append for Journald {
         // Write standard fields. Numeric fields can't contain new lines so we
         // write them directly, everything else goes through the put functions
         // for property mangling and length-encoding
+        //
+        // For PRIORITY mapping, see syslog severity levels and opentelemetry mapping guideline:
+        // https://opentelemetry.io/docs/specs/otel/logs/data-model-appendix/#appendix-b-severitynumber-example-mappings
         let priority = match record.level() {
-            Level::Crit => b"2",
-            Level::Error => b"3",
-            Level::Warn => b"4",
-            Level::Info => b"5",
-            Level::Debug => b"6",
-            Level::Trace => b"7",
+            Level::Fatal | Level::Fatal2 | Level::Fatal3 | Level::Fatal4 => b"0", // Emergency
+            Level::Error3 | Level::Error4 => b"1",                                // Alert
+            Level::Error2 => b"2",                                                // Critical
+            Level::Error => b"3",                                                 // Error
+            Level::Warn | Level::Warn2 | Level::Warn3 | Level::Warn4 => b"4",     // Warning
+            Level::Info2 | Level::Info3 | Level::Info4 => b"5",                   // Notice
+            Level::Info => b"6",                                                  // Informational
+            Level::Debug
+            | Level::Debug2
+            | Level::Debug3
+            | Level::Debug4
+            | Level::Trace
+            | Level::Trace2
+            | Level::Trace3
+            | Level::Trace4 => b"7", // Debug
         };
 
         put_field_bytes(&mut buffer, FieldName::WellFormed("PRIORITY"), priority);

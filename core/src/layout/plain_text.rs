@@ -75,12 +75,12 @@ impl Layout for PlainTextLayout {
             }
         }
 
-        let level = record.level().as_str();
+        let level = record.level().name();
         let target = record.target();
         let file = record.filename();
         let line = record.line().unwrap_or_default();
         let message = record.payload();
-        write!(&mut text, " {level:>5} {target}: {file}:{line} {message}").unwrap();
+        write!(&mut text, " {level:>6} {target}: {file}:{line} {message}").unwrap();
 
         let mut visitor = KvWriter { text };
         record.key_values().visit(&mut visitor)?;

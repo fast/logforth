@@ -231,7 +231,7 @@ impl Append for OpentelemetryLog {
         log_record.set_timestamp(now);
         log_record.set_observed_timestamp(now);
         log_record.set_severity_number(log_level_to_otel_severity(record.level()));
-        log_record.set_severity_text(record.level().as_str());
+        log_record.set_severity_text(record.level().name());
         log_record.set_target(record.target().to_owned());
 
         if let Some(make_body) = self.make_body.as_ref() {
@@ -285,12 +285,30 @@ impl Drop for OpentelemetryLog {
 
 fn log_level_to_otel_severity(level: Level) -> opentelemetry::logs::Severity {
     match level {
-        Level::Crit => opentelemetry::logs::Severity::Fatal,
-        Level::Error => opentelemetry::logs::Severity::Error,
-        Level::Warn => opentelemetry::logs::Severity::Warn,
-        Level::Info => opentelemetry::logs::Severity::Info,
-        Level::Debug => opentelemetry::logs::Severity::Debug,
         Level::Trace => opentelemetry::logs::Severity::Trace,
+        Level::Trace2 => opentelemetry::logs::Severity::Trace2,
+        Level::Trace3 => opentelemetry::logs::Severity::Trace3,
+        Level::Trace4 => opentelemetry::logs::Severity::Trace4,
+        Level::Debug => opentelemetry::logs::Severity::Debug,
+        Level::Debug2 => opentelemetry::logs::Severity::Debug2,
+        Level::Debug3 => opentelemetry::logs::Severity::Debug3,
+        Level::Debug4 => opentelemetry::logs::Severity::Debug4,
+        Level::Info => opentelemetry::logs::Severity::Info,
+        Level::Info2 => opentelemetry::logs::Severity::Info2,
+        Level::Info3 => opentelemetry::logs::Severity::Info3,
+        Level::Info4 => opentelemetry::logs::Severity::Info4,
+        Level::Warn => opentelemetry::logs::Severity::Warn,
+        Level::Warn2 => opentelemetry::logs::Severity::Warn2,
+        Level::Warn3 => opentelemetry::logs::Severity::Warn3,
+        Level::Warn4 => opentelemetry::logs::Severity::Warn4,
+        Level::Error => opentelemetry::logs::Severity::Error,
+        Level::Error2 => opentelemetry::logs::Severity::Error2,
+        Level::Error3 => opentelemetry::logs::Severity::Error3,
+        Level::Error4 => opentelemetry::logs::Severity::Error4,
+        Level::Fatal => opentelemetry::logs::Severity::Fatal,
+        Level::Fatal2 => opentelemetry::logs::Severity::Fatal2,
+        Level::Fatal3 => opentelemetry::logs::Severity::Fatal3,
+        Level::Fatal4 => opentelemetry::logs::Severity::Fatal4,
     }
 }
 

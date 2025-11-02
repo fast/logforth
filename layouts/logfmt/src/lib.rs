@@ -115,7 +115,7 @@ impl Layout for LogfmtLayout {
             text: format!("timestamp={time:.6}"),
         };
 
-        visitor.visit(Key::new("level"), level.as_str().into())?;
+        visitor.visit(Key::new("level"), level.name().into())?;
         visitor.visit(Key::new("module"), target.into())?;
         visitor.visit(
             Key::new("position"),
