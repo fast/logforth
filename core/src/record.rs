@@ -37,6 +37,7 @@ pub struct Record<'a> {
     module_path: Option<RefStr<'a>>,
     file: Option<RefStr<'a>>,
     line: Option<u32>,
+    column: Option<u32>,
 
     // the payload
     payload: OwnedStr,
@@ -51,17 +52,23 @@ impl<'a> Record<'a> {
         self.now
     }
 
-    /// The verbosity level of the message.
+    /// The severity level of the message.
+    ///
+    /// See [`Level`] for details.
     pub fn level(&self) -> Level {
         self.level
     }
 
     /// The name of the target of the directive.
+    ///
+    /// This is typically the same as the module path, but can be set explicitly.
     pub fn target(&self) -> &'a str {
         self.target.get()
     }
 
     /// The name of the target of the directive, if it is a `'static` str.
+    ///
+    /// This is typically the same as the module path, but can be set explicitly.
     pub fn target_static(&self) -> Option<&'a str> {
         self.target.get_static()
     }
@@ -97,9 +104,19 @@ impl<'a> Record<'a> {
             .unwrap_or_default()
     }
 
-    /// The line containing the message.
+    /// The line number in the source file.
+    ///
+    /// This is typically set by the logging macro. If set, returns `Some(column)`; otherwise,
+    /// returns `None`.
     pub fn line(&self) -> Option<u32> {
         self.line
+    }
+
+    /// The column number in the source file.
+    ///
+    /// This is typically not set. If set, returns `Some(column)`; otherwise, returns `None`.
+    pub fn column(&self) -> Option<u32> {
+        self.column
     }
 
     /// The message body.
@@ -126,6 +143,7 @@ impl<'a> Record<'a> {
             module_path: self.module_path.map(RefStr::into_owned),
             file: self.file.map(RefStr::into_owned),
             line: self.line,
+            column: self.column,
             payload: self.payload.clone(),
             kvs: self
                 .kvs
@@ -145,6 +163,7 @@ impl<'a> Record<'a> {
                 module_path: self.module_path,
                 file: self.file,
                 line: self.line,
+                column: self.column,
                 payload: self.payload.clone(),
                 kvs: self.kvs.clone(),
             },
@@ -173,6 +192,7 @@ impl Default for RecordBuilder<'_> {
                 module_path: None,
                 file: None,
                 line: None,
+                column: None,
                 payload: OwnedStr::Static(""),
                 kvs: Default::default(),
             },
@@ -332,6 +352,7 @@ pub struct RecordOwned {
     module_path: Option<OwnedStr>,
     file: Option<OwnedStr>,
     line: Option<u32>,
+    column: Option<u32>,
 
     // the payload
     payload: OwnedStr,
@@ -350,6 +371,7 @@ impl RecordOwned {
             module_path: self.module_path.as_ref().map(OwnedStr::by_ref),
             file: self.file.as_ref().map(OwnedStr::by_ref),
             line: self.line,
+            column: self.column,
             payload: self.payload.clone(),
             kvs: KeyValues::from(self.kvs.as_slice()),
         }
@@ -479,28 +501,28 @@ impl fmt::Display for Level {
 /// An enum representing the available verbosity level filters of the logger.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub enum LevelFilter {
-    /// Disables all levels.
+    /// Disable all levels.
     Off,
-    /// Enables if the target level is equal to the filter level.
+    /// Enabled if the target level is equal to the filter level.
     Equal(Level),
-    /// Enables if the target level is not equal to the filter level.
+    /// Enabled if the target level is not equal to the filter level.
     NotEqual(Level),
-    /// Enables if the target level is more severe than the filter level.
+    /// Enabled if the target level is more severe than the filter level.
     MoreSevere(Level),
-    /// Enables if the target level is more severe than or equal to the filter
+    /// Enabled if the target level is more severe than or equal to the filter
     /// level.
     MoreSevereEqual(Level),
-    /// Enables if the target level is more verbose than the filter level.
+    /// Enabled if the target level is more verbose than the filter level.
     MoreVerbose(Level),
-    /// Enables if the target level is more verbose than or equal to the filter
+    /// Enabled if the target level is more verbose than or equal to the filter
     /// level.
     MoreVerboseEqual(Level),
-    /// Enables all levels.
+    /// Enable all levels.
     All,
 }
 
 impl LevelFilter {
-    /// Checks the given level if satisfies the filter condition.
+    /// Check the given level if satisfies the filter condition.
     ///
     /// # Examples
     ///

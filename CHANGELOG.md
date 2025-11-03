@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## [0.29.0] 2025-11-03
+
 ### Breaking changes
 
 * Rename `DefaultTrap` to `BestEffortTrap` for better clarity.
@@ -11,6 +13,9 @@ All notable changes to this project will be documented in this file.
 * Redesign `LevelFilter` to allow different comparison methods.
 * Redesign `Level` as opentelemetry severity numbers.
     * Add `Level::Fatal` variant to represent fatal level logs.
+* `LogStarterStdStreamBuilder`'s setter follows builder pattern.
+  * `LogStarterStdStreamBuilder::with_layout` is now `layout`.
+  * `LogStarterStdStreamBuilder::with_filter` is now `filter`.
 
 ### New features
 

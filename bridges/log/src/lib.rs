@@ -23,7 +23,6 @@ use logforth_core::default_logger;
 use logforth_core::kv::Key;
 use logforth_core::kv::Value;
 use logforth_core::record::FilterCriteria;
-use logforth_core::record::RecordBuilder;
 
 fn level_to_level(level: log::Level) -> logforth_core::record::Level {
     match level {
@@ -114,7 +113,7 @@ fn forward_log(logger: &Logger, record: &Record) {
     }
 
     // basic fields
-    let mut builder = RecordBuilder::default()
+    let mut builder = logforth_core::record::Record::builder()
         .level(level_to_level(record.level()))
         .target(record.target())
         .line(record.line());

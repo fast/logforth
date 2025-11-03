@@ -78,10 +78,9 @@ impl LoggerBuilder {
     ///
     /// ```
     /// use logforth_core::record::Record;
-    /// use logforth_core::record::RecordBuilder;
     ///
     /// let l = logforth_core::builder().build();
-    /// let r = RecordBuilder::default().payload("hello world!").build();
+    /// let r = Record::builder().payload("hello world!").build();
     /// l.log(&r);
     /// ```
     pub fn build(self) -> Logger {

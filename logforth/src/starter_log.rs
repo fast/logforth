@@ -190,13 +190,31 @@ fn default_layout() -> Box<dyn Layout> {
 
 impl LogStarterStdStreamBuilder {
     /// Set the layout for the StdStream appender.
-    pub fn with_layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use logforth::layout::PlainTextLayout;
+    /// logforth::starter_log::stderr()
+    ///     .layout(PlainTextLayout::default())
+    ///     .apply();
+    /// log::error!("This error will be logged to stderr.");
+    /// ```
+    pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
         self.layout = layout.into();
         self
     }
 
     /// Set the layout for the StdStream appender.
-    pub fn with_filter(mut self, filter: impl Into<Box<dyn Filter>>) -> Self {
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use logforth::record::LevelFilter;
+    /// # use logforth::record::Level;
+    /// logforth::starter_log::stdout().filter(LevelFilter::MoreSevereEqual(Level::Warn)).apply();
+    /// log::info!("This info message will be ignored.");
+    pub fn filter(mut self, filter: impl Into<Box<dyn Filter>>) -> Self {
         self.filter = filter.into();
         self
     }
