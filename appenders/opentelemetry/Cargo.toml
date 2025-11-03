@@ -14,7 +14,7 @@
 
 [package]
 name = "logforth-append-opentelemetry"
-version = "0.3.0"
+version = "0.3.1"
 
 description = "Opemtelemetry appender for Logforth."
 keywords = ["logging", "log", "opentelemtry"]
