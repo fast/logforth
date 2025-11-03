@@ -17,8 +17,8 @@
 use std::fmt;
 
 use crate::Diagnostic;
+use crate::record::FilterCriteria;
 use crate::record::LevelFilter;
-use crate::record::Metadata;
 use crate::record::Record;
 
 pub mod env_filter;
@@ -39,17 +39,22 @@ pub enum FilterResult {
 /// A filter that can be applied to log records.
 pub trait Filter: fmt::Debug + Send + Sync + 'static {
     /// Whether the record is filtered by its given metadata.
-    fn enabled(&self, metadata: &Metadata, diags: &[Box<dyn Diagnostic>]) -> FilterResult;
+    fn enabled(&self, criteria: &FilterCriteria, diags: &[Box<dyn Diagnostic>]) -> FilterResult;
 
     /// Whether the record is filtered.
     fn matches(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> FilterResult {
-        self.enabled(record.metadata(), diags)
+        let criteria = FilterCriteria::builder()
+            .level(record.level())
+            .target(record.target())
+            .build();
+
+        self.enabled(&criteria, diags)
     }
 }
 
 impl Filter for LevelFilter {
-    fn enabled(&self, metadata: &Metadata, _: &[Box<dyn Diagnostic>]) -> FilterResult {
-        if self.test(metadata.level()) {
+    fn enabled(&self, criteria: &FilterCriteria, _: &[Box<dyn Diagnostic>]) -> FilterResult {
+        if self.test(criteria.level()) {
             FilterResult::Neutral
         } else {
             FilterResult::Reject

@@ -21,17 +21,18 @@ use crate::filter::env_filter::Directive;
 use crate::filter::env_filter::EnvFilterBuilder;
 use crate::filter::env_filter::ParseResult;
 use crate::filter::env_filter::parse_spec;
+use crate::record::FilterCriteria;
 use crate::record::Level;
 use crate::record::LevelFilter;
-use crate::record::MetadataBuilder;
 
 impl EnvFilter {
     fn rejected(&self, level: Level, target: &str) -> bool {
-        let metadata = MetadataBuilder::default()
+        let criteria = FilterCriteria::builder()
             .level(level)
             .target(target)
             .build();
-        matches!(Filter::enabled(self, &metadata, &[]), FilterResult::Reject)
+
+        matches!(Filter::enabled(self, &criteria, &[]), FilterResult::Reject)
     }
 }
 

@@ -22,7 +22,7 @@ use logforth_core::Logger;
 use logforth_core::default_logger;
 use logforth_core::kv::Key;
 use logforth_core::kv::Value;
-use logforth_core::record::MetadataBuilder;
+use logforth_core::record::FilterCriteria;
 use logforth_core::record::RecordBuilder;
 
 fn level_to_level(level: log::Level) -> logforth_core::record::Level {
@@ -100,12 +100,12 @@ impl log::Log for OwnedLogProxy {
 }
 
 fn forward_enabled(logger: &Logger, metadata: &Metadata) -> bool {
-    let metadata = MetadataBuilder::default()
+    let criteria = FilterCriteria::builder()
         .target(metadata.target())
         .level(level_to_level(metadata.level()))
         .build();
 
-    Logger::enabled(logger, &metadata)
+    Logger::enabled(logger, &criteria)
 }
 
 fn forward_log(logger: &Logger, record: &Record) {

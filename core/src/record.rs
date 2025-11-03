@@ -63,7 +63,8 @@ pub struct Record<'a> {
     now: SystemTime,
 
     // the metadata
-    metadata: Metadata<'a>,
+    level: Level,
+    target: &'a str,
     module_path: Option<MaybeStaticStr<'a>>,
     file: Option<MaybeStaticStr<'a>>,
     line: Option<u32>,
@@ -81,19 +82,14 @@ impl<'a> Record<'a> {
         self.now
     }
 
-    /// Metadata about the log directive.
-    pub fn metadata(&self) -> &Metadata<'a> {
-        &self.metadata
-    }
-
     /// The verbosity level of the message.
     pub fn level(&self) -> Level {
-        self.metadata.level()
+        self.level
     }
 
     /// The name of the target of the directive.
     pub fn target(&self) -> &'a str {
-        self.metadata.target()
+        self.target
     }
 
     /// The module path of the message.
@@ -151,10 +147,8 @@ impl<'a> Record<'a> {
     pub fn to_owned(&self) -> RecordOwned {
         RecordOwned {
             now: self.now,
-            metadata: MetadataOwned {
-                level: self.metadata.level,
-                target: Str::new_shared(self.metadata.target),
-            },
+            level: self.level,
+            target: Str::new_shared(self.target),
             module_path: self.module_path.map(MaybeStaticStr::into_str),
             file: self.file.map(MaybeStaticStr::into_str),
             line: self.line,
@@ -172,10 +166,8 @@ impl<'a> Record<'a> {
         RecordBuilder {
             record: Record {
                 now: self.now,
-                metadata: Metadata {
-                    level: self.metadata.level,
-                    target: self.metadata.target,
-                },
+                level: self.level,
+                target: self.target,
                 module_path: self.module_path,
                 file: self.file,
                 line: self.line,
@@ -202,7 +194,8 @@ impl Default for RecordBuilder<'_> {
         RecordBuilder {
             record: Record {
                 now: SystemTime::now(),
-                metadata: MetadataBuilder::default().build(),
+                level: Level::Info,
+                target: "",
                 module_path: None,
                 file: None,
                 line: None,
@@ -223,23 +216,15 @@ impl<'a> RecordBuilder<'a> {
         self
     }
 
-    /// Set [`metadata`](Record::metadata).
-    ///
-    /// Construct a `Metadata` object with [`MetadataBuilder`].
-    pub fn metadata(mut self, metadata: Metadata<'a>) -> Self {
-        self.record.metadata = metadata;
-        self
-    }
-
-    /// Set [`Metadata::level`].
+    /// Set [`level`](Record::level).
     pub fn level(mut self, level: Level) -> Self {
-        self.record.metadata.level = level;
+        self.record.level = level;
         self
     }
 
-    /// Set [`Metadata::target`].
+    /// Set [`target`](Record::target).
     pub fn target(mut self, target: &'a str) -> Self {
-        self.record.metadata.target = target;
+        self.record.target = target;
         self
     }
 
@@ -285,50 +270,50 @@ impl<'a> RecordBuilder<'a> {
     }
 }
 
-/// Metadata about a log message.
+/// A minimal set of criteria for pre-filtering purposes.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct Metadata<'a> {
+pub struct FilterCriteria<'a> {
     level: Level,
     target: &'a str,
 }
 
-impl<'a> Metadata<'a> {
-    /// Get the level.
+impl<'a> FilterCriteria<'a> {
+    /// Get the [`level`](Record::level).
     pub fn level(&self) -> Level {
         self.level
     }
 
-    /// Get the target.
+    /// Get the [`target`](Record::target).
     pub fn target(&self) -> &'a str {
         self.target
     }
 
-    /// Create a builder initialized with the current metadata's values.
-    pub fn to_builder(&self) -> MetadataBuilder<'a> {
-        MetadataBuilder {
-            metadata: Metadata {
+    /// Create a builder initialized with the current criteria's values.
+    pub fn to_builder(&self) -> FilterCriteriaBuilder<'a> {
+        FilterCriteriaBuilder {
+            metadata: FilterCriteria {
                 level: self.level,
                 target: self.target,
             },
         }
     }
 
-    /// Returns a new builder.
-    pub fn builder() -> MetadataBuilder<'a> {
-        MetadataBuilder::default()
+    /// Return a brand-new builder.
+    pub fn builder() -> FilterCriteriaBuilder<'a> {
+        FilterCriteriaBuilder::default()
     }
 }
 
-/// Builder for [`Metadata`].
+/// Builder for [`FilterCriteria`].
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct MetadataBuilder<'a> {
-    metadata: Metadata<'a>,
+pub struct FilterCriteriaBuilder<'a> {
+    metadata: FilterCriteria<'a>,
 }
 
-impl Default for MetadataBuilder<'_> {
+impl Default for FilterCriteriaBuilder<'_> {
     fn default() -> Self {
-        MetadataBuilder {
-            metadata: Metadata {
+        FilterCriteriaBuilder {
+            metadata: FilterCriteria {
                 level: Level::Info,
                 target: Default::default(),
             },
@@ -336,21 +321,21 @@ impl Default for MetadataBuilder<'_> {
     }
 }
 
-impl<'a> MetadataBuilder<'a> {
-    /// Setter for [`level`](Metadata::level).
+impl<'a> FilterCriteriaBuilder<'a> {
+    /// Setter for [`level`](FilterCriteria::level).
     pub fn level(mut self, arg: Level) -> Self {
         self.metadata.level = arg;
         self
     }
 
-    /// Setter for [`target`](Metadata::target).
+    /// Setter for [`target`](FilterCriteria::target).
     pub fn target(mut self, target: &'a str) -> Self {
         self.metadata.target = target;
         self
     }
 
     /// Invoke the builder and return a `Metadata`
-    pub fn build(self) -> Metadata<'a> {
+    pub fn build(self) -> FilterCriteria<'a> {
         self.metadata
     }
 }
@@ -362,7 +347,8 @@ pub struct RecordOwned {
     now: SystemTime,
 
     // the metadata
-    metadata: MetadataOwned,
+    level: Level,
+    target: Str<'static>,
     module_path: Option<Str<'static>>,
     file: Option<Str<'static>>,
     line: Option<u32>,
@@ -374,22 +360,13 @@ pub struct RecordOwned {
     kvs: Vec<(kv::KeyOwned, kv::ValueOwned)>,
 }
 
-/// Owned version of metadata about a log message.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-struct MetadataOwned {
-    level: Level,
-    target: Str<'static>,
-}
-
 impl RecordOwned {
     /// Create a `Record` referencing the data in this `RecordOwned`.
     pub fn as_record(&self) -> Record<'_> {
         Record {
             now: self.now,
-            metadata: Metadata {
-                level: self.metadata.level,
-                target: &self.metadata.target,
-            },
+            level: self.level,
+            target: self.target.get(),
             module_path: self.module_path.as_deref().map(MaybeStaticStr::Str),
             file: self.file.as_deref().map(MaybeStaticStr::Str),
             line: self.line,

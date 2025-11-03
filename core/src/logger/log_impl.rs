@@ -22,7 +22,7 @@ use crate::Diagnostic;
 use crate::Error;
 use crate::Filter;
 use crate::filter::FilterResult;
-use crate::record::Metadata;
+use crate::record::FilterCriteria;
 use crate::record::Record;
 
 static DEFAULT_LOGGER: OnceLock<Logger> = OnceLock::new();
@@ -99,10 +99,10 @@ impl Logger {
 
 impl Logger {
     /// Determine if a log message with the specified metadata would be logged.
-    pub fn enabled(&self, metadata: &Metadata) -> bool {
+    pub fn enabled(&self, criteria: &FilterCriteria) -> bool {
         self.dispatches
             .iter()
-            .any(|dispatch| dispatch.enabled(metadata))
+            .any(|dispatch| dispatch.enabled(criteria))
     }
 
     /// Log the [`Record`].
@@ -165,11 +165,11 @@ impl Dispatch {
         }
     }
 
-    fn enabled(&self, metadata: &Metadata) -> bool {
+    fn enabled(&self, criteria: &FilterCriteria) -> bool {
         let diagnostics = &self.diagnostics;
 
         for filter in &self.filters {
-            match filter.enabled(metadata, diagnostics) {
+            match filter.enabled(criteria, diagnostics) {
                 FilterResult::Reject => return false,
                 FilterResult::Accept => return true,
                 FilterResult::Neutral => {}
