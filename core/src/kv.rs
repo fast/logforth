@@ -14,20 +14,17 @@
 
 //! Key-value pairs in a log record or a diagnostic context.
 
-// This file is derived from https://github.com/SpriteOvO/spdlog-rs/blob/788bda33/spdlog/src/kv.rs
-
 pub extern crate value_bag;
 
 use std::borrow::Cow;
 use std::fmt;
 use std::slice;
-use std::sync::Arc;
 
 use value_bag::OwnedValueBag;
 use value_bag::ValueBag;
 
 use crate::Error;
-use crate::str::Str;
+use crate::str::{OwnedStr, RefStr};
 
 /// A visitor to walk through key-value pairs.
 pub trait Visitor {
@@ -40,44 +37,12 @@ pub type Value<'a> = ValueBag<'a>;
 
 /// A key in a key-value pair.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct Key<'a>(Str<'a>);
+pub struct Key<'a>(RefStr<'a>);
 
 impl Key<'static> {
     /// Create a new key from a static `&str`.
     pub const fn new(k: &'static str) -> Key<'static> {
-        Key(Str::new(k))
-    }
-
-    /// Create a new key from a shared value.
-    ///
-    /// Cloning the key will involve cloning the `Arc`, which may be cheaper than cloning the
-    /// value itself.
-    pub fn new_shared(key: impl Into<Arc<str>>) -> Self {
-        Key(Str::new_shared(key))
-    }
-}
-
-impl<'a> Key<'a> {
-    /// Create a new key from a `&str`.
-    ///
-    /// The [`Key::new`] method should be preferred where possible.
-    pub const fn new_ref(k: &'a str) -> Key<'a> {
-        Key(Str::new_ref(k))
-    }
-
-    /// Convert to an owned key.
-    pub fn to_owned(&self) -> KeyOwned {
-        KeyOwned(self.0.to_shared())
-    }
-
-    /// Convert to a `Cow` str.
-    pub fn to_cow(&self) -> Cow<'static, str> {
-        self.0.to_cow()
-    }
-
-    /// Get the key string.
-    pub fn as_str(&self) -> &str {
-        self.0.get()
+        Key(RefStr::Static(k))
     }
 }
 
@@ -87,12 +52,36 @@ impl fmt::Display for Key<'_> {
     }
 }
 
+impl<'a> Key<'a> {
+    /// Create a new key from a `&str`.
+    ///
+    /// The [`Key::new`] method should be preferred where possible.
+    pub const fn new_ref(k: &'a str) -> Key<'a> {
+        Key(RefStr::Borrowed(k))
+    }
+
+    /// Convert to an owned key.
+    pub fn to_owned(&self) -> KeyOwned {
+        KeyOwned(self.0.to_owned())
+    }
+
+    /// Convert to a `Cow` str.
+    pub fn to_cow(&self) -> Cow<'static, str> {
+        self.0.to_cow_static()
+    }
+
+    /// Get the key string.
+    pub fn as_str(&self) -> &str {
+        self.0.get()
+    }
+}
+
 /// An owned value in a key-value pair.
 pub type ValueOwned = OwnedValueBag;
 
 /// An owned key in a key-value pair.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct KeyOwned(Str<'static>);
+pub struct KeyOwned(OwnedStr);
 
 impl KeyOwned {
     /// Create a `Key` ref.

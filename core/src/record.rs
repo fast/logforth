@@ -22,39 +22,7 @@ use std::time::SystemTime;
 use crate::Error;
 use crate::kv;
 use crate::kv::KeyValues;
-use crate::str::Str;
-
-// This struct is preferred over `Str` because we need to return a &'a str
-// when holding only a reference to the str ref. But `Str::get` return a &str
-// that lives as long as the `Str` itself, which is not necessarily 'a.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-enum MaybeStaticStr<'a> {
-    Str(&'a str),
-    Static(&'static str),
-}
-
-impl<'a> MaybeStaticStr<'a> {
-    fn get(&self) -> &'a str {
-        match *self {
-            MaybeStaticStr::Str(s) => s,
-            MaybeStaticStr::Static(s) => s,
-        }
-    }
-
-    fn get_static(&self) -> Option<&'static str> {
-        match *self {
-            MaybeStaticStr::Str(_) => None,
-            MaybeStaticStr::Static(s) => Some(s),
-        }
-    }
-
-    fn into_str(self) -> Str<'static> {
-        match self {
-            MaybeStaticStr::Str(s) => Str::new_shared(s),
-            MaybeStaticStr::Static(s) => Str::new(s),
-        }
-    }
-}
+use crate::str::{OwnedStr, RefStr};
 
 /// The payload of a log message.
 #[derive(Clone, Debug)]
@@ -64,13 +32,13 @@ pub struct Record<'a> {
 
     // the metadata
     level: Level,
-    target: &'a str,
-    module_path: Option<MaybeStaticStr<'a>>,
-    file: Option<MaybeStaticStr<'a>>,
+    target: RefStr<'a>,
+    module_path: Option<RefStr<'a>>,
+    file: Option<RefStr<'a>>,
     line: Option<u32>,
 
     // the payload
-    payload: Str<'static>,
+    payload: OwnedStr,
 
     // structural logging
     kvs: KeyValues<'a>,
@@ -89,7 +57,12 @@ impl<'a> Record<'a> {
 
     /// The name of the target of the directive.
     pub fn target(&self) -> &'a str {
-        self.target
+        self.target.get()
+    }
+
+    /// The name of the target of the directive, if it is a `'static` str.
+    pub fn target_static(&self) -> Option<&'a str> {
+        self.target.get_static()
     }
 
     /// The module path of the message.
@@ -148,9 +121,9 @@ impl<'a> Record<'a> {
         RecordOwned {
             now: self.now,
             level: self.level,
-            target: Str::new_shared(self.target),
-            module_path: self.module_path.map(MaybeStaticStr::into_str),
-            file: self.file.map(MaybeStaticStr::into_str),
+            target: self.target.to_owned(),
+            module_path: self.module_path.as_ref().map(RefStr::to_owned),
+            file: self.file.as_ref().map(RefStr::to_owned),
             line: self.line,
             payload: self.payload.clone(),
             kvs: self
@@ -195,11 +168,11 @@ impl Default for RecordBuilder<'_> {
             record: Record {
                 now: SystemTime::now(),
                 level: Level::Info,
-                target: "",
+                target: RefStr::Static(""),
                 module_path: None,
                 file: None,
                 line: None,
-                payload: Default::default(),
+                payload: OwnedStr::Static(""),
                 kvs: Default::default(),
             },
         }
@@ -210,8 +183,8 @@ impl<'a> RecordBuilder<'a> {
     /// Set [`payload`](Record::payload).
     pub fn payload(mut self, payload: impl Into<Cow<'static, str>>) -> Self {
         self.record.payload = match payload.into() {
-            Cow::Borrowed(s) => Str::new(s),
-            Cow::Owned(s) => Str::new_shared(s),
+            Cow::Borrowed(s) => OwnedStr::Static(s),
+            Cow::Owned(s) => OwnedStr::Owned(s.into_boxed_str()),
         };
         self
     }
@@ -224,31 +197,37 @@ impl<'a> RecordBuilder<'a> {
 
     /// Set [`target`](Record::target).
     pub fn target(mut self, target: &'a str) -> Self {
-        self.record.target = target;
+        self.record.target = RefStr::Borrowed(target);
+        self
+    }
+
+    /// Set [`target`](Record::target) to a `'static` string.
+    pub fn target_static(mut self, target: &'static str) -> Self {
+        self.record.target = RefStr::Static(target);
         self
     }
 
     /// Set [`module_path`](Record::module_path).
     pub fn module_path(mut self, path: Option<&'a str>) -> Self {
-        self.record.module_path = path.map(MaybeStaticStr::Str);
+        self.record.module_path = path.map(RefStr::Borrowed);
         self
     }
 
     /// Set [`module_path`](Record::module_path) to a `'static` string.
     pub fn module_path_static(mut self, path: &'static str) -> Self {
-        self.record.module_path = Some(MaybeStaticStr::Static(path));
+        self.record.module_path = Some(RefStr::Static(path));
         self
     }
 
     /// Set [`file`](Record::file).
     pub fn file(mut self, file: Option<&'a str>) -> Self {
-        self.record.file = file.map(MaybeStaticStr::Str);
+        self.record.file = file.map(RefStr::Borrowed);
         self
     }
 
     /// Set [`file`](Record::file) to a `'static` string.
     pub fn file_static(mut self, file: &'static str) -> Self {
-        self.record.file = Some(MaybeStaticStr::Static(file));
+        self.record.file = Some(RefStr::Static(file));
         self
     }
 
@@ -315,7 +294,7 @@ impl Default for FilterCriteriaBuilder<'_> {
         FilterCriteriaBuilder {
             metadata: FilterCriteria {
                 level: Level::Info,
-                target: Default::default(),
+                target: "",
             },
         }
     }
@@ -348,13 +327,13 @@ pub struct RecordOwned {
 
     // the metadata
     level: Level,
-    target: Str<'static>,
-    module_path: Option<Str<'static>>,
-    file: Option<Str<'static>>,
+    target: OwnedStr,
+    module_path: Option<OwnedStr>,
+    file: Option<OwnedStr>,
     line: Option<u32>,
 
     // the payload
-    payload: Str<'static>,
+    payload: OwnedStr,
 
     // structural logging
     kvs: Vec<(kv::KeyOwned, kv::ValueOwned)>,
@@ -366,9 +345,9 @@ impl RecordOwned {
         Record {
             now: self.now,
             level: self.level,
-            target: self.target.get(),
-            module_path: self.module_path.as_deref().map(MaybeStaticStr::Str),
-            file: self.file.as_deref().map(MaybeStaticStr::Str),
+            target: self.target.by_ref(),
+            module_path: self.module_path.as_ref().map(OwnedStr::by_ref),
+            file: self.file.as_ref().map(OwnedStr::by_ref),
             line: self.line,
             payload: self.payload.clone(),
             kvs: KeyValues::from(self.kvs.as_slice()),
