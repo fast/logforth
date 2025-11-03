@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## [0.29.1] 2025-11-03
+
+### Bug fixes
+
+* `Record::target_static` should return `&'static str` instead of `&str`.
+
 ## [0.29.0] 2025-11-03
 
 ### Breaking changes

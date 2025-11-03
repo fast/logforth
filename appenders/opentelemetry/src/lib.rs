@@ -232,7 +232,12 @@ impl Append for OpentelemetryLog {
         log_record.set_observed_timestamp(now);
         log_record.set_severity_number(log_level_to_otel_severity(record.level()));
         log_record.set_severity_text(record.level().name());
-        log_record.set_target(record.target().to_owned());
+
+        if let Some(target) = record.target_static() {
+            log_record.set_target(target);
+        } else {
+            log_record.set_target(record.target().to_owned());
+        }
 
         if let Some(make_body) = self.make_body.as_ref() {
             log_record.set_body(make_body.create(record, diags)?);
@@ -256,6 +261,10 @@ impl Append for OpentelemetryLog {
 
         if let Some(line) = record.line() {
             log_record.add_attribute("line", line);
+        }
+
+        if let Some(column) = record.column() {
+            log_record.add_attribute("column", column);
         }
 
         let mut extractor = KvExtractor {

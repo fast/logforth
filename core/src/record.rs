@@ -69,7 +69,7 @@ impl<'a> Record<'a> {
     /// The name of the target of the directive, if it is a `'static` str.
     ///
     /// This is typically the same as the module path, but can be set explicitly.
-    pub fn target_static(&self) -> Option<&'a str> {
+    pub fn target_static(&self) -> Option<&'static str> {
         self.target.get_static()
     }
 

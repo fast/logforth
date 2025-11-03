@@ -14,7 +14,7 @@
 
 [package]
 name = "logforth-core"
-version = "0.3.0"
+version = "0.3.1"
 
 description = "Core structs and functions for Logforth."
 keywords = ["logging", "log"]
