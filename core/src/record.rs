@@ -22,7 +22,8 @@ use std::time::SystemTime;
 use crate::Error;
 use crate::kv;
 use crate::kv::KeyValues;
-use crate::str::{OwnedStr, RefStr};
+use crate::str::OwnedStr;
+use crate::str::RefStr;
 
 /// The payload of a log message.
 #[derive(Clone, Debug)]
@@ -570,38 +571,40 @@ impl FromStr for Level {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn round_trip_level() {
         let levels = [
-            super::Level::Trace,
-            super::Level::Trace2,
-            super::Level::Trace3,
-            super::Level::Trace4,
-            super::Level::Debug,
-            super::Level::Debug2,
-            super::Level::Debug3,
-            super::Level::Debug4,
-            super::Level::Info,
-            super::Level::Info2,
-            super::Level::Info3,
-            super::Level::Info4,
-            super::Level::Warn,
-            super::Level::Warn2,
-            super::Level::Warn3,
-            super::Level::Warn4,
-            super::Level::Error,
-            super::Level::Error2,
-            super::Level::Error3,
-            super::Level::Error4,
-            super::Level::Fatal,
-            super::Level::Fatal2,
-            super::Level::Fatal3,
-            super::Level::Fatal4,
+            Level::Trace,
+            Level::Trace2,
+            Level::Trace3,
+            Level::Trace4,
+            Level::Debug,
+            Level::Debug2,
+            Level::Debug3,
+            Level::Debug4,
+            Level::Info,
+            Level::Info2,
+            Level::Info3,
+            Level::Info4,
+            Level::Warn,
+            Level::Warn2,
+            Level::Warn3,
+            Level::Warn4,
+            Level::Error,
+            Level::Error2,
+            Level::Error3,
+            Level::Error4,
+            Level::Fatal,
+            Level::Fatal2,
+            Level::Fatal3,
+            Level::Fatal4,
         ];
 
         for &level in &levels {
             let s = level.name();
-            let parsed = s.parse::<super::Level>().unwrap();
+            let parsed = s.parse::<Level>().unwrap();
             assert_eq!(level, parsed);
         }
     }
