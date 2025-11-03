@@ -20,16 +20,16 @@ use logforth::Filter;
 use logforth::Layout;
 use logforth::append;
 use logforth::filter::FilterResult;
+use logforth::record::FilterCriteria;
 use logforth::record::Level;
-use logforth::record::Metadata;
 use logforth::record::Record;
 
 #[derive(Debug)]
 struct CustomFilter;
 
 impl Filter for CustomFilter {
-    fn enabled(&self, metadata: &Metadata, _: &[Box<dyn Diagnostic>]) -> FilterResult {
-        if metadata.level() < Level::Info {
+    fn enabled(&self, criteria: &FilterCriteria, _: &[Box<dyn Diagnostic>]) -> FilterResult {
+        if criteria.level() < Level::Info {
             FilterResult::Accept
         } else {
             FilterResult::Reject

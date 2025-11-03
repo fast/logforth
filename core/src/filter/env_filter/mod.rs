@@ -75,9 +75,9 @@ use crate::Diagnostic;
 use crate::Error;
 use crate::Filter;
 use crate::filter::FilterResult;
+use crate::record::FilterCriteria;
 use crate::record::Level;
 use crate::record::LevelFilter;
-use crate::record::Metadata;
 
 #[cfg(test)]
 mod tests;
@@ -110,9 +110,9 @@ impl EnvFilter {
 }
 
 impl Filter for EnvFilter {
-    fn enabled(&self, metadata: &Metadata, _: &[Box<dyn Diagnostic>]) -> FilterResult {
-        let level = metadata.level();
-        let target = metadata.target();
+    fn enabled(&self, criteria: &FilterCriteria, _: &[Box<dyn Diagnostic>]) -> FilterResult {
+        let level = criteria.level();
+        let target = criteria.target();
 
         // search for the longest match, the vector is assumed to be pre-sorted
         for directive in self.directives.iter().rev() {

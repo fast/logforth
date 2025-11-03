@@ -22,39 +22,8 @@ use std::time::SystemTime;
 use crate::Error;
 use crate::kv;
 use crate::kv::KeyValues;
-use crate::str::Str;
-
-// This struct is preferred over `Str` because we need to return a &'a str
-// when holding only a reference to the str ref. But `Str::get` return a &str
-// that lives as long as the `Str` itself, which is not necessarily 'a.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-enum MaybeStaticStr<'a> {
-    Str(&'a str),
-    Static(&'static str),
-}
-
-impl<'a> MaybeStaticStr<'a> {
-    fn get(&self) -> &'a str {
-        match *self {
-            MaybeStaticStr::Str(s) => s,
-            MaybeStaticStr::Static(s) => s,
-        }
-    }
-
-    fn get_static(&self) -> Option<&'static str> {
-        match *self {
-            MaybeStaticStr::Str(_) => None,
-            MaybeStaticStr::Static(s) => Some(s),
-        }
-    }
-
-    fn into_str(self) -> Str<'static> {
-        match self {
-            MaybeStaticStr::Str(s) => Str::new_shared(s),
-            MaybeStaticStr::Static(s) => Str::new(s),
-        }
-    }
-}
+use crate::str::OwnedStr;
+use crate::str::RefStr;
 
 /// The payload of a log message.
 #[derive(Clone, Debug)]
@@ -63,13 +32,14 @@ pub struct Record<'a> {
     now: SystemTime,
 
     // the metadata
-    metadata: Metadata<'a>,
-    module_path: Option<MaybeStaticStr<'a>>,
-    file: Option<MaybeStaticStr<'a>>,
+    level: Level,
+    target: RefStr<'a>,
+    module_path: Option<RefStr<'a>>,
+    file: Option<RefStr<'a>>,
     line: Option<u32>,
 
     // the payload
-    payload: Str<'static>,
+    payload: OwnedStr,
 
     // structural logging
     kvs: KeyValues<'a>,
@@ -81,19 +51,19 @@ impl<'a> Record<'a> {
         self.now
     }
 
-    /// Metadata about the log directive.
-    pub fn metadata(&self) -> &Metadata<'a> {
-        &self.metadata
-    }
-
     /// The verbosity level of the message.
     pub fn level(&self) -> Level {
-        self.metadata.level()
+        self.level
     }
 
     /// The name of the target of the directive.
     pub fn target(&self) -> &'a str {
-        self.metadata.target()
+        self.target.get()
+    }
+
+    /// The name of the target of the directive, if it is a `'static` str.
+    pub fn target_static(&self) -> Option<&'a str> {
+        self.target.get_static()
     }
 
     /// The module path of the message.
@@ -151,12 +121,10 @@ impl<'a> Record<'a> {
     pub fn to_owned(&self) -> RecordOwned {
         RecordOwned {
             now: self.now,
-            metadata: MetadataOwned {
-                level: self.metadata.level,
-                target: Str::new_shared(self.metadata.target),
-            },
-            module_path: self.module_path.map(MaybeStaticStr::into_str),
-            file: self.file.map(MaybeStaticStr::into_str),
+            level: self.level,
+            target: self.target.into_owned(),
+            module_path: self.module_path.map(RefStr::into_owned),
+            file: self.file.map(RefStr::into_owned),
             line: self.line,
             payload: self.payload.clone(),
             kvs: self
@@ -172,10 +140,8 @@ impl<'a> Record<'a> {
         RecordBuilder {
             record: Record {
                 now: self.now,
-                metadata: Metadata {
-                    level: self.metadata.level,
-                    target: self.metadata.target,
-                },
+                level: self.level,
+                target: self.target,
                 module_path: self.module_path,
                 file: self.file,
                 line: self.line,
@@ -202,11 +168,12 @@ impl Default for RecordBuilder<'_> {
         RecordBuilder {
             record: Record {
                 now: SystemTime::now(),
-                metadata: MetadataBuilder::default().build(),
+                level: Level::Info,
+                target: RefStr::Static(""),
                 module_path: None,
                 file: None,
                 line: None,
-                payload: Default::default(),
+                payload: OwnedStr::Static(""),
                 kvs: Default::default(),
             },
         }
@@ -217,53 +184,51 @@ impl<'a> RecordBuilder<'a> {
     /// Set [`payload`](Record::payload).
     pub fn payload(mut self, payload: impl Into<Cow<'static, str>>) -> Self {
         self.record.payload = match payload.into() {
-            Cow::Borrowed(s) => Str::new(s),
-            Cow::Owned(s) => Str::new_shared(s),
+            Cow::Borrowed(s) => OwnedStr::Static(s),
+            Cow::Owned(s) => OwnedStr::Owned(s.into_boxed_str()),
         };
         self
     }
 
-    /// Set [`metadata`](Record::metadata).
-    ///
-    /// Construct a `Metadata` object with [`MetadataBuilder`].
-    pub fn metadata(mut self, metadata: Metadata<'a>) -> Self {
-        self.record.metadata = metadata;
-        self
-    }
-
-    /// Set [`Metadata::level`].
+    /// Set [`level`](Record::level).
     pub fn level(mut self, level: Level) -> Self {
-        self.record.metadata.level = level;
+        self.record.level = level;
         self
     }
 
-    /// Set [`Metadata::target`].
+    /// Set [`target`](Record::target).
     pub fn target(mut self, target: &'a str) -> Self {
-        self.record.metadata.target = target;
+        self.record.target = RefStr::Borrowed(target);
+        self
+    }
+
+    /// Set [`target`](Record::target) to a `'static` string.
+    pub fn target_static(mut self, target: &'static str) -> Self {
+        self.record.target = RefStr::Static(target);
         self
     }
 
     /// Set [`module_path`](Record::module_path).
     pub fn module_path(mut self, path: Option<&'a str>) -> Self {
-        self.record.module_path = path.map(MaybeStaticStr::Str);
+        self.record.module_path = path.map(RefStr::Borrowed);
         self
     }
 
     /// Set [`module_path`](Record::module_path) to a `'static` string.
     pub fn module_path_static(mut self, path: &'static str) -> Self {
-        self.record.module_path = Some(MaybeStaticStr::Static(path));
+        self.record.module_path = Some(RefStr::Static(path));
         self
     }
 
     /// Set [`file`](Record::file).
     pub fn file(mut self, file: Option<&'a str>) -> Self {
-        self.record.file = file.map(MaybeStaticStr::Str);
+        self.record.file = file.map(RefStr::Borrowed);
         self
     }
 
     /// Set [`file`](Record::file) to a `'static` string.
     pub fn file_static(mut self, file: &'static str) -> Self {
-        self.record.file = Some(MaybeStaticStr::Static(file));
+        self.record.file = Some(RefStr::Static(file));
         self
     }
 
@@ -285,72 +250,72 @@ impl<'a> RecordBuilder<'a> {
     }
 }
 
-/// Metadata about a log message.
+/// A minimal set of criteria for pre-filtering purposes.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct Metadata<'a> {
+pub struct FilterCriteria<'a> {
     level: Level,
     target: &'a str,
 }
 
-impl<'a> Metadata<'a> {
-    /// Get the level.
+impl<'a> FilterCriteria<'a> {
+    /// Get the [`level`](Record::level).
     pub fn level(&self) -> Level {
         self.level
     }
 
-    /// Get the target.
+    /// Get the [`target`](Record::target).
     pub fn target(&self) -> &'a str {
         self.target
     }
 
-    /// Create a builder initialized with the current metadata's values.
-    pub fn to_builder(&self) -> MetadataBuilder<'a> {
-        MetadataBuilder {
-            metadata: Metadata {
+    /// Create a builder initialized with the current criteria's values.
+    pub fn to_builder(&self) -> FilterCriteriaBuilder<'a> {
+        FilterCriteriaBuilder {
+            metadata: FilterCriteria {
                 level: self.level,
                 target: self.target,
             },
         }
     }
 
-    /// Returns a new builder.
-    pub fn builder() -> MetadataBuilder<'a> {
-        MetadataBuilder::default()
+    /// Return a brand-new builder.
+    pub fn builder() -> FilterCriteriaBuilder<'a> {
+        FilterCriteriaBuilder::default()
     }
 }
 
-/// Builder for [`Metadata`].
+/// Builder for [`FilterCriteria`].
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct MetadataBuilder<'a> {
-    metadata: Metadata<'a>,
+pub struct FilterCriteriaBuilder<'a> {
+    metadata: FilterCriteria<'a>,
 }
 
-impl Default for MetadataBuilder<'_> {
+impl Default for FilterCriteriaBuilder<'_> {
     fn default() -> Self {
-        MetadataBuilder {
-            metadata: Metadata {
+        FilterCriteriaBuilder {
+            metadata: FilterCriteria {
                 level: Level::Info,
-                target: Default::default(),
+                target: "",
             },
         }
     }
 }
 
-impl<'a> MetadataBuilder<'a> {
-    /// Setter for [`level`](Metadata::level).
+impl<'a> FilterCriteriaBuilder<'a> {
+    /// Setter for [`level`](FilterCriteria::level).
     pub fn level(mut self, arg: Level) -> Self {
         self.metadata.level = arg;
         self
     }
 
-    /// Setter for [`target`](Metadata::target).
+    /// Setter for [`target`](FilterCriteria::target).
     pub fn target(mut self, target: &'a str) -> Self {
         self.metadata.target = target;
         self
     }
 
     /// Invoke the builder and return a `Metadata`
-    pub fn build(self) -> Metadata<'a> {
+    pub fn build(self) -> FilterCriteria<'a> {
         self.metadata
     }
 }
@@ -362,23 +327,17 @@ pub struct RecordOwned {
     now: SystemTime,
 
     // the metadata
-    metadata: MetadataOwned,
-    module_path: Option<Str<'static>>,
-    file: Option<Str<'static>>,
+    level: Level,
+    target: OwnedStr,
+    module_path: Option<OwnedStr>,
+    file: Option<OwnedStr>,
     line: Option<u32>,
 
     // the payload
-    payload: Str<'static>,
+    payload: OwnedStr,
 
     // structural logging
     kvs: Vec<(kv::KeyOwned, kv::ValueOwned)>,
-}
-
-/// Owned version of metadata about a log message.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-struct MetadataOwned {
-    level: Level,
-    target: Str<'static>,
 }
 
 impl RecordOwned {
@@ -386,12 +345,10 @@ impl RecordOwned {
     pub fn as_record(&self) -> Record<'_> {
         Record {
             now: self.now,
-            metadata: Metadata {
-                level: self.metadata.level,
-                target: &self.metadata.target,
-            },
-            module_path: self.module_path.as_deref().map(MaybeStaticStr::Str),
-            file: self.file.as_deref().map(MaybeStaticStr::Str),
+            level: self.level,
+            target: self.target.by_ref(),
+            module_path: self.module_path.as_ref().map(OwnedStr::by_ref),
+            file: self.file.as_ref().map(OwnedStr::by_ref),
             line: self.line,
             payload: self.payload.clone(),
             kvs: KeyValues::from(self.kvs.as_slice()),
@@ -614,38 +571,40 @@ impl FromStr for Level {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn round_trip_level() {
         let levels = [
-            super::Level::Trace,
-            super::Level::Trace2,
-            super::Level::Trace3,
-            super::Level::Trace4,
-            super::Level::Debug,
-            super::Level::Debug2,
-            super::Level::Debug3,
-            super::Level::Debug4,
-            super::Level::Info,
-            super::Level::Info2,
-            super::Level::Info3,
-            super::Level::Info4,
-            super::Level::Warn,
-            super::Level::Warn2,
-            super::Level::Warn3,
-            super::Level::Warn4,
-            super::Level::Error,
-            super::Level::Error2,
-            super::Level::Error3,
-            super::Level::Error4,
-            super::Level::Fatal,
-            super::Level::Fatal2,
-            super::Level::Fatal3,
-            super::Level::Fatal4,
+            Level::Trace,
+            Level::Trace2,
+            Level::Trace3,
+            Level::Trace4,
+            Level::Debug,
+            Level::Debug2,
+            Level::Debug3,
+            Level::Debug4,
+            Level::Info,
+            Level::Info2,
+            Level::Info3,
+            Level::Info4,
+            Level::Warn,
+            Level::Warn2,
+            Level::Warn3,
+            Level::Warn4,
+            Level::Error,
+            Level::Error2,
+            Level::Error3,
+            Level::Error4,
+            Level::Fatal,
+            Level::Fatal2,
+            Level::Fatal3,
+            Level::Fatal4,
         ];
 
         for &level in &levels {
             let s = level.name();
-            let parsed = s.parse::<super::Level>().unwrap();
+            let parsed = s.parse::<Level>().unwrap();
             assert_eq!(level, parsed);
         }
     }
