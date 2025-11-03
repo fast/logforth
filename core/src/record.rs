@@ -121,9 +121,9 @@ impl<'a> Record<'a> {
         RecordOwned {
             now: self.now,
             level: self.level,
-            target: self.target.to_owned(),
-            module_path: self.module_path.as_ref().map(RefStr::to_owned),
-            file: self.file.as_ref().map(RefStr::to_owned),
+            target: self.target.into_owned(),
+            module_path: self.module_path.map(RefStr::into_owned),
+            file: self.file.map(RefStr::into_owned),
             line: self.line,
             payload: self.payload.clone(),
             kvs: self

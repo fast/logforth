@@ -62,12 +62,12 @@ impl<'a> Key<'a> {
 
     /// Convert to an owned key.
     pub fn to_owned(&self) -> KeyOwned {
-        KeyOwned(self.0.to_owned())
+        KeyOwned(self.0.into_owned())
     }
 
     /// Convert to a `Cow` str.
     pub fn to_cow(&self) -> Cow<'static, str> {
-        self.0.to_cow_static()
+        self.0.into_cow_static()
     }
 
     /// Get the key string.

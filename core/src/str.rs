@@ -16,7 +16,6 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt;
 use std::hash::Hash;
-use std::sync::Arc;
 
 #[derive(Clone, Copy)]
 pub enum RefStr<'a> {
@@ -51,16 +50,16 @@ impl<'a> RefStr<'a> {
         }
     }
 
-    pub fn to_cow_static(&self) -> Cow<'static, str> {
+    pub fn into_cow_static(self) -> Cow<'static, str> {
         match self {
-            RefStr::Borrowed(s) => Cow::Owned(ToOwned::to_owned(*s)),
+            RefStr::Borrowed(s) => Cow::Owned(ToOwned::to_owned(s)),
             RefStr::Static(s) => Cow::Borrowed(s),
         }
     }
 
-    pub fn to_owned(&self) -> OwnedStr {
+    pub fn into_owned(self) -> OwnedStr {
         match self {
-            RefStr::Borrowed(s) => OwnedStr::Owned(Box::from(*s)),
+            RefStr::Borrowed(s) => OwnedStr::Owned(Box::from(s)),
             RefStr::Static(s) => OwnedStr::Static(s),
         }
     }
@@ -96,7 +95,6 @@ impl Hash for RefStr<'_> {
 pub enum OwnedStr {
     Owned(Box<str>),
     Static(&'static str),
-    Shared(Arc<str>),
 }
 
 impl fmt::Debug for OwnedStr {
@@ -111,19 +109,17 @@ impl fmt::Display for OwnedStr {
     }
 }
 
-
 impl OwnedStr {
     pub fn get(&self) -> &str {
         match self {
             OwnedStr::Owned(s) => s,
             OwnedStr::Static(s) => s,
-            OwnedStr::Shared(s) => s,
         }
     }
 
     pub fn get_static(&self) -> Option<&'static str> {
         match self {
-            OwnedStr::Owned(_) | OwnedStr::Shared(_) => None,
+            OwnedStr::Owned(_) => None,
             OwnedStr::Static(s) => Some(s),
         }
     }
@@ -132,7 +128,6 @@ impl OwnedStr {
         match self {
             OwnedStr::Owned(s) => RefStr::Borrowed(s),
             OwnedStr::Static(s) => RefStr::Static(s),
-            OwnedStr::Shared(s) => RefStr::Borrowed(s),
         }
     }
 }
