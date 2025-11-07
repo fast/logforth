@@ -585,7 +585,7 @@ mod tests {
 
         for i in 1..=(max_files.get() * 2) {
             let mut expected_file_size = 0;
-            let end_time = cur_time.add(rotation_duration);
+            let end_time = &cur_time + rotation_duration;
             while cur_time < end_time {
                 writer.state.clock.set_now(cur_time.clone());
 
@@ -648,7 +648,7 @@ mod tests {
             .unwrap();
 
         let mut cur_time = start_time;
-        let mut end_time = cur_time.add(rotation_duration);
+        let mut end_time = &cur_time + rotation_duration;
         let mut time_rotation_trigger = false;
         let mut file_size_rotation_trigger = false;
 
@@ -663,7 +663,7 @@ mod tests {
                 assert_eq!(writer.write(rand_str.as_bytes()).unwrap(), rand_str.len());
                 assert_eq!(writer.state.current_filesize, expected_file_size);
 
-                cur_time = cur_time.add(write_interval);
+                cur_time += write_interval;
 
                 if cur_time >= end_time {
                     end_time = end_time.add(rotation_duration);
