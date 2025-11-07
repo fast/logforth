@@ -92,6 +92,7 @@ Components are organized into several crates:
   * Built-in layouts: `PlainTextLayout`
   * Built-in diagnostics: `StaticDiagnostic`, `ThreadLocalDiagnostic`
 * Appenders: `logforth-append-*`
+  * [`logforth-append-async`](https://docs.rs/logforth-append-async)
   * [`logforth-append-fastrace`](https://docs.rs/logforth-append-fastrace)
   * [`logforth-append-file`](https://docs.rs/logforth-append-file)
   * [`logforth-append-journald`](https://docs.rs/logforth-append-journald)
@@ -104,6 +105,7 @@ Components are organized into several crates:
   * [`logforth-layout-text`](https://docs.rs/logforth-layout-text)
 * Diagnostics: `logforth-diagnostic-*`
   * [`logforth-diagnostic-fastrace`](https://docs.rs/logforth-diagnostic-fastrace)
+  * [`logforth-diagnostic-task-local`](https://docs.rs/logforth-diagnostic-task-local)
 * Bridges: `logforth-bridge-*`
   * [`logforth-bridge-log`](https://docs.rs/logforth-bridge-log)
 
