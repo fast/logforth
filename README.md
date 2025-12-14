@@ -16,17 +16,7 @@
 [actions-badge]: https://github.com/fast/logforth/workflows/CI/badge.svg
 [actions-url]:https://github.com/fast/logforth/actions?query=workflow%3ACI
 
-Logforth is a flexible and easy-to-use logging framework for Rust applications. It allows you to configure multiple dispatches, filters, and appenders to customize your logging setup according to your needs.
-
-## Features
-
-- **Multiple Dispatches**: Configure different logging behaviors for different parts of your application.
-- **Flexible Filters**: Use built-in or custom filters to control which log records are processed.
-- **Various Appenders**: Output logs to stdout, stderr, files, or even send them to OpenTelemetry collectors.
-- **Elegant Layouts**: Format log records using predefined layouts or create your own.
-- **Enrichable Diagnostics**: Attach additional context to log records for better debugging and analysis.
-- **Custom Components**: Easily implement your own appenders, filters, layouts, and diagnostics by implementing the provided traits.
-- **Bridges**: Out-of-the-box integration with the `log` crate for seamless logging.
+Logforth is a versatile, extensible, and easy-to-use logging framework for Rust applications. It allows you to configure multiple dispatches, filters, and appenders to customize your logging setup according to your needs.
 
 ## Getting Started
 
@@ -51,7 +41,7 @@ fn main() {
 }
 ```
 
-By default, all logging except the error level is disabled. You can enable logging at other levels by setting the [`RUST_LOG`](https://docs.rs/logforth-core/*/logforth_core/filter/env_filter/index.html) environment variable. For example, `RUST_LOG=debug cargo run` will print all logs.
+By default, all logging except the error level is disabled. You can enable logging at other levels by setting the [`RUST_LOG`](https://docs.rs/logforth-core/*/logforth_core/filter/env_filter/index.html) environment variable. For example, `RUST_LOG=trace cargo run` will print all logs.
 
 ## Advanced Usage
 
@@ -79,6 +69,94 @@ fn main() {
 ```
 
 Read more demos under the [examples](logforth/examples) directory.
+
+## Features
+
+### Dispatches
+
+Logforth supports multiple dispatches, each with its own set of filters and appenders. This allows you to route log messages to different destinations based on their severity or other criteria.
+
+A simple application may only need one dispatch, while a more complex application can have multiple dispatches for different modules or components.
+
+### Appenders
+
+Logforth supports a wide range of built-in appenders implemented as separate crates.
+
+* [`Stdout`] and [`Stderr`] appenders for console logging.
+* [`File`] appender for logging to optionally rolling files.
+* [`OpentelemetryLog`] appender for exporting logs to OpenTelemetry backends.
+* [`Testing`] appender that writes log records that can be captured by a test harness.
+* [`FastraceEvent`] appender that writes log records to the [Fastrace](https://docs.rs/fastrace/*/fastrace/) tracing system.
+* [`Async`] combiner appender that makes another appender asynchronous.
+* `Syslog` and `Journald` appenders for logging to system log services.
+
+[`Stdout`]: https://docs.rs/logforth/*/logforth/append/struct.Stdout.html
+[`Stderr`]: https://docs.rs/logforth/*/logforth/append/struct.Stderr.html
+[`File`]: https://docs.rs/logforth/*/logforth/append/struct.File.html
+[`OpentelemetryLog`]: https://docs.rs/logforth/*/logforth/append/struct.OpentelemetryLog.html
+[`Testing`]: https://docs.rs/logforth/*/logforth/append/struct.Testing.html
+[`FastraceEvent`]: https://docs.rs/logforth/*/logforth/append/struct.FastraceEvent.html
+[`Async`]: https://docs.rs/logforth/*/logforth/append/struct.Async.html
+
+Users can also create their own appenders by implementing the [`Append`] trait.
+
+[`Append`]: https://docs.rs/logforth-core/*/logforth_core/append/trait.Append.html
+
+### Layouts
+
+Some appenders support customizable layouts for formatting log records. Logforth provides several built-in layouts:
+
+* [`TextLayout`] formats log records as optionally colored text.
+* [`JsonLayout`] formats log records as JSON objects.
+* [`LogfmtLayout`] formats log records in the logfmt style.
+* [`GoogleCloudLoggingLayout`] formats log records for Google Cloud Logging.
+
+[`TextLayout`]: https://docs.rs/logforth/*/logforth/layout/struct.TextLayout.html
+[`JsonLayout`]: https://docs.rs/logforth/*/logforth/layout/struct.JsonLayout.html
+[`LogfmtLayout`]: https://docs.rs/logforth/*/logforth/layout/struct.LogfmtLayout.html
+[`GoogleCloudLoggingLayout`]: https://docs.rs/logforth/*/logforth/layout/struct.GoogleCloudLoggingLayout.html
+
+Users can also create their own layouts by implementing the [`Layout`] trait.
+
+[`Layout`]: https://docs.rs/logforth-core/*/logforth_core/layout/trait.Layout.html
+
+The following appenders do *not* use layouts:
+
+* `Async` appender simply forwards log records to another appender; layouts are determined by the inner appender.
+* `FastraceEvent` appender converts log records into tracing events; layouts are not applicable.
+* `OpentelemetryLog` appender has a more generic `MakeBody` trait for converting log records into OpenTelemetry log bodies. It can internally use a layout, anyway.
+
+### Filters
+
+Logforth provides a built-in [`EnvFilter`] that allows you to configure logging levels and targets via the `RUST_LOG` environment variable.
+
+[`EnvFilter`]: https://docs.rs/logforth/*/logforth/filter/struct.EnvFilter.html
+
+Users can also create their own filters by implementing the [`Filter`] trait.
+
+[`Filter`]: https://docs.rs/logforth-core/*/logforth_core/filter/trait.Filter.html
+
+### Diagnostics
+
+Logforth supports providing a mapped diagnostic context (MDC) for stamping each log request.
+
+* [`StaticDiagnostic`] allows you to set static key-value pairs for the entire application, like application version or hostname.
+* [`ThreadLocalDiagnostic`] allows you to set thread-local key-value pairs.
+* [`TaskLocalDiagnostic`] allows you to set task-local key-value pairs for async tasks.
+* [`FastraceDiagnostic`] integrates with the [Fastrace](https://docs.rs/fastrace/*/fastrace/) tracing system to provide tracing context (TraceId, SpanId, etc.) as diagnostics.
+
+[`StaticDiagnostic`]: https://docs.rs/logforth/*/logforth/diagnostic/struct.StaticDiagnostic.html
+[`ThreadLocalDiagnostic`]: https://docs.rs/logforth/*/logforth/diagnostic/struct.ThreadLocalDiagnostic.html
+[`TaskLocalDiagnostic`]: https://docs.rs/logforth/*/logforth/diagnostic/struct.TaskLocalDiagnostic.html
+[`FastraceDiagnostic`]: https://docs.rs/logforth/*/logforth/diagnostic/struct.FastraceDiagnostic.html
+
+Users can also provide their own MDC by implementing the [`Diagnostic`] trait.
+
+[`Diagnostic`]: https://docs.rs/logforth-core/*/logforth_core/diagnostic/trait.Diagnostic.html
+
+### Bridges
+
+So far, Logforth provides out-of-the-box integration with the `log` crate. You can use Logforth as the backend for any crate that uses the `log` facade.
 
 ## Documentation
 
