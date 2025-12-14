@@ -16,6 +16,8 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+pub extern crate jiff;
+
 use jiff::Timestamp;
 use jiff::TimestampDisplayWithOffset;
 use jiff::tz::TimeZone;

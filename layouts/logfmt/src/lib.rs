@@ -16,6 +16,8 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+pub extern crate jiff;
+
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use logforth_core::Diagnostic;

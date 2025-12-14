@@ -17,6 +17,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub extern crate colored;
+pub extern crate jiff;
 
 use colored::Color;
 use colored::ColoredString;
