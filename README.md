@@ -48,10 +48,6 @@ By default, all logging except the error level is disabled. You can enable loggi
 Configure multiple dispatches with different filters and appenders:
 
 ```rust
-use logforth::append;
-use logforth::record::Level;
-use logforth::record::LevelFilter;
-
 fn main() {
     logforth::starter_log::builder()
         .dispatch(|d| d
@@ -65,6 +61,41 @@ fn main() {
     log::error!("This error will be logged to stderr.");
     log::info!("This info will be logged to stdout.");
     log::debug!("This debug message will not be logged.");
+}
+```
+
+Configure OpenTelemetry appender to export logs to an OpenTelemetry backend ([full example](https://github.com/scopedb/percas/blob/d01db13b/crates/server/src/telemetry.rs#L131-L227)):
+
+```rust
+fn main() {
+    let static_diagnostic = {
+        let mut static_diagnostic = StaticDiagnostic::default();
+        static_diagnostic.insert("node_id", node_id);
+        static_diagnostic.insert("nodegroup", nodegroup);
+        static_diagnostic
+    };
+
+    let runtime = async_runtime();
+    let filter = make_rust_log_filter(&opentelemetry.filter);
+    let appender = runtime.block_on(async {
+        let exporter = opentelemetry_otlp::LogExporter::builder()
+            .with_tonic()
+            .with_endpoint(&opentelemetry.otlp_endpoint)
+            .with_protocol(opentelemetry_otlp::Protocol::Grpc)
+            .build()
+            .expect("failed to initialize opentelemetry logger");
+
+        append::opentelemetry::OpentelemetryLogBuilder::new(service_name, exporter)
+            .label("service.name", service_name)
+            .build()
+    });
+
+    logforth::starter_log::builder().dispatch(|b| {
+        b.filter(filter)
+            .diagnostic(FastraceDiagnostic::default())
+            .diagnostic(static_diagnostic)
+            .append(appender)
+    });
 }
 ```
 
