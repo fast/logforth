@@ -14,7 +14,7 @@
 
 //! Mapped Diagnostic Context (MDC).
 //!
-//! A lighter technique consists of uniquely stamping each log request.
+//! A light-weight technique for stamping log request.
 
 use std::fmt;
 

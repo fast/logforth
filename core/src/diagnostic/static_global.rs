@@ -28,7 +28,7 @@ use crate::kv::Visitor;
 /// use logforth_core::diagnostic::StaticDiagnostic;
 ///
 /// let mut diagnostic = StaticDiagnostic::default();
-/// diagnostic.insert("key", "value");
+/// diagnostic.insert("app_name", "acme");
 /// ```
 #[derive(Default, Debug, Clone)]
 #[non_exhaustive]

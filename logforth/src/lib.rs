@@ -30,10 +30,10 @@
 //!
 //! # Examples
 //!
-//! Simple setup with default stdout appender:
+//! Simple setup with a stderr appender:
 //!
 //! ```
-//! logforth::starter_log::stdout().apply();
+//! logforth::starter_log::stderr().apply();
 //!
 //! log::info!("This is an info message.");
 //! ```
@@ -59,6 +59,10 @@
 //! log::error!("Error message.");
 //! log::info!("Info message.");
 //! ```
+//!
+//! See the [README] file for more details and examples.
+//!
+//! [README]: https://github.com/fast/logforth?tab=readme-ov-file
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -99,7 +103,7 @@ pub mod append {
 pub mod bridge {
     /// Bridge logforth with [`log`].
     ///
-    /// [`log`]: https://docs.rs/log/
+    /// [`log`]: https://docs.rs/log
     #[cfg(feature = "bridge-log")]
     pub mod log {
         #[cfg(feature = "bridge-log")]
