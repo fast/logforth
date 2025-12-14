@@ -124,7 +124,7 @@ The following appenders do *not* use layouts:
 
 * `Async` appender simply forwards log records to another appender; layouts are determined by the inner appender.
 * `FastraceEvent` appender converts log records into tracing events; layouts are not applicable.
-* `OpentelemetryLog` appender has a more generic `MakeBody` trait for converting log records into OpenTelemetry log bodies. It can internally use a layout, anyway.
+* `OpentelemetryLog` appender uses `MakeBody` trait for converting log records into OpenTelemetry log bodies. The `MakeBody` trait is more flexible and may optionally use a `Layout` implementation internally.
 
 ### Filters
 
