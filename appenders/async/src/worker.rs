@@ -43,8 +43,11 @@ impl Worker {
                     record,
                     diags,
                 } => {
-                    let diags: Vec<Box<dyn Diagnostic>> = vec![Box::new(OwnedDiagnostic(diags))];
-                    let diags = diags.as_slice();
+                    let diags: &[Box<dyn Diagnostic>] = if diags.is_empty() {
+                        &[]
+                    } else {
+                        &[Box::new(OwnedDiagnostic(diags))]
+                    };
                     let record = record.as_record();
                     for append in appends.iter() {
                         if let Err(err) = append.append(&record, diags) {
