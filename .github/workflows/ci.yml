@@ -62,13 +62,9 @@ jobs:
       rust-versions: ${{ steps.metadata.outputs.rust-versions }}
     steps:
       - uses: actions/checkout@v6
-      - name: Delete rust-toolchain.toml
-        run: rm rust-toolchain.toml
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@nightly
       - id: metadata
         run: |
-          msrv=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "datasketches") | .rust_version')
+          msrv=$(yq '.workspace.package.rust-version' Cargo.toml)
           echo "MSRV: $msrv"
           echo "rust-versions=[\"${msrv}\", \"stable\"]" >> "$GITHUB_OUTPUT"
 
