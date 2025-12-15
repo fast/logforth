@@ -55,12 +55,26 @@ jobs:
           cargo +nightly fmt --all -- --check
           cargo +nightly clippy --all-targets --all-features -- -D warnings
 
+  msrv:
+    name: Resolve MSRV
+    runs-on: ubuntu-24.04
+    outputs:
+      rust-versions: ${{ steps.metadata.outputs.rust-versions }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: metadata
+        run: |
+          msrv=$(yq '.workspace.package.rust-version' Cargo.toml)
+          echo "MSRV: $msrv"
+          echo "rust-versions=[\"${msrv}\", \"stable\"]" >> "$GITHUB_OUTPUT"
+
   test:
     name: Run tests
+    needs: msrv
     strategy:
       matrix:
         os: [ ubuntu-24.04, macos-14, windows-2022 ]
-        rust-version: [ "1.85.0", "stable" ]
+        rust-version: ${{ fromJson(needs.msrv.outputs.rust-versions) }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
