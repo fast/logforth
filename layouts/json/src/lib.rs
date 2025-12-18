@@ -49,16 +49,25 @@ use serde_json::Map;
 ///
 /// let json_layout = JsonLayout::default();
 /// ```
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct JsonLayout {
-    timezone: Option<TimeZone>,
-    timestamp_format: Option<fn(Timestamp, TimeZone) -> String>,
+    timezone: TimeZone,
+    timestamp_format: Option<fn(Timestamp, &TimeZone) -> String>,
+}
+
+impl Default for JsonLayout {
+    fn default() -> Self {
+        Self {
+            timezone: TimeZone::system(),
+            timestamp_format: None,
+        }
+    }
 }
 
 impl JsonLayout {
     /// Set the timezone for timestamps.
     ///
-    /// Defaults to the system timezone if not set.
+    /// Defaults to the system timezone.
     ///
     /// # Examples
     ///
@@ -69,7 +78,7 @@ impl JsonLayout {
     /// let layout = JsonLayout::default().timezone(TimeZone::UTC);
     /// ```
     pub fn timezone(mut self, tz: TimeZone) -> Self {
-        self.timezone = Some(tz);
+        self.timezone = tz;
         self
     }
 
@@ -87,11 +96,10 @@ impl JsonLayout {
     /// use logforth_layout_json::JsonLayout;
     ///
     /// // This is equivalent to the default timestamp format.
-    /// let layout = JsonLayout::default().timestamp_format(|ts, tz| {
-    ///    format!("{:.6}", ts.display_with_offset(tz.to_offset(ts)))
-    /// });
+    /// let layout = JsonLayout::default()
+    ///     .timestamp_format(|ts, tz| format!("{:.6}", ts.display_with_offset(tz.to_offset(ts))));
     /// ```
-    pub fn timestamp_format(mut self, format: fn(Timestamp, TimeZone) -> String) -> Self {
+    pub fn timestamp_format(mut self, format: fn(Timestamp, &TimeZone) -> String) -> Self {
         self.timestamp_format = Some(format);
         self
     }
@@ -112,7 +120,7 @@ impl Visitor for KvCollector<'_> {
     }
 }
 
-fn default_timestamp_format(ts: Timestamp, tz: TimeZone) -> String {
+fn default_timestamp_format(ts: Timestamp, tz: &TimeZone) -> String {
     let offset = tz.to_offset(ts);
     format!("{:.6}", ts.display_with_offset(offset))
 }
@@ -138,11 +146,10 @@ impl Layout for JsonLayout {
         // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
         // very unlikely if the system clock is correct.
         let ts = Timestamp::try_from(record.time()).unwrap();
-        let tz = self.timezone.clone().unwrap_or_else(TimeZone::system);
         let timestamp = if let Some(format) = self.timestamp_format {
-            format(ts, tz)
+            format(ts, &self.timezone)
         } else {
-            default_timestamp_format(ts, tz)
+            default_timestamp_format(ts, &self.timezone)
         };
 
         let mut kvs = Map::new();

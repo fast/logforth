@@ -63,12 +63,23 @@ use logforth_core::record::Record;
 ///
 /// let layout = TextLayout::default();
 /// ```
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct TextLayout {
     colors: LevelColor,
     no_color: bool,
-    timezone: Option<TimeZone>,
-    timestamp_format: Option<fn(Timestamp, TimeZone) -> String>,
+    timezone: TimeZone,
+    timestamp_format: Option<fn(Timestamp, &TimeZone) -> String>,
+}
+
+impl Default for TextLayout {
+    fn default() -> Self {
+        Self {
+            colors: LevelColor::default(),
+            no_color: false,
+            timezone: TimeZone::system(),
+            timestamp_format: None,
+        }
+    }
 }
 
 impl TextLayout {
@@ -139,7 +150,7 @@ impl TextLayout {
     /// let layout = TextLayout::default().timezone(TimeZone::UTC);
     /// ```
     pub fn timezone(mut self, tz: TimeZone) -> Self {
-        self.timezone = Some(tz);
+        self.timezone = tz;
         self
     }
 
@@ -157,11 +168,10 @@ impl TextLayout {
     /// use logforth_layout_text::TextLayout;
     ///
     /// // This is equivalent to the default timestamp format.
-    /// let layout = TextLayout::default().timestamp_format(|ts, tz| {
-    ///    format!("{:.6}", ts.display_with_offset(tz.to_offset(ts)))
-    /// });
+    /// let layout = TextLayout::default()
+    ///     .timestamp_format(|ts, tz| format!("{:.6}", ts.display_with_offset(tz.to_offset(ts))));
     /// ```
-    pub fn timestamp_format(mut self, format: fn(Timestamp, TimeZone) -> String) -> Self {
+    pub fn timestamp_format(mut self, format: fn(Timestamp, &TimeZone) -> String) -> Self {
         self.timestamp_format = Some(format);
         self
     }
@@ -185,7 +195,7 @@ impl Visitor for KvWriter {
     }
 }
 
-fn default_timestamp_format(ts: Timestamp, tz: TimeZone) -> String {
+fn default_timestamp_format(ts: Timestamp, tz: &TimeZone) -> String {
     let offset = tz.to_offset(ts);
     format!("{:.6}", ts.display_with_offset(offset))
 }
@@ -195,11 +205,10 @@ impl Layout for TextLayout {
         // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
         // very unlikely if the system clock is correct.
         let ts = Timestamp::try_from(record.time()).unwrap();
-        let tz = self.timezone.clone().unwrap_or_else(TimeZone::system);
         let time = if let Some(format) = self.timestamp_format {
-            format(ts, tz)
+            format(ts, &self.timezone)
         } else {
-            default_timestamp_format(ts, tz)
+            default_timestamp_format(ts, &self.timezone)
         };
 
         let level = self.format_record_level(record.level());
