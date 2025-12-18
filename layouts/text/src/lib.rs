@@ -19,6 +19,8 @@
 pub extern crate colored;
 pub extern crate jiff;
 
+use std::fmt::Write;
+
 use colored::Color;
 use colored::ColoredString;
 use colored::Colorize;
@@ -65,7 +67,8 @@ use logforth_core::record::Record;
 pub struct TextLayout {
     colors: LevelColor,
     no_color: bool,
-    tz: Option<TimeZone>,
+    timezone: Option<TimeZone>,
+    timestamp_format: Option<fn(Timestamp, TimeZone) -> String>,
 }
 
 impl TextLayout {
@@ -125,6 +128,8 @@ impl TextLayout {
 
     /// Set the timezone for timestamps.
     ///
+    /// Defaults to the system timezone if not set.
+    ///
     /// # Examples
     ///
     /// ```
@@ -134,7 +139,30 @@ impl TextLayout {
     /// let layout = TextLayout::default().timezone(TimeZone::UTC);
     /// ```
     pub fn timezone(mut self, tz: TimeZone) -> Self {
-        self.tz = Some(tz);
+        self.timezone = Some(tz);
+        self
+    }
+
+    /// Set a user-defined timestamp format function.
+    ///
+    /// Default to formatting the timestamp with offset as ISO 8601. See the example below.
+    ///
+    /// For other formatting options, refer to the [jiff::fmt::strtime] documentation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jiff::Timestamp;
+    /// use jiff::tz::TimeZone;
+    /// use logforth_layout_text::TextLayout;
+    ///
+    /// // This is equivalent to the default timestamp format.
+    /// let layout = TextLayout::default().timestamp_format(|ts, tz| {
+    ///    format!("{:.6}", ts.display_with_offset(tz.to_offset(ts)))
+    /// });
+    /// ```
+    pub fn timestamp_format(mut self, format: fn(Timestamp, TimeZone) -> String) -> Self {
+        self.timestamp_format = Some(format);
         self
     }
 
@@ -157,14 +185,22 @@ impl Visitor for KvWriter {
     }
 }
 
+fn default_timestamp_format(ts: Timestamp, tz: TimeZone) -> String {
+    let offset = tz.to_offset(ts);
+    format!("{:.6}", ts.display_with_offset(offset))
+}
+
 impl Layout for TextLayout {
     fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
         // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
         // very unlikely if the system clock is correct.
         let ts = Timestamp::try_from(record.time()).unwrap();
-        let tz = self.tz.clone().unwrap_or_else(TimeZone::system);
-        let offset = tz.to_offset(ts);
-        let time = ts.display_with_offset(offset);
+        let tz = self.timezone.clone().unwrap_or_else(TimeZone::system);
+        let time = if let Some(format) = self.timestamp_format {
+            format(ts, tz)
+        } else {
+            default_timestamp_format(ts, tz)
+        };
 
         let level = self.format_record_level(record.level());
         let target = record.target();
@@ -172,9 +208,12 @@ impl Layout for TextLayout {
         let line = record.line().unwrap_or_default();
         let message = record.payload();
 
-        let mut visitor = KvWriter {
-            text: format!("{time:.6} {level:>6} {target}: {file}:{line} {message}"),
-        };
+        let mut visitor = KvWriter { text: time };
+        write!(
+            &mut visitor.text,
+            " {level:>6} {target}: {file}:{line} {message}"
+        )
+        .unwrap();
         record.key_values().visit(&mut visitor)?;
         for d in diags {
             d.visit(&mut visitor)?;

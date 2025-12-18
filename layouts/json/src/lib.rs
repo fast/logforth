@@ -19,7 +19,6 @@
 pub extern crate jiff;
 
 use jiff::Timestamp;
-use jiff::TimestampDisplayWithOffset;
 use jiff::tz::TimeZone;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
@@ -52,11 +51,14 @@ use serde_json::Map;
 /// ```
 #[derive(Default, Debug, Clone)]
 pub struct JsonLayout {
-    tz: Option<TimeZone>,
+    timezone: Option<TimeZone>,
+    timestamp_format: Option<fn(Timestamp, TimeZone) -> String>,
 }
 
 impl JsonLayout {
     /// Set the timezone for timestamps.
+    ///
+    /// Defaults to the system timezone if not set.
     ///
     /// # Examples
     ///
@@ -67,7 +69,30 @@ impl JsonLayout {
     /// let layout = JsonLayout::default().timezone(TimeZone::UTC);
     /// ```
     pub fn timezone(mut self, tz: TimeZone) -> Self {
-        self.tz = Some(tz);
+        self.timezone = Some(tz);
+        self
+    }
+
+    /// Set a user-defined timestamp format function.
+    ///
+    /// Default to formatting the timestamp with offset as ISO 8601. See the example below.
+    ///
+    /// For other formatting options, refer to the [jiff::fmt::strtime] documentation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jiff::Timestamp;
+    /// use jiff::tz::TimeZone;
+    /// use logforth_layout_json::JsonLayout;
+    ///
+    /// // This is equivalent to the default timestamp format.
+    /// let layout = JsonLayout::default().timestamp_format(|ts, tz| {
+    ///    format!("{:.6}", ts.display_with_offset(tz.to_offset(ts)))
+    /// });
+    /// ```
+    pub fn timestamp_format(mut self, format: fn(Timestamp, TimeZone) -> String) -> Self {
+        self.timestamp_format = Some(format);
         self
     }
 }
@@ -87,10 +112,14 @@ impl Visitor for KvCollector<'_> {
     }
 }
 
+fn default_timestamp_format(ts: Timestamp, tz: TimeZone) -> String {
+    let offset = tz.to_offset(ts);
+    format!("{:.6}", ts.display_with_offset(offset))
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct RecordLine<'a> {
-    #[serde(serialize_with = "serialize_timestamp")]
-    timestamp: TimestampDisplayWithOffset,
+    timestamp: String,
     level: &'a str,
     target: &'a str,
     file: &'a str,
@@ -102,16 +131,6 @@ struct RecordLine<'a> {
     diags: Map<String, serde_json::Value>,
 }
 
-fn serialize_timestamp<S>(
-    timestamp: &TimestampDisplayWithOffset,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serializer.collect_str(&format_args!("{timestamp:.6}"))
-}
-
 impl Layout for JsonLayout {
     fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
         let diagnostics = diags;
@@ -119,9 +138,12 @@ impl Layout for JsonLayout {
         // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
         // very unlikely if the system clock is correct.
         let ts = Timestamp::try_from(record.time()).unwrap();
-        let tz = self.tz.clone().unwrap_or_else(TimeZone::system);
-        let offset = tz.to_offset(ts);
-        let timestamp = ts.display_with_offset(offset);
+        let tz = self.timezone.clone().unwrap_or_else(TimeZone::system);
+        let timestamp = if let Some(format) = self.timestamp_format {
+            format(ts, tz)
+        } else {
+            default_timestamp_format(ts, tz)
+        };
 
         let mut kvs = Map::new();
         let mut kvs_visitor = KvCollector { kvs: &mut kvs };
