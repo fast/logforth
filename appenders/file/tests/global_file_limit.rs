@@ -1,13 +1,28 @@
+// Copyright 2024 FastLabs Developers
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! Ensure max_log_files limits the total number of log files across multiple date patterns.
 
-use logforth_append_file::FileBuilder;
-use logforth_core::Append;
-use logforth_core::record::Record;
 use std::fs;
 use std::num::NonZeroUsize;
 use std::path::Path;
 use std::thread;
 use std::time::Duration;
+
+use logforth_append_file::FileBuilder;
+use logforth_core::Append;
+use logforth_core::record::Record;
 use tempfile::TempDir;
 
 #[test]
@@ -77,7 +92,8 @@ fn test_file_limit_across_multiple_dates() {
     let max_files = 10; // Set maximum file count to 10
     let max_size = 50; // Small file size to trigger rotation quickly
 
-    // Create multiple log writers, each with a different filename pattern (simulating different dates)
+    // Create multiple log writers, each with a different filename pattern (simulating different
+    // dates)
     println!("Creating multiple log files with different date patterns");
 
     // First batch - simulate March 18
@@ -114,7 +130,8 @@ fn test_file_limit_across_multiple_dates() {
     println!("Files: {:?}", files);
 
     // Verify if the total number of files exceeds the limit
-    // Note: If this assertion fails, it means we've reproduced the issue - file count is not properly limited
+    // Note: If this assertion fails, it means we've reproduced the issue - file count is not
+    // properly limited
     assert!(
         files.len() <= max_files,
         "Expected at most {} files, but found {} files across multiple dates",
