@@ -85,7 +85,7 @@ fn test_file_limit_across_multiple_dates() {
         temp_dir.path(),
         max_files,
         max_size,
-        "databend-query-default.2025-03-18",
+        "databend-query-default",
         15,
     );
 
@@ -94,7 +94,7 @@ fn test_file_limit_across_multiple_dates() {
         temp_dir.path(),
         max_files,
         max_size,
-        "databend-query-default.2025-03-19",
+        "databend-query-default",
         20,
     );
 
@@ -103,7 +103,7 @@ fn test_file_limit_across_multiple_dates() {
         temp_dir.path(),
         max_files,
         max_size,
-        "databend-query-default.2025-03-20",
+        "databend-query-default",
         10,
     );
 
@@ -124,16 +124,16 @@ fn test_file_limit_across_multiple_dates() {
 }
 
 // Create a specified number of log files
-fn create_logs(dir: &Path, max_files: usize, max_size: usize, filename_prefix: &str, count: usize) {
+fn create_logs(dir: &Path, max_files: usize, max_size: usize, filename: &str, count: usize) {
     // Create a new log writer for each "date"
-    let writer = FileBuilder::new(dir, filename_prefix)
+    let writer = FileBuilder::new(dir, filename)
         .rollover_hourly() // Use hourly rotation
         .rollover_size(NonZeroUsize::new(max_size).unwrap())
         .max_log_files(NonZeroUsize::new(max_files).unwrap())
         .build()
         .unwrap();
 
-    println!("Creating logs with prefix: {filename_prefix}");
+    println!("Creating logs with filename: {filename}");
 
     // Write enough data to create the specified number of files
     for i in 0..count * 5 {
@@ -143,7 +143,7 @@ fn create_logs(dir: &Path, max_files: usize, max_size: usize, filename_prefix: &
                 &Record::builder()
                     .payload(format!(
                         "Prefix {}, Log {}: {}\n",
-                        filename_prefix,
+                        filename,
                         i,
                         "X".repeat(20)
                     ))
