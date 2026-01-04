@@ -16,9 +16,7 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-use std::sync::Arc;
-
-use logforth_core::Append;
+use logforth_core::Error;
 use logforth_core::kv;
 use logforth_core::record::RecordOwned;
 
@@ -31,12 +29,11 @@ pub use self::append::AsyncBuilder;
 
 enum Task {
     Log {
-        appends: Arc<[Box<dyn Append>]>,
         record: Box<RecordOwned>,
         diags: Vec<(kv::KeyOwned, kv::ValueOwned)>,
     },
     Flush {
-        appends: Arc<[Box<dyn Append>]>,
+        done: oneshot::Sender<Option<Error>>,
     },
 }
 

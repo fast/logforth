@@ -60,6 +60,7 @@ insta = { version = "1.43.2" }
 jiff = { version = "0.2" }
 libc = { version = "0.2.162" }
 log = { version = "0.4.27", features = ["kv_std", "kv_sval"] }
+oneshot = { version = "0.1.11", default-features = false, features = ["std"] }
 opentelemetry = { version = "0.31.0", default-features = false }
 opentelemetry-otlp = { version = "0.31.0", default-features = false }
 opentelemetry_sdk = { version = "0.31.0", default-features = false }

@@ -83,12 +83,6 @@ impl Append for FastraceEvent {
         fastrace::flush();
         Ok(())
     }
-
-    fn exit(&self) -> Result<(), Error> {
-        // do nothing - because fastrace::flush uses thread-local storage internally,
-        // which is not supported in atexit callbacks.
-        Ok(())
-    }
 }
 
 struct KvCollector {

@@ -14,7 +14,6 @@
 
 use std::io::Write;
 use std::panic;
-use std::sync::Once;
 use std::sync::OnceLock;
 
 use crate::Append;
@@ -40,49 +39,7 @@ pub fn default_logger() -> &'static Logger {
 /// If a default logger has already been set, the function returns the provided logger
 /// as an error.
 pub fn set_default_logger(logger: Logger) -> Result<(), Logger> {
-    static ATEXIT_CALLBACK: Once = Once::new();
-
-    DEFAULT_LOGGER.set(logger)?;
-    ATEXIT_CALLBACK.call_once(flush_default_logger_at_exit);
-    Ok(())
-}
-
-fn flush_default_logger_at_exit() {
-    // Rust never calls `drop` for static variables.
-    //
-    // Setting up an exit handler gives us a chance to flush the default logger
-    // once at the program exit, thus we don't lose the last logs.
-
-    extern "C" fn handler() {
-        if let Some(default_logger) = DEFAULT_LOGGER.get() {
-            default_logger.exit();
-        }
-    }
-
-    #[must_use]
-    fn try_atexit() -> bool {
-        use std::os::raw::c_int;
-
-        unsafe extern "C" {
-            fn atexit(cb: extern "C" fn()) -> c_int;
-        }
-
-        (unsafe { atexit(handler) }) == 0
-    }
-
-    fn hook_panic() {
-        let previous_hook = panic::take_hook();
-
-        panic::set_hook(Box::new(move |info| {
-            handler();
-            previous_hook(info);
-        }));
-    }
-
-    if !try_atexit() {
-        // if we failed to register the `atexit` handler, at least we hook into panic
-        hook_panic();
-    }
+    DEFAULT_LOGGER.set(logger)
 }
 
 /// A logger that dispatches log records to one or more dispatcher.
@@ -119,15 +76,6 @@ impl Logger {
         for dispatch in &self.dispatches {
             for err in dispatch.flush() {
                 handle_flush_error(&err);
-            }
-        }
-    }
-
-    /// Perform any cleanup work before the program exits.
-    pub fn exit(&self) {
-        for dispatch in &self.dispatches {
-            for err in dispatch.exit() {
-                handle_exit_error(&err);
             }
         }
     }
@@ -208,16 +156,6 @@ impl Dispatch {
         }
         errors
     }
-
-    fn exit(&self) -> Vec<Error> {
-        let mut errors = vec![];
-        for append in &self.appends {
-            if let Err(err) = append.exit() {
-                errors.push(err);
-            }
-        }
-        errors
-    }
 }
 
 fn handle_log_error(record: &Record, error: &Error) {
@@ -265,26 +203,6 @@ Error perform flush.
     panic!(
         r###"
 Error performing stderr logging after error occurred during regular flush.
-    Error: {error:?}
-    Fallback error: {fallback_error}
-"###,
-    );
-}
-
-fn handle_exit_error(error: &Error) {
-    let Err(fallback_error) = write!(
-        std::io::stderr(),
-        r###"
-Error perform exit.
-    Error: {error:?}
-"###,
-    ) else {
-        return;
-    };
-
-    panic!(
-        r###"
-Error performing stderr logging after error occurred during atexit.
     Error: {error:?}
     Fallback error: {fallback_error}
 "###,

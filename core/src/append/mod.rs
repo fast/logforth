@@ -34,17 +34,6 @@ pub trait Append: fmt::Debug + Send + Sync + 'static {
 
     /// Flush any buffered records.
     fn flush(&self) -> Result<(), Error>;
-
-    /// Perform any cleanup work before the program exits.
-    ///
-    /// Default to call `flush`.
-    ///
-    /// This is typically called within a global logger during program exits.
-    /// If it is not in a global logger, the drop glue should perform necessary
-    /// cleanup.
-    fn exit(&self) -> Result<(), Error> {
-        self.flush()
-    }
 }
 
 impl<T: Append> From<T> for Box<dyn Append> {

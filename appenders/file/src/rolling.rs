@@ -42,7 +42,7 @@ pub struct RollingFileWriter {
 impl Drop for RollingFileWriter {
     fn drop(&mut self) {
         if let Err(err) = self.writer.flush() {
-            let err = Error::new("failed to flush file writer on dropped").set_source(err);
+            let err = Error::new("failed to flush file writer on dropped").with_source(err);
             self.state.trap.trap(&err);
         }
     }
@@ -237,7 +237,7 @@ impl State {
         let now = clock.now();
         let log_dir = dir.as_ref().to_path_buf();
         fs::create_dir_all(&log_dir)
-            .map_err(|err| Error::new("failed to create log directory").set_source(err))?;
+            .map_err(|err| Error::new("failed to create log directory").with_source(err))?;
 
         let mut state = State {
             log_dir,
@@ -284,7 +284,7 @@ impl State {
                     OpenOptions::new()
                         .append(true)
                         .open(&filename)
-                        .map_err(|err| Error::new("failed to open current log").set_source(err))?
+                        .map_err(|err| Error::new("failed to open current log").with_source(err))?
                 }
             }
         };
@@ -306,7 +306,7 @@ impl State {
             .write(true)
             .create_new(true)
             .open(&filename)
-            .map_err(|err| Error::new("failed to create log file").set_source(err))
+            .map_err(|err| Error::new("failed to create log file").with_source(err))
     }
 
     fn join_date(&self, date: &Zoned, cnt: usize) -> PathBuf {
@@ -332,7 +332,7 @@ impl State {
                 "failed to read log dir: {}",
                 self.log_dir.display()
             ))
-            .set_source(err)
+            .with_source(err)
         })?;
 
         let files = read_dir
@@ -413,7 +413,7 @@ impl State {
             let filepath = &file.filepath;
             fs::remove_file(filepath).map_err(|err| {
                 Error::new(format!("failed to remove old log: {}", filepath.display()))
-                    .set_source(err)
+                    .with_source(err)
             })?;
         }
 
@@ -434,7 +434,7 @@ impl State {
 
         for (old, new) in renames.iter().rev() {
             fs::rename(old, new).map_err(|err| {
-                Error::new(format!("failed to rotate log: {}", old.display())).set_source(err)
+                Error::new(format!("failed to rotate log: {}", old.display())).with_source(err)
             })?
         }
 
@@ -445,12 +445,12 @@ impl State {
                 "failed to archive log: {}",
                 current_filepath.display()
             ))
-            .set_source(err)
+            .with_source(err)
         })?;
 
         if let Some(max_files) = self.max_files {
             if let Err(err) = self.delete_oldest_logs(max_files.get()) {
-                let err = Error::new("failed to delete oldest logs").set_source(err);
+                let err = Error::new("failed to delete oldest logs").with_source(err);
                 self.trap.trap(&err);
             }
         }
@@ -462,13 +462,13 @@ impl State {
         match self.rotate_log_writer(now) {
             Ok(new_file) => {
                 if let Err(err) = file.flush() {
-                    let err = Error::new("failed to flush previous writer").set_source(err);
+                    let err = Error::new("failed to flush previous writer").with_source(err);
                     self.trap.trap(&err);
                 }
                 *file = new_file;
             }
             Err(err) => {
-                let err = Error::new("failed to rotate log writer").set_source(err);
+                let err = Error::new("failed to rotate log writer").with_source(err);
                 self.trap.trap(&err);
             }
         }

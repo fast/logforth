@@ -37,4 +37,7 @@ fn main() {
     log::info!("Hello single info!");
     log::debug!("Hello single debug!");
     log::trace!("Hello single trace!");
+
+    // ensure all async events buffered are written out
+    logforth::core::default_logger().flush();
 }
