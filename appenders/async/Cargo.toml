@@ -35,6 +35,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 arc-swap = { workspace = true }
 crossbeam-channel = { workspace = true }
 logforth-core = { workspace = true }
+oneshot = { workspace = true }
 
 [lints]
 workspace = true

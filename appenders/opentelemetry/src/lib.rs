@@ -282,7 +282,7 @@ impl Append for OpentelemetryLog {
     fn flush(&self) -> Result<(), Error> {
         self.provider
             .force_flush()
-            .map_err(|err| Error::new("failed to flush records").set_source(err))
+            .map_err(|err| Error::new("failed to flush records").with_source(err))
     }
 }
 

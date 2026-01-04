@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use logforth_core::Append;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
@@ -31,10 +29,7 @@ use crate::worker::Worker;
 /// A composable appender, logging and flushing asynchronously.
 #[derive(Debug)]
 pub struct Async {
-    appends: Arc<[Box<dyn Append>]>,
-    overflow: Overflow,
     state: AsyncState,
-    trap: Arc<dyn Trap>,
 }
 
 impl Append for Async {
@@ -46,38 +41,24 @@ impl Append for Async {
             d.visit(&mut collector)?;
         }
 
-        let overflow = self.overflow;
         let task = Task::Log {
-            appends: self.appends.clone(),
             record: Box::new(record.to_owned()),
             diags: diagnostics,
         };
-        self.state.send_task(task, overflow)
+        self.state.send_task(task)
     }
 
     fn flush(&self) -> Result<(), Error> {
-        let overflow = self.overflow;
-        let task = Task::Flush {
-            appends: self.appends.clone(),
-        };
-        self.state.send_task(task, overflow)
-    }
+        let (done_tx, done_rx) = oneshot::channel();
 
-    fn exit(&self) -> Result<(), Error> {
-        // If the program is tearing down, this will be the final flush. `crossbeam`
-        // uses thread-local internally, which is not supported in `atexit` callback.
-        // This can be bypassed by flushing sinks directly on the current thread, but
-        // before we do that we have to join the thread to ensure that any pending log
-        // tasks are completed.
-        //
-        // @see https://github.com/SpriteOvO/spdlog-rs/issues/64
-        self.state.destroy();
-        for append in self.appends.iter() {
-            if let Err(err) = append.exit() {
-                self.trap.trap(&err);
-            }
+        let task = Task::Flush { done: done_tx };
+        self.state.send_task(task)?;
+
+        match done_rx.recv() {
+            Ok(None) => Ok(()),
+            Ok(Some(err)) => Err(err),
+            Err(err) => Err(Error::new("worker exited before completing flush").with_source(err)),
         }
-        Ok(())
     }
 }
 
@@ -86,7 +67,7 @@ pub struct AsyncBuilder {
     thread_name: String,
     appends: Vec<Box<dyn Append>>,
     buffered_lines_limit: Option<usize>,
-    trap: Arc<dyn Trap>,
+    trap: Box<dyn Trap>,
     overflow: Overflow,
 }
 
@@ -97,7 +78,7 @@ impl AsyncBuilder {
             thread_name: thread_name.into(),
             appends: vec![],
             buffered_lines_limit: None,
-            trap: Arc::new(BestEffortTrap::default()),
+            trap: Box::new(BestEffortTrap::default()),
             overflow: Overflow::Block,
         }
     }
@@ -122,7 +103,6 @@ impl AsyncBuilder {
 
     /// Set the trap for this async appender.
     pub fn trap(mut self, trap: impl Into<Box<dyn Trap>>) -> Self {
-        let trap = trap.into();
         self.trap = trap.into();
         self
     }
@@ -143,26 +123,19 @@ impl AsyncBuilder {
             overflow,
         } = self;
 
-        let appends = appends.into_boxed_slice().into();
-
         let (sender, receiver) = match buffered_lines_limit {
             Some(limit) => crossbeam_channel::bounded(limit),
             None => crossbeam_channel::unbounded(),
         };
 
-        let worker = Worker::new(receiver, trap.clone());
+        let worker = Worker::new(appends, receiver, trap);
         let thread_handle = std::thread::Builder::new()
             .name(thread_name)
             .spawn(move || worker.run())
             .expect("failed to spawn async appender thread");
-        let state = AsyncState::new(sender, thread_handle);
 
-        Async {
-            appends,
-            overflow,
-            state,
-            trap,
-        }
+        let state = AsyncState::new(overflow, sender, thread_handle);
+        Async { state }
     }
 }
 

@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use crossbeam_channel::Receiver;
+use logforth_core::Append;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::Trap;
@@ -24,25 +23,34 @@ use logforth_core::kv::Visitor;
 use crate::Task;
 
 pub(crate) struct Worker {
+    appends: Vec<Box<dyn Append>>,
     receiver: Receiver<Task>,
-    trap: Arc<dyn Trap>,
+    trap: Box<dyn Trap>,
 }
 
 impl Worker {
-    pub(crate) fn new(receiver: Receiver<Task>, trap: Arc<dyn Trap>) -> Self {
-        Self { receiver, trap }
+    pub(crate) fn new(
+        appends: Vec<Box<dyn Append>>,
+        receiver: Receiver<Task>,
+        trap: Box<dyn Trap>,
+    ) -> Self {
+        Self {
+            appends,
+            receiver,
+            trap,
+        }
     }
 
     pub(crate) fn run(self) {
-        let Self { receiver, trap } = self;
+        let Self {
+            appends,
+            receiver,
+            trap,
+        } = self;
 
         while let Ok(task) = receiver.recv() {
             match task {
-                Task::Log {
-                    appends,
-                    record,
-                    diags,
-                } => {
+                Task::Log { record, diags } => {
                     let diags: &[Box<dyn Diagnostic>] = if diags.is_empty() {
                         &[]
                     } else {
@@ -51,18 +59,23 @@ impl Worker {
                     let record = record.as_record();
                     for append in appends.iter() {
                         if let Err(err) = append.append(&record, diags) {
-                            let err = Error::new("failed to append record").set_source(err);
+                            let err = Error::new("failed to append record").with_source(err);
                             trap.trap(&err);
                         }
                     }
                 }
-                Task::Flush { appends } => {
+                Task::Flush { done } => {
+                    let mut error = None;
                     for append in appends.iter() {
                         if let Err(err) = append.flush() {
-                            let err = Error::new("failed to flush").set_source(err);
-                            trap.trap(&err);
+                            error = Some(
+                                error
+                                    .unwrap_or_else(|| Error::new("failed to flush appender"))
+                                    .with_source(err),
+                            );
                         }
                     }
+                    let _ = done.send(error);
                 }
             }
         }

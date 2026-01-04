@@ -27,23 +27,27 @@ pub(crate) struct AsyncState(ArcSwapOption<State>);
 
 #[derive(Debug)]
 struct State {
+    overflow: Overflow,
     sender: Sender<Task>,
     handle: JoinHandle<()>,
 }
 
 impl AsyncState {
-    pub(crate) fn new(sender: Sender<Task>, handle: JoinHandle<()>) -> Self {
-        let state = State { sender, handle };
-        Self(ArcSwapOption::from(Some(Arc::new(state))))
+    pub(crate) fn new(overflow: Overflow, sender: Sender<Task>, handle: JoinHandle<()>) -> Self {
+        Self(ArcSwapOption::from(Some(Arc::new(State {
+            overflow,
+            sender,
+            handle,
+        }))))
     }
 
-    pub(crate) fn send_task(&self, task: Task, overflow: Overflow) -> Result<(), Error> {
+    pub(crate) fn send_task(&self, task: Task) -> Result<(), Error> {
         let state = self.0.load();
         // SAFETY: state is always Some before dropped.
         let state = state.as_ref().unwrap();
         let sender = &state.sender;
 
-        match overflow {
+        match state.overflow {
             Overflow::Block => sender.send(task).map_err(|err| {
                 Error::new(match err.0 {
                     Task::Log { .. } => "failed to send log task to async appender",
@@ -66,7 +70,11 @@ impl AsyncState {
     pub(crate) fn destroy(&self) {
         if let Some(state) = self.0.swap(None) {
             // SAFETY: state has always one strong count before swapped.
-            let State { sender, handle } = Arc::into_inner(state).unwrap();
+            let State {
+                overflow: _,
+                sender,
+                handle,
+            } = Arc::into_inner(state).unwrap();
 
             // drop our sender, threads will break the loop after receiving and processing
             drop(sender);
