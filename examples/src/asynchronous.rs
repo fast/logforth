@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! An example of logging to a single file with async combinator.
-
+use logforth::append::asynchronous::AsyncBuilder;
 use logforth::append::file::FileBuilder;
 use logforth::layout::JsonLayout;
 use logforth::record::LevelFilter;
-use logforth_append_async::AsyncBuilder;
 
 fn main() {
     let file = FileBuilder::new("logs", "my_app_async")

@@ -15,6 +15,7 @@
 //! A diagnostic that enriches log records with trace context provided by the Fastrace library.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
 
 use fastrace::collector::SpanContext;
 use logforth_core::Diagnostic;
@@ -24,16 +25,6 @@ use logforth_core::kv::Value;
 use logforth_core::kv::Visitor;
 
 /// A diagnostic that enriches log records with trace context provided by the Fastrace library.
-///
-/// Output format:
-///
-/// ```text
-/// 2025-01-10T15:22:37.868815+08:00 ERROR fastrace: fastrace.rs:39 Hello syslog error! trace_id=37f9c45f918cbb477089afb0d7162e7e
-/// 2025-01-10T15:22:37.868890+08:00  WARN fastrace: fastrace.rs:40 Hello syslog warn! trace_id=37f9c45f918cbb477089afb0d7162e7e
-/// 2025-01-10T15:22:37.868921+08:00  INFO fastrace: fastrace.rs:41 Hello syslog info! trace_id=37f9c45f918cbb477089afb0d7162e7e
-/// 2025-01-10T15:22:37.868949+08:00 DEBUG fastrace: fastrace.rs:42 Hello syslog debug! trace_id=37f9c45f918cbb477089afb0d7162e7e
-/// 2025-01-10T15:22:37.868976+08:00 TRACE fastrace: fastrace.rs:43 Hello syslog trace! trace_id=37f9c45f918cbb477089afb0d7162e7e
-/// ```
 ///
 /// ## Example
 ///

@@ -12,27 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! An example of multiple dispatches with different filters and appenders.
-
-use logforth::append;
+use logforth::append::file::FileBuilder;
+use logforth::layout::JsonLayout;
 use logforth::record::LevelFilter;
-use logforth_core::record::Level;
 
 fn main() {
+    let rolling = FileBuilder::new("logs", "my_app")
+        .layout(JsonLayout::default())
+        .rollover_daily()
+        .build()
+        .unwrap();
+
     logforth::starter_log::builder()
-        .dispatch(|d| {
-            d.filter(LevelFilter::MoreSevereEqual(Level::Error))
-                .append(append::Stderr::default())
-        })
-        .dispatch(|d| {
-            d.filter(LevelFilter::MoreSevereEqual(Level::Info))
-                .append(append::Stdout::default())
-        })
+        .dispatch(|d| d.filter(LevelFilter::All).append(rolling))
         .apply();
 
-    log::error!("Hello error!");
-    log::warn!("Hello warn!");
-    log::info!("Hello info!");
-    log::debug!("Hello debug!");
-    log::trace!("Hello trace!");
+    let repeat = 1;
+
+    for i in 0..repeat {
+        log::error!("Hello error!");
+        log::warn!("Hello warn!");
+        log::info!("Hello info!");
+        log::debug!("Hello debug!");
+        log::trace!("Hello trace!");
+
+        if i + 1 < repeat {
+            std::thread::sleep(std::time::Duration::from_secs(10));
+        }
+    }
 }

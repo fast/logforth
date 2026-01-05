@@ -31,6 +31,8 @@ use crate::rolling::RollingFileWriterBuilder;
 use crate::rotation::Rotation;
 
 /// A builder to configure and create an [`File`] appender.
+///
+/// See [module-level documentation](super) for usage examples.
 #[derive(Debug)]
 pub struct FileBuilder {
     builder: RollingFileWriterBuilder,

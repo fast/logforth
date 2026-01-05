@@ -15,6 +15,7 @@
 //! A composable appender, logging and flushing asynchronously.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
 
 use logforth_core::Error;
 use logforth_core::kv;

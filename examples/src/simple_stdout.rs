@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! An example of simple logging to stdout.
-
-use logforth_core::record::LevelFilter;
+use logforth::record::LevelFilter;
 
 fn main() {
     logforth::starter_log::stdout()

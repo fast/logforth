@@ -15,6 +15,7 @@
 //! Layout for Google Cloud Structured Logging.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;

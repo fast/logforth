@@ -12,16 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! An example of logging to stdout in JSON format.
-
 use logforth::append;
-use logforth::layout::JsonLayout;
+use logforth::bridge::log::OwnedLogProxy;
 
 fn main() {
-    logforth::starter_log::builder()
-        .dispatch(|d| d.append(append::Stdout::default().with_layout(JsonLayout::default())))
-        .apply();
+    log::set_max_level(log::LevelFilter::Trace);
 
-    log::info!("This is an info message.");
-    log::debug!("This debug message will not be printed by default.");
+    let l = logforth::core::builder()
+        .dispatch(|d| d.append(append::Stdout::default()))
+        .build();
+
+    let l = OwnedLogProxy::new(l);
+    log::error!(logger: l, "Hello error!");
+    log::warn!(logger: l, "Hello warn!");
+    log::info!(logger: l, "Hello info!");
+    log::debug!(logger: l, "Hello debug!");
+    log::trace!(logger: l, "Hello trace!");
 }

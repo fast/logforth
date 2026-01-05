@@ -15,6 +15,7 @@
 //! A bridge to forward logs from the `log` crate to `logforth`.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
 
 use log::Metadata;
 use log::Record;

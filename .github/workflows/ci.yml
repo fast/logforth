@@ -47,13 +47,7 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: typos-cli,taplo-cli,hawkeye
-      - name: Check all
-        run: |
-          hawkeye check
-          taplo format --check
-          typos
-          cargo +nightly fmt --all -- --check
-          cargo +nightly clippy --all-targets --all-features -- -D warnings
+      - run: cargo x lint
 
   msrv:
     name: Resolve MSRV
@@ -89,10 +83,9 @@ jobs:
         run: cargo build --workspace --all-features --bins --tests --examples --benches --lib
       - name: Run unit tests
         shell: bash
-        run: cargo test --all-features -- --nocapture
+        run: cargo x test --no-capture
       - name: Run examples
         shell: bash
-        working-directory: logforth
         run: |
           set -x
           cargo run --features="bridge-log" --example simple_stdout

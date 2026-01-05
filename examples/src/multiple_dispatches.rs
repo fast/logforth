@@ -12,34 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! An example of logging to rolling files in JSON format.
-
-use logforth::append::file::FileBuilder;
-use logforth::layout::JsonLayout;
+use logforth::append;
+use logforth::record::Level;
 use logforth::record::LevelFilter;
 
 fn main() {
-    let rolling = FileBuilder::new("logs", "my_app")
-        .layout(JsonLayout::default())
-        .rollover_daily()
-        .build()
-        .unwrap();
-
     logforth::starter_log::builder()
-        .dispatch(|d| d.filter(LevelFilter::All).append(rolling))
+        .dispatch(|d| {
+            d.filter(LevelFilter::MoreSevereEqual(Level::Error))
+                .append(append::Stderr::default())
+        })
+        .dispatch(|d| {
+            d.filter(LevelFilter::MoreSevereEqual(Level::Info))
+                .append(append::Stdout::default())
+        })
         .apply();
 
-    let repeat = 1;
-
-    for i in 0..repeat {
-        log::error!("Hello error!");
-        log::warn!("Hello warn!");
-        log::info!("Hello info!");
-        log::debug!("Hello debug!");
-        log::trace!("Hello trace!");
-
-        if i + 1 < repeat {
-            std::thread::sleep(std::time::Duration::from_secs(10));
-        }
-    }
+    log::error!("Hello error!");
+    log::warn!("Hello warn!");
+    log::info!("Hello info!");
+    log::debug!("Hello debug!");
+    log::trace!("Hello trace!");
 }

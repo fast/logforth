@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Ensure max_log_files limits the total number of log files across multiple date patterns.
-
 use std::fs;
 use std::num::NonZeroUsize;
 use std::path::Path;

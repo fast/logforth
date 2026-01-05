@@ -31,6 +31,7 @@
 //! ```
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
 
 use std::io;
 use std::sync::Mutex;
@@ -273,6 +274,8 @@ mod unix_ext {
 }
 
 /// An appender that writes log records to syslog.
+///
+/// See [module-level documentation](self) for usage examples.
 #[derive(Debug)]
 pub struct Syslog {
     sender: Mutex<SyslogSender>,

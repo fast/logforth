@@ -12,23 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! An example of using `journald` with `logforth`.
+use logforth::append;
+use logforth::layout::JsonLayout;
 
-#[cfg(unix)]
 fn main() {
-    let append = logforth::append::Journald::new().unwrap();
     logforth::starter_log::builder()
-        .dispatch(|d| d.append(append))
+        .dispatch(|d| d.append(append::Stdout::default().with_layout(JsonLayout::default())))
         .apply();
 
-    log::error!("Hello, journald at ERROR!");
-    log::warn!("Hello, journald at WARN!");
-    log::info!("Hello, journald at INFO!");
-    log::debug!("Hello, journald at DEBUG!");
-    log::trace!("Hello, journald at TRACE!");
-}
-
-#[cfg(not(unix))]
-fn main() {
-    println!("This example is only for Unix-like systems.");
+    log::info!("This is an info message.");
+    log::debug!("This debug message will not be printed by default.");
 }

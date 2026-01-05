@@ -38,6 +38,7 @@
 //! ```
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
 
 pub use self::append::File;
 pub use self::append::FileBuilder;

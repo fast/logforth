@@ -15,11 +15,13 @@
 [workspace]
 members = [
   "core",
+  "examples",
   "logforth",
   "appenders/*",
   "bridges/*",
   "diagnostics/*",
   "layouts/*",
+  "xtask",
 ]
 resolver = "2"
 
@@ -34,6 +36,7 @@ rust-version = "1.85.0"
 
 [workspace.dependencies]
 # Workspace dependencies
+logforth = { version = "0.29.1", path = "logforth" }
 logforth-append-async = { version = "0.3.0", path = "appenders/async" }
 logforth-append-fastrace = { version = "0.3.0", path = "appenders/fastrace" }
 logforth-append-file = { version = "0.3.0", path = "appenders/file" }
@@ -52,6 +55,7 @@ logforth-layout-text = { version = "0.3.0", path = "layouts/text" }
 # Crates.io dependencies
 anyhow = { version = "1.0" }
 arc-swap = { version = "1.7.1" }
+clap = { version = "4.5.49", features = ["derive"] }
 colored = { version = "3.0" }
 crossbeam-channel = { version = "0.5.15" }
 fastrace = { version = "0.7" }
@@ -71,9 +75,9 @@ serde_json = { version = "1.0" }
 tempfile = { version = "3.16" }
 tokio = { version = "1.47.1" }
 value-bag = { version = "1.11.1", features = ["inline-i128", "owned", "sval"] }
+which = { version = "8.0.0" }
 
 [workspace.lints.rust]
-missing_docs = "deny"
 unknown_lints = "deny"
 unused_must_use = "deny"
 

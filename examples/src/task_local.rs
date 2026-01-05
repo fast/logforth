@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Example of using task-local storage with `logForth`.
-
 use logforth::diagnostic::TaskLocalDiagnostic;
 use logforth::diagnostic::task_local::FutureExt;
+use logforth::layout::TextLayout;
 use logforth::record::LevelFilter;
-use logforth_layout_text::TextLayout;
 
 #[tokio::main]
 async fn main() {

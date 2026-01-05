@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Tests for asynchronous appenders wait on flushes.
-
 use std::sync::Arc;
 use std::sync::Barrier;
 use std::sync::atomic::AtomicBool;

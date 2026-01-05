@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! An example of using `logforth` with `fastrace` and Google Cloud Logging format.
-
 use fastrace::Span;
 use fastrace::collector::Config;
 use fastrace::collector::ConsoleReporter;

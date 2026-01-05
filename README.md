@@ -99,7 +99,7 @@ fn main() {
 }
 ```
 
-Read more demos under the [examples](logforth/examples) directory.
+Read more demos under the [examples](examples) directory.
 
 ## Features
 
