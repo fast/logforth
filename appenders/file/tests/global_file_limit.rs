@@ -45,7 +45,7 @@ fn test_global_file_count_limit() {
         writer
             .append(
                 &Record::builder()
-                    .payload(format!("Log entry {}: {}\n", i, "A".repeat(50)))
+                    .payload(format_args!("Log entry {}: {}\n", i, "A".repeat(50)))
                     .build(),
                 &[],
             )
@@ -156,7 +156,7 @@ fn create_logs(dir: &Path, max_files: usize, max_size: usize, filename: &str, co
         writer
             .append(
                 &Record::builder()
-                    .payload(format!(
+                    .payload(format_args!(
                         "Prefix {}, Log {}: {}\n",
                         filename,
                         i,

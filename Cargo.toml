@@ -57,7 +57,6 @@ anyhow = { version = "1.0" }
 arc-swap = { version = "1.7.1" }
 clap = { version = "4.5.49", features = ["derive"] }
 colored = { version = "3.0" }
-crossbeam-channel = { version = "0.5.15" }
 fastrace = { version = "0.7" }
 fasyslog = { version = "1.0.0" }
 insta = { version = "1.43.2" }

@@ -22,8 +22,10 @@ use logforth_core::record::Record;
 use logforth_core::trap::BestEffortTrap;
 
 use crate::Overflow;
+use crate::Sender;
 use crate::Task;
 use crate::state::AsyncState;
+use crate::worker::RecordOwned;
 use crate::worker::Worker;
 
 /// A composable appender, logging and flushing asynchronously.
@@ -64,7 +66,7 @@ impl Append for Async {
         }
 
         let task = Task::Log {
-            record: Box::new(record.to_owned()),
+            record: Box::new(RecordOwned::from_record(record)),
             diags: diagnostics,
         };
         self.state.send_task(task)
@@ -146,8 +148,14 @@ impl AsyncBuilder {
         } = self;
 
         let (sender, receiver) = match buffered_lines_limit {
-            Some(limit) => crossbeam_channel::bounded(limit),
-            None => crossbeam_channel::unbounded(),
+            Some(limit) => {
+                let (tx, rx) = std::sync::mpsc::sync_channel(limit);
+                (Sender::Bounded(tx), rx)
+            }
+            None => {
+                let (tx, rx) = std::sync::mpsc::channel();
+                (Sender::Unbounded(tx), rx)
+            }
         };
 
         let worker = Worker::new(appends, receiver, trap);

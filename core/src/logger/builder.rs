@@ -80,7 +80,9 @@ impl LoggerBuilder {
     /// use logforth_core::record::Record;
     ///
     /// let l = logforth_core::builder().build();
-    /// let r = Record::builder().payload("hello world!").build();
+    /// let r = Record::builder()
+    ///     .payload(format_args!("hello world!"))
+    ///     .build();
     /// l.log(&r);
     /// ```
     pub fn build(self) -> Logger {

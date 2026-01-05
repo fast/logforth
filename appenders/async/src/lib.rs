@@ -19,7 +19,6 @@
 
 use logforth_core::Error;
 use logforth_core::kv;
-use logforth_core::record::RecordOwned;
 
 mod append;
 mod state;
@@ -30,7 +29,7 @@ pub use self::append::AsyncBuilder;
 
 enum Task {
     Log {
-        record: Box<RecordOwned>,
+        record: Box<worker::RecordOwned>,
         diags: Vec<(kv::KeyOwned, kv::ValueOwned)>,
     },
     Flush {
@@ -44,4 +43,37 @@ enum Overflow {
     Block,
     /// Drops the incoming operation.
     DropIncoming,
+}
+
+#[derive(Clone)]
+enum Sender<T> {
+    Unbounded(std::sync::mpsc::Sender<T>),
+    Bounded(std::sync::mpsc::SyncSender<T>),
+}
+
+impl<T> std::fmt::Debug for Sender<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Sender::Unbounded(tx) => tx.fmt(f),
+            Sender::Bounded(tx) => tx.fmt(f),
+        }
+    }
+}
+
+impl<T> Sender<T> {
+    fn send(&self, value: T) -> Result<(), std::sync::mpsc::SendError<T>> {
+        match self {
+            Sender::Unbounded(s) => s.send(value),
+            Sender::Bounded(s) => s.send(value),
+        }
+    }
+
+    fn try_send(&self, value: T) -> Result<(), std::sync::mpsc::TrySendError<T>> {
+        match self {
+            Sender::Unbounded(s) => s
+                .send(value)
+                .map_err(|e| std::sync::mpsc::TrySendError::Disconnected(e.0)),
+            Sender::Bounded(s) => s.try_send(value),
+        }
+    }
 }

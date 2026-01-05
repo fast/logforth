@@ -82,6 +82,14 @@ impl PutAsFieldValue for &str {
     }
 }
 
+impl PutAsFieldValue for std::fmt::Arguments<'_> {
+    fn put_field_value(self, buffer: &mut Vec<u8>) {
+        // SAFETY: no more than an allocate-less version
+        //  buffer.extend_from_slice(format!("{}", self))
+        write!(buffer, "{self}").unwrap();
+    }
+}
+
 impl PutAsFieldValue for Value<'_> {
     fn put_field_value(self, buffer: &mut Vec<u8>) {
         // SAFETY: no more than an allocate-less version

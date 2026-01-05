@@ -16,10 +16,10 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 
 use arc_swap::ArcSwapOption;
-use crossbeam_channel::Sender;
 use logforth_core::Error;
 
 use crate::Overflow;
+use crate::Sender;
 use crate::Task;
 
 #[derive(Debug)]
@@ -56,8 +56,8 @@ impl AsyncState {
             }),
             Overflow::DropIncoming => match sender.try_send(task) {
                 Ok(()) => Ok(()),
-                Err(crossbeam_channel::TrySendError::Full(_)) => Ok(()),
-                Err(crossbeam_channel::TrySendError::Disconnected(task)) => {
+                Err(std::sync::mpsc::TrySendError::Full(_)) => Ok(()),
+                Err(std::sync::mpsc::TrySendError::Disconnected(task)) => {
                     Err(Error::new(match task {
                         Task::Log { .. } => "failed to send log task to async appender",
                         Task::Flush { .. } => "failed to send flush task to async appender",

@@ -183,7 +183,7 @@ struct RecordLine<'a> {
     extra_fields: BTreeMap<String, serde_json::Value>,
     severity: &'a str,
     timestamp: jiff::Timestamp,
-    message: &'a str,
+    message: std::fmt::Arguments<'a>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     #[serde(rename = "logging.googleapis.com/labels")]
     labels: BTreeMap<String, serde_json::Value>,

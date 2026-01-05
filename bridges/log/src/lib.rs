@@ -132,11 +132,7 @@ fn forward_log(logger: &Logger, record: &Record) {
     };
 
     // payload
-    builder = if let Some(payload) = record.args().as_str() {
-        builder.payload(payload)
-    } else {
-        builder.payload(record.args().to_string())
-    };
+    builder = builder.payload(*record.args());
 
     // key-values
     let mut kvs = Vec::new();
