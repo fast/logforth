@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! An example of custom layout and filter.
-
 use logforth::Diagnostic;
 use logforth::Error;
 use logforth::Filter;

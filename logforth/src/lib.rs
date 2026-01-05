@@ -65,6 +65,7 @@
 //! [README]: https://github.com/fast/logforth?tab=readme-ov-file
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
 
 pub use logforth_core::Error;
 pub use logforth_core::append::Append;

@@ -15,6 +15,7 @@
 //! Appenders and utilities for integrating with OpenTelemetry.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
 
 use std::borrow::Cow;
 use std::fmt;

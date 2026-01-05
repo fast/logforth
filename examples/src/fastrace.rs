@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! An example of using `fastrace` with `logforth`.
-
 use fastrace::Span;
 use fastrace::collector::Config;
 use fastrace::collector::ConsoleReporter;

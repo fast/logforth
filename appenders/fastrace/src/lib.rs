@@ -15,6 +15,7 @@
 //! Appender for integrating with [fastrace](https://crates.io/crates/fastrace).
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
 
 use std::borrow::Cow;
 
@@ -42,10 +43,6 @@ use logforth_core::record::Record;
 /// The caller or application should ensure that the `flush` method or [`fastrace::flush`] is called
 /// before the program exits to collect the final events, especially when this appender is used
 /// in a global context.
-///
-/// Both the `exit` method and the drop glue do not call `fastrace::flush`, because it uses
-/// thread-local storage internally, which is not supported in `atexit` callbacks or arbitrary
-/// drop cases.
 #[derive(Default, Debug, Clone)]
 #[non_exhaustive]
 pub struct FastraceEvent {}

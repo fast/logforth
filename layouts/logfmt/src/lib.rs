@@ -15,6 +15,7 @@
 //! A logfmt layout for formatting log records.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
 
 pub extern crate jiff;
 

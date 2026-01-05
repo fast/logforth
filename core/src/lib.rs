@@ -15,6 +15,7 @@
 //! Core structs and functions for the logforth logging framework.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
 
 pub mod append;
 pub mod diagnostic;

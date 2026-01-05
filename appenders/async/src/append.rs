@@ -27,6 +27,28 @@ use crate::state::AsyncState;
 use crate::worker::Worker;
 
 /// A composable appender, logging and flushing asynchronously.
+///
+/// # Examples
+///
+/// ```
+/// use logforth_append_async::AsyncBuilder;
+/// use logforth_core::append::Stderr;
+///
+/// let async_append = AsyncBuilder::new("logforth-async-append")
+///     .overflow_drop_incoming()
+///     // for demonstration purposes; in practice, this can be a file appender, etc.
+///     .append(Stderr::default())
+///     .build();
+/// ```
+///
+/// # Caveats
+///
+/// The caller or application should ensure that the `flush` method is called before the program
+/// exits to write out any buffered events, especially when this appender is used in a global
+/// context.
+///
+/// The drop glue will also flush the appender. But, in Rust, static items do not call `drop`
+/// at the end of the program.
 #[derive(Debug)]
 pub struct Async {
     state: AsyncState,

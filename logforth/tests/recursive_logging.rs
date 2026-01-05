@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! This case ensures our impl does properly handle recursive logging.
-
-#![cfg(feature = "starter-log")]
-
 use std::num::NonZeroUsize;
 
 use logforth::Diagnostic;

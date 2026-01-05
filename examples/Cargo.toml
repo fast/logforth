@@ -1,0 +1,134 @@
+# Copyright 2024 FastLabs Developers
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+[package]
+name = "examples"
+publish = false
+
+edition.workspace = true
+rust-version.workspace = true
+
+[package.metadata.release]
+release = false
+
+[features]
+# Starters
+starter-log = ["bridge-log", "append-file", "layout-text", "layout-json"]
+
+# Bridges
+bridge-log = ["logforth/bridge-log"]
+
+# Appenders
+append-async = ["logforth/append-async"]
+append-fastrace = ["logforth/append-fastrace"]
+append-file = ["logforth/append-file"]
+append-journald = ["logforth/append-journald"]
+append-opentelemetry = ["logforth/append-opentelemetry"]
+append-syslog = ["logforth/append-syslog"]
+
+# Layouts
+layout-google-cloud-logging = ["logforth/layout-google-cloud-logging"]
+layout-json = ["logforth/layout-json"]
+layout-logfmt = ["logforth/layout-logfmt"]
+layout-text = ["logforth/layout-text"]
+
+# Diagnostics
+diagnostic-fastrace = ["logforth/diagnostic-fastrace"]
+diagnostic-task-local = ["logforth/diagnostic-task-local"]
+
+[dependencies]
+logforth = { workspace = true }
+
+[dev-dependencies]
+fastrace = { workspace = true, features = ["enable"] }
+log = { workspace = true, features = ["kv_serde"] }
+serde = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+
+[lints]
+workspace = true
+
+[[example]]
+name = "asynchronous"
+path = "src/asynchronous.rs"
+required-features = ["starter-log", "append-async"]
+
+[[example]]
+name = "testing"
+path = "src/testing.rs"
+required-features = ["bridge-log"]
+
+[[example]]
+name = "simple_stdout"
+path = "src/simple_stdout.rs"
+required-features = ["bridge-log"]
+
+[[example]]
+name = "log_with_logger"
+path = "src/log_with_logger.rs"
+required-features = ["bridge-log"]
+
+[[example]]
+name = "json_stdout"
+path = "src/json_stdout.rs"
+required-features = ["starter-log"]
+
+[[example]]
+name = "multiple_dispatches"
+path = "src/multiple_dispatches.rs"
+required-features = ["starter-log"]
+
+[[example]]
+name = "rolling_file"
+path = "src/rolling_file.rs"
+required-features = ["starter-log"]
+
+[[example]]
+name = "single_file"
+path = "src/single_file.rs"
+required-features = ["starter-log"]
+
+[[example]]
+name = "task_local"
+path = "src/task_local.rs"
+required-features = ["starter-log", "diagnostic-task-local"]
+
+[[example]]
+name = "custom_layout_filter"
+path = "src/custom_layout_filter.rs"
+required-features = ["starter-log"]
+
+[[example]]
+name = "syslog"
+path = "src/syslog.rs"
+required-features = ["starter-log", "append-syslog"]
+
+[[example]]
+name = "journald"
+path = "src/journald.rs"
+required-features = ["starter-log", "append-journald"]
+
+[[example]]
+name = "fastrace"
+path = "src/fastrace.rs"
+required-features = ["starter-log", "append-fastrace", "diagnostic-fastrace"]
+
+[[example]]
+name = "google_cloud_logging"
+path = "src/google_cloud_logging.rs"
+required-features = [
+  "starter-log",
+  "diagnostic-fastrace",
+  "layout-google-cloud-logging",
+]

@@ -15,6 +15,7 @@
 //! A layout that formats log record as optionally colored text.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
 
 pub extern crate colored;
 pub extern crate jiff;

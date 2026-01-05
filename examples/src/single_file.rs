@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! An example of logging to a single file in JSON format.
-
 use logforth::append::file::FileBuilder;
 use logforth::layout::JsonLayout;
 use logforth::record::LevelFilter;

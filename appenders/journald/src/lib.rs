@@ -16,6 +16,7 @@
 
 #![cfg(unix)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
 
 use std::io::Write;
 use std::os::unix::net::UnixDatagram;

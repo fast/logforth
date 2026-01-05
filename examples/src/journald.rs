@@ -12,22 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! An example of logging with a specific logger instance.
-
-use logforth::append;
-use logforth::bridge::log::OwnedLogProxy;
-
+#[cfg(unix)]
 fn main() {
-    log::set_max_level(log::LevelFilter::Trace);
+    let append = logforth::append::Journald::new().unwrap();
+    logforth::starter_log::builder()
+        .dispatch(|d| d.append(append))
+        .apply();
 
-    let l = logforth::core::builder()
-        .dispatch(|d| d.append(append::Stdout::default()))
-        .build();
+    log::error!("Hello, journald at ERROR!");
+    log::warn!("Hello, journald at WARN!");
+    log::info!("Hello, journald at INFO!");
+    log::debug!("Hello, journald at DEBUG!");
+    log::trace!("Hello, journald at TRACE!");
+}
 
-    let l = OwnedLogProxy::new(l);
-    log::error!(logger: l, "Hello error!");
-    log::warn!(logger: l, "Hello warn!");
-    log::info!(logger: l, "Hello info!");
-    log::debug!(logger: l, "Hello debug!");
-    log::trace!(logger: l, "Hello trace!");
+#[cfg(not(unix))]
+fn main() {
+    println!("This example is only for Unix-like systems.");
 }

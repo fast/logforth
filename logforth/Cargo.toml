@@ -81,99 +81,13 @@ logforth-layout-logfmt = { workspace = true, optional = true }
 logforth-layout-text = { workspace = true, optional = true }
 
 [dev-dependencies]
-fastrace = { workspace = true, features = ["enable"] }
-log = { workspace = true, features = ["kv_serde"] }
+log = { workspace = true }
 logforth-append-file = { workspace = true }
-serde = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
 
 [lints]
 workspace = true
 
-[[example]]
-doc-scrape-examples = true
-name = "asynchronous"
-path = "examples/asynchronous.rs"
-required-features = ["starter-log", "append-async"]
-
-[[example]]
-doc-scrape-examples = true
-name = "testing"
-path = "examples/testing.rs"
-required-features = ["bridge-log"]
-
-[[example]]
-doc-scrape-examples = true
-name = "simple_stdout"
-path = "examples/simple_stdout.rs"
-required-features = ["bridge-log"]
-
-[[example]]
-doc-scrape-examples = true
-name = "log_with_logger"
-path = "examples/log_with_logger.rs"
-required-features = ["bridge-log"]
-
-[[example]]
-doc-scrape-examples = true
-name = "json_stdout"
-path = "examples/json_stdout.rs"
+[[test]]
+name = "recursive_logging"
+path = "tests/recursive_logging.rs"
 required-features = ["starter-log"]
-
-[[example]]
-doc-scrape-examples = true
-name = "multiple_dispatches"
-path = "examples/multiple_dispatches.rs"
-required-features = ["starter-log"]
-
-[[example]]
-doc-scrape-examples = true
-name = "rolling_file"
-path = "examples/rolling_file.rs"
-required-features = ["starter-log"]
-
-[[example]]
-doc-scrape-examples = true
-name = "single_file"
-path = "examples/single_file.rs"
-required-features = ["starter-log"]
-
-[[example]]
-doc-scrape-examples = true
-name = "task_local"
-path = "examples/task_local.rs"
-required-features = ["starter-log", "diagnostic-task-local"]
-
-[[example]]
-doc-scrape-examples = true
-name = "custom_layout_filter"
-path = "examples/custom_layout_filter.rs"
-required-features = ["starter-log"]
-
-[[example]]
-doc-scrape-examples = true
-name = "syslog"
-path = "examples/syslog.rs"
-required-features = ["starter-log", "append-syslog"]
-
-[[example]]
-doc-scrape-examples = true
-name = "journald"
-path = "examples/journald.rs"
-required-features = ["starter-log", "append-journald"]
-
-[[example]]
-doc-scrape-examples = true
-name = "fastrace"
-path = "examples/fastrace.rs"
-required-features = ["starter-log", "append-fastrace", "diagnostic-fastrace"]
-
-[[example]]
-doc-scrape-examples = true
-name = "google_cloud_logging"
-path = "examples/google_cloud_logging.rs"
-required-features = [
-  "starter-log",
-  "diagnostic-fastrace",
-  "layout-google-cloud-logging",
-]
