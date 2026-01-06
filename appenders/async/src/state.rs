@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
 use std::sync::mpsc;
 use std::thread::JoinHandle;
 
-use arc_swap::ArcSwapOption;
 use logforth_core::Error;
 
 use crate::Overflow;
@@ -24,7 +22,7 @@ use crate::Task;
 use crate::channel::Sender;
 
 #[derive(Debug)]
-pub(crate) struct AsyncState(ArcSwapOption<State>);
+pub(crate) struct AsyncState(Option<State>);
 
 #[derive(Debug)]
 struct State {
@@ -35,20 +33,22 @@ struct State {
 
 impl AsyncState {
     pub(crate) fn new(overflow: Overflow, sender: Sender<Task>, handle: JoinHandle<()>) -> Self {
-        Self(ArcSwapOption::from(Some(Arc::new(State {
+        Self(Some(State {
             overflow,
             sender,
             handle,
-        }))))
+        }))
     }
 
     pub(crate) fn send_task(&self, task: Task) -> Result<(), Error> {
-        let state = self.0.load();
         // SAFETY: state is always Some before dropped.
-        let state = state.as_ref().unwrap();
-        let sender = &state.sender;
+        let State {
+            overflow,
+            sender,
+            handle: _,
+        } = self.0.as_ref().unwrap();
 
-        match state.overflow {
+        match overflow {
             Overflow::Block => sender.send(task).map_err(|err| {
                 Error::new(match err.0 {
                     Task::Log { .. } => "failed to send log task to async appender",
@@ -65,27 +65,21 @@ impl AsyncState {
             },
         }
     }
-
-    pub(crate) fn destroy(&self) {
-        if let Some(state) = self.0.swap(None) {
-            // SAFETY: state has always one strong count before swapped.
-            let State {
-                overflow: _,
-                sender,
-                handle,
-            } = Arc::into_inner(state).unwrap();
-
-            // drop our sender, threads will break the loop after receiving and processing
-            drop(sender);
-
-            // wait for the thread to finish
-            handle.join().expect("failed to join async appender thread");
-        }
-    }
 }
 
 impl Drop for AsyncState {
     fn drop(&mut self) {
-        self.destroy();
+        // SAFETY: state is always Some before dropped.
+        let State {
+            overflow: _,
+            sender,
+            handle,
+        } = self.0.take().unwrap();
+
+        // drop our sender, threads will break the loop after receiving and processing
+        drop(sender);
+
+        // wait for the thread to finish
+        handle.join().expect("failed to join async appender thread");
     }
 }
