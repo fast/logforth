@@ -245,7 +245,7 @@ impl Append for OpentelemetryLog {
         } else if let Some(payload) = record.payload_static() {
             log_record.set_body(AnyValue::from(payload));
         } else {
-            log_record.set_body(AnyValue::from(record.payload().to_owned()));
+            log_record.set_body(AnyValue::from(record.payload().to_string()));
         }
 
         if let Some(module_path) = record.module_path_static() {

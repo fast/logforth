@@ -19,6 +19,8 @@
 
 pub extern crate jiff;
 
+use std::borrow::Cow;
+
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use logforth_core::Diagnostic;
@@ -112,7 +114,11 @@ impl Layout for LogfmtLayout {
         let target = record.target();
         let file = record.filename();
         let line = record.line().unwrap_or_default();
-        let message = record.payload();
+        let message = if let Some(msg) = record.payload_static() {
+            Cow::Borrowed(msg)
+        } else {
+            Cow::Owned(record.payload().to_string())
+        };
 
         let mut visitor = KvFormatter {
             text: format!("timestamp={time:.6}"),
@@ -124,7 +130,7 @@ impl Layout for LogfmtLayout {
             Key::new("position"),
             Value::from_display(&format_args!("{file}:{line}")),
         )?;
-        visitor.visit(Key::new("message"), Value::from_str(message))?;
+        visitor.visit(Key::new("message"), Value::from_str(message.as_ref()))?;
 
         record.key_values().visit(&mut visitor)?;
         for d in diags {

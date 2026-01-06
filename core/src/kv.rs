@@ -24,7 +24,6 @@ use value_bag::OwnedValueBag;
 use value_bag::ValueBag;
 
 use crate::Error;
-use crate::str::OwnedStr;
 use crate::str::RefStr;
 
 /// A visitor to walk through key-value pairs.
@@ -63,7 +62,7 @@ impl<'a> Key<'a> {
 
     /// Convert to an owned key.
     pub fn to_owned(&self) -> KeyOwned {
-        KeyOwned(self.0.into_owned())
+        KeyOwned(self.0.into_cow_static())
     }
 
     /// Convert to a `Cow` str.
@@ -82,12 +81,15 @@ pub type ValueOwned = OwnedValueBag;
 
 /// An owned key in a key-value pair.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct KeyOwned(OwnedStr);
+pub struct KeyOwned(Cow<'static, str>);
 
 impl KeyOwned {
     /// Create a `Key` ref.
     pub fn by_ref(&self) -> Key<'_> {
-        Key(self.0.by_ref())
+        Key(match &self.0 {
+            Cow::Borrowed(s) => RefStr::Static(s),
+            Cow::Owned(s) => RefStr::Borrowed(s),
+        })
     }
 }
 
@@ -143,7 +145,7 @@ impl<'a> KeyValues<'a> {
                 }
             }),
             KeyValuesState::Owned(p) => p.iter().find_map(|(k, v)| {
-                if k.0.get() != key {
+                if k.0.as_ref() != key {
                     None
                 } else {
                     Some(v.by_ref())

@@ -49,7 +49,11 @@ pub struct FastraceEvent {}
 
 impl Append for FastraceEvent {
     fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
-        let message = record.payload().to_owned();
+        let message = if let Some(msg) = record.payload_static() {
+            Cow::Borrowed(msg)
+        } else {
+            Cow::Owned(record.payload().to_string())
+        };
 
         let mut collector = KvCollector { kv: Vec::new() };
         record.key_values().visit(&mut collector)?;

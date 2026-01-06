@@ -23,6 +23,7 @@ use logforth_core::trap::BestEffortTrap;
 
 use crate::Overflow;
 use crate::Task;
+use crate::channel::channel;
 use crate::state::AsyncState;
 use crate::worker::Worker;
 
@@ -145,11 +146,7 @@ impl AsyncBuilder {
             overflow,
         } = self;
 
-        let (sender, receiver) = match buffered_lines_limit {
-            Some(limit) => crossbeam_channel::bounded(limit),
-            None => crossbeam_channel::unbounded(),
-        };
-
+        let (sender, receiver) = channel(buffered_lines_limit);
         let worker = Worker::new(appends, receiver, trap);
         let thread_handle = std::thread::Builder::new()
             .name(thread_name)

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crossbeam_channel::Receiver;
 use logforth_core::Append;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
@@ -21,6 +20,7 @@ use logforth_core::kv;
 use logforth_core::kv::Visitor;
 
 use crate::Task;
+use crate::channel::Receiver;
 
 pub(crate) struct Worker {
     appends: Vec<Box<dyn Append>>,
@@ -56,13 +56,15 @@ impl Worker {
                     } else {
                         &[Box::new(OwnedDiagnostic(diags))]
                     };
-                    let record = record.as_record();
-                    for append in appends.iter() {
-                        if let Err(err) = append.append(&record, diags) {
-                            let err = Error::new("failed to append record").with_source(err);
-                            trap.trap(&err);
+
+                    record.with(|record| {
+                        for append in appends.iter() {
+                            if let Err(err) = append.append(&record, diags) {
+                                let err = Error::new("failed to append record").with_source(err);
+                                trap.trap(&err);
+                            }
                         }
-                    }
+                    });
                 }
                 Task::Flush { done } => {
                     let mut error = None;

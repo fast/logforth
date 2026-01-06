@@ -273,11 +273,11 @@ impl State {
                 } else {
                     state.current_filesize = last.metadata.len() as usize;
 
-                    if let Ok(mtime) = last.metadata.modified() {
-                        if let Ok(mtime) = Zoned::try_from(mtime) {
-                            state.next_date_timestamp = state.rotation.next_date_timestamp(&mtime);
-                            state.this_date_timestamp = mtime;
-                        }
+                    if let Ok(mtime) = last.metadata.modified()
+                        && let Ok(mtime) = Zoned::try_from(mtime)
+                    {
+                        state.next_date_timestamp = state.rotation.next_date_timestamp(&mtime);
+                        state.this_date_timestamp = mtime;
                     }
 
                     // continue to use the existing current log file
@@ -448,11 +448,11 @@ impl State {
             .with_source(err)
         })?;
 
-        if let Some(max_files) = self.max_files {
-            if let Err(err) = self.delete_oldest_logs(max_files.get()) {
-                let err = Error::new("failed to delete oldest logs").with_source(err);
-                self.trap.trap(&err);
-            }
+        if let Some(max_files) = self.max_files
+            && let Err(err) = self.delete_oldest_logs(max_files.get())
+        {
+            let err = Error::new("failed to delete oldest logs").with_source(err);
+            self.trap.trap(&err);
         }
 
         self.create_log_writer()

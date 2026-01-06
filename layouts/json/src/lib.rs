@@ -133,7 +133,7 @@ struct RecordLine<'a> {
     target: &'a str,
     file: &'a str,
     line: u32,
-    message: &'a str,
+    message: std::fmt::Arguments<'a>,
     #[serde(skip_serializing_if = "Map::is_empty")]
     kvs: Map<String, serde_json::Value>,
     #[serde(skip_serializing_if = "Map::is_empty")]

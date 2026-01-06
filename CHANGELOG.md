@@ -6,8 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking changes
 
+* Bump minimum supported Rust version (MSRV) to 1.89.0.
 * `Append` has no more `exit` method. Users should compose `logforth::core::default_logger().flush()` with their own graceful shutdown logic.
 * `Async` appender's `flush` method is now blocking until all buffered logs are flushed by worker threads. Any errors during flushing will be propagated back to the `flush` caller.
+* `Record::payload` is now `std::fmt::Arguments` instead of `Cow<'static, str>`.
+* `RecordOwned::as_record` has been removed; use `RecordOwned::with` instead. (This is a limitation of Rust as described [here](https://github.com/rust-lang/rust/issues/92698#issuecomment-3311144848).)
 
 ## [0.29.1] 2025-11-03
 

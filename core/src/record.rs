@@ -22,7 +22,6 @@ use std::time::SystemTime;
 use crate::Error;
 use crate::kv;
 use crate::kv::KeyValues;
-use crate::str::OwnedStr;
 use crate::str::RefStr;
 
 /// The payload of a log message.
@@ -40,7 +39,7 @@ pub struct Record<'a> {
     column: Option<u32>,
 
     // the payload
-    payload: OwnedStr,
+    payload: fmt::Arguments<'a>,
 
     // structural logging
     kvs: KeyValues<'a>,
@@ -120,37 +119,18 @@ impl<'a> Record<'a> {
     }
 
     /// The message body.
-    pub fn payload(&self) -> &str {
-        self.payload.get()
+    pub fn payload(&self) -> fmt::Arguments<'a> {
+        self.payload
     }
 
     /// The message body, if it is a `'static` str.
     pub fn payload_static(&self) -> Option<&'static str> {
-        self.payload.get_static()
+        self.payload.as_str()
     }
 
     /// The key-values.
     pub fn key_values(&self) -> &KeyValues<'a> {
         &self.kvs
-    }
-
-    /// Convert to an owned record.
-    pub fn to_owned(&self) -> RecordOwned {
-        RecordOwned {
-            now: self.now,
-            level: self.level,
-            target: self.target.into_owned(),
-            module_path: self.module_path.map(RefStr::into_owned),
-            file: self.file.map(RefStr::into_owned),
-            line: self.line,
-            column: self.column,
-            payload: self.payload.clone(),
-            kvs: self
-                .kvs
-                .iter()
-                .map(|(k, v)| (k.to_owned(), v.to_owned()))
-                .collect(),
-        }
     }
 
     /// Create a builder initialized with the current record's values.
@@ -164,9 +144,32 @@ impl<'a> Record<'a> {
                 file: self.file,
                 line: self.line,
                 column: self.column,
-                payload: self.payload.clone(),
+                payload: self.payload,
                 kvs: self.kvs.clone(),
             },
+        }
+    }
+
+    /// Convert to an owned record.
+    pub fn to_owned(&self) -> RecordOwned {
+        RecordOwned {
+            now: self.now,
+            level: self.level,
+            target: self.target.into_cow_static(),
+            module_path: self.module_path.map(|m| m.into_cow_static()),
+            file: self.file.map(|f| f.into_cow_static()),
+            line: self.line,
+            column: self.column,
+            payload: if let Some(s) = self.payload.as_str() {
+                Cow::Borrowed(s)
+            } else {
+                Cow::Owned(self.payload.to_string())
+            },
+            kvs: self
+                .kvs
+                .iter()
+                .map(|(k, v)| (k.to_owned(), v.to_owned()))
+                .collect(),
         }
     }
 
@@ -193,7 +196,7 @@ impl Default for RecordBuilder<'_> {
                 file: None,
                 line: None,
                 column: None,
-                payload: OwnedStr::Static(""),
+                payload: format_args!(""),
                 kvs: Default::default(),
             },
         }
@@ -202,11 +205,8 @@ impl Default for RecordBuilder<'_> {
 
 impl<'a> RecordBuilder<'a> {
     /// Set [`payload`](Record::payload).
-    pub fn payload(mut self, payload: impl Into<Cow<'static, str>>) -> Self {
-        self.record.payload = match payload.into() {
-            Cow::Borrowed(s) => OwnedStr::Static(s),
-            Cow::Owned(s) => OwnedStr::Owned(s.into_boxed_str()),
-        };
+    pub fn payload(mut self, payload: fmt::Arguments<'a>) -> Self {
+        self.record.payload = payload;
         self
     }
 
@@ -258,6 +258,12 @@ impl<'a> RecordBuilder<'a> {
         self
     }
 
+    /// Set [`column`](Record::column).
+    pub fn column(mut self, column: Option<u32>) -> Self {
+        self.record.column = column;
+        self
+    }
+
     /// Set [`key_values`](struct.Record.html#method.key_values)
     pub fn key_values(mut self, kvs: impl Into<KeyValues<'a>>) -> Self {
         self.record.kvs = kvs.into();
@@ -267,6 +273,55 @@ impl<'a> RecordBuilder<'a> {
     /// Invoke the builder and return a `Record`
     pub fn build(self) -> Record<'a> {
         self.record
+    }
+}
+
+/// Owned version of a log record.
+#[derive(Clone, Debug)]
+pub struct RecordOwned {
+    // the observed time
+    now: SystemTime,
+
+    // the metadata
+    level: Level,
+    target: Cow<'static, str>,
+    module_path: Option<Cow<'static, str>>,
+    file: Option<Cow<'static, str>>,
+    line: Option<u32>,
+    column: Option<u32>,
+
+    // the payload
+    payload: Cow<'static, str>,
+
+    // structural logging
+    kvs: Vec<(kv::KeyOwned, kv::ValueOwned)>,
+}
+
+impl RecordOwned {
+    /// Execute the given function with the `Record`.
+    pub fn with(&self, f: impl FnOnce(Record<'_>)) {
+        f(Record {
+            now: self.now,
+            level: self.level,
+            target: match &self.target {
+                Cow::Borrowed(s) => RefStr::Static(s),
+                Cow::Owned(s) => RefStr::Borrowed(s.as_ref()),
+            },
+            module_path: match &self.module_path {
+                Some(Cow::Borrowed(s)) => Some(RefStr::Static(s)),
+                Some(Cow::Owned(s)) => Some(RefStr::Borrowed(s)),
+                None => None,
+            },
+            file: match &self.file {
+                Some(Cow::Borrowed(s)) => Some(RefStr::Static(s)),
+                Some(Cow::Owned(s)) => Some(RefStr::Borrowed(s)),
+                None => None,
+            },
+            line: self.line,
+            column: self.column,
+            payload: format_args!("{}", self.payload),
+            kvs: KeyValues::from(self.kvs.as_slice()),
+        });
     }
 }
 
@@ -337,44 +392,6 @@ impl<'a> FilterCriteriaBuilder<'a> {
     /// Invoke the builder and return a `Metadata`
     pub fn build(self) -> FilterCriteria<'a> {
         self.metadata
-    }
-}
-
-/// Owned version of a log record.
-#[derive(Clone, Debug)]
-pub struct RecordOwned {
-    // the observed time
-    now: SystemTime,
-
-    // the metadata
-    level: Level,
-    target: OwnedStr,
-    module_path: Option<OwnedStr>,
-    file: Option<OwnedStr>,
-    line: Option<u32>,
-    column: Option<u32>,
-
-    // the payload
-    payload: OwnedStr,
-
-    // structural logging
-    kvs: Vec<(kv::KeyOwned, kv::ValueOwned)>,
-}
-
-impl RecordOwned {
-    /// Create a `Record` referencing the data in this `RecordOwned`.
-    pub fn as_record(&self) -> Record<'_> {
-        Record {
-            now: self.now,
-            level: self.level,
-            target: self.target.by_ref(),
-            module_path: self.module_path.as_ref().map(OwnedStr::by_ref),
-            file: self.file.as_ref().map(OwnedStr::by_ref),
-            line: self.line,
-            column: self.column,
-            payload: self.payload.clone(),
-            kvs: KeyValues::from(self.kvs.as_slice()),
-        }
     }
 }
 

@@ -22,6 +22,7 @@ use logforth_core::kv;
 use logforth_core::record::RecordOwned;
 
 mod append;
+mod channel;
 mod state;
 mod worker;
 
