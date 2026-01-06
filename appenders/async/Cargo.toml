@@ -32,7 +32,6 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-arc-swap = { workspace = true }
 logforth-core = { workspace = true }
 oneshot = { workspace = true }
 
