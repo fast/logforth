@@ -20,6 +20,7 @@ use std::str::FromStr;
 use std::time::SystemTime;
 
 use crate::Error;
+use crate::kv;
 use crate::kv::KeyValues;
 use crate::str::RefStr;
 
@@ -149,6 +150,29 @@ impl<'a> Record<'a> {
         }
     }
 
+    /// Convert to an owned record.
+    pub fn to_owned(&self) -> RecordOwned {
+        RecordOwned {
+            now: self.now,
+            level: self.level,
+            target: self.target.into_cow_static(),
+            module_path: self.module_path.map(|m| m.into_cow_static()),
+            file: self.file.map(|f| f.into_cow_static()),
+            line: self.line,
+            column: self.column,
+            payload: if let Some(s) = self.payload.as_str() {
+                Cow::Borrowed(s)
+            } else {
+                Cow::Owned(self.payload.to_string())
+            },
+            kvs: self
+                .kvs
+                .iter()
+                .map(|(k, v)| (k.to_owned(), v.to_owned()))
+                .collect(),
+        }
+    }
+
     /// Returns a new builder.
     pub fn builder() -> RecordBuilder<'a> {
         RecordBuilder::default()
@@ -180,12 +204,6 @@ impl Default for RecordBuilder<'_> {
 }
 
 impl<'a> RecordBuilder<'a> {
-    /// Set [`time`](Record::time).
-    pub fn time(mut self, now: SystemTime) -> Self {
-        self.record.now = now;
-        self
-    }
-
     /// Set [`payload`](Record::payload).
     pub fn payload(mut self, payload: fmt::Arguments<'a>) -> Self {
         self.record.payload = payload;
@@ -255,6 +273,55 @@ impl<'a> RecordBuilder<'a> {
     /// Invoke the builder and return a `Record`
     pub fn build(self) -> Record<'a> {
         self.record
+    }
+}
+
+/// Owned version of a log record.
+#[derive(Clone, Debug)]
+pub struct RecordOwned {
+    // the observed time
+    now: SystemTime,
+
+    // the metadata
+    level: Level,
+    target: Cow<'static, str>,
+    module_path: Option<Cow<'static, str>>,
+    file: Option<Cow<'static, str>>,
+    line: Option<u32>,
+    column: Option<u32>,
+
+    // the payload
+    payload: Cow<'static, str>,
+
+    // structural logging
+    kvs: Vec<(kv::KeyOwned, kv::ValueOwned)>,
+}
+
+impl RecordOwned {
+    /// Execute the given function with the `Record`.
+    pub fn with(&self, f: impl FnOnce(Record<'_>)) {
+        f(Record {
+            now: self.now,
+            level: self.level,
+            target: match &self.target {
+                Cow::Borrowed(s) => RefStr::Static(s),
+                Cow::Owned(s) => RefStr::Borrowed(s.as_ref()),
+            },
+            module_path: match &self.module_path {
+                Some(Cow::Borrowed(s)) => Some(RefStr::Static(s)),
+                Some(Cow::Owned(s)) => Some(RefStr::Borrowed(s)),
+                None => None,
+            },
+            file: match &self.file {
+                Some(Cow::Borrowed(s)) => Some(RefStr::Static(s)),
+                Some(Cow::Owned(s)) => Some(RefStr::Borrowed(s)),
+                None => None,
+            },
+            line: self.line,
+            column: self.column,
+            payload: format_args!("{}", self.payload),
+            kvs: KeyValues::from(self.kvs.as_slice()),
+        });
     }
 }
 

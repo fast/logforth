@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 
 * `Append` has no more `exit` method. Users should compose `logforth::core::default_logger().flush()` with their own graceful shutdown logic.
 * `Async` appender's `flush` method is now blocking until all buffered logs are flushed by worker threads. Any errors during flushing will be propagated back to the `flush` caller.
-* Bump minimum supported Rust version (MSRV) to 1.89.0. Mainly for [allowing storing `format_args!()` in a variable](https://github.com/rust-lang/rust/pull/140748).
+* Bump minimum supported Rust version (MSRV) to 1.89.0.
 
 ## [0.29.1] 2025-11-03
 

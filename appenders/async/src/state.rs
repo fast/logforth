@@ -13,14 +13,15 @@
 // limitations under the License.
 
 use std::sync::Arc;
+use std::sync::mpsc;
 use std::thread::JoinHandle;
 
 use arc_swap::ArcSwapOption;
 use logforth_core::Error;
 
 use crate::Overflow;
-use crate::Sender;
 use crate::Task;
+use crate::channel::Sender;
 
 #[derive(Debug)]
 pub(crate) struct AsyncState(ArcSwapOption<State>);
@@ -56,13 +57,11 @@ impl AsyncState {
             }),
             Overflow::DropIncoming => match sender.try_send(task) {
                 Ok(()) => Ok(()),
-                Err(std::sync::mpsc::TrySendError::Full(_)) => Ok(()),
-                Err(std::sync::mpsc::TrySendError::Disconnected(task)) => {
-                    Err(Error::new(match task {
-                        Task::Log { .. } => "failed to send log task to async appender",
-                        Task::Flush { .. } => "failed to send flush task to async appender",
-                    }))
-                }
+                Err(mpsc::TrySendError::Full(_)) => Ok(()),
+                Err(mpsc::TrySendError::Disconnected(task)) => Err(Error::new(match task {
+                    Task::Log { .. } => "failed to send log task to async appender",
+                    Task::Flush { .. } => "failed to send flush task to async appender",
+                })),
             },
         }
     }
