@@ -120,6 +120,117 @@ impl LogStarterBuilder {
     }
 }
 
+/// A builder for setting up logforth with the `log` crate, using the [testing] appender.
+///
+/// [testing]: append::Testing
+pub struct LogStarterTestingBuilder {
+    filter: Box<dyn Filter>,
+    layout: Box<dyn Layout>,
+}
+
+/// Create a starter builder with a default [`append::Testing`] appender and an [`EnvFilter`]
+/// respecting `RUST_LOG`.
+///
+/// [`EnvFilter`]: crate::filter::EnvFilter
+///
+/// # Examples
+///
+/// ```
+/// logforth::starter_log::testing().apply();
+/// log::error!("This error will be logged to stderr and respect output capture settings.");
+/// ```
+pub fn testing() -> LogStarterTestingBuilder {
+    LogStarterTestingBuilder {
+        filter: default_filter(),
+        layout: default_layout(),
+    }
+}
+
+impl LogStarterTestingBuilder {
+    /// Set the layout for the testing appender.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use logforth::layout::PlainTextLayout;
+    /// logforth::starter_log::testing()
+    ///     .layout(PlainTextLayout::default())
+    ///     .apply();
+    /// log::error!("This error will be logged to stderr.");
+    /// ```
+    pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
+        self.layout = layout.into();
+        self
+    }
+
+    /// Set the layout for the testing appender.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use logforth::record::LevelFilter;
+    /// # use logforth::record::Level;
+    /// logforth::starter_log::testing().filter(LevelFilter::MoreSevereEqual(Level::Warn)).apply();
+    /// log::info!("This info message will be ignored.");
+    pub fn filter(mut self, filter: impl Into<Box<dyn Filter>>) -> Self {
+        self.filter = filter.into();
+        self
+    }
+
+    /// Set up the global logger with the testing dispatch.
+    ///
+    /// This should be called early in the execution of a Rust program. Any log events that occur
+    /// before initialization will be ignored.
+    ///
+    /// This function will set the global maximum log level to `Trace`. To override this, call
+    /// `log::set_max_level` after this function.
+    ///
+    /// # Errors
+    ///
+    /// Return an error if a global logger has already been set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// if let Err(err) = logforth::starter_log::testing().try_apply() {
+    ///     eprintln!("failed to set logger: {err}");
+    /// }
+    /// ```
+    pub fn try_apply(self) -> Result<(), Error> {
+        let Self { filter, layout } = self;
+        let append: Box<dyn Append> = Box::new(append::Testing::default().with_layout(layout));
+        builder()
+            .dispatch(|d| d.filter(filter).append(append))
+            .try_apply()
+    }
+
+    /// Set up the global logger with the configured testing dispatch.
+    ///
+    /// This should be called early in the execution of a Rust program. Any log events that occur
+    /// before initialization will be ignored.
+    ///
+    /// This function will panic if it is called more than once, or if another library has already
+    /// initialized a global logger.
+    ///
+    /// This function will set the global maximum log level to `Trace`. To override this, call
+    /// `log::set_max_level` after this function.
+    ///
+    /// # Panics
+    ///
+    /// Panic if the global logger has already been set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// logforth::starter_log::testing().apply();
+    /// ```
+    pub fn apply(self) {
+        self.try_apply().expect(
+            "LogStarterTestingBuilder::apply must be called before the global logger initialized",
+        );
+    }
+}
+
 enum StdStream {
     Stdout(append::Stdout),
     Stderr(append::Stderr),
