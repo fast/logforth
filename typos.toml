@@ -13,6 +13,7 @@
 # limitations under the License.
 
 [default.extend-words]
+"controllen" = "controllen" # libc's control_len
 
 [files]
 extend-exclude = []
