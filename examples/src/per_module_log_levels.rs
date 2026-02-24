@@ -35,11 +35,9 @@ fn main() {
         .dispatch(|d| d.filter(my_filter).append(append::Stdout::default()))
         .apply();
 
-    {
-        log::error!("Hello error!");
-        log::warn!("Hello warn!");
-        log::info!("Hello info!");
-        log::debug!("Hello debug!");
-        log::trace!("Hello trace!");
-    }
+    log::error!("Hello error!");
+    log::warn!("Hello warn!");
+    log::info!("Hello info!");
+    log::debug!("Hello debug!");
+    log::trace!("Hello trace!");
 }

@@ -109,7 +109,6 @@ name = "custom_layout_filter"
 path = "src/custom_layout_filter.rs"
 required-features = ["starter-log"]
 
-
 [[example]]
 name = "per_module_log_levels"
 path = "src/per_module_log_levels.rs"
