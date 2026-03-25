@@ -51,6 +51,7 @@ diagnostic-task-local = ["logforth/diagnostic-task-local"]
 logforth = { workspace = true }
 
 [dev-dependencies]
+ctor = "0.2"
 fastrace = { workspace = true, features = ["enable"] }
 log = { workspace = true, features = ["kv_serde"] }
 serde = { workspace = true }
@@ -112,6 +113,11 @@ required-features = ["starter-log"]
 [[example]]
 name = "per_module_log_levels"
 path = "src/per_module_log_levels.rs"
+required-features = ["starter-log"]
+
+[[example]]
+name = "per_module_with_ctor"
+path = "src/per_module_with_ctor.rs"
 required-features = ["starter-log"]
 
 [[example]]
