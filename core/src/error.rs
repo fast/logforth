@@ -18,7 +18,7 @@ use std::io;
 /// The error struct of logforth.
 pub struct Error {
     message: String,
-    sources: Vec<anyhow::Error>,
+    source: Option<anyhow::Error>,
     context: Vec<(&'static str, String)>,
 }
 
@@ -40,15 +40,8 @@ impl fmt::Display for Error {
             write!(f, " }}")?;
         }
 
-        if !self.sources.is_empty() {
-            write!(f, ", sources: [")?;
-            for (i, source) in self.sources.iter().enumerate() {
-                if i > 0 {
-                    write!(f, ", ")?;
-                }
-                write!(f, "{source}")?;
-            }
-            write!(f, "]")?;
+        if let Some(source) = &self.source {
+            write!(f, ", source: {source}")?;
         }
 
         Ok(())
@@ -62,7 +55,7 @@ impl fmt::Debug for Error {
             let mut de = f.debug_struct("Error");
             de.field("message", &self.message);
             de.field("context", &self.context);
-            de.field("sources", &self.sources);
+            de.field("sources", &self.source);
             return de.finish();
         }
 
@@ -76,12 +69,11 @@ impl fmt::Debug for Error {
                 writeln!(f, "   {k}: {v}")?;
             }
         }
-        if !self.sources.is_empty() {
+
+        if let Some(source) = &self.source {
             writeln!(f)?;
-            writeln!(f, "Sources:")?;
-            for source in self.sources.iter() {
-                writeln!(f, "   {source:#}")?;
-            }
+            writeln!(f, "Source:")?;
+            writeln!(f, "   {source:#}")?;
         }
 
         Ok(())
@@ -90,7 +82,7 @@ impl fmt::Debug for Error {
 
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.sources.first().map(|v| v.as_ref())
+        self.source.as_ref().map(|v| v.as_ref())
     }
 }
 
@@ -99,7 +91,7 @@ impl Error {
     pub fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
-            sources: vec![],
+            source: None,
             context: vec![],
         }
     }
@@ -110,15 +102,21 @@ impl Error {
         self
     }
 
-    /// Add one more source in error.
+    /// Set source for error.
+    ///
+    /// # Panics
+    ///
+    /// If the source has been set, we will raise a panic here.
     pub fn with_source(mut self, src: impl Into<anyhow::Error>) -> Self {
-        self.sources.push(src.into());
+        assert!(self.source.is_none(), "the source error has been set");
+
+        self.source = Some(src.into());
         self
     }
 
     /// Return an iterator over all sources of this error.
     pub fn sources(&self) -> impl ExactSizeIterator<Item = &(dyn std::error::Error + 'static)> {
-        self.sources.iter().map(|v| v.as_ref())
+        self.source.iter().map(|v| v.as_ref())
     }
 
     /// Default constructor for [`Error`] from [`io::Error`].
