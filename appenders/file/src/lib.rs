@@ -22,19 +22,15 @@
 //! use logforth_core::record::LevelFilter;
 //! use logforth_layout_json::JsonLayout;
 //!
-//! logforth_bridge_log::setup();
-//!
 //! let rolling = FileBuilder::new("logs", "app_log")
 //!     .layout(JsonLayout::default())
 //!     .rollover_daily()
 //!     .build()
 //!     .unwrap();
 //!
-//! logforth_core::builder()
+//! let logger = logforth_core::builder()
 //!     .dispatch(|d| d.filter(LevelFilter::All).append(rolling))
-//!     .apply();
-//!
-//! log::info!("This log will be written to a rolling file.");
+//!     .build();
 //! ```
 
 #![cfg_attr(docsrs, feature(doc_cfg))]

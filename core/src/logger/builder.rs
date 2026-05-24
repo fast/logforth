@@ -17,7 +17,6 @@ use crate::Diagnostic;
 use crate::Filter;
 use crate::Logger;
 use crate::logger::log_impl::Dispatch;
-use crate::logger::log_impl::set_default_logger;
 
 /// Create a new empty [`LoggerBuilder`] instance for configuring log dispatching.
 ///
@@ -26,9 +25,9 @@ use crate::logger::log_impl::set_default_logger;
 /// ```
 /// use logforth_core::append;
 ///
-/// let builder = logforth_core::builder()
+/// let logger = logforth_core::builder()
 ///     .dispatch(|d| d.append(append::Stderr::default()))
-///     .apply();
+///     .build();
 /// ```
 pub fn builder() -> LoggerBuilder {
     LoggerBuilder { dispatches: vec![] }
@@ -41,9 +40,9 @@ pub fn builder() -> LoggerBuilder {
 /// ```
 /// use logforth_core::append;
 ///
-/// logforth_core::builder()
+/// let logger = logforth_core::builder()
 ///     .dispatch(|d| d.append(append::Stdout::default()))
-///     .apply();
+///     .build();
 /// ```
 #[must_use = "call `apply` to set the global logger or `build` to construct a logger instance"]
 #[derive(Debug)]
@@ -60,9 +59,9 @@ impl LoggerBuilder {
     /// ```
     /// use logforth_core::append;
     ///
-    /// logforth_core::builder()
+    /// let logger = logforth_core::builder()
     ///     .dispatch(|d| d.append(append::Stderr::default()))
-    ///     .apply();
+    ///     .build();
     /// ```
     pub fn dispatch<F>(mut self, f: F) -> Self
     where
@@ -88,48 +87,6 @@ impl LoggerBuilder {
     pub fn build(self) -> Logger {
         Logger::new(self.dispatches)
     }
-
-    /// Set up the global logger with all the configured dispatches.
-    ///
-    /// This should be called early in the execution of a Rust program. Any log events that occur
-    /// before initialization will be ignored.
-    ///
-    /// # Errors
-    ///
-    /// Return an error if a global logger has already been set.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// if logforth_core::builder().try_apply().is_err() {
-    ///     eprintln!("failed to set logger");
-    /// }
-    /// ```
-    pub fn try_apply(self) -> Result<(), Logger> {
-        set_default_logger(self.build())
-    }
-
-    /// Set up the global logger with all the configured dispatches.
-    ///
-    /// This should be called early in the execution of a Rust program. Any log events that occur
-    /// before initialization will be ignored.
-    ///
-    /// This function will panic if it is called more than once, or if another library has already
-    /// initialized a global logger.
-    ///
-    /// # Panics
-    ///
-    /// Panic if the global logger has already been set.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// logforth_core::builder().apply();
-    /// ```
-    pub fn apply(self) {
-        self.try_apply()
-            .expect("LoggerBuilder::apply must be called before the global logger initialized");
-    }
 }
 
 /// A builder for configuring a log dispatch, including filters and appenders.
@@ -141,12 +98,12 @@ impl LoggerBuilder {
 /// use logforth_core::record::Level;
 /// use logforth_core::record::LevelFilter;
 ///
-/// logforth_core::builder()
+/// let logger = logforth_core::builder()
 ///     .dispatch(|d| {
 ///         d.filter(LevelFilter::MoreSevereEqual(Level::Info))
 ///             .append(append::Stdout::default())
 ///     })
-///     .apply();
+///     .build();
 /// ```
 #[derive(Debug)]
 pub struct DispatchBuilder<const APPEND: bool> {
@@ -173,12 +130,12 @@ impl DispatchBuilder<false> {
     /// use logforth_core::record::Level;
     /// use logforth_core::record::LevelFilter;
     ///
-    /// logforth_core::builder()
+    /// let logger = logforth_core::builder()
     ///     .dispatch(|d| {
     ///         d.filter(LevelFilter::MoreSevereEqual(Level::Error))
     ///             .append(append::Stderr::default())
     ///     })
-    ///     .apply();
+    ///     .build();
     /// ```
     pub fn filter(mut self, filter: impl Into<Box<dyn Filter>>) -> Self {
         self.filters.push(filter.into());
@@ -195,13 +152,13 @@ impl DispatchBuilder<false> {
     /// use logforth_core::record::Level;
     /// use logforth_core::record::LevelFilter;
     ///
-    /// logforth_core::builder()
+    /// let logger = logforth_core::builder()
     ///     .dispatch(|d| {
     ///         d.filter(LevelFilter::MoreSevereEqual(Level::Error))
     ///             .diagnostic(diagnostic::ThreadLocalDiagnostic::default())
     ///             .append(append::Stderr::default())
     ///     })
-    ///     .apply();
+    ///     .build();
     /// ```
     pub fn diagnostic(mut self, diagnostic: impl Into<Box<dyn Diagnostic>>) -> Self {
         self.diagnostics.push(diagnostic.into());
@@ -223,9 +180,9 @@ impl<const APPEND: bool> DispatchBuilder<APPEND> {
     /// ```
     /// use logforth_core::append;
     ///
-    /// logforth_core::builder()
+    /// let logger = logforth_core::builder()
     ///     .dispatch(|d| d.append(append::Stdout::default()))
-    ///     .apply();
+    ///     .build();
     /// ```
     pub fn append(mut self, append: impl Into<Box<dyn Append>>) -> DispatchBuilder<true> {
         self.appends.push(append.into());
