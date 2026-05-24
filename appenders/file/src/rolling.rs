@@ -496,8 +496,8 @@ mod tests {
 
     use jiff::Span;
     use jiff::Zoned;
-    use rand::distr::Alphanumeric;
     use rand::RngExt;
+    use rand::distr::Alphanumeric;
     use tempfile::TempDir;
 
     use crate::clock::Clock;

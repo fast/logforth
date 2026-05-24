@@ -14,7 +14,6 @@
 
 use std::io::Write;
 use std::panic;
-use std::sync::OnceLock;
 
 use crate::Append;
 use crate::Diagnostic;
@@ -23,24 +22,6 @@ use crate::Filter;
 use crate::filter::FilterResult;
 use crate::record::FilterCriteria;
 use crate::record::Record;
-
-static DEFAULT_LOGGER: OnceLock<Logger> = OnceLock::new();
-
-/// Return the default global logger instance.
-///
-/// If no default logger has been set, `None` is returned.
-pub fn default_logger() -> &'static Logger {
-    static NOP_LOGGER: Logger = Logger { dispatches: vec![] };
-    DEFAULT_LOGGER.get().unwrap_or(&NOP_LOGGER)
-}
-
-/// Set the default global logger instance.
-///
-/// If a default logger has already been set, the function returns the provided logger
-/// as an error.
-pub fn set_default_logger(logger: Logger) -> Result<(), Logger> {
-    DEFAULT_LOGGER.set(logger)
-}
 
 /// A logger that dispatches log records to one or more dispatcher.
 #[derive(Debug)]

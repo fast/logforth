@@ -14,6 +14,8 @@
 
 //! Starter configurations for quickly setting up logforth with the `log` crate
 
+use logforth_bridge_log::OwnedLogAdapter;
+
 use crate::Append;
 use crate::Error;
 use crate::Filter;
@@ -84,14 +86,7 @@ impl LogStarterBuilder {
     /// }
     /// ```
     pub fn try_apply(self) -> Result<(), Error> {
-        self.builder
-            .try_apply()
-            .map_err(|_| Error::new("logforth default logger has been already setup"))?;
-
-        logforth_bridge_log::try_setup()
-            .map_err(|_| Error::new("log global logger has been already setup"))?;
-
-        Ok(())
+        try_apply_logger(self.builder.build())
     }
 
     /// Set up the global logger with all the configured dispatches.
@@ -391,4 +386,11 @@ impl LogStarterStdStreamBuilder {
             "LogStarterStdStreamBuilder::apply must be called before the global logger initialized",
         );
     }
+}
+
+fn try_apply_logger(logger: crate::core::Logger) -> Result<(), Error> {
+    log::set_boxed_logger(Box::new(OwnedLogAdapter::new(logger)))
+        .map_err(|err| Error::new("log global logger has been already setup").with_source(err))?;
+    log::set_max_level(log::LevelFilter::Trace);
+    Ok(())
 }

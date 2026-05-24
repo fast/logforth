@@ -35,7 +35,13 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = []
 
 # Starters
-starter-log = ["bridge-log", "append-file", "layout-text", "layout-json"]
+starter-log = [
+  "bridge-log",
+  "dep:log",
+  "append-file",
+  "layout-text",
+  "layout-json",
+]
 
 # Bridges
 bridge-log = ["dep:logforth-bridge-log"]
@@ -66,6 +72,7 @@ rustls = ["logforth-append-syslog?/rustls"]
 logforth-core = { workspace = true }
 
 # Optional dependencies
+log = { workspace = true, optional = true }
 logforth-append-async = { workspace = true, optional = true }
 logforth-append-fastrace = { workspace = true, optional = true }
 logforth-append-file = { workspace = true, optional = true }

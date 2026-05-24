@@ -107,7 +107,6 @@ pub mod bridge {
     /// [`log`]: https://docs.rs/log
     #[cfg(feature = "bridge-log")]
     pub mod log {
-        #[cfg(feature = "bridge-log")]
         pub use logforth_bridge_log::*;
     }
 }
@@ -158,5 +157,5 @@ pub mod trap {
     pub use logforth_core::trap::*;
 }
 
-#[cfg(feature = "bridge-log")]
+#[cfg(feature = "starter-log")]
 pub mod starter_log;

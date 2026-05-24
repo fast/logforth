@@ -44,7 +44,7 @@ pub fn builder() -> LoggerBuilder {
 ///     .dispatch(|d| d.append(append::Stdout::default()))
 ///     .build();
 /// ```
-#[must_use = "call `apply` to set the global logger or `build` to construct a logger instance"]
+#[must_use = "call `build` to construct a logger instance"]
 #[derive(Debug)]
 pub struct LoggerBuilder {
     // stashed dispatches
