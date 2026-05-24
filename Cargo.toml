@@ -62,12 +62,12 @@ insta = { version = "1.43.2" }
 jiff = { version = "0.2" }
 libc = { version = "0.2.162" }
 log = { version = "0.4.27", features = ["kv_std", "kv_sval"] }
-oneshot = { version = "0.1.11", default-features = false, features = ["std"] }
+oneshot = { version = "0.2.1", default-features = false, features = ["std"] }
 opentelemetry = { version = "0.32.0", default-features = false }
 opentelemetry-otlp = { version = "0.32.0", default-features = false }
 opentelemetry_sdk = { version = "0.32.0", default-features = false }
 pin-project = { version = "1.1.10" }
-rand = { version = "0.9" }
+rand = { version = "0.10.1" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 tempfile = { version = "3.16" }
