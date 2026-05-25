@@ -33,7 +33,7 @@ pub fn builder() -> LoggerBuilder {
     LoggerBuilder { dispatches: vec![] }
 }
 
-/// A builder for configuring log dispatching and setting up the global logger.
+/// A builder for configuring log dispatching.
 ///
 /// # Examples
 ///

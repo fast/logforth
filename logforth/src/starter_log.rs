@@ -87,11 +87,12 @@ impl LogStarterBuilder {
     /// }
     /// ```
     pub fn try_apply(self) -> Result<(), Error> {
-        let logger = self.build();
-        let logger = Box::new(OwnedLogAdapter::new(logger));
-        log::set_boxed_logger(logger)
-            .map_err(|_| Error::new("log global logger has been already setup"))?;
+        let make_error = |_| Error::new("logging system has already been setup");
+
+        let logger = Box::new(OwnedLogAdapter::new(self.build()));
+        log::set_boxed_logger(logger).map_err(make_error)?;
         log::set_max_level(log::LevelFilter::Trace);
+
         Ok(())
     }
 
@@ -422,7 +423,7 @@ impl LogStarterStdStreamBuilder {
     ///
     /// use logforth::bridge::log::LogAdapter;
     ///
-    /// let logger = logforth::starter_log::builder().build();
+    /// let logger = logforth::starter_log::stdout().build();
     /// let logger = LogAdapter::new(Arc::new(logger));
     /// log::set_boxed_logger(Box::new(logger.clone())).unwrap();
     /// log::set_max_level(log::LevelFilter::Trace);
