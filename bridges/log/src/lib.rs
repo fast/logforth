@@ -17,6 +17,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
 
+use std::ops::Deref;
 use std::sync::Arc;
 
 use log::Metadata;
@@ -26,39 +27,38 @@ use logforth_core::kv::Key;
 use logforth_core::kv::Value;
 use logforth_core::record::FilterCriteria;
 
-fn level_to_level(level: log::Level) -> logforth_core::record::Level {
-    match level {
-        log::Level::Error => logforth_core::record::Level::Error,
-        log::Level::Warn => logforth_core::record::Level::Warn,
-        log::Level::Info => logforth_core::record::Level::Info,
-        log::Level::Debug => logforth_core::record::Level::Debug,
-        log::Level::Trace => logforth_core::record::Level::Trace,
-    }
-}
-
-/// Adapter to use a specific `logforth` logger instance as a `log` crate logger.
+/// Adapter to use a `logforth` logger instance as a `log` crate logger.
 #[derive(Debug)]
-pub struct LogAdapter<'a>(&'a Logger);
+pub struct LogAdapter(Arc<Logger>);
 
-impl<'a> LogAdapter<'a> {
+impl LogAdapter {
     /// Create a new `LogAdapter` instance.
-    pub fn new(logger: &'a Logger) -> Self {
+    pub fn new(logger: Arc<Logger>) -> Self {
         Self(logger)
     }
+}
 
-    /// Flush any buffered records in the wrapped logger.
-    pub fn flush(&self) {
-        self.0.flush();
+impl Clone for LogAdapter {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
     }
 }
 
-impl<'a> log::Log for LogAdapter<'a> {
+impl Deref for LogAdapter {
+    type Target = Logger;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl log::Log for LogAdapter {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        forward_enabled(self.0, metadata)
+        forward_enabled(&self.0, metadata)
     }
 
     fn log(&self, record: &Record) {
-        forward_log(self.0, record);
+        forward_log(&self.0, record);
     }
 
     fn flush(&self) {
@@ -75,10 +75,13 @@ impl OwnedLogAdapter {
     pub fn new(logger: Logger) -> Self {
         Self(logger)
     }
+}
 
-    /// Flush any buffered records in the wrapped logger.
-    pub fn flush(&self) {
-        self.0.flush();
+impl Deref for OwnedLogAdapter {
+    type Target = Logger;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -96,33 +99,13 @@ impl log::Log for OwnedLogAdapter {
     }
 }
 
-/// Shared adapter to use a `logforth` logger instance as a `log` crate logger.
-#[derive(Clone, Debug)]
-pub struct SharedLogAdapter(Arc<Logger>);
-
-impl SharedLogAdapter {
-    /// Create a new `SharedLogAdapter` instance.
-    pub fn new(logger: Arc<Logger>) -> Self {
-        Self(logger)
-    }
-
-    /// Flush any buffered records in the wrapped logger.
-    pub fn flush(&self) {
-        self.0.flush();
-    }
-}
-
-impl log::Log for SharedLogAdapter {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        forward_enabled(&self.0, metadata)
-    }
-
-    fn log(&self, record: &Record) {
-        forward_log(&self.0, record);
-    }
-
-    fn flush(&self) {
-        self.0.flush();
+fn level_to_level(level: log::Level) -> logforth_core::record::Level {
+    match level {
+        log::Level::Error => logforth_core::record::Level::Error,
+        log::Level::Warn => logforth_core::record::Level::Warn,
+        log::Level::Info => logforth_core::record::Level::Info,
+        log::Level::Debug => logforth_core::record::Level::Debug,
+        log::Level::Trace => logforth_core::record::Level::Trace,
     }
 }
 

@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use logforth::append::asynchronous::AsyncBuilder;
 use logforth::append::file::FileBuilder;
-use logforth::bridge::log::SharedLogAdapter;
+use logforth::bridge::log::LogAdapter;
 use logforth::layout::JsonLayout;
 use logforth::record::LevelFilter;
 
@@ -32,7 +32,7 @@ fn main() {
     let logger = logforth::core::builder()
         .dispatch(|d| d.filter(LevelFilter::All).append(asynchronous))
         .build();
-    let logger = SharedLogAdapter::new(Arc::new(logger));
+    let logger = LogAdapter::new(Arc::new(logger));
 
     log::set_boxed_logger(Box::new(logger.clone())).unwrap();
     log::set_max_level(log::LevelFilter::Trace);
