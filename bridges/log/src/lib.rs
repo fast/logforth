@@ -18,7 +18,6 @@
 #![deny(missing_docs)]
 
 use std::ops::Deref;
-use std::sync::Arc;
 
 use log::Metadata;
 use log::Record;
@@ -29,18 +28,14 @@ use logforth_core::record::FilterCriteria;
 
 /// Adapter to use a `logforth` logger instance as a `log` crate logger.
 #[derive(Debug)]
-pub struct LogAdapter(Arc<Logger>);
+pub struct LogAdapter {
+    logger: Logger,
+}
 
 impl LogAdapter {
     /// Create a new `LogAdapter` instance.
-    pub fn new(logger: Arc<Logger>) -> Self {
-        Self(logger)
-    }
-}
-
-impl Clone for LogAdapter {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
+    pub fn new(logger: Logger) -> Self {
+        Self { logger }
     }
 }
 
@@ -48,54 +43,21 @@ impl Deref for LogAdapter {
     type Target = Logger;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.logger
     }
 }
 
 impl log::Log for LogAdapter {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        forward_enabled(&self.0, metadata)
+        forward_enabled(&self.logger, metadata)
     }
 
     fn log(&self, record: &Record) {
-        forward_log(&self.0, record);
+        forward_log(&self.logger, record);
     }
 
     fn flush(&self) {
-        self.0.flush();
-    }
-}
-
-/// Owned adapter to use a `logforth` logger instance as a `log` crate logger.
-#[derive(Debug)]
-pub struct OwnedLogAdapter(Logger);
-
-impl OwnedLogAdapter {
-    /// Create a new `OwnedLogAdapter` instance.
-    pub fn new(logger: Logger) -> Self {
-        Self(logger)
-    }
-}
-
-impl Deref for OwnedLogAdapter {
-    type Target = Logger;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl log::Log for OwnedLogAdapter {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        forward_enabled(&self.0, metadata)
-    }
-
-    fn log(&self, record: &Record) {
-        forward_log(&self.0, record);
-    }
-
-    fn flush(&self) {
-        self.0.flush();
+        self.logger.flush();
     }
 }
 
