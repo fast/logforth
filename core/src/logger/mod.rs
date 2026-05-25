@@ -19,5 +19,3 @@ pub use self::builder::builder;
 
 mod log_impl;
 pub use self::log_impl::Logger;
-pub use self::log_impl::default_logger;
-pub use self::log_impl::set_default_logger;

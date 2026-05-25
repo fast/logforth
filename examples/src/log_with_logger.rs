@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use logforth::append;
-use logforth::bridge::log::OwnedLogProxy;
+use logforth::bridge::log::OwnedLogAdapter;
 
 fn main() {
     log::set_max_level(log::LevelFilter::Trace);
@@ -22,7 +22,7 @@ fn main() {
         .dispatch(|d| d.append(append::Stdout::default()))
         .build();
 
-    let l = OwnedLogProxy::new(l);
+    let l = OwnedLogAdapter::new(l);
     log::error!(logger: l, "Hello error!");
     log::warn!(logger: l, "Hello warn!");
     log::info!(logger: l, "Hello info!");

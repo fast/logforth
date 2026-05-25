@@ -17,75 +17,42 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
 
+use std::ops::Deref;
+use std::sync::Arc;
+
 use log::Metadata;
 use log::Record;
 use logforth_core::Logger;
-use logforth_core::default_logger;
 use logforth_core::kv::Key;
 use logforth_core::kv::Value;
 use logforth_core::record::FilterCriteria;
 
-fn level_to_level(level: log::Level) -> logforth_core::record::Level {
-    match level {
-        log::Level::Error => logforth_core::record::Level::Error,
-        log::Level::Warn => logforth_core::record::Level::Warn,
-        log::Level::Info => logforth_core::record::Level::Info,
-        log::Level::Debug => logforth_core::record::Level::Debug,
-        log::Level::Trace => logforth_core::record::Level::Trace,
-    }
-}
+/// Adapter to use a `logforth` logger instance as a `log` crate logger.
+#[derive(Debug)]
+pub struct LogAdapter(Arc<Logger>);
 
-struct LogCrateLogger(());
-
-impl log::Log for LogCrateLogger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        forward_enabled(default_logger(), metadata)
-    }
-
-    fn log(&self, record: &Record) {
-        forward_log(default_logger(), record);
-    }
-
-    fn flush(&self) {
-        default_logger().flush();
-    }
-}
-
-/// Adapter to use a specific `logforth` logger instance as a `log` crate logger.
-pub struct LogProxy<'a>(&'a Logger);
-
-impl<'a> LogProxy<'a> {
-    /// Create a new `LogProxy` instance.
-    pub fn new(logger: &'a Logger) -> Self {
+impl LogAdapter {
+    /// Create a new `LogAdapter` instance.
+    pub fn new(logger: Arc<Logger>) -> Self {
         Self(logger)
     }
 }
 
-impl<'a> log::Log for LogProxy<'a> {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        forward_enabled(self.0, metadata)
-    }
-
-    fn log(&self, record: &Record) {
-        forward_log(self.0, record);
-    }
-
-    fn flush(&self) {
-        self.0.flush();
+impl Clone for LogAdapter {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
     }
 }
 
-/// Owned version of [`LogProxy`].
-pub struct OwnedLogProxy(Logger);
+impl Deref for LogAdapter {
+    type Target = Logger;
 
-impl OwnedLogProxy {
-    /// Create a new `OwnedLogProxy` instance.
-    pub fn new(logger: Logger) -> Self {
-        Self(logger)
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-impl log::Log for OwnedLogProxy {
+impl log::Log for LogAdapter {
     fn enabled(&self, metadata: &Metadata) -> bool {
         forward_enabled(&self.0, metadata)
     }
@@ -96,6 +63,49 @@ impl log::Log for OwnedLogProxy {
 
     fn flush(&self) {
         self.0.flush();
+    }
+}
+
+/// Owned adapter to use a `logforth` logger instance as a `log` crate logger.
+#[derive(Debug)]
+pub struct OwnedLogAdapter(Logger);
+
+impl OwnedLogAdapter {
+    /// Create a new `OwnedLogAdapter` instance.
+    pub fn new(logger: Logger) -> Self {
+        Self(logger)
+    }
+}
+
+impl Deref for OwnedLogAdapter {
+    type Target = Logger;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl log::Log for OwnedLogAdapter {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        forward_enabled(&self.0, metadata)
+    }
+
+    fn log(&self, record: &Record) {
+        forward_log(&self.0, record);
+    }
+
+    fn flush(&self) {
+        self.0.flush();
+    }
+}
+
+fn level_to_level(level: log::Level) -> logforth_core::record::Level {
+    match level {
+        log::Level::Error => logforth_core::record::Level::Error,
+        log::Level::Warn => logforth_core::record::Level::Warn,
+        log::Level::Info => logforth_core::record::Level::Info,
+        log::Level::Debug => logforth_core::record::Level::Debug,
+        log::Level::Trace => logforth_core::record::Level::Trace,
     }
 }
 
@@ -162,63 +172,4 @@ fn forward_log(logger: &Logger, record: &Record) {
     builder = builder.key_values(new_kvs.as_slice());
 
     Logger::log(logger, &builder.build());
-}
-
-/// Set up the log crate global logger.
-///
-/// This function calls [`log::set_logger`] to set up a `LogCrateProxy` and
-/// all logs from log crate will be forwarded to `logforth`'s default logger.
-///
-/// This should be called early in the execution of a Rust program. Any log events that occur
-/// before initialization will be ignored.
-///
-/// This function will set the global maximum log level to `Trace`. To override this, call
-/// [`log::set_max_level`] after this function.
-///
-/// # Errors
-///
-/// Return an error if the log crate global logger has already been set.
-///
-/// # Examples
-///
-/// ```
-/// if let Err(err) = logforth_bridge_log::try_setup() {
-///     eprintln!("failed to setup log crate: {err}");
-/// }
-/// ```
-pub fn try_setup() -> Result<(), log::SetLoggerError> {
-    static LOGGER: LogCrateLogger = LogCrateLogger(());
-    log::set_logger(&LOGGER)?;
-    log::set_max_level(log::LevelFilter::Trace);
-    Ok(())
-}
-
-/// Set up the log crate global logger.
-///
-/// This function calls [`log::set_logger`] to set up a `LogCrateProxy` and
-/// all logs from log crate will be forwarded to `logforth`'s default logger.
-///
-/// This should be called early in the execution of a Rust program. Any log events that occur
-/// before initialization will be ignored.
-///
-/// This function will panic if it is called more than once, or if another library has already
-/// initialized the log crate global logger.
-///
-/// This function will set the global maximum log level to `Trace`. To override this, call
-/// [`log::set_max_level`] after this function.
-///
-/// # Panics
-///
-/// Panic if the log crate global logger has already been set.
-///
-/// # Examples
-///
-/// ```
-/// logforth_bridge_log::setup();
-/// logforth_core::builder().apply()
-/// ```
-pub fn setup() {
-    try_setup().expect(
-        "logforth_bridge_log::setup must be called before the log crate global logger initialized",
-    )
 }

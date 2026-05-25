@@ -24,7 +24,7 @@ release = false
 
 [features]
 # Starters
-starter-log = ["bridge-log", "append-file", "layout-text", "layout-json"]
+starter-log = ["logforth/starter-log"]
 
 # Bridges
 bridge-log = ["logforth/bridge-log"]
@@ -51,7 +51,7 @@ diagnostic-task-local = ["logforth/diagnostic-task-local"]
 logforth = { workspace = true }
 
 [dev-dependencies]
-ctor = "0.2"
+ctor = { workspace = true }
 fastrace = { workspace = true, features = ["enable"] }
 log = { workspace = true, features = ["kv_serde"] }
 serde = { workspace = true }
@@ -68,12 +68,12 @@ required-features = ["starter-log", "append-async"]
 [[example]]
 name = "testing"
 path = "src/testing.rs"
-required-features = ["bridge-log"]
+required-features = ["starter-log"]
 
 [[example]]
 name = "simple_stdout"
 path = "src/simple_stdout.rs"
-required-features = ["bridge-log"]
+required-features = ["starter-log"]
 
 [[example]]
 name = "log_with_logger"

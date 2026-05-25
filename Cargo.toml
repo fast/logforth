@@ -56,6 +56,7 @@ logforth-layout-text = { version = "0.3.0", path = "layouts/text" }
 anyhow = { version = "1.0" }
 clap = { version = "4.5.49", features = ["derive"] }
 colored = { version = "3.0" }
+ctor = { version = "1.0.6" }
 fastrace = { version = "0.7" }
 fasyslog = { version = "1.0.0" }
 insta = { version = "1.43.2" }

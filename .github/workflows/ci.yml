@@ -88,9 +88,10 @@ jobs:
         shell: bash
         run: |
           set -x
-          cargo run --features="bridge-log" --example simple_stdout
+
+          cargo run --features="bridge-log" --example log_with_logger
+
           cargo run --features="starter-log" --example simple_stdout
-          cargo run --features="starter-log" --example log_with_logger
           cargo run --features="starter-log" --example multiple_dispatches
           cargo run --features="starter-log" --example custom_layout_filter
           cargo run --features="starter-log" --example json_stdout

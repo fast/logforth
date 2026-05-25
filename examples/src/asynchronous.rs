@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use logforth::append::asynchronous::AsyncBuilder;
 use logforth::append::file::FileBuilder;
+use logforth::bridge::log::LogAdapter;
 use logforth::layout::JsonLayout;
 use logforth::record::LevelFilter;
 
@@ -26,9 +29,13 @@ fn main() {
 
     let asynchronous = AsyncBuilder::new("logforth-async").append(file).build();
 
-    logforth::starter_log::builder()
+    let logger = logforth::core::builder()
         .dispatch(|d| d.filter(LevelFilter::All).append(asynchronous))
-        .apply();
+        .build();
+    let logger = LogAdapter::new(Arc::new(logger));
+
+    log::set_boxed_logger(Box::new(logger.clone())).unwrap();
+    log::set_max_level(log::LevelFilter::Trace);
 
     log::error!("Hello single error!");
     log::warn!("Hello single warn!");
@@ -37,5 +44,5 @@ fn main() {
     log::trace!("Hello single trace!");
 
     // ensure all async events buffered are written out
-    logforth::core::default_logger().flush();
+    logger.flush();
 }

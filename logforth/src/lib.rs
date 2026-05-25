@@ -107,7 +107,6 @@ pub mod bridge {
     /// [`log`]: https://docs.rs/log
     #[cfg(feature = "bridge-log")]
     pub mod log {
-        #[cfg(feature = "bridge-log")]
         pub use logforth_bridge_log::*;
     }
 }
@@ -120,8 +119,6 @@ pub mod core {
     pub use logforth_core::LoggerBuilder;
     // methods
     pub use logforth_core::builder;
-    pub use logforth_core::default_logger;
-    pub use logforth_core::set_default_logger;
 }
 
 /// Mapped Diagnostic Context (MDC).
@@ -160,5 +157,5 @@ pub mod trap {
     pub use logforth_core::trap::*;
 }
 
-#[cfg(feature = "bridge-log")]
+#[cfg(feature = "starter-log")]
 pub mod starter_log;
