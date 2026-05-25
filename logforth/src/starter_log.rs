@@ -15,6 +15,7 @@
 //! Starter configurations for quickly setting up logforth with the `log` crate
 
 use logforth_bridge_log::OwnedLogAdapter;
+use logforth_core::Logger;
 
 use crate::Append;
 use crate::Error;
@@ -86,7 +87,12 @@ impl LogStarterBuilder {
     /// }
     /// ```
     pub fn try_apply(self) -> Result<(), Error> {
-        try_apply_logger(self.builder.build())
+        let logger = self.build();
+        let logger = Box::new(OwnedLogAdapter::new(logger));
+        log::set_boxed_logger(logger)
+            .map_err(|_| Error::new("log global logger has been already setup"))?;
+        log::set_max_level(log::LevelFilter::Trace);
+        Ok(())
     }
 
     /// Set up the global logger with all the configured dispatches.
@@ -112,6 +118,29 @@ impl LogStarterBuilder {
     pub fn apply(self) {
         self.try_apply()
             .expect("LogStarterBuilder::apply must be called before the global logger initialized");
+    }
+
+    /// Build the configured [`Logger`].
+    ///
+    /// This is useful for advanced use cases where you want to intercept extra configs before
+    /// setting the logger as the global logger.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    ///
+    /// use logforth::bridge::log::LogAdapter;
+    ///
+    /// let logger = logforth::starter_log::builder().build();
+    /// let logger = LogAdapter::new(Arc::new(logger));
+    /// log::set_boxed_logger(Box::new(logger.clone())).unwrap();
+    /// log::set_max_level(log::LevelFilter::Trace);
+    ///
+    /// logger.flush();
+    /// ```
+    pub fn build(self) -> Logger {
+        self.builder.build()
     }
 }
 
@@ -192,11 +221,7 @@ impl LogStarterTestingBuilder {
     /// }
     /// ```
     pub fn try_apply(self) -> Result<(), Error> {
-        let Self { filter, layout } = self;
-        let append: Box<dyn Append> = Box::new(append::Testing::default().with_layout(layout));
-        builder()
-            .dispatch(|d| d.filter(filter).append(append))
-            .try_apply()
+        self.into_builder().try_apply()
     }
 
     /// Set up the global logger with the configured testing dispatch.
@@ -223,6 +248,35 @@ impl LogStarterTestingBuilder {
         self.try_apply().expect(
             "LogStarterTestingBuilder::apply must be called before the global logger initialized",
         );
+    }
+
+    /// Build the configured [`Logger`].
+    ///
+    /// This is useful for advanced use cases where you want to intercept extra configs before
+    /// setting the logger as the global logger.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    ///
+    /// use logforth::bridge::log::LogAdapter;
+    ///
+    /// let logger = logforth::starter_log::testing().build();
+    /// let logger = LogAdapter::new(Arc::new(logger));
+    /// log::set_boxed_logger(Box::new(logger.clone())).unwrap();
+    /// log::set_max_level(log::LevelFilter::Trace);
+    ///
+    /// logger.flush();
+    /// ```
+    pub fn build(self) -> Logger {
+        self.into_builder().build()
+    }
+
+    fn into_builder(self) -> LogStarterBuilder {
+        let Self { filter, layout } = self;
+        let append: Box<dyn Append> = Box::new(append::Testing::default().with_layout(layout));
+        builder().dispatch(|d| d.filter(filter).append(append))
     }
 }
 
@@ -273,24 +327,6 @@ pub fn stderr() -> LogStarterStdStreamBuilder {
         append: StdStream::Stderr(append::Stderr::default()),
         filter: default_filter(),
         layout: default_layout(),
-    }
-}
-
-fn default_filter() -> Box<dyn Filter> {
-    Box::new(EnvFilterBuilder::from_default_env().build())
-}
-
-fn default_layout() -> Box<dyn Layout> {
-    #[cfg(feature = "layout-text")]
-    {
-        use crate::layout::TextLayout;
-        Box::new(TextLayout::default())
-    }
-
-    #[cfg(not(feature = "layout-text"))]
-    {
-        use crate::layout::PlainTextLayout;
-        Box::new(PlainTextLayout::default())
     }
 }
 
@@ -345,20 +381,7 @@ impl LogStarterStdStreamBuilder {
     /// }
     /// ```
     pub fn try_apply(self) -> Result<(), Error> {
-        let Self {
-            append,
-            filter,
-            layout,
-        } = self;
-
-        let append: Box<dyn Append> = match append {
-            StdStream::Stdout(a) => Box::new(a.with_layout(layout)),
-            StdStream::Stderr(a) => Box::new(a.with_layout(layout)),
-        };
-
-        builder()
-            .dispatch(|d| d.filter(filter).append(append))
-            .try_apply()
+        self.into_builder().try_apply()
     }
 
     /// Set up the global logger with the configured std stream dispatch.
@@ -386,11 +409,60 @@ impl LogStarterStdStreamBuilder {
             "LogStarterStdStreamBuilder::apply must be called before the global logger initialized",
         );
     }
+
+    /// Build the configured [`Logger`].
+    ///
+    /// This is useful for advanced use cases where you want to intercept extra configs before
+    /// setting the logger as the global logger.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    ///
+    /// use logforth::bridge::log::LogAdapter;
+    ///
+    /// let logger = logforth::starter_log::builder().build();
+    /// let logger = LogAdapter::new(Arc::new(logger));
+    /// log::set_boxed_logger(Box::new(logger.clone())).unwrap();
+    /// log::set_max_level(log::LevelFilter::Trace);
+    ///
+    /// logger.flush();
+    /// ```
+    pub fn build(self) -> Logger {
+        self.into_builder().build()
+    }
+
+    fn into_builder(self) -> LogStarterBuilder {
+        let Self {
+            append,
+            filter,
+            layout,
+        } = self;
+
+        let append: Box<dyn Append> = match append {
+            StdStream::Stdout(a) => Box::new(a.with_layout(layout)),
+            StdStream::Stderr(a) => Box::new(a.with_layout(layout)),
+        };
+
+        builder().dispatch(|d| d.filter(filter).append(append))
+    }
 }
 
-fn try_apply_logger(logger: crate::core::Logger) -> Result<(), Error> {
-    log::set_boxed_logger(Box::new(OwnedLogAdapter::new(logger)))
-        .map_err(|err| Error::new("log global logger has been already setup").with_source(err))?;
-    log::set_max_level(log::LevelFilter::Trace);
-    Ok(())
+fn default_filter() -> Box<dyn Filter> {
+    Box::new(EnvFilterBuilder::from_default_env().build())
+}
+
+fn default_layout() -> Box<dyn Layout> {
+    #[cfg(feature = "layout-text")]
+    {
+        use crate::layout::TextLayout;
+        Box::new(TextLayout::default())
+    }
+
+    #[cfg(not(feature = "layout-text"))]
+    {
+        use crate::layout::PlainTextLayout;
+        Box::new(PlainTextLayout::default())
+    }
 }
