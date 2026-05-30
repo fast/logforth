@@ -17,7 +17,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
 
-use logforth_core::Error;
 use logforth_core::kv;
 use logforth_core::record::RecordOwned;
 
@@ -35,7 +34,7 @@ enum Task {
         diags: Vec<(kv::KeyOwned, kv::ValueOwned)>,
     },
     Flush {
-        done: oneshot::Sender<Option<Error>>,
+        done: oneshot::Sender<()>,
     },
 }
 

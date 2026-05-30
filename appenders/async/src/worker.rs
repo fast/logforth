@@ -67,17 +67,12 @@ impl Worker {
                     });
                 }
                 Task::Flush { done } => {
-                    let mut error = None;
                     for append in appends.iter() {
                         if let Err(err) = append.flush() {
-                            error = Some(
-                                error
-                                    .unwrap_or_else(|| Error::new("failed to flush appender"))
-                                    .with_source(err),
-                            );
+                            trap.trap(&err);
                         }
                     }
-                    let _ = done.send(error);
+                    let _ = done.send(());
                 }
             }
         }

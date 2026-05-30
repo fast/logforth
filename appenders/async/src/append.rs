@@ -77,11 +77,9 @@ impl Append for Async {
         let task = Task::Flush { done: done_tx };
         self.state.send_task(task)?;
 
-        match done_rx.recv() {
-            Ok(None) => Ok(()),
-            Ok(Some(err)) => Err(err),
-            Err(err) => Err(Error::new("worker exited before completing flush").with_source(err)),
-        }
+        done_rx
+            .recv()
+            .map_err(|err| Error::new("worker exited before completing flush").with_source(err))
     }
 }
 
