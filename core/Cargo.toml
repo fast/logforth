@@ -33,11 +33,11 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []
-serde = ["value-bag/serde"]
+serde = ["dep:serde"]
 
 [dependencies]
 anyhow = { workspace = true }
-value-bag = { workspace = true }
+serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 insta = { workspace = true }

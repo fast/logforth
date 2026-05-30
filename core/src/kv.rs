@@ -14,14 +14,9 @@
 
 //! Key-value pairs in a log record or a diagnostic context.
 
-pub extern crate value_bag;
-
 use std::borrow::Cow;
 use std::fmt;
 use std::slice;
-
-use value_bag::OwnedValueBag;
-use value_bag::ValueBag;
 
 use crate::Error;
 use crate::str::RefStr;
@@ -31,9 +26,6 @@ pub trait Visitor {
     /// Visit a key-value pair.
     fn visit(&mut self, key: Key, value: Value) -> Result<(), Error>;
 }
-
-/// A value in a key-value pair.
-pub type Value<'a> = ValueBag<'a>;
 
 /// A key in a key-value pair.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -73,6 +65,77 @@ impl<'a> Key<'a> {
     /// Get the key string.
     pub fn as_str(&self) -> &str {
         self.0.get()
+    }
+}
+
+
+/// A value in a key-value pair.
+#[non_exhaustive]
+pub enum Value<'a> {
+    None,
+    Bool(bool),
+    I64(i64),
+    U64(u64),
+    F64(f64),
+    I128(i128),
+    U128(u128),
+    Char(char),
+    Str(&'a str),
+    Debug(&'a dyn fmt::Debug),
+    Display(&'a dyn fmt::Display),
+}
+
+impl Clone for Value<'_> {
+    fn clone(&self) -> Self {
+        match self {
+            Value::None => Value::None,
+            Value::Bool(b) => Value::Bool(*b),
+            Value::I64(i) => Value::I64(*i),
+            Value::U64(u) => Value::U64(*u),
+            Value::F64(f) => Value::F64(*f),
+            Value::I128(i) => Value::I128(*i),
+            Value::U128(u) => Value::U128(*u),
+            Value::Char(c) => Value::Char(*c),
+            Value::Str(s) => Value::Str(s),
+            Value::Debug(d) => Value::Debug(*d),
+            Value::Display(d) => Value::Display(*d),
+        }
+    }
+}
+
+impl fmt::Debug for Value<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::None => f.write_str("None"),
+            Value::Bool(v) => v.fmt(f),
+            Value::I64(v) => v.fmt(f),
+            Value::U64(v) => v.fmt(f),
+            Value::F64(v) => v.fmt(f),
+            Value::I128(v) => v.fmt(f),
+            Value::U128(v) => v.fmt(f),
+            Value::Char(v) => v.fmt(f),
+            Value::Str(v) => v.fmt(f),
+            Value::Debug(v) => v.fmt(f),
+            Value::Display(v) => v.fmt(f),
+        }
+    }
+}
+
+impl fmt::Display for Value<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::None => f.write_str("None"),
+            Value::Bool(v) => v.fmt(f),
+            Value::I64(v) => v.fmt(f),
+            Value::U64(v) => v.fmt(f),
+            Value::F64(v) => v.fmt(f),
+            Value::I128(v) => v.fmt(f),
+            Value::U128(v) => v.fmt(f),
+            Value::Char(v) => v.fmt(f),
+            Value::Str(v) => v.fmt(f),
+            Value::Debug(v) => v.fmt(f),
+            Value::Display(v) => v.fmt(f),
+        }
     }
 }
 

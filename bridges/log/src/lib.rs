@@ -132,6 +132,7 @@ fn forward_log(logger: &Logger, record: &Record) {
 
     let mut new_kvs = Vec::with_capacity(kvs.len());
     for (k, v) in kvs.iter() {
+        v.
         new_kvs.push((Key::new_ref(k.as_str()), Value::from_sval2(v)));
     }
     builder = builder.key_values(new_kvs.as_slice());
