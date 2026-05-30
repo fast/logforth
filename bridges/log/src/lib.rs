@@ -18,6 +18,7 @@
 #![deny(missing_docs)]
 
 use std::ops::Deref;
+use std::sync::Arc;
 
 use log::Metadata;
 use log::Record;
@@ -29,13 +30,15 @@ use logforth_core::record::FilterCriteria;
 /// Adapter to use a `logforth` logger instance as a `log` crate logger.
 #[derive(Debug)]
 pub struct LogAdapter {
-    logger: Logger,
+    logger: Arc<Logger>,
 }
 
 impl LogAdapter {
     /// Create a new `LogAdapter` instance.
-    pub fn new(logger: Logger) -> Self {
-        Self { logger }
+    pub fn new(logger: impl Into<Arc<Logger>>) -> Self {
+        Self {
+            logger: logger.into(),
+        }
     }
 }
 
