@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::sync::Barrier;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
+use std::sync::mpsc;
 
 use logforth_append_async::AsyncBuilder;
 use logforth_core::Append;
@@ -56,10 +57,14 @@ impl Append for FailingFlush {
 }
 
 #[derive(Debug)]
-struct NoopTrap;
+struct CapturedTrap {
+    errors: mpsc::Sender<String>,
+}
 
-impl Trap for NoopTrap {
-    fn trap(&self, _: &Error) {}
+impl Trap for CapturedTrap {
+    fn trap(&self, err: &Error) {
+        self.errors.send(err.to_string()).unwrap();
+    }
 }
 
 #[test]
@@ -92,14 +97,16 @@ fn flush_waits_for_worker_completion() {
 }
 
 #[test]
-fn flush_propagates_errors() {
+fn flush_handles_errors_in_worker_thread() {
+    let (tx, rx) = mpsc::channel();
+
     let async_append = AsyncBuilder::new("async-flush-error")
-        .trap(NoopTrap)
+        .trap(CapturedTrap { errors: tx })
         .append(FailingFlush)
         .build();
 
-    let err = async_append.flush().unwrap_err();
-    let err = err.to_string();
-    assert!(err.contains("failed to flush"));
+    async_append.flush().unwrap();
+
+    let err = rx.recv().unwrap();
     assert!(err.contains("flush failed"));
 }
