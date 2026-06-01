@@ -722,9 +722,7 @@ impl ValueView<'_> {
             ValueView::BorrowedStr(s) => {
                 ValueOwned(ValueOwnedState::Str(Cow::Owned(s.to_string())))
             }
-            ValueView::StaticStr(s) => {
-                ValueOwned(ValueOwnedState::Str(Cow::Owned((*s).to_string())))
-            }
+            ValueView::StaticStr(s) => ValueOwned(ValueOwnedState::Str(Cow::Borrowed(s))),
             ValueView::Bytes(b) => ValueOwned(ValueOwnedState::Bytes(Box::new(b.to_vec()))),
             ValueView::Bool(b) => ValueOwned(ValueOwnedState::Bool(*b)),
             ValueView::I64(i) => ValueOwned(ValueOwnedState::I64(*i)),

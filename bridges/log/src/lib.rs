@@ -458,7 +458,7 @@ mod kv {
         }
 
         fn serialize_none(self) -> Result<Self::Ok, Self::Error> {
-            Ok(None)
+            Ok(Some(ValueOwned::none()))
         }
 
         fn serialize_some<T: serde::Serialize + ?Sized>(
@@ -469,7 +469,7 @@ mod kv {
         }
 
         fn serialize_unit(self) -> Result<Self::Ok, Self::Error> {
-            Ok(None)
+            Ok(Some(ValueOwned::none()))
         }
 
         fn serialize_unit_struct(self, name: &'static str) -> Result<Self::Ok, Self::Error> {
