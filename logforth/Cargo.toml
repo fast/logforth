@@ -45,6 +45,7 @@ starter-log = [
 
 # Bridges
 bridge-log = ["dep:logforth-bridge-log"]
+bridge-log-serde = ["bridge-log", "logforth-bridge-log/serde"]
 
 # Appenders
 append-async = ["dep:logforth-append-async"]

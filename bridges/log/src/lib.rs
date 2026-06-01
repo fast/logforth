@@ -142,7 +142,7 @@ mod kv {
     pub(super) fn key_values_stage_one<'a>(
         source: &'a dyn log::kv::Source,
     ) -> KeyValuesStageOne<'a> {
-        let mut kvs = Vec::with_capacity(log::kv::Source::key_values(source));
+        let mut kvs = Vec::with_capacity(log::kv::Source::count(source));
 
         struct KeyValueVisitor<'a, 'b> {
             kvs: &'b mut Vec<(KeyStageOne<'a>, ValueStageOne<'a>)>,
@@ -261,10 +261,13 @@ mod kv {
 
 #[cfg(feature = "serde")]
 mod kv {
-    use logforth_core::kv::{KeyOwned, ValueOwned, ValueView};
     use std::collections::HashMap;
     use std::fmt;
     use std::marker::PhantomData;
+
+    use logforth_core::kv::KeyOwned;
+    use logforth_core::kv::ValueOwned;
+    use logforth_core::kv::ValueView;
 
     pub(super) struct KeyValues<'a> {
         kvs: Vec<(KeyOwned, ValueOwned)>,

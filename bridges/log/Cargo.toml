@@ -36,7 +36,7 @@ default = []
 serde = ["dep:serde", "log/kv_serde", "logforth-core/serde"]
 
 [dependencies]
-log = { workspace = true, features = ["kv"] }
+log = { workspace = true, features = ["kv", "std"] }
 logforth-core = { workspace = true }
 
 # Optional dependencies
