@@ -73,7 +73,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 tempfile = { version = "3.16" }
 tokio = { version = "1.47.1" }
-value-bag = { version = "1.11.1", features = ["inline-i128", "owned", "sval"] }
 which = { version = "8.0.0" }
 
 [workspace.lints.rust]

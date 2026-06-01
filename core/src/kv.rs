@@ -15,6 +15,7 @@
 //! Key-value pairs in a log record or a diagnostic context.
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt;
 use std::slice;
 
@@ -68,7 +69,6 @@ impl<'a> Key<'a> {
     }
 }
 
-
 /// A value in a key-value pair.
 #[non_exhaustive]
 pub enum Value<'a> {
@@ -81,8 +81,8 @@ pub enum Value<'a> {
     U128(u128),
     Char(char),
     Str(&'a str),
-    Debug(&'a dyn fmt::Debug),
-    Display(&'a dyn fmt::Display),
+    List(&'a [Value<'a>]),
+    Map(&'a [(Key<'a>, Value<'a>)]),
 }
 
 impl Clone for Value<'_> {
@@ -97,8 +97,8 @@ impl Clone for Value<'_> {
             Value::U128(u) => Value::U128(*u),
             Value::Char(c) => Value::Char(*c),
             Value::Str(s) => Value::Str(s),
-            Value::Debug(d) => Value::Debug(*d),
-            Value::Display(d) => Value::Display(*d),
+            Value::List(l) => Value::List(l),
+            Value::Map(m) => Value::Map(m),
         }
     }
 }
@@ -106,7 +106,7 @@ impl Clone for Value<'_> {
 impl fmt::Debug for Value<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::None => f.write_str("None"),
+            // passthrough
             Value::Bool(v) => v.fmt(f),
             Value::I64(v) => v.fmt(f),
             Value::U64(v) => v.fmt(f),
@@ -115,8 +115,14 @@ impl fmt::Debug for Value<'_> {
             Value::U128(v) => v.fmt(f),
             Value::Char(v) => v.fmt(f),
             Value::Str(v) => v.fmt(f),
-            Value::Debug(v) => v.fmt(f),
-            Value::Display(v) => v.fmt(f),
+
+            // implement
+            Value::None => f.debug_tuple("None").finish(),
+            Value::List(v) => f.debug_list().entries(v.iter()).finish(),
+            Value::Map(m) => f
+                .debug_map()
+                .entries(m.iter().map(|(k, v)| (k, v)))
+                .finish(),
         }
     }
 }
@@ -124,7 +130,6 @@ impl fmt::Debug for Value<'_> {
 impl fmt::Display for Value<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::None => f.write_str("None"),
             Value::Bool(v) => v.fmt(f),
             Value::I64(v) => v.fmt(f),
             Value::U64(v) => v.fmt(f),
@@ -133,17 +138,55 @@ impl fmt::Display for Value<'_> {
             Value::U128(v) => v.fmt(f),
             Value::Char(v) => v.fmt(f),
             Value::Str(v) => v.fmt(f),
-            Value::Debug(v) => v.fmt(f),
-            Value::Display(v) => v.fmt(f),
+            v => fmt::Debug::fmt(v, f),
         }
     }
 }
 
 /// An owned value in a key-value pair.
-pub type ValueOwned = OwnedValueBag;
+#[non_exhaustive]
+pub enum ValueOwned {
+    None,
+    Bool(bool),
+    I64(i64),
+    U64(u64),
+    F64(f64),
+    I128(i128),
+    U128(u128),
+    Char(char),
+    Str(String),
+    List(Box<Vec<ValueOwned>>),
+    Map(Box<HashMap<KeyOwned, ValueOwned>>),
+}
+
+impl ValueOwned {
+    pub fn by_ref(&self) -> Value<'_> {
+        match self {
+            ValueOwned::None => Value::None,
+            ValueOwned::Bool(b) => Value::Bool(*b),
+            ValueOwned::I64(i) => Value::I64(*i),
+            ValueOwned::U64(u) => Value::U64(*u),
+            ValueOwned::F64(f) => Value::F64(*f),
+            ValueOwned::I128(i) => Value::I128(*i),
+            ValueOwned::U128(u) => Value::U128(*u),
+            ValueOwned::Char(c) => Value::Char(*c),
+            ValueOwned::Str(s) => Value::Str(s.as_str()),
+            ValueOwned::List(l) => {
+                let l = l.iter().map(|v| v.by_ref()).collect::<Vec<_>>();
+                Value::List(l.as_slice())
+            }
+            ValueOwned::Map(m) => {
+                let m = m
+                    .iter()
+                    .map(|(k, v)| (k.by_ref(), v.by_ref()))
+                    .collect::<Vec<_>>();
+                Value::Map(m.as_slice())
+            }
+        }
+    }
+}
 
 /// An owned key in a key-value pair.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct KeyOwned(Cow<'static, str>);
 
 impl KeyOwned {
@@ -153,12 +196,6 @@ impl KeyOwned {
             Cow::Borrowed(s) => RefStr::Static(s),
             Cow::Owned(s) => RefStr::Borrowed(s),
         })
-    }
-}
-
-impl fmt::Display for KeyOwned {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
     }
 }
 
