@@ -197,7 +197,7 @@ impl Default for RecordBuilder<'_> {
                 line: None,
                 column: None,
                 payload: format_args!(""),
-                kvs: Default::default(),
+                kvs: KeyValues::empty(),
             },
         }
     }

@@ -52,9 +52,9 @@ impl Diagnostic for TaskLocalDiagnostic {
         TASK_LOCAL_MAP.with(|map| {
             let map = map.borrow();
             for (key, value) in map.iter() {
-                let key = Key::new_ref(key.as_str());
-                let value = Value::from(value.as_str());
-                visitor.visit(key, value)?;
+                let key = Key::borrowed(key.as_str());
+                let value = Value::str(value.as_str());
+                visitor.visit(key.view(), value.view())?;
             }
             Ok(())
         })

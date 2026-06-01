@@ -14,23 +14,26 @@
 
 //! Key-value pairs in a log record or a diagnostic context.
 
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::fmt;
-use std::slice;
-
 use crate::Error;
 use crate::str::RefStr;
+use std::borrow::Cow;
+use std::collections::{HashMap, hash_map};
+use std::{fmt, slice};
 
-/// A visitor to walk through key-value pairs.
 pub trait Visitor {
     /// Visit a key-value pair.
-    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error>;
+    fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error>;
 }
 
 /// A key in a key-value pair.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Key<'a>(RefStr<'a>);
+
+impl fmt::Display for Key<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
 
 impl Key<'static> {
     /// Create a new key from a static `&str`.
@@ -39,20 +42,56 @@ impl Key<'static> {
     }
 }
 
-impl fmt::Display for Key<'_> {
+impl<'a> Key<'a> {
+    /// Create a new key from a `&str`.
+    ///
+    /// The [`Key::new`] method should be preferred where possible.
+    pub const fn borrowed(k: &'a str) -> Key<'a> {
+        Key(RefStr::Borrowed(k))
+    }
+}
+
+impl Key<'_> {
+    pub fn view(&self) -> KeyView<'_> {
+        KeyView(self.0)
+    }
+}
+
+/// An owned key in a key-value pair.
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct KeyOwned(Cow<'static, str>);
+
+impl fmt::Display for KeyOwned {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
     }
 }
 
-impl<'a> Key<'a> {
-    /// Create a new key from a `&str`.
-    ///
-    /// The [`Key::new`] method should be preferred where possible.
-    pub const fn new_ref(k: &'a str) -> Key<'a> {
-        Key(RefStr::Borrowed(k))
+impl KeyOwned {
+    pub fn new(k: impl Into<Cow<'static, str>>) -> KeyOwned {
+        KeyOwned(k.into())
     }
+}
 
+impl KeyOwned {
+    pub fn view(&self) -> KeyView<'_> {
+        KeyView(match &self.0 {
+            Cow::Borrowed(s) => RefStr::Static(s),
+            Cow::Owned(s) => RefStr::Borrowed(s),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct KeyView<'a>(RefStr<'a>);
+
+impl fmt::Display for KeyView<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl KeyView<'_> {
     /// Convert to an owned key.
     pub fn to_owned(&self) -> KeyOwned {
         KeyOwned(self.0.into_cow_static())
@@ -69,9 +108,131 @@ impl<'a> Key<'a> {
     }
 }
 
-/// A value in a key-value pair.
-#[non_exhaustive]
-pub enum Value<'a> {
+#[derive(Clone, Copy)]
+pub struct DebugValue<'a>(&'a dyn fmt::Debug);
+
+impl fmt::Debug for DebugValue<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}
+
+impl fmt::Display for DebugValue<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct DisplayValue<'a>(&'a dyn fmt::Display);
+
+impl fmt::Debug for DisplayValue<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl fmt::Display for DisplayValue<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ListValue<'a>(ListValueState<'a>);
+
+#[derive(Debug, Clone, Copy)]
+enum ListValueState<'a> {
+    Borrowed(&'a [Value<'a>]),
+    Owned(&'a [ValueOwned]),
+}
+
+impl<'a> ListValue<'a> {
+    pub fn iter(&self) -> ListValueIter<'a> {
+        match self.0 {
+            ListValueState::Borrowed(v) => ListValueIter(ListValueIterState::Borrowed(v.iter())),
+            ListValueState::Owned(v) => ListValueIter(ListValueIterState::Owned(v.iter())),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ListValueIter<'a>(ListValueIterState<'a>);
+
+#[derive(Debug, Clone)]
+enum ListValueIterState<'a> {
+    Borrowed(slice::Iter<'a, Value<'a>>),
+    Owned(slice::Iter<'a, ValueOwned>),
+}
+
+impl<'a> Iterator for ListValueIter<'a> {
+    type Item = ValueView<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match &mut self.0 {
+            ListValueIterState::Borrowed(v) => v.next().map(|v| v.view()),
+            ListValueIterState::Owned(v) => v.next().map(|v| v.view()),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match &self.0 {
+            ListValueIterState::Borrowed(v) => v.size_hint(),
+            ListValueIterState::Owned(v) => v.size_hint(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct MapValue<'a>(MapValueState<'a>);
+
+#[derive(Debug, Clone, Copy)]
+enum MapValueState<'a> {
+    Borrowed(&'a [(Key<'a>, Value<'a>)]),
+    Owned(&'a HashMap<KeyOwned, ValueOwned>),
+}
+
+impl<'a> MapValue<'a> {
+    pub fn iter(&self) -> MapValueIter<'a> {
+        match self.0 {
+            MapValueState::Borrowed(v) => MapValueIter(MapValueIterState::Borrowed(v.iter())),
+            MapValueState::Owned(v) => MapValueIter(MapValueIterState::Owned(v.iter())),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MapValueIter<'a>(MapValueIterState<'a>);
+
+#[derive(Debug, Clone)]
+enum MapValueIterState<'a> {
+    Borrowed(slice::Iter<'a, (Key<'a>, Value<'a>)>),
+    Owned(hash_map::Iter<'a, KeyOwned, ValueOwned>),
+}
+
+impl<'a> Iterator for MapValueIter<'a> {
+    type Item = (KeyView<'a>, ValueView<'a>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match &mut self.0 {
+            MapValueIterState::Borrowed(v) => v.next().map(|(k, v)| (k.view(), v.view())),
+            MapValueIterState::Owned(v) => v.next().map(|(k, v)| (k.view(), v.view())),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match &self.0 {
+            MapValueIterState::Borrowed(v) => v.size_hint(),
+            MapValueIterState::Owned(v) => v.size_hint(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Value<'a>(ValueState<'a>);
+
+#[derive(Clone)]
+enum ValueState<'a> {
     None,
     Bool(bool),
     I64(i64),
@@ -80,72 +241,117 @@ pub enum Value<'a> {
     I128(i128),
     U128(u128),
     Char(char),
-    Str(&'a str),
+    Str(RefStr<'a>),
     List(&'a [Value<'a>]),
     Map(&'a [(Key<'a>, Value<'a>)]),
+    Debug(&'a dyn fmt::Debug),
+    Display(&'a dyn fmt::Display),
 }
 
-impl Clone for Value<'_> {
-    fn clone(&self) -> Self {
-        match self {
-            Value::None => Value::None,
-            Value::Bool(b) => Value::Bool(*b),
-            Value::I64(i) => Value::I64(*i),
-            Value::U64(u) => Value::U64(*u),
-            Value::F64(f) => Value::F64(*f),
-            Value::I128(i) => Value::I128(*i),
-            Value::U128(u) => Value::U128(*u),
-            Value::Char(c) => Value::Char(*c),
-            Value::Str(s) => Value::Str(s),
-            Value::List(l) => Value::List(l),
-            Value::Map(m) => Value::Map(m),
-        }
-    }
-}
-
-impl fmt::Debug for Value<'_> {
+impl fmt::Debug for ValueState<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            // passthrough
-            Value::Bool(v) => v.fmt(f),
-            Value::I64(v) => v.fmt(f),
-            Value::U64(v) => v.fmt(f),
-            Value::F64(v) => v.fmt(f),
-            Value::I128(v) => v.fmt(f),
-            Value::U128(v) => v.fmt(f),
-            Value::Char(v) => v.fmt(f),
-            Value::Str(v) => v.fmt(f),
-
-            // implement
-            Value::None => f.debug_tuple("None").finish(),
-            Value::List(v) => f.debug_list().entries(v.iter()).finish(),
-            Value::Map(m) => f
-                .debug_map()
-                .entries(m.iter().map(|(k, v)| (k, v)))
-                .finish(),
+            ValueState::None => write!(f, "None"),
+            ValueState::Bool(v) => v.fmt(f),
+            ValueState::I64(v) => v.fmt(f),
+            ValueState::U64(v) => v.fmt(f),
+            ValueState::F64(v) => v.fmt(f),
+            ValueState::I128(v) => v.fmt(f),
+            ValueState::U128(v) => v.fmt(f),
+            ValueState::Char(v) => v.fmt(f),
+            ValueState::Str(v) => v.fmt(f),
+            ValueState::List(v) => v.fmt(f),
+            ValueState::Map(v) => v.fmt(f),
+            ValueState::Debug(v) => fmt::Debug::fmt(v, f),
+            ValueState::Display(v) => fmt::Display::fmt(v, f),
         }
     }
 }
 
-impl fmt::Display for Value<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Value::Bool(v) => v.fmt(f),
-            Value::I64(v) => v.fmt(f),
-            Value::U64(v) => v.fmt(f),
-            Value::F64(v) => v.fmt(f),
-            Value::I128(v) => v.fmt(f),
-            Value::U128(v) => v.fmt(f),
-            Value::Char(v) => v.fmt(f),
-            Value::Str(v) => v.fmt(f),
-            v => fmt::Debug::fmt(v, f),
+impl Value<'_> {
+    pub fn view(&self) -> ValueView<'_> {
+        match self.0 {
+            ValueState::None => ValueView::None,
+            ValueState::Bool(b) => ValueView::Bool(b),
+            ValueState::I64(i) => ValueView::I64(i),
+            ValueState::U64(u) => ValueView::U64(u),
+            ValueState::F64(f) => ValueView::F64(f),
+            ValueState::I128(i) => ValueView::I128(i),
+            ValueState::U128(u) => ValueView::U128(u),
+            ValueState::Char(c) => ValueView::Char(c),
+            ValueState::Str(RefStr::Static(s)) => ValueView::StaticStr(s),
+            ValueState::Str(RefStr::Borrowed(s)) => ValueView::BorrowedStr(s),
+            ValueState::List(l) => ValueView::List(ListValue(ListValueState::Borrowed(l))),
+            ValueState::Map(m) => ValueView::Map(MapValue(MapValueState::Borrowed(m))),
+            ValueState::Debug(d) => ValueView::Debug(DebugValue(d)),
+            ValueState::Display(d) => ValueView::Display(DisplayValue(d)),
         }
     }
 }
 
-/// An owned value in a key-value pair.
-#[non_exhaustive]
-pub enum ValueOwned {
+impl<'a> Value<'a> {
+    pub fn none() -> Value<'a> {
+        Value(ValueState::None)
+    }
+
+    pub fn str(s: &'a str) -> Self {
+        Value(ValueState::Str(RefStr::Borrowed(s)))
+    }
+
+    pub fn static_str(s: &'static str) -> Self {
+        Value(ValueState::Str(RefStr::Static(s)))
+    }
+
+    pub fn bool(b: bool) -> Self {
+        Value(ValueState::Bool(b))
+    }
+
+    pub fn i64(i: i64) -> Self {
+        Value(ValueState::I64(i))
+    }
+
+    pub fn u64(u: u64) -> Self {
+        Value(ValueState::U64(u))
+    }
+
+    pub fn f64(f: f64) -> Self {
+        Value(ValueState::F64(f))
+    }
+
+    pub fn i128(i: i128) -> Self {
+        Value(ValueState::I128(i))
+    }
+
+    pub fn u128(u: u128) -> Self {
+        Value(ValueState::U128(u))
+    }
+
+    pub fn char(c: char) -> Self {
+        Value(ValueState::Char(c))
+    }
+
+    pub fn list(l: &'a [Value<'a>]) -> Self {
+        Value(ValueState::List(l))
+    }
+
+    pub fn map(m: &'a [(Key<'a>, Value<'a>)]) -> Self {
+        Value(ValueState::Map(m))
+    }
+
+    pub fn debug(d: &'a dyn fmt::Debug) -> Self {
+        Value(ValueState::Debug(d))
+    }
+
+    pub fn display(d: &'a dyn fmt::Display) -> Self {
+        Value(ValueState::Display(d))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ValueOwned(ValueOwnedState);
+
+#[derive(Debug, Clone)]
+enum ValueOwnedState {
     None,
     Bool(bool),
     I64(i64),
@@ -154,57 +360,289 @@ pub enum ValueOwned {
     I128(i128),
     U128(u128),
     Char(char),
-    Str(String),
+    Str(Cow<'static, str>),
     List(Box<Vec<ValueOwned>>),
     Map(Box<HashMap<KeyOwned, ValueOwned>>),
 }
 
 impl ValueOwned {
-    pub fn by_ref(&self) -> Value<'_> {
-        match self {
-            ValueOwned::None => Value::None,
-            ValueOwned::Bool(b) => Value::Bool(*b),
-            ValueOwned::I64(i) => Value::I64(*i),
-            ValueOwned::U64(u) => Value::U64(*u),
-            ValueOwned::F64(f) => Value::F64(*f),
-            ValueOwned::I128(i) => Value::I128(*i),
-            ValueOwned::U128(u) => Value::U128(*u),
-            ValueOwned::Char(c) => Value::Char(*c),
-            ValueOwned::Str(s) => Value::Str(s.as_str()),
-            ValueOwned::List(l) => {
-                let l = l.iter().map(|v| v.by_ref()).collect::<Vec<_>>();
-                Value::List(l.as_slice())
-            }
-            ValueOwned::Map(m) => {
-                let m = m
-                    .iter()
-                    .map(|(k, v)| (k.by_ref(), v.by_ref()))
-                    .collect::<Vec<_>>();
-                Value::Map(m.as_slice())
-            }
+    pub fn view(&self) -> ValueView<'_> {
+        match &self.0 {
+            ValueOwnedState::None => ValueView::None,
+            ValueOwnedState::Bool(b) => ValueView::Bool(*b),
+            ValueOwnedState::I64(i) => ValueView::I64(*i),
+            ValueOwnedState::U64(u) => ValueView::U64(*u),
+            ValueOwnedState::F64(f) => ValueView::F64(*f),
+            ValueOwnedState::I128(i) => ValueView::I128(*i),
+            ValueOwnedState::U128(u) => ValueView::U128(*u),
+            ValueOwnedState::Char(c) => ValueView::Char(*c),
+            ValueOwnedState::Str(Cow::Borrowed(s)) => ValueView::StaticStr(s),
+            ValueOwnedState::Str(Cow::Owned(s)) => ValueView::BorrowedStr(s.as_str()),
+            ValueOwnedState::List(l) => ValueView::List(ListValue(ListValueState::Owned(l))),
+            ValueOwnedState::Map(m) => ValueView::Map(MapValue(MapValueState::Owned(m))),
         }
     }
 }
 
-/// An owned key in a key-value pair.
-pub struct KeyOwned(Cow<'static, str>);
+impl ValueOwned {
+    pub fn none() -> ValueOwned {
+        ValueOwned(ValueOwnedState::None)
+    }
 
-impl KeyOwned {
-    /// Create a `Key` ref.
-    pub fn by_ref(&self) -> Key<'_> {
-        Key(match &self.0 {
-            Cow::Borrowed(s) => RefStr::Static(s),
-            Cow::Owned(s) => RefStr::Borrowed(s),
-        })
+    pub fn bool(b: bool) -> ValueOwned {
+        ValueOwned(ValueOwnedState::Bool(b))
+    }
+
+    pub fn i64(i: i64) -> ValueOwned {
+        ValueOwned(ValueOwnedState::I64(i))
+    }
+
+    pub fn u64(u: u64) -> ValueOwned {
+        ValueOwned(ValueOwnedState::U64(u))
+    }
+
+    pub fn f64(f: f64) -> ValueOwned {
+        ValueOwned(ValueOwnedState::F64(f))
+    }
+
+    pub fn i128(i: i128) -> ValueOwned {
+        ValueOwned(ValueOwnedState::I128(i))
+    }
+
+    pub fn u128(u: u128) -> ValueOwned {
+        ValueOwned(ValueOwnedState::U128(u))
+    }
+
+    pub fn char(c: char) -> ValueOwned {
+        ValueOwned(ValueOwnedState::Char(c))
+    }
+
+    pub fn str(s: impl Into<Cow<'static, str>>) -> ValueOwned {
+        ValueOwned(ValueOwnedState::Str(s.into()))
+    }
+
+    pub fn list(l: impl IntoIterator<Item = ValueOwned>) -> ValueOwned {
+        ValueOwned(ValueOwnedState::List(Box::new(l.into_iter().collect())))
+    }
+
+    pub fn map(m: impl IntoIterator<Item = (KeyOwned, ValueOwned)>) -> ValueOwned {
+        ValueOwned(ValueOwnedState::Map(Box::new(m.into_iter().collect())))
+    }
+
+    pub fn from_vec(v: Vec<ValueOwned>) -> ValueOwned {
+        ValueOwned(ValueOwnedState::List(Box::new(v)))
+    }
+
+    pub fn from_hash_map(m: HashMap<KeyOwned, ValueOwned>) -> ValueOwned {
+        ValueOwned(ValueOwnedState::Map(Box::new(m)))
+    }
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone)]
+pub enum ValueView<'a> {
+    None,
+    BorrowedStr(&'a str),
+    StaticStr(&'static str),
+    Bool(bool),
+    I64(i64),
+    U64(u64),
+    F64(f64),
+    I128(i128),
+    U128(u128),
+    Char(char),
+    List(ListValue<'a>),
+    Map(MapValue<'a>),
+    Debug(DebugValue<'a>),
+    Display(DisplayValue<'a>),
+}
+
+impl fmt::Display for ValueView<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ValueView::None => write!(f, "None"),
+            ValueView::BorrowedStr(v) => v.fmt(f),
+            ValueView::StaticStr(v) => v.fmt(f),
+            ValueView::Bool(v) => v.fmt(f),
+            ValueView::I64(v) => v.fmt(f),
+            ValueView::U64(v) => v.fmt(f),
+            ValueView::F64(v) => v.fmt(f),
+            ValueView::I128(v) => v.fmt(f),
+            ValueView::U128(v) => v.fmt(f),
+            ValueView::Char(v) => v.fmt(f),
+            ValueView::List(v) => {
+                let mut dbg = f.debug_list();
+                for item in v.iter() {
+                    dbg.entry(&item);
+                }
+                dbg.finish()
+            }
+            ValueView::Map(v) => {
+                let mut dbg = f.debug_map();
+                for (k, v) in v.iter() {
+                    dbg.entry(&k, &v);
+                }
+                dbg.finish()
+            }
+            ValueView::Debug(v) => fmt::Debug::fmt(v, f),
+            ValueView::Display(v) => fmt::Display::fmt(v, f),
+        }
+    }
+}
+
+impl ValueView<'_> {
+    pub fn to_owned(&self) -> ValueOwned {
+        match &self {
+            ValueView::None => ValueOwned(ValueOwnedState::None),
+            ValueView::BorrowedStr(s) => {
+                ValueOwned(ValueOwnedState::Str(Cow::Owned(s.to_string())))
+            }
+            ValueView::StaticStr(s) => {
+                ValueOwned(ValueOwnedState::Str(Cow::Owned((*s).to_string())))
+            }
+            ValueView::Bool(b) => ValueOwned(ValueOwnedState::Bool(*b)),
+            ValueView::I64(i) => ValueOwned(ValueOwnedState::I64(*i)),
+            ValueView::U64(u) => ValueOwned(ValueOwnedState::U64(*u)),
+            ValueView::F64(f) => ValueOwned(ValueOwnedState::F64(*f)),
+            ValueView::I128(i) => ValueOwned(ValueOwnedState::I128(*i)),
+            ValueView::U128(u) => ValueOwned(ValueOwnedState::U128(*u)),
+            ValueView::Char(c) => ValueOwned(ValueOwnedState::Char(*c)),
+            ValueView::List(l) => ValueOwned(ValueOwnedState::List(Box::new(
+                l.iter().map(|v| v.to_owned()).collect(),
+            ))),
+            ValueView::Map(m) => ValueOwned(ValueOwnedState::Map(Box::new(
+                m.iter()
+                    .map(|(k, v)| (k.to_owned(), v.to_owned()))
+                    .collect(),
+            ))),
+            ValueView::Debug(d) => ValueOwned(ValueOwnedState::Str(Cow::Owned(format!("{d:?}")))),
+            ValueView::Display(d) => ValueOwned(ValueOwnedState::Str(Cow::Owned(format!("{d}")))),
+        }
+    }
+}
+
+impl<'a> ValueView<'a> {
+    pub fn to_bool(&self) -> Option<bool> {
+        if let ValueView::Bool(b) = self {
+            Some(*b)
+        } else {
+            None
+        }
+    }
+
+    pub fn to_i64(&self) -> Option<i64> {
+        if let ValueView::I64(i) = self {
+            Some(*i)
+        } else {
+            None
+        }
+    }
+
+    pub fn to_u64(&self) -> Option<u64> {
+        if let ValueView::U64(u) = self {
+            Some(*u)
+        } else {
+            None
+        }
+    }
+
+    pub fn to_f64(&self) -> Option<f64> {
+        if let ValueView::F64(f) = self {
+            Some(*f)
+        } else {
+            None
+        }
+    }
+
+    pub fn to_i128(&self) -> Option<i128> {
+        if let ValueView::I128(i) = self {
+            Some(*i)
+        } else {
+            None
+        }
+    }
+
+    pub fn to_u128(&self) -> Option<u128> {
+        if let ValueView::U128(u) = self {
+            Some(*u)
+        } else {
+            None
+        }
+    }
+
+    pub fn to_char(&self) -> Option<char> {
+        if let ValueView::Char(c) = self {
+            Some(*c)
+        } else {
+            None
+        }
+    }
+
+    pub fn to_str(&self) -> Option<&'a str> {
+        if let ValueView::BorrowedStr(s) = self {
+            Some(*s)
+        } else if let ValueView::StaticStr(s) = self {
+            Some(*s)
+        } else {
+            None
+        }
+    }
+
+    pub fn to_static_str(&self) -> Option<&'static str> {
+        if let ValueView::StaticStr(s) = self {
+            Some(*s)
+        } else {
+            None
+        }
+    }
+
+    pub fn to_display(&self) -> Option<DisplayValue<'a>> {
+        if let ValueView::Display(d) = self {
+            Some(*d)
+        } else {
+            None
+        }
+    }
+
+    pub fn to_list(&self) -> Option<ListValue<'a>> {
+        if let ValueView::List(l) = self {
+            Some(*l)
+        } else {
+            None
+        }
+    }
+
+    pub fn to_map(&self) -> Option<MapValue<'a>> {
+        if let ValueView::Map(m) = self {
+            Some(*m)
+        } else {
+            None
+        }
+    }
+
+    pub fn to_debug(&self) -> Option<DebugValue<'a>> {
+        if let ValueView::Debug(d) = self {
+            Some(*d)
+        } else {
+            None
+        }
     }
 }
 
 /// A collection of key-value pairs.
+#[derive(Debug, Clone, Copy)]
 pub struct KeyValues<'a>(KeyValuesState<'a>);
 
+#[derive(Debug, Clone, Copy)]
 enum KeyValuesState<'a> {
     Borrowed(&'a [(Key<'a>, Value<'a>)]),
     Owned(&'a [(KeyOwned, ValueOwned)]),
+}
+
+impl KeyValues<'_> {
+    pub fn empty() -> Self {
+        KeyValues(KeyValuesState::Borrowed(&[]))
+    }
 }
 
 impl<'a> KeyValues<'a> {
@@ -235,22 +673,14 @@ impl<'a> KeyValues<'a> {
     /// Get the value for a given key.
     ///
     /// If the key appears multiple times in the source then which key is returned is undetermined.
-    pub fn get(&self, key: &str) -> Option<Value<'a>> {
+    pub fn get(&self, key: &str) -> Option<ValueView<'a>> {
         match &self.0 {
-            KeyValuesState::Borrowed(p) => p.iter().find_map(|(k, v)| {
-                if k.0.get() != key {
-                    None
-                } else {
-                    Some(v.clone())
-                }
-            }),
-            KeyValuesState::Owned(p) => p.iter().find_map(|(k, v)| {
-                if k.0.as_ref() != key {
-                    None
-                } else {
-                    Some(v.by_ref())
-                }
-            }),
+            KeyValuesState::Borrowed(p) => p
+                .iter()
+                .find_map(|(k, v)| if (&*k.0) != key { None } else { Some(v.view()) }),
+            KeyValuesState::Owned(p) => p
+                .iter()
+                .find_map(|(k, v)| if (&*k.0) != key { None } else { Some(v.view()) }),
         }
     }
 
@@ -260,36 +690,6 @@ impl<'a> KeyValues<'a> {
             visitor.visit(k, v)?;
         }
         Ok(())
-    }
-}
-
-impl fmt::Debug for KeyValues<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list().entries(self.iter()).finish()
-    }
-}
-
-impl Clone for KeyValues<'_> {
-    fn clone(&self) -> Self {
-        match &self.0 {
-            KeyValuesState::Borrowed(p) => KeyValues(KeyValuesState::Borrowed(p)),
-            KeyValuesState::Owned(p) => KeyValues(KeyValuesState::Owned(p)),
-        }
-    }
-}
-
-impl Default for KeyValues<'_> {
-    fn default() -> Self {
-        KeyValues(KeyValuesState::Borrowed(&[]))
-    }
-}
-
-impl<'a> IntoIterator for KeyValues<'a> {
-    type Item = (Key<'a>, Value<'a>);
-    type IntoIter = KeyValuesIter<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
     }
 }
 
@@ -314,12 +714,12 @@ enum KeyValuesIterState<'a> {
 }
 
 impl<'a> Iterator for KeyValuesIter<'a> {
-    type Item = (Key<'a>, Value<'a>);
+    type Item = (KeyView<'a>, ValueView<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
         match &mut self.0 {
-            KeyValuesIterState::Borrowed(iter) => iter.next().map(|(k, v)| (k.clone(), v.clone())),
-            KeyValuesIterState::Owned(iter) => iter.next().map(|(k, v)| (k.by_ref(), v.by_ref())),
+            KeyValuesIterState::Borrowed(iter) => iter.next().map(|(k, v)| (k.view(), v.view())),
+            KeyValuesIterState::Owned(iter) => iter.next().map(|(k, v)| (k.view(), v.view())),
         }
     }
 

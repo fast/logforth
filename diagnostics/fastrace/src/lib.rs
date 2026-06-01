@@ -44,9 +44,18 @@ impl Diagnostic for FastraceDiagnostic {
             let trace_id = span.trace_id.to_string();
             let span_id = span.span_id.to_string();
 
-            visitor.visit(Key::new("trace_id"), Value::from_str(&trace_id))?;
-            visitor.visit(Key::new("span_id"), Value::from_str(&span_id))?;
-            visitor.visit(Key::new("sampled"), Value::from_bool(span.sampled))?;
+            visitor.visit(
+                Key::new("trace_id").view(),
+                Value::str(&trace_id).view(),
+            )?;
+            visitor.visit(
+                Key::new("span_id").view(),
+                Value::str(&span_id).view(),
+            )?;
+            visitor.visit(
+                Key::new("sampled").view(),
+                Value::bool(span.sampled).view(),
+            )?;
         }
 
         Ok(())
@@ -58,7 +67,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use fastrace::Span;
-    use logforth_core::kv::ValueOwned;
+    use logforth_core::kv::{KeyView, ValueOwned, ValueView};
 
     use super::*;
 
@@ -67,7 +76,7 @@ mod tests {
         struct Collector(BTreeMap<String, ValueOwned>);
 
         impl Visitor for Collector {
-            fn visit(&mut self, key: Key<'_>, value: Value<'_>) -> Result<(), Error> {
+            fn visit(&mut self, key: KeyView<'_>, value: ValueView<'_>) -> Result<(), Error> {
                 self.0.insert(key.to_string(), value.to_owned());
                 Ok(())
             }
@@ -89,7 +98,7 @@ mod tests {
         let span_id = map.remove("span_id").unwrap();
         assert_eq!(16, span_id.to_string().len());
         let sampled = map.remove("sampled").unwrap();
-        assert!(sampled.by_ref().to_bool().unwrap());
+        assert!(sampled.view().to_bool().unwrap());
 
         assert!(map.is_empty());
     }
