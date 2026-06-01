@@ -310,7 +310,7 @@ mod kv {
     // this is derived from `opentelemetry-appender-log`'s serde impl:
     // https://github.com/open-telemetry/opentelemetry-rust/blob/f7b0dd99/opentelemetry-appender-log/src/lib.rs#L304-L763
     fn value_to_value(value: impl serde::Serialize) -> Option<ValueOwned> {
-        value.serialize(ValueSerializer).ok()?
+        value.serialize(ValueSerializer).ok()
     }
 
     struct ValueSerializer;
@@ -367,7 +367,7 @@ mod kv {
     impl std::error::Error for ValueError {}
 
     impl serde::Serializer for ValueSerializer {
-        type Ok = Option<ValueOwned>;
+        type Ok = ValueOwned;
 
         type Error = ValueError;
 
@@ -386,7 +386,7 @@ mod kv {
         type SerializeStructVariant = ValueSerializeStructVariant;
 
         fn serialize_bool(self, v: bool) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::bool(v)))
+            Ok(ValueOwned::bool(v))
         }
 
         fn serialize_i8(self, v: i8) -> Result<Self::Ok, Self::Error> {
@@ -402,7 +402,7 @@ mod kv {
         }
 
         fn serialize_i64(self, v: i64) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::i64(v)))
+            Ok(ValueOwned::i64(v))
         }
 
         fn serialize_i128(self, v: i128) -> Result<Self::Ok, Self::Error> {
@@ -426,7 +426,7 @@ mod kv {
         }
 
         fn serialize_u64(self, v: u64) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::u64(v)))
+            Ok(ValueOwned::u64(v))
         }
 
         fn serialize_u128(self, v: u128) -> Result<Self::Ok, Self::Error> {
@@ -442,23 +442,23 @@ mod kv {
         }
 
         fn serialize_f64(self, v: f64) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::f64(v)))
+            Ok(ValueOwned::f64(v))
         }
 
         fn serialize_char(self, v: char) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::char(v)))
+            Ok(ValueOwned::char(v))
         }
 
         fn serialize_str(self, v: &str) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::str(v.to_string())))
+            Ok(ValueOwned::str(v.to_string()))
         }
 
         fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::bytes(v.to_vec())))
+            Ok(ValueOwned::bytes(v.to_vec()))
         }
 
         fn serialize_none(self) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::none()))
+            Ok(ValueOwned::none())
         }
 
         fn serialize_some<T: serde::Serialize + ?Sized>(
@@ -469,11 +469,11 @@ mod kv {
         }
 
         fn serialize_unit(self) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::none()))
+            Ok(ValueOwned::none())
         }
 
         fn serialize_unit_struct(self, name: &'static str) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::str(name)))
+            Ok(ValueOwned::str(name))
         }
 
         fn serialize_unit_variant(
@@ -482,7 +482,7 @@ mod kv {
             _: u32,
             variant: &'static str,
         ) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::str(variant)))
+            Ok(ValueOwned::str(variant))
         }
 
         fn serialize_newtype_struct<T: serde::Serialize + ?Sized>(
@@ -566,7 +566,7 @@ mod kv {
     }
 
     impl serde::ser::SerializeSeq for ValueSerializeSeq {
-        type Ok = Option<ValueOwned>;
+        type Ok = ValueOwned;
 
         type Error = ValueError;
 
@@ -574,20 +574,17 @@ mod kv {
             &mut self,
             value: &T,
         ) -> Result<(), Self::Error> {
-            if let Some(value) = value.serialize(ValueSerializer)? {
-                self.value.push(value);
-            }
-
+            self.value.push(value.serialize(ValueSerializer)?);
             Ok(())
         }
 
         fn end(self) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::from_vec(self.value)))
+            Ok(ValueOwned::from_vec(self.value))
         }
     }
 
     impl serde::ser::SerializeTuple for ValueSerializeTuple {
-        type Ok = Option<ValueOwned>;
+        type Ok = ValueOwned;
 
         type Error = ValueError;
 
@@ -595,20 +592,17 @@ mod kv {
             &mut self,
             value: &T,
         ) -> Result<(), Self::Error> {
-            if let Some(value) = value.serialize(ValueSerializer)? {
-                self.value.push(value);
-            }
-
+            self.value.push(value.serialize(ValueSerializer)?);
             Ok(())
         }
 
         fn end(self) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::from_vec(self.value)))
+            Ok(ValueOwned::from_vec(self.value))
         }
     }
 
     impl serde::ser::SerializeTupleStruct for ValueSerializeTupleStruct {
-        type Ok = Option<ValueOwned>;
+        type Ok = ValueOwned;
 
         type Error = ValueError;
 
@@ -616,20 +610,17 @@ mod kv {
             &mut self,
             value: &T,
         ) -> Result<(), Self::Error> {
-            if let Some(value) = value.serialize(ValueSerializer)? {
-                self.value.push(value);
-            }
-
+            self.value.push(value.serialize(ValueSerializer)?);
             Ok(())
         }
 
         fn end(self) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::from_vec(self.value)))
+            Ok(ValueOwned::from_vec(self.value))
         }
     }
 
     impl serde::ser::SerializeTupleVariant for ValueSerializeTupleVariant {
-        type Ok = Option<ValueOwned>;
+        type Ok = ValueOwned;
 
         type Error = ValueError;
 
@@ -637,24 +628,21 @@ mod kv {
             &mut self,
             value: &T,
         ) -> Result<(), Self::Error> {
-            if let Some(value) = value.serialize(ValueSerializer)? {
-                self.value.push(value);
-            }
-
+            self.value.push(value.serialize(ValueSerializer)?);
             Ok(())
         }
 
         fn end(self) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::from_hash_map({
+            Ok(ValueOwned::from_hash_map({
                 let mut variant = HashMap::<KeyOwned, ValueOwned>::new();
                 variant.insert(KeyOwned::new(self.variant), ValueOwned::list(self.value));
                 variant
-            })))
+            }))
         }
     }
 
     impl serde::ser::SerializeMap for ValueSerializeMap {
-        type Ok = Option<ValueOwned>;
+        type Ok = ValueOwned;
 
         type Error = ValueError;
 
@@ -662,16 +650,11 @@ mod kv {
             &mut self,
             key: &T,
         ) -> Result<(), Self::Error> {
-            let key = match key.serialize(ValueSerializer)? {
-                Some(v) => match v.view() {
-                    ValueView::StaticStr(s) => KeyOwned::new(s),
-                    value => KeyOwned::new(value.to_string()),
-                },
-                None => KeyOwned::new("None"),
+            let key = match key.serialize(ValueSerializer)?.view() {
+                ValueView::StaticStr(s) => KeyOwned::new(s),
+                value => KeyOwned::new(value.to_string()),
             };
-
             self.key = Some(key);
-
             Ok(())
         }
 
@@ -683,19 +666,18 @@ mod kv {
                 .key
                 .take()
                 .ok_or_else(|| serde::ser::Error::custom("missing key"))?;
-            if let Some(value) = value.serialize(ValueSerializer)? {
-                self.value.insert(key, value);
-            }
+            let value = value.serialize(ValueSerializer)?;
+            self.value.insert(key, value);
             Ok(())
         }
 
         fn end(self) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::from_hash_map(self.value)))
+            Ok(ValueOwned::from_hash_map(self.value))
         }
     }
 
     impl serde::ser::SerializeStruct for ValueSerializeStruct {
-        type Ok = Option<ValueOwned>;
+        type Ok = ValueOwned;
 
         type Error = ValueError;
 
@@ -705,19 +687,18 @@ mod kv {
             value: &T,
         ) -> Result<(), Self::Error> {
             let key = KeyOwned::new(key);
-            if let Some(value) = value.serialize(ValueSerializer)? {
-                self.value.insert(key, value);
-            }
+            let value = value.serialize(ValueSerializer)?;
+            self.value.insert(key, value);
             Ok(())
         }
 
         fn end(self) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::from_hash_map(self.value)))
+            Ok(ValueOwned::from_hash_map(self.value))
         }
     }
 
     impl serde::ser::SerializeStructVariant for ValueSerializeStructVariant {
-        type Ok = Option<ValueOwned>;
+        type Ok = ValueOwned;
 
         type Error = ValueError;
 
@@ -727,21 +708,20 @@ mod kv {
             value: &T,
         ) -> Result<(), Self::Error> {
             let key = KeyOwned::new(key);
-            if let Some(value) = value.serialize(ValueSerializer)? {
-                self.value.insert(key, value);
-            }
+            let value = value.serialize(ValueSerializer)?;
+            self.value.insert(key, value);
             Ok(())
         }
 
         fn end(self) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(ValueOwned::from_hash_map({
+            Ok(ValueOwned::from_hash_map({
                 let mut variant = HashMap::<KeyOwned, ValueOwned>::new();
                 variant.insert(
                     KeyOwned::new(self.variant),
                     ValueOwned::from_hash_map(self.value),
                 );
                 variant
-            })))
+            }))
         }
     }
 }
