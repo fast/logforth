@@ -36,6 +36,13 @@ impl fmt::Display for Key<'_> {
     }
 }
 
+#[cfg(feature = "serde")]
+impl serde::Serialize for Key<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
+    }
+}
+
 impl Key<'static> {
     /// Create a new key from a static `&str`.
     pub const fn new(k: &'static str) -> Key<'static> {
@@ -69,6 +76,13 @@ impl fmt::Display for KeyOwned {
     }
 }
 
+#[cfg(feature = "serde")]
+impl serde::Serialize for KeyOwned {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
+    }
+}
+
 impl KeyOwned {
     /// Create an owned key.
     pub fn new(k: impl Into<Cow<'static, str>>) -> KeyOwned {
@@ -93,6 +107,13 @@ pub struct KeyView<'a>(RefStr<'a>);
 impl fmt::Display for KeyView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for KeyView<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
     }
 }
 
@@ -153,6 +174,13 @@ pub struct ListValue<'a>(ListValueState<'a>);
 enum ListValueState<'a> {
     Borrowed(&'a [Value<'a>]),
     Owned(&'a [ValueOwned]),
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for ListValue<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_seq(self.iter())
+    }
 }
 
 impl<'a> ListValue<'a> {
@@ -217,6 +245,13 @@ pub struct MapValue<'a>(MapValueState<'a>);
 enum MapValueState<'a> {
     Borrowed(&'a [(Key<'a>, Value<'a>)]),
     Owned(&'a HashMap<KeyOwned, ValueOwned>),
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for MapValue<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_map(self.iter())
+    }
 }
 
 impl<'a> MapValue<'a> {
@@ -323,6 +358,13 @@ impl fmt::Debug for ValueState<'_> {
             ValueState::Debug(v) => fmt::Debug::fmt(v, f),
             ValueState::Display(v) => fmt::Display::fmt(v, f),
         }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for Value<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.view().serialize(serializer)
     }
 }
 
@@ -439,6 +481,13 @@ enum ValueOwnedState {
     Map(Box<HashMap<KeyOwned, ValueOwned>>),
 }
 
+#[cfg(feature = "serde")]
+impl serde::Serialize for ValueOwned {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.view().serialize(serializer)
+    }
+}
+
 impl ValueOwned {
     /// Create a borrowed view of this owned value.
     pub fn view(&self) -> ValueView<'_> {
@@ -526,9 +575,9 @@ impl ValueOwned {
     }
 }
 
-#[non_exhaustive]
 /// A borrowed view of a value.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum ValueView<'a> {
     /// The absence of a value.
     None,
@@ -589,6 +638,28 @@ impl fmt::Display for ValueView<'_> {
             }
             ValueView::Debug(v) => fmt::Debug::fmt(v, f),
             ValueView::Display(v) => fmt::Display::fmt(v, f),
+        }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for ValueView<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match &self {
+            ValueView::None => serializer.serialize_none(),
+            ValueView::BorrowedStr(v) => serializer.serialize_str(v),
+            ValueView::StaticStr(v) => serializer.serialize_str(v),
+            ValueView::Bool(v) => serializer.serialize_bool(*v),
+            ValueView::I64(v) => serializer.serialize_i64(*v),
+            ValueView::U64(v) => serializer.serialize_u64(*v),
+            ValueView::F64(v) => serializer.serialize_f64(*v),
+            ValueView::I128(v) => serializer.serialize_i128(*v),
+            ValueView::U128(v) => serializer.serialize_u128(*v),
+            ValueView::Char(v) => serializer.serialize_char(*v),
+            ValueView::List(v) => v.serialize(serializer),
+            ValueView::Map(v) => v.serialize(serializer),
+            ValueView::Debug(v) => serializer.collect_str(v),
+            ValueView::Display(v) => serializer.collect_str(v),
         }
     }
 }

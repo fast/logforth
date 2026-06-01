@@ -29,9 +29,9 @@ use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
-use logforth_core::kv::Key;
 use logforth_core::kv::Value;
 use logforth_core::kv::Visitor;
+use logforth_core::kv::{Key, KeyView, ValueView};
 use logforth_core::layout::Layout;
 use logforth_core::record::Level;
 use logforth_core::record::Record;
@@ -187,7 +187,7 @@ struct KvWriter {
 }
 
 impl Visitor for KvWriter {
-    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
+    fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
         use std::fmt::Write;
 
         // SAFETY: write to a string always succeeds

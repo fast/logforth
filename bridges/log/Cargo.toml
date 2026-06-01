@@ -32,7 +32,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-log = { workspace = true }
+log = { workspace = true, features = ["kv"] }
 logforth-core = { workspace = true }
 
 [lints]

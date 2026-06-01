@@ -159,7 +159,7 @@ impl AsyncBuilder {
 struct DiagnosticCollector<'a>(&'a mut Vec<(kv::KeyOwned, kv::ValueOwned)>);
 
 impl<'a> Visitor for DiagnosticCollector<'a> {
-    fn visit(&mut self, key: kv::Key, value: kv::Value) -> Result<(), Error> {
+    fn visit(&mut self, key: kv::KeyView, value: kv::ValueView) -> Result<(), Error> {
         self.0.push((key.to_owned(), value.to_owned()));
         Ok(())
     }

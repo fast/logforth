@@ -44,18 +44,9 @@ impl Diagnostic for FastraceDiagnostic {
             let trace_id = span.trace_id.to_string();
             let span_id = span.span_id.to_string();
 
-            visitor.visit(
-                Key::new("trace_id").view(),
-                Value::str(&trace_id).view(),
-            )?;
-            visitor.visit(
-                Key::new("span_id").view(),
-                Value::str(&span_id).view(),
-            )?;
-            visitor.visit(
-                Key::new("sampled").view(),
-                Value::bool(span.sampled).view(),
-            )?;
+            visitor.visit(Key::new("trace_id").view(), Value::str(&trace_id).view())?;
+            visitor.visit(Key::new("span_id").view(), Value::str(&span_id).view())?;
+            visitor.visit(Key::new("sampled").view(), Value::bool(span.sampled).view())?;
         }
 
         Ok(())
@@ -94,9 +85,9 @@ mod tests {
         };
 
         let trace_id = map.remove("trace_id").unwrap();
-        assert_eq!(32, trace_id.to_string().len());
+        assert_eq!(32, trace_id.view().to_string().len());
         let span_id = map.remove("span_id").unwrap();
-        assert_eq!(16, span_id.to_string().len());
+        assert_eq!(16, span_id.view().to_string().len());
         let sampled = map.remove("sampled").unwrap();
         assert!(sampled.view().to_bool().unwrap());
 

@@ -23,9 +23,8 @@ use jiff::Zoned;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::append::Append;
-use logforth_core::kv::Key;
-use logforth_core::kv::Value;
 use logforth_core::kv::Visitor;
+use logforth_core::kv::{KeyView, ValueView};
 use logforth_core::record::Record;
 
 /// An appender that adds log records to fastrace as an event associated to the current span.
@@ -87,12 +86,18 @@ impl Append for FastraceEvent {
 }
 
 struct KvCollector {
-    kv: Vec<(String, String)>,
+    kv: Vec<(Cow<'static, str>, Cow<'static, str>)>,
 }
 
 impl Visitor for KvCollector {
-    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
-        self.kv.push((key.to_string(), value.to_string()));
+    fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
+        let k = key.to_cow();
+        let v = if let Some(s) = value.to_static_str() {
+            Cow::Borrowed(s)
+        } else {
+            Cow::Owned(value.to_string())
+        };
+        self.kv.push((k, v));
         Ok(())
     }
 }
