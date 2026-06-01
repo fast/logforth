@@ -387,7 +387,7 @@ fn value_to_any_value(value: ValueView) -> AnyValue {
         ValueView::Bool(v) => AnyValue::Boolean(v),
         ValueView::I64(v) => AnyValue::Int(v),
         ValueView::F64(v) => AnyValue::Double(v),
-        // the following three integer transforms follow what opentelemetry-appender-log does
+        // the following three integer transforms follow what `opentelemetry-appender-log` does:
         // https://github.com/open-telemetry/opentelemetry-rust/blob/f7b0dd99/opentelemetry-appender-log/src/lib.rs#L259-L287
         ValueView::U64(v) => {
             if let Ok(i) = i64::try_from(v) {

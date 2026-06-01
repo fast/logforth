@@ -338,6 +338,7 @@ enum ValueState<'a> {
     U128(u128),
     Char(char),
     Str(RefStr<'a>),
+    Bytes(&'a [u8]),
     List(&'a [Value<'a>]),
     Map(&'a [(Key<'a>, Value<'a>)]),
     Debug(&'a dyn fmt::Debug),
@@ -356,6 +357,7 @@ impl fmt::Debug for ValueState<'_> {
             ValueState::U128(v) => v.fmt(f),
             ValueState::Char(v) => v.fmt(f),
             ValueState::Str(v) => v.fmt(f),
+            ValueState::Bytes(v) => v.fmt(f),
             ValueState::List(v) => v.fmt(f),
             ValueState::Map(v) => v.fmt(f),
             ValueState::Debug(v) => fmt::Debug::fmt(v, f),
@@ -385,6 +387,7 @@ impl Value<'_> {
             ValueState::Char(c) => ValueView::Char(c),
             ValueState::Str(RefStr::Static(s)) => ValueView::StaticStr(s),
             ValueState::Str(RefStr::Borrowed(s)) => ValueView::BorrowedStr(s),
+            ValueState::Bytes(b) => ValueView::Bytes(b),
             ValueState::List(l) => ValueView::List(ListValue(ListValueState::Borrowed(l))),
             ValueState::Map(m) => ValueView::Map(MapValue(MapValueState::Borrowed(m))),
             ValueState::Debug(d) => ValueView::Debug(DebugValue(d)),
@@ -407,6 +410,11 @@ impl<'a> Value<'a> {
     /// Create a value from a static string.
     pub fn static_str(s: &'static str) -> Self {
         Value(ValueState::Str(RefStr::Static(s)))
+    }
+
+    /// Create a value from a byte array.
+    pub fn bytes(b: &'a [u8]) -> Self {
+        Value(ValueState::Bytes(b))
     }
 
     /// Create a value from a boolean.
@@ -481,6 +489,8 @@ enum ValueOwnedState {
     Char(char),
     Str(Cow<'static, str>),
     #[expect(clippy::box_collection)]
+    Bytes(Box<Vec<u8>>),
+    #[expect(clippy::box_collection)]
     List(Box<Vec<ValueOwned>>),
     #[expect(clippy::box_collection)]
     Map(Box<HashMap<KeyOwned, ValueOwned>>),
@@ -507,6 +517,7 @@ impl ValueOwned {
             ValueOwnedState::Char(c) => ValueView::Char(*c),
             ValueOwnedState::Str(Cow::Borrowed(s)) => ValueView::StaticStr(s),
             ValueOwnedState::Str(Cow::Owned(s)) => ValueView::BorrowedStr(s.as_str()),
+            ValueOwnedState::Bytes(b) => ValueView::Bytes(b.as_slice()),
             ValueOwnedState::List(l) => ValueView::List(ListValue(ListValueState::Owned(l))),
             ValueOwnedState::Map(m) => ValueView::Map(MapValue(MapValueState::Owned(m))),
         }
@@ -590,6 +601,8 @@ pub enum ValueView<'a> {
     BorrowedStr(&'a str),
     /// A static string value.
     StaticStr(&'static str),
+    /// A byte array value.
+    Bytes(&'a [u8]),
     /// A boolean value.
     Bool(bool),
     /// A signed 64-bit integer value.
@@ -620,6 +633,32 @@ impl fmt::Display for ValueView<'_> {
             ValueView::None => write!(f, "None"),
             ValueView::BorrowedStr(v) => v.fmt(f),
             ValueView::StaticStr(v) => v.fmt(f),
+            ValueView::Bytes(v) => {
+                // this follows what `bytes` does:
+                // https://github.com/tokio-rs/bytes/blob/2256e6dc/src/fmt/debug.rs
+                write!(f, "b\"")?;
+                for &b in v.iter() {
+                    // https://doc.rust-lang.org/reference/tokens.html#byte-escapes
+                    if b == b'\n' {
+                        write!(f, "\\n")?;
+                    } else if b == b'\r' {
+                        write!(f, "\\r")?;
+                    } else if b == b'\t' {
+                        write!(f, "\\t")?;
+                    } else if b == b'\\' || b == b'"' {
+                        write!(f, "\\{}", b as char)?;
+                    } else if b == b'\0' {
+                        write!(f, "\\0")?;
+                    // ASCII printable
+                    } else if (0x20..0x7f).contains(&b) {
+                        write!(f, "{}", b as char)?;
+                    } else {
+                        write!(f, "\\x{:02x}", b)?;
+                    }
+                }
+                write!(f, "\"")?;
+                Ok(())
+            }
             ValueView::Bool(v) => v.fmt(f),
             ValueView::I64(v) => v.fmt(f),
             ValueView::U64(v) => v.fmt(f),
@@ -654,6 +693,7 @@ impl serde::Serialize for ValueView<'_> {
             ValueView::None => serializer.serialize_none(),
             ValueView::BorrowedStr(v) => serializer.serialize_str(v),
             ValueView::StaticStr(v) => serializer.serialize_str(v),
+            ValueView::Bytes(v) => serializer.serialize_bytes(v),
             ValueView::Bool(v) => serializer.serialize_bool(*v),
             ValueView::I64(v) => serializer.serialize_i64(*v),
             ValueView::U64(v) => serializer.serialize_u64(*v),
@@ -680,6 +720,7 @@ impl ValueView<'_> {
             ValueView::StaticStr(s) => {
                 ValueOwned(ValueOwnedState::Str(Cow::Owned((*s).to_string())))
             }
+            ValueView::Bytes(b) => ValueOwned(ValueOwnedState::Bytes(Box::new(b.to_vec()))),
             ValueView::Bool(b) => ValueOwned(ValueOwnedState::Bool(*b)),
             ValueView::I64(i) => ValueOwned(ValueOwnedState::I64(*i)),
             ValueView::U64(u) => ValueOwned(ValueOwnedState::U64(*u)),
