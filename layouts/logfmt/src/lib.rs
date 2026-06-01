@@ -25,9 +25,9 @@ use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
-use logforth_core::kv::Key;
 use logforth_core::kv::Value;
 use logforth_core::kv::Visitor;
+use logforth_core::kv::{Key, KeyView, ValueView};
 use logforth_core::layout::Layout;
 use logforth_core::record::Record;
 
@@ -78,7 +78,7 @@ struct KvFormatter {
 
 impl Visitor for KvFormatter {
     // The encode logic is copied from https://github.com/go-logfmt/logfmt/blob/76262ea7/encode.go.
-    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
+    fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
         use std::fmt::Write;
 
         let key = key.as_str();
@@ -124,13 +124,19 @@ impl Layout for LogfmtLayout {
             text: format!("timestamp={time:.6}"),
         };
 
-        visitor.visit(Key::new("level").view(), level.name().into())?;
-        visitor.visit(Key::new("module").view(), target.into())?;
+        visitor.visit(
+            Key::new("level").view(),
+            Value::static_str(level.name()).view(),
+        )?;
+        visitor.visit(Key::new("module").view(), Value::str(target).view())?;
         visitor.visit(
             Key::new("position").view(),
             Value::display(&format_args!("{file}:{line}")).view(),
         )?;
-        visitor.visit(Key::new("message"), Value::str(message.as_ref()))?;
+        visitor.visit(
+            Key::new("message").view(),
+            Value::str(message.as_ref()).view(),
+        )?;
 
         record.key_values().visit(&mut visitor)?;
         for d in diags {

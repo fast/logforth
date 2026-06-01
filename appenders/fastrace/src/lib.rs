@@ -71,7 +71,7 @@ impl Append for FastraceEvent {
                     collector
                         .kv
                         .into_iter()
-                        .map(|(k, v)| (Cow::from(k), Cow::from(v))),
+                        .map(|(k, v)| (k, v)),
                 )
             },
         ));

@@ -23,8 +23,6 @@ use std::sync::Arc;
 use log::Metadata;
 use log::Record;
 use logforth_core::Logger;
-use logforth_core::kv::Key;
-use logforth_core::kv::Value;
 use logforth_core::record::FilterCriteria;
 
 /// Adapter to use a `logforth` logger instance as a `log` crate logger.
@@ -61,16 +59,6 @@ impl log::Log for LogAdapter {
 
     fn flush(&self) {
         self.logger.flush();
-    }
-}
-
-fn level_to_level(level: log::Level) -> logforth_core::record::Level {
-    match level {
-        log::Level::Error => logforth_core::record::Level::Error,
-        log::Level::Warn => logforth_core::record::Level::Warn,
-        log::Level::Info => logforth_core::record::Level::Info,
-        log::Level::Debug => logforth_core::record::Level::Debug,
-        log::Level::Trace => logforth_core::record::Level::Trace,
     }
 }
 
@@ -113,7 +101,7 @@ fn forward_log(logger: &Logger, record: &Record) {
     let mut kvs = Vec::new();
 
     struct KeyValueVisitor<'a, 'b> {
-        kvs: &'b mut Vec<(log::kv::Key<'a>, log::kv::Value<'a>)>,
+        kvs: &'b mut Vec<(log::kv::Key<'a>, kv::MaybeOwnedValue<'a>)>,
     }
 
     impl<'a, 'b> log::kv::VisitSource<'a> for KeyValueVisitor<'a, 'b> {
@@ -122,6 +110,7 @@ fn forward_log(logger: &Logger, record: &Record) {
             key: log::kv::Key<'a>,
             value: log::kv::Value<'a>,
         ) -> Result<(), log::kv::Error> {
+            let value = kv::value_to_value(value);
             self.kvs.push((key, value));
             Ok(())
         }
@@ -132,9 +121,104 @@ fn forward_log(logger: &Logger, record: &Record) {
 
     let mut new_kvs = Vec::with_capacity(kvs.len());
     for (k, v) in kvs.iter() {
-        new_kvs.push((Key::borrowed(k.as_str()), Value::from_sval2(v)));
+        new_kvs.push((key_to_key(k), v.to_value()));
     }
     builder = builder.key_values(new_kvs.as_slice());
 
     Logger::log(logger, &builder.build());
+}
+
+fn level_to_level(level: log::Level) -> logforth_core::record::Level {
+    match level {
+        log::Level::Error => logforth_core::record::Level::Error,
+        log::Level::Warn => logforth_core::record::Level::Warn,
+        log::Level::Info => logforth_core::record::Level::Info,
+        log::Level::Debug => logforth_core::record::Level::Debug,
+        log::Level::Trace => logforth_core::record::Level::Trace,
+    }
+}
+
+fn key_to_key<'a>(key: &'a log::kv::Key<'a>) -> logforth_core::kv::Key<'a> {
+    logforth_core::kv::Key::borrowed(key.as_str())
+}
+
+mod kv {
+    pub(super) enum MaybeOwnedValue<'a> {
+        Borrowed(logforth_core::kv::Value<'a>),
+        Owned(String),
+    }
+
+    impl MaybeOwnedValue<'_> {
+        pub(super) fn to_value(&self) -> logforth_core::kv::Value<'_> {
+            match self {
+                MaybeOwnedValue::Borrowed(v) => v.clone(),
+                MaybeOwnedValue::Owned(s) => logforth_core::kv::Value::str(s.as_str()),
+            }
+        }
+    }
+
+    pub(super) fn value_to_value(value: log::kv::Value) -> MaybeOwnedValue {
+        struct ValueVisitor<'a>(MaybeOwnedValue<'a>);
+
+        impl<'a> log::kv::VisitValue<'a> for ValueVisitor<'a> {
+            fn visit_any(&mut self, value: log::kv::Value) -> Result<(), log::kv::Error> {
+                self.0 = MaybeOwnedValue::Owned(value.to_string());
+                Ok(())
+            }
+
+            fn visit_null(&mut self) -> Result<(), log::kv::Error> {
+                self.0 = MaybeOwnedValue::Borrowed(logforth_core::kv::Value::none());
+                Ok(())
+            }
+
+            fn visit_u64(&mut self, value: u64) -> Result<(), log::kv::Error> {
+                self.0 = MaybeOwnedValue::Borrowed(logforth_core::kv::Value::u64(value));
+                Ok(())
+            }
+
+            fn visit_i64(&mut self, value: i64) -> Result<(), log::kv::Error> {
+                self.0 = MaybeOwnedValue::Borrowed(logforth_core::kv::Value::i64(value));
+                Ok(())
+            }
+
+            fn visit_u128(&mut self, value: u128) -> Result<(), log::kv::Error> {
+                self.0 = MaybeOwnedValue::Borrowed(logforth_core::kv::Value::u128(value));
+                Ok(())
+            }
+
+            fn visit_i128(&mut self, value: i128) -> Result<(), log::kv::Error> {
+                self.0 = MaybeOwnedValue::Borrowed(logforth_core::kv::Value::i128(value));
+                Ok(())
+            }
+
+            fn visit_f64(&mut self, value: f64) -> Result<(), log::kv::Error> {
+                self.0 = MaybeOwnedValue::Borrowed(logforth_core::kv::Value::f64(value));
+                Ok(())
+            }
+
+            fn visit_bool(&mut self, value: bool) -> Result<(), log::kv::Error> {
+                self.0 = MaybeOwnedValue::Borrowed(logforth_core::kv::Value::bool(value));
+                Ok(())
+            }
+
+            fn visit_str(&mut self, value: &str) -> Result<(), log::kv::Error> {
+                self.0 = MaybeOwnedValue::Owned(value.to_string());
+                Ok(())
+            }
+
+            fn visit_borrowed_str(&mut self, value: &'a str) -> Result<(), log::kv::Error> {
+                self.0 = MaybeOwnedValue::Borrowed(logforth_core::kv::Value::str(value));
+                Ok(())
+            }
+
+            fn visit_char(&mut self, value: char) -> Result<(), log::kv::Error> {
+                self.0 = MaybeOwnedValue::Borrowed(logforth_core::kv::Value::char(value));
+                Ok(())
+            }
+        }
+
+        let mut visitor = ValueVisitor(MaybeOwnedValue::Borrowed(logforth_core::kv::Value::none()));
+        value.visit(&mut visitor).unwrap();
+        visitor.0
+    }
 }

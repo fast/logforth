@@ -145,7 +145,7 @@ impl<'a> Record<'a> {
                 line: self.line,
                 column: self.column,
                 payload: self.payload,
-                kvs: self.kvs.clone(),
+                kvs: self.kvs,
             },
         }
     }
