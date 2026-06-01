@@ -348,7 +348,7 @@ enum ValueState<'a> {
 impl fmt::Debug for ValueState<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ValueState::None => write!(f, "None"),
+            ValueState::None => write!(f, "<none>"),
             ValueState::Bool(v) => v.fmt(f),
             ValueState::I64(v) => v.fmt(f),
             ValueState::U64(v) => v.fmt(f),
@@ -635,7 +635,7 @@ pub enum ValueView<'a> {
 impl fmt::Display for ValueView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ValueView::None => write!(f, "None"),
+            ValueView::None => write!(f, "<none>"),
             ValueView::BorrowedStr(v) => v.fmt(f),
             ValueView::StaticStr(v) => v.fmt(f),
             ValueView::Bytes(v) => {

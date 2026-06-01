@@ -35,6 +35,12 @@ struct MyStructuredValue {
     b: NestedStructuredValue,
 }
 
+#[derive(Serialize)]
+struct MyEmptyStructuredValue {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    vec: Vec<()>,
+}
+
 fn main() {
     logforth::starter_log::builder()
         .dispatch(|d| {
@@ -68,5 +74,10 @@ fn main() {
             notLabel:serde = structured_value;
             "Hello label value!",
         );
+
+        let empty_value = MyEmptyStructuredValue { vec: vec![] };
+        log::info!(empty_value:serde; "Hello empty value!");
+        let non_empty_value = MyEmptyStructuredValue { vec: vec![()] };
+        log::info!(non_empty_value:serde; "Hello non-empty value!");
     }
 }
