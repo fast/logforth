@@ -98,32 +98,9 @@ fn forward_log(logger: &Logger, record: &Record) {
     builder = builder.payload(*record.args());
 
     // key-values
-    let mut kvs = Vec::new();
-
-    struct KeyValueVisitor<'a, 'b> {
-        kvs: &'b mut Vec<(log::kv::Key<'a>, kv::MaybeOwnedValue<'a>)>,
-    }
-
-    impl<'a, 'b> log::kv::VisitSource<'a> for KeyValueVisitor<'a, 'b> {
-        fn visit_pair(
-            &mut self,
-            key: log::kv::Key<'a>,
-            value: log::kv::Value<'a>,
-        ) -> Result<(), log::kv::Error> {
-            let value = kv::value_to_value(value);
-            self.kvs.push((key, value));
-            Ok(())
-        }
-    }
-
-    let mut visitor = KeyValueVisitor { kvs: &mut kvs };
-    record.key_values().visit(&mut visitor).unwrap();
-
-    let mut new_kvs = Vec::with_capacity(kvs.len());
-    for (k, v) in kvs.iter() {
-        new_kvs.push((key_to_key(k), v.to_value()));
-    }
-    builder = builder.key_values(new_kvs.as_slice());
+    let kvs = kv::key_values_stage_one(record.key_values());
+    let new_kvs = kv::key_value_stage_two(&kvs);
+    builder = builder.key_values(new_kvs.to_key_values());
 
     Logger::log(logger, &builder.build());
 }
@@ -138,26 +115,49 @@ fn level_to_level(level: log::Level) -> logforth_core::record::Level {
     }
 }
 
-fn key_to_key<'a>(key: &'a log::kv::Key<'a>) -> logforth_core::kv::Key<'a> {
-    logforth_core::kv::Key::borrowed(key.as_str())
-}
-
+#[cfg(not(feature = "serde"))]
 mod kv {
-    pub(super) enum MaybeOwnedValue<'a> {
+    pub(super) struct KeyValuesStageOne<'a> {
+        kvs: Vec<(KeyStageOne<'a>, ValueStageOne<'a>)>,
+    }
+
+    struct KeyStageOne<'a>(log::kv::Key<'a>);
+
+    struct ValueStageOne<'a>(MaybeOwnedValue<'a>);
+
+    enum MaybeOwnedValue<'a> {
         Borrowed(logforth_core::kv::Value<'a>),
         Owned(String),
     }
 
-    impl MaybeOwnedValue<'_> {
-        pub(super) fn to_value(&self) -> logforth_core::kv::Value<'_> {
-            match self {
-                MaybeOwnedValue::Borrowed(v) => v.clone(),
-                MaybeOwnedValue::Owned(s) => logforth_core::kv::Value::str(s.as_str()),
+    pub(super) fn key_values_stage_one<'a>(
+        source: &'a dyn log::kv::Source,
+    ) -> KeyValuesStageOne<'a> {
+        let mut kvs = Vec::new();
+
+        struct KeyValueVisitor<'a, 'b> {
+            kvs: &'b mut Vec<(KeyStageOne<'a>, ValueStageOne<'a>)>,
+        }
+
+        impl<'a, 'b> log::kv::VisitSource<'a> for KeyValueVisitor<'a, 'b> {
+            fn visit_pair(
+                &mut self,
+                key: log::kv::Key<'a>,
+                value: log::kv::Value<'a>,
+            ) -> Result<(), log::kv::Error> {
+                let key = KeyStageOne(key);
+                let value = ValueStageOne(value_to_value(value));
+                self.kvs.push((key, value));
+                Ok(())
             }
         }
+
+        let mut visitor = KeyValueVisitor { kvs: &mut kvs };
+        log::kv::Source::visit(source, &mut visitor).unwrap();
+        KeyValuesStageOne { kvs }
     }
 
-    pub(super) fn value_to_value(value: log::kv::Value) -> MaybeOwnedValue {
+    fn value_to_value(value: log::kv::Value) -> MaybeOwnedValue {
         struct ValueVisitor<'a>(MaybeOwnedValue<'a>);
 
         impl<'a> log::kv::VisitValue<'a> for ValueVisitor<'a> {
@@ -221,4 +221,34 @@ mod kv {
         value.visit(&mut visitor).unwrap();
         visitor.0
     }
+
+    pub(super) struct KeyValuesStageTwo<'a> {
+        kvs: Vec<(KeyStageTwo<'a>, ValueStageTwo<'a>)>,
+    }
+
+    impl<'a> KeyValuesStageTwo<'a> {
+        pub(super) fn to_key_values(&self) -> logforth_core::kv::KeyValues<'_> {
+            logforth_core::kv::KeyValues::from(self.kvs.as_slice())
+        }
+    }
+
+    type KeyStageTwo<'a> = logforth_core::kv::Key<'a>;
+
+    type ValueStageTwo<'a> = logforth_core::kv::Value<'a>;
+
+    pub(super) fn key_value_stage_two<'a>(kvs: &'a KeyValuesStageOne<'a>) -> KeyValuesStageTwo<'a> {
+        let mut new_kvs = Vec::with_capacity(kvs.kvs.len());
+        for (k, v) in &kvs.kvs {
+            let k = logforth_core::kv::Key::borrowed(k.0.as_str());
+            let v = match &v.0 {
+                MaybeOwnedValue::Borrowed(v) => v.clone(),
+                MaybeOwnedValue::Owned(s) => logforth_core::kv::Value::str(s.as_str()),
+            };
+            new_kvs.push((k, v));
+        }
+        KeyValuesStageTwo { kvs: new_kvs }
+    }
 }
+
+#[cfg(feature = "serde")]
+mod kv {}
