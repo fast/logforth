@@ -14,11 +14,14 @@
 
 //! Key-value pairs in a log record or a diagnostic context.
 
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::collections::hash_map;
+use std::fmt;
+use std::slice;
+
 use crate::Error;
 use crate::str::RefStr;
-use std::borrow::Cow;
-use std::collections::{HashMap, hash_map};
-use std::{fmt, slice};
 
 /// A visitor to walk through key-value pairs.
 pub trait Visitor {
@@ -477,7 +480,9 @@ enum ValueOwnedState {
     U128(u128),
     Char(char),
     Str(Cow<'static, str>),
+    #[expect(clippy::box_collection)]
     List(Box<Vec<ValueOwned>>),
+    #[expect(clippy::box_collection)]
     Map(Box<HashMap<KeyOwned, ValueOwned>>),
 }
 

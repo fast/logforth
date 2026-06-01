@@ -23,8 +23,9 @@ use jiff::Zoned;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::append::Append;
+use logforth_core::kv::KeyView;
+use logforth_core::kv::ValueView;
 use logforth_core::kv::Visitor;
-use logforth_core::kv::{KeyView, ValueView};
 use logforth_core::record::Record;
 
 /// An appender that adds log records to fastrace as an event associated to the current span.
@@ -67,12 +68,7 @@ impl Append for FastraceEvent {
                     (Cow::from("timestamp"), Cow::from(Zoned::now().to_string())),
                 ]
                 .into_iter()
-                .chain(
-                    collector
-                        .kv
-                        .into_iter()
-                        .map(|(k, v)| (k, v)),
-                )
+                .chain(collector.kv)
             },
         ));
 

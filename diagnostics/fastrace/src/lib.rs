@@ -58,7 +58,9 @@ mod tests {
     use std::collections::BTreeMap;
 
     use fastrace::Span;
-    use logforth_core::kv::{KeyView, ValueOwned, ValueView};
+    use logforth_core::kv::KeyView;
+    use logforth_core::kv::ValueOwned;
+    use logforth_core::kv::ValueView;
 
     use super::*;
 

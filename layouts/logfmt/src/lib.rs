@@ -25,9 +25,11 @@ use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
+use logforth_core::kv::Key;
+use logforth_core::kv::KeyView;
 use logforth_core::kv::Value;
+use logforth_core::kv::ValueView;
 use logforth_core::kv::Visitor;
-use logforth_core::kv::{Key, KeyView, ValueView};
 use logforth_core::layout::Layout;
 use logforth_core::record::Record;
 

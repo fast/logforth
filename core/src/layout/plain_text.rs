@@ -18,8 +18,9 @@ use std::time::SystemTime;
 use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
+use crate::kv::KeyView;
+use crate::kv::ValueView;
 use crate::kv::Visitor;
-use crate::kv::{KeyView, ValueView};
 use crate::record::Record;
 
 /// A layout that formats log record as plain text.
