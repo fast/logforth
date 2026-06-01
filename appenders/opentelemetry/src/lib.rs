@@ -377,7 +377,7 @@ fn key_to_key(key: KeyView) -> Key {
 
 fn value_to_any_value(value: ValueView) -> AnyValue {
     match value {
-        // wait for https://github.com/open-telemetry/opentelemetry-rust/issues/3528
+        // TODO(@tisonkun): see https://github.com/open-telemetry/opentelemetry-rust/issues/3528
         ValueView::None => AnyValue::String("null".into()),
         ValueView::BorrowedStr(v) => AnyValue::String(v.to_string().into()),
         ValueView::StaticStr(v) => AnyValue::String(v.into()),

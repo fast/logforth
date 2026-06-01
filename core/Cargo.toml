@@ -37,6 +37,8 @@ serde = ["dep:serde"]
 
 [dependencies]
 anyhow = { workspace = true }
+
+# Optional dependencies
 serde = { workspace = true, optional = true }
 
 [dev-dependencies]

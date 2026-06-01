@@ -570,6 +570,11 @@ impl ValueOwned {
         ValueOwned(ValueOwnedState::Str(s.into()))
     }
 
+    /// Create an owned value from a byte array.
+    pub fn bytes(b: impl Into<Vec<u8>>) -> ValueOwned {
+        ValueOwned(ValueOwnedState::Bytes(Box::new(b.into())))
+    }
+
     /// Create an owned value from a list of owned values.
     pub fn list(l: impl IntoIterator<Item = ValueOwned>) -> ValueOwned {
         ValueOwned(ValueOwnedState::List(Box::new(l.into_iter().collect())))
