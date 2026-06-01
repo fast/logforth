@@ -14,6 +14,7 @@
 
 //! Key-value pairs in a log record or a diagnostic context.
 
+use std::borrow::Borrow;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::hash_map;
@@ -46,6 +47,12 @@ impl serde::Serialize for Key<'_> {
     }
 }
 
+impl Borrow<str> for Key<'_> {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
+
 impl Key<'static> {
     /// Create a new key from a static `&str`.
     pub const fn new(k: &'static str) -> Key<'static> {
@@ -72,6 +79,12 @@ impl Key<'_> {
 /// An owned key in a key-value pair.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct KeyOwned(Cow<'static, str>);
+
+impl Borrow<str> for KeyOwned {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
 
 impl fmt::Display for KeyOwned {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -106,6 +119,12 @@ impl KeyOwned {
 /// A borrowed view of a key in a key-value pair.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct KeyView<'a>(RefStr<'a>);
+
+impl Borrow<str> for KeyView<'_> {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
 
 impl fmt::Display for KeyView<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -288,9 +307,7 @@ impl<'a> MapValue<'a> {
             MapValueState::Borrowed(p) => p
                 .iter()
                 .find_map(|(k, v)| if (&*k.0) != key { None } else { Some(v.view()) }),
-            MapValueState::Owned(p) => p
-                .iter()
-                .find_map(|(k, v)| if (&*k.0) != key { None } else { Some(v.view()) }),
+            MapValueState::Owned(p) => p.get(key).map(|v| v.view()),
         }
     }
 }
