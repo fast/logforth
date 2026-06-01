@@ -20,6 +20,7 @@ use std::borrow::Cow;
 use std::collections::{HashMap, hash_map};
 use std::{fmt, slice};
 
+/// A visitor to walk through key-value pairs.
 pub trait Visitor {
     /// Visit a key-value pair.
     fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error>;
@@ -52,6 +53,7 @@ impl<'a> Key<'a> {
 }
 
 impl Key<'_> {
+    /// Create a borrowed view of this key.
     pub fn view(&self) -> KeyView<'_> {
         KeyView(self.0)
     }
@@ -68,12 +70,14 @@ impl fmt::Display for KeyOwned {
 }
 
 impl KeyOwned {
+    /// Create an owned key.
     pub fn new(k: impl Into<Cow<'static, str>>) -> KeyOwned {
         KeyOwned(k.into())
     }
 }
 
 impl KeyOwned {
+    /// Create a borrowed view of this owned key.
     pub fn view(&self) -> KeyView<'_> {
         KeyView(match &self.0 {
             Cow::Borrowed(s) => RefStr::Static(s),
@@ -82,6 +86,7 @@ impl KeyOwned {
     }
 }
 
+/// A borrowed view of a key in a key-value pair.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct KeyView<'a>(RefStr<'a>);
 
@@ -108,6 +113,7 @@ impl KeyView<'_> {
     }
 }
 
+/// A value captured through its [`fmt::Debug`] representation.
 #[derive(Clone, Copy)]
 pub struct DebugValue<'a>(&'a dyn fmt::Debug);
 
@@ -123,6 +129,7 @@ impl fmt::Display for DebugValue<'_> {
     }
 }
 
+/// A value captured through its [`fmt::Display`] representation.
 #[derive(Clone, Copy)]
 pub struct DisplayValue<'a>(&'a dyn fmt::Display);
 
@@ -138,6 +145,7 @@ impl fmt::Display for DisplayValue<'_> {
     }
 }
 
+/// A borrowed view over a list value.
 #[derive(Debug, Clone, Copy)]
 pub struct ListValue<'a>(ListValueState<'a>);
 
@@ -148,6 +156,23 @@ enum ListValueState<'a> {
 }
 
 impl<'a> ListValue<'a> {
+    /// Get the number of elements.
+    pub fn len(&self) -> usize {
+        match self.0 {
+            ListValueState::Borrowed(p) => p.len(),
+            ListValueState::Owned(p) => p.len(),
+        }
+    }
+
+    /// Check if this is an empty list.
+    pub fn is_empty(&self) -> bool {
+        match self.0 {
+            ListValueState::Borrowed(p) => p.is_empty(),
+            ListValueState::Owned(p) => p.is_empty(),
+        }
+    }
+
+    /// Get an iterator over the list values.
     pub fn iter(&self) -> ListValueIter<'a> {
         match self.0 {
             ListValueState::Borrowed(v) => ListValueIter(ListValueIterState::Borrowed(v.iter())),
@@ -156,6 +181,7 @@ impl<'a> ListValue<'a> {
     }
 }
 
+/// An iterator over list values.
 #[derive(Debug, Clone)]
 pub struct ListValueIter<'a>(ListValueIterState<'a>);
 
@@ -183,6 +209,7 @@ impl<'a> Iterator for ListValueIter<'a> {
     }
 }
 
+/// A borrowed view over a map value.
 #[derive(Debug, Clone, Copy)]
 pub struct MapValue<'a>(MapValueState<'a>);
 
@@ -193,14 +220,44 @@ enum MapValueState<'a> {
 }
 
 impl<'a> MapValue<'a> {
+    /// Get the number of key-values.
+    pub fn len(&self) -> usize {
+        match self.0 {
+            MapValueState::Borrowed(p) => p.len(),
+            MapValueState::Owned(p) => p.len(),
+        }
+    }
+
+    /// Check if there are no key-value pairs.
+    pub fn is_empty(&self) -> bool {
+        match self.0 {
+            MapValueState::Borrowed(p) => p.is_empty(),
+            MapValueState::Owned(p) => p.is_empty(),
+        }
+    }
+
+    /// Get an iterator over the map key-value pairs.
     pub fn iter(&self) -> MapValueIter<'a> {
         match self.0 {
             MapValueState::Borrowed(v) => MapValueIter(MapValueIterState::Borrowed(v.iter())),
             MapValueState::Owned(v) => MapValueIter(MapValueIterState::Owned(v.iter())),
         }
     }
+
+    /// Get the value for a given key.
+    pub fn get(&self, key: &str) -> Option<ValueView<'a>> {
+        match &self.0 {
+            MapValueState::Borrowed(p) => p
+                .iter()
+                .find_map(|(k, v)| if (&*k.0) != key { None } else { Some(v.view()) }),
+            MapValueState::Owned(p) => p
+                .iter()
+                .find_map(|(k, v)| if (&*k.0) != key { None } else { Some(v.view()) }),
+        }
+    }
 }
 
+/// An iterator over map key-value pairs.
 #[derive(Debug, Clone)]
 pub struct MapValueIter<'a>(MapValueIterState<'a>);
 
@@ -228,6 +285,7 @@ impl<'a> Iterator for MapValueIter<'a> {
     }
 }
 
+/// A borrowed value in a key-value pair.
 #[derive(Debug, Clone)]
 pub struct Value<'a>(ValueState<'a>);
 
@@ -269,6 +327,7 @@ impl fmt::Debug for ValueState<'_> {
 }
 
 impl Value<'_> {
+    /// Create a borrowed view of this value.
     pub fn view(&self) -> ValueView<'_> {
         match self.0 {
             ValueState::None => ValueView::None,
@@ -290,63 +349,78 @@ impl Value<'_> {
 }
 
 impl<'a> Value<'a> {
+    /// Create a value representing the absence of data.
     pub fn none() -> Value<'a> {
         Value(ValueState::None)
     }
 
+    /// Create a value from a borrowed string.
     pub fn str(s: &'a str) -> Self {
         Value(ValueState::Str(RefStr::Borrowed(s)))
     }
 
+    /// Create a value from a static string.
     pub fn static_str(s: &'static str) -> Self {
         Value(ValueState::Str(RefStr::Static(s)))
     }
 
+    /// Create a value from a boolean.
     pub fn bool(b: bool) -> Self {
         Value(ValueState::Bool(b))
     }
 
+    /// Create a value from a signed 64-bit integer.
     pub fn i64(i: i64) -> Self {
         Value(ValueState::I64(i))
     }
 
+    /// Create a value from an unsigned 64-bit integer.
     pub fn u64(u: u64) -> Self {
         Value(ValueState::U64(u))
     }
 
+    /// Create a value from a 64-bit floating point number.
     pub fn f64(f: f64) -> Self {
         Value(ValueState::F64(f))
     }
 
+    /// Create a value from a signed 128-bit integer.
     pub fn i128(i: i128) -> Self {
         Value(ValueState::I128(i))
     }
 
+    /// Create a value from an unsigned 128-bit integer.
     pub fn u128(u: u128) -> Self {
         Value(ValueState::U128(u))
     }
 
+    /// Create a value from a Unicode scalar value.
     pub fn char(c: char) -> Self {
         Value(ValueState::Char(c))
     }
 
+    /// Create a value from a borrowed list of values.
     pub fn list(l: &'a [Value<'a>]) -> Self {
         Value(ValueState::List(l))
     }
 
+    /// Create a value from a borrowed map of key-value pairs.
     pub fn map(m: &'a [(Key<'a>, Value<'a>)]) -> Self {
         Value(ValueState::Map(m))
     }
 
+    /// Create a value that is formatted lazily with [`fmt::Debug`].
     pub fn debug(d: &'a dyn fmt::Debug) -> Self {
         Value(ValueState::Debug(d))
     }
 
+    /// Create a value that is formatted lazily with [`fmt::Display`].
     pub fn display(d: &'a dyn fmt::Display) -> Self {
         Value(ValueState::Display(d))
     }
 }
 
+/// An owned value in a key-value pair.
 #[derive(Debug, Clone)]
 pub struct ValueOwned(ValueOwnedState);
 
@@ -366,6 +440,7 @@ enum ValueOwnedState {
 }
 
 impl ValueOwned {
+    /// Create a borrowed view of this owned value.
     pub fn view(&self) -> ValueView<'_> {
         match &self.0 {
             ValueOwnedState::None => ValueView::None,
@@ -385,75 +460,103 @@ impl ValueOwned {
 }
 
 impl ValueOwned {
+    /// Create an owned value representing the absence of data.
     pub fn none() -> ValueOwned {
         ValueOwned(ValueOwnedState::None)
     }
 
+    /// Create an owned value from a boolean.
     pub fn bool(b: bool) -> ValueOwned {
         ValueOwned(ValueOwnedState::Bool(b))
     }
 
+    /// Create an owned value from a signed 64-bit integer.
     pub fn i64(i: i64) -> ValueOwned {
         ValueOwned(ValueOwnedState::I64(i))
     }
 
+    /// Create an owned value from an unsigned 64-bit integer.
     pub fn u64(u: u64) -> ValueOwned {
         ValueOwned(ValueOwnedState::U64(u))
     }
 
+    /// Create an owned value from a 64-bit floating point number.
     pub fn f64(f: f64) -> ValueOwned {
         ValueOwned(ValueOwnedState::F64(f))
     }
 
+    /// Create an owned value from a signed 128-bit integer.
     pub fn i128(i: i128) -> ValueOwned {
         ValueOwned(ValueOwnedState::I128(i))
     }
 
+    /// Create an owned value from an unsigned 128-bit integer.
     pub fn u128(u: u128) -> ValueOwned {
         ValueOwned(ValueOwnedState::U128(u))
     }
 
+    /// Create an owned value from a Unicode scalar value.
     pub fn char(c: char) -> ValueOwned {
         ValueOwned(ValueOwnedState::Char(c))
     }
 
+    /// Create an owned value from a string.
     pub fn str(s: impl Into<Cow<'static, str>>) -> ValueOwned {
         ValueOwned(ValueOwnedState::Str(s.into()))
     }
 
+    /// Create an owned value from a list of owned values.
     pub fn list(l: impl IntoIterator<Item = ValueOwned>) -> ValueOwned {
         ValueOwned(ValueOwnedState::List(Box::new(l.into_iter().collect())))
     }
 
+    /// Create an owned value from a map of owned key-value pairs.
     pub fn map(m: impl IntoIterator<Item = (KeyOwned, ValueOwned)>) -> ValueOwned {
         ValueOwned(ValueOwnedState::Map(Box::new(m.into_iter().collect())))
     }
 
+    /// Create an owned list value from a vector.
     pub fn from_vec(v: Vec<ValueOwned>) -> ValueOwned {
         ValueOwned(ValueOwnedState::List(Box::new(v)))
     }
 
+    /// Create an owned map value from a hash map.
     pub fn from_hash_map(m: HashMap<KeyOwned, ValueOwned>) -> ValueOwned {
         ValueOwned(ValueOwnedState::Map(Box::new(m)))
     }
 }
 
 #[non_exhaustive]
+/// A borrowed view of a value.
 #[derive(Debug, Clone)]
 pub enum ValueView<'a> {
+    /// The absence of a value.
     None,
+    /// A borrowed string value.
     BorrowedStr(&'a str),
+    /// A static string value.
     StaticStr(&'static str),
+    /// A boolean value.
     Bool(bool),
+    /// A signed 64-bit integer value.
     I64(i64),
+    /// An unsigned 64-bit integer value.
     U64(u64),
+    /// A 64-bit floating point value.
     F64(f64),
+    /// A signed 128-bit integer value.
     I128(i128),
+    /// An unsigned 128-bit integer value.
     U128(u128),
+    /// A Unicode scalar value.
     Char(char),
+    /// A list value.
     List(ListValue<'a>),
+    /// A map value.
     Map(MapValue<'a>),
+    /// A lazily debug-formatted value.
     Debug(DebugValue<'a>),
+    /// A lazily display-formatted value.
     Display(DisplayValue<'a>),
 }
 
@@ -491,6 +594,7 @@ impl fmt::Display for ValueView<'_> {
 }
 
 impl ValueView<'_> {
+    /// Convert this view into an owned value.
     pub fn to_owned(&self) -> ValueOwned {
         match &self {
             ValueView::None => ValueOwned(ValueOwnedState::None),
@@ -522,6 +626,7 @@ impl ValueView<'_> {
 }
 
 impl<'a> ValueView<'a> {
+    /// Try to convert this view into a boolean.
     pub fn to_bool(&self) -> Option<bool> {
         if let ValueView::Bool(b) = self {
             Some(*b)
@@ -530,6 +635,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
+    /// Try to convert this view into a signed 64-bit integer.
     pub fn to_i64(&self) -> Option<i64> {
         if let ValueView::I64(i) = self {
             Some(*i)
@@ -538,6 +644,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
+    /// Try to convert this view into an unsigned 64-bit integer.
     pub fn to_u64(&self) -> Option<u64> {
         if let ValueView::U64(u) = self {
             Some(*u)
@@ -546,6 +653,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
+    /// Try to convert this view into a 64-bit floating point number.
     pub fn to_f64(&self) -> Option<f64> {
         if let ValueView::F64(f) = self {
             Some(*f)
@@ -554,6 +662,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
+    /// Try to convert this view into a signed 128-bit integer.
     pub fn to_i128(&self) -> Option<i128> {
         if let ValueView::I128(i) = self {
             Some(*i)
@@ -562,6 +671,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
+    /// Try to convert this view into an unsigned 128-bit integer.
     pub fn to_u128(&self) -> Option<u128> {
         if let ValueView::U128(u) = self {
             Some(*u)
@@ -570,6 +680,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
+    /// Try to convert this view into a Unicode scalar value.
     pub fn to_char(&self) -> Option<char> {
         if let ValueView::Char(c) = self {
             Some(*c)
@@ -578,6 +689,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
+    /// Try to convert this view into a string slice.
     pub fn to_str(&self) -> Option<&'a str> {
         if let ValueView::BorrowedStr(s) = self {
             Some(*s)
@@ -588,6 +700,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
+    /// Try to convert this view into a static string slice.
     pub fn to_static_str(&self) -> Option<&'static str> {
         if let ValueView::StaticStr(s) = self {
             Some(*s)
@@ -596,6 +709,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
+    /// Try to convert this view into a display-formatted value.
     pub fn to_display(&self) -> Option<DisplayValue<'a>> {
         if let ValueView::Display(d) = self {
             Some(*d)
@@ -604,6 +718,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
+    /// Try to convert this view into a list value.
     pub fn to_list(&self) -> Option<ListValue<'a>> {
         if let ValueView::List(l) = self {
             Some(*l)
@@ -612,6 +727,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
+    /// Try to convert this view into a map value.
     pub fn to_map(&self) -> Option<MapValue<'a>> {
         if let ValueView::Map(m) = self {
             Some(*m)
@@ -620,6 +736,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
+    /// Try to convert this view into a debug-formatted value.
     pub fn to_debug(&self) -> Option<DebugValue<'a>> {
         if let ValueView::Debug(d) = self {
             Some(*d)
@@ -640,6 +757,7 @@ enum KeyValuesState<'a> {
 }
 
 impl KeyValues<'_> {
+    /// Create an empty key-value collection.
     pub fn empty() -> Self {
         KeyValues(KeyValuesState::Borrowed(&[]))
     }
@@ -671,8 +789,6 @@ impl<'a> KeyValues<'a> {
     }
 
     /// Get the value for a given key.
-    ///
-    /// If the key appears multiple times in the source then which key is returned is undetermined.
     pub fn get(&self, key: &str) -> Option<ValueView<'a>> {
         match &self.0 {
             KeyValuesState::Borrowed(p) => p
