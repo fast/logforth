@@ -18,8 +18,8 @@ use std::time::SystemTime;
 use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
-use crate::kv::Key;
-use crate::kv::Value;
+use crate::kv::KeyView;
+use crate::kv::ValueView;
 use crate::kv::Visitor;
 use crate::record::Record;
 
@@ -52,7 +52,7 @@ struct KvWriter {
 }
 
 impl Visitor for KvWriter {
-    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
+    fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
         // SAFETY: write to a string always succeeds
         write!(&mut self.text, " {key}={value}").unwrap();
         Ok(())

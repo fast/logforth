@@ -99,7 +99,7 @@ jobs:
           cargo run --features="starter-log" --example single_file
           cargo run --features="starter-log,diagnostic-task-local" --example task_local
           cargo run --features="starter-log,append-async" --example asynchronous
-          cargo run --features="starter-log,diagnostic-fastrace,layout-google-cloud-logging" --example google_cloud_logging
+          cargo run --features="starter-log,bridge-log-serde,diagnostic-fastrace,layout-google-cloud-logging" --example google_cloud_logging
           cargo run --features="starter-log,append-fastrace,diagnostic-fastrace" --example fastrace
 
           cargo test --features="starter-log" --example testing -- --show-output

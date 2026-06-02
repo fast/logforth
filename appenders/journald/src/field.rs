@@ -18,7 +18,7 @@
 
 use std::io::Write;
 
-use logforth_core::kv::Value;
+use logforth_core::kv::ValueView;
 
 pub(super) enum FieldName<'a> {
     WellFormed(&'a str),
@@ -90,7 +90,7 @@ impl PutAsFieldValue for std::fmt::Arguments<'_> {
     }
 }
 
-impl PutAsFieldValue for Value<'_> {
+impl PutAsFieldValue for ValueView<'_> {
     fn put_field_value(self, buffer: &mut Vec<u8>) {
         // SAFETY: no more than an allocate-less version
         //  buffer.extend_from_slice(format!("{}", self))

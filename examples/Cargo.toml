@@ -28,6 +28,7 @@ starter-log = ["logforth/starter-log"]
 
 # Bridges
 bridge-log = ["logforth/bridge-log"]
+bridge-log-serde = ["logforth/bridge-log-serde"]
 
 # Appenders
 append-async = ["logforth/append-async"]
@@ -53,7 +54,7 @@ logforth = { workspace = true }
 [dev-dependencies]
 ctor = { workspace = true }
 fastrace = { workspace = true, features = ["enable"] }
-log = { workspace = true, features = ["kv_serde"] }
+log = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 
@@ -140,6 +141,7 @@ name = "google_cloud_logging"
 path = "src/google_cloud_logging.rs"
 required-features = [
   "starter-log",
+  "bridge-log-serde",
   "diagnostic-fastrace",
   "layout-google-cloud-logging",
 ]

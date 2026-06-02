@@ -22,8 +22,8 @@ use std::collections::BTreeSet;
 
 use logforth_core::Diagnostic;
 use logforth_core::Error;
-use logforth_core::kv::Key;
-use logforth_core::kv::Value;
+use logforth_core::kv::KeyView;
+use logforth_core::kv::ValueView;
 use logforth_core::kv::Visitor;
 use logforth_core::layout::Layout;
 use logforth_core::record::Record;
@@ -132,7 +132,7 @@ struct KvCollector<'a> {
 }
 
 impl Visitor for KvCollector<'_> {
-    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
+    fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
         let key = key.as_str();
 
         if let Some(trace_project_id) = self.layout.trace_project_id.as_ref() {

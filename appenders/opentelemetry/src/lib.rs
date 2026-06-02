@@ -18,6 +18,7 @@
 #![deny(missing_docs)]
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt;
 use std::time::SystemTime;
 
@@ -25,12 +26,13 @@ use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::Layout;
 use logforth_core::append::Append;
-use logforth_core::kv::Key;
-use logforth_core::kv::Value;
+use logforth_core::kv::KeyView;
+use logforth_core::kv::ValueView;
 use logforth_core::kv::Visitor;
 use logforth_core::record::Level;
 use logforth_core::record::Record;
 use opentelemetry::InstrumentationScope;
+use opentelemetry::Key;
 use opentelemetry::logs::AnyValue;
 use opentelemetry::logs::LogRecord;
 use opentelemetry::logs::Logger;
@@ -361,10 +363,67 @@ struct KvExtractor<'a> {
 }
 
 impl Visitor for KvExtractor<'_> {
-    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
-        let key = key.to_cow();
-        let value = value.to_string();
+    fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
+        let key = key_to_key(key);
+        let value = value_to_any_value(value);
         self.record.add_attribute(key, value);
         Ok(())
+    }
+}
+
+fn key_to_key(key: KeyView) -> Key {
+    Key::from(key.to_cow())
+}
+
+fn value_to_any_value(value: ValueView) -> AnyValue {
+    match value {
+        // TODO(@tisonkun): see https://github.com/open-telemetry/opentelemetry-rust/issues/3528
+        ValueView::None => AnyValue::String("null".into()),
+        ValueView::BorrowedStr(v) => AnyValue::String(v.to_string().into()),
+        ValueView::StaticStr(v) => AnyValue::String(v.into()),
+        ValueView::Char(v) => AnyValue::String(v.to_string().into()),
+        ValueView::Debug(v) => AnyValue::String(v.to_string().into()),
+        ValueView::Display(v) => AnyValue::String(v.to_string().into()),
+        ValueView::Bool(v) => AnyValue::Boolean(v),
+        ValueView::I64(v) => AnyValue::Int(v),
+        ValueView::F64(v) => AnyValue::Double(v),
+        // the following three integer transforms follow what `opentelemetry-appender-log` does:
+        // https://github.com/open-telemetry/opentelemetry-rust/blob/f7b0dd99/opentelemetry-appender-log/src/lib.rs#L259-L287
+        ValueView::U64(v) => {
+            if let Ok(i) = i64::try_from(v) {
+                AnyValue::Int(i)
+            } else {
+                AnyValue::String(v.to_string().into())
+            }
+        }
+        ValueView::I128(v) => {
+            if let Ok(i) = i64::try_from(v) {
+                AnyValue::Int(i)
+            } else {
+                AnyValue::String(v.to_string().into())
+            }
+        }
+        ValueView::U128(v) => {
+            if let Ok(i) = i64::try_from(v) {
+                AnyValue::Int(i)
+            } else {
+                AnyValue::String(v.to_string().into())
+            }
+        }
+        ValueView::List(v) => {
+            let mut l = Vec::new();
+            for item in v.iter() {
+                l.push(value_to_any_value(item));
+            }
+            AnyValue::ListAny(Box::new(l))
+        }
+        ValueView::Map(v) => {
+            let mut m = HashMap::new();
+            for (k, v) in v.iter() {
+                m.insert(key_to_key(k), value_to_any_value(v));
+            }
+            AnyValue::Map(Box::new(m))
+        }
+        v => AnyValue::String(v.to_string().into()),
     }
 }

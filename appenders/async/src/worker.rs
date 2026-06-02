@@ -54,7 +54,7 @@ impl Worker {
                     let diags: &[Box<dyn Diagnostic>] = if diags.is_empty() {
                         &[]
                     } else {
-                        &[Box::new(OwnedDiagnostic(diags))]
+                        &[Box::new(AsyncDiagnostic(diags))]
                     };
 
                     record.with(|record| {
@@ -80,12 +80,12 @@ impl Worker {
 }
 
 #[derive(Debug)]
-struct OwnedDiagnostic(Vec<(kv::KeyOwned, kv::ValueOwned)>);
+struct AsyncDiagnostic(Vec<(kv::KeyOwned, kv::ValueOwned)>);
 
-impl Diagnostic for OwnedDiagnostic {
+impl Diagnostic for AsyncDiagnostic {
     fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
         for (key, value) in &self.0 {
-            visitor.visit(key.by_ref(), value.by_ref())?;
+            visitor.visit(key.view(), value.view())?;
         }
         Ok(())
     }

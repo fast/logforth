@@ -23,8 +23,8 @@ use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
-use logforth_core::kv::Key;
-use logforth_core::kv::Value;
+use logforth_core::kv::KeyView;
+use logforth_core::kv::ValueView;
 use logforth_core::kv::Visitor;
 use logforth_core::layout::Layout;
 use logforth_core::record::Record;
@@ -111,7 +111,7 @@ struct KvCollector<'a> {
 }
 
 impl Visitor for KvCollector<'_> {
-    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
+    fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
         let key = key.to_string();
         match serde_json::to_value(&value) {
             Ok(value) => self.kvs.insert(key, value),

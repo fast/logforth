@@ -145,7 +145,7 @@ impl<'a> Record<'a> {
                 line: self.line,
                 column: self.column,
                 payload: self.payload,
-                kvs: self.kvs.clone(),
+                kvs: self.kvs,
             },
         }
     }
@@ -197,7 +197,7 @@ impl Default for RecordBuilder<'_> {
                 line: None,
                 column: None,
                 payload: format_args!(""),
-                kvs: Default::default(),
+                kvs: KeyValues::empty(),
             },
         }
     }

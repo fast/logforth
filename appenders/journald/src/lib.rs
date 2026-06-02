@@ -24,8 +24,8 @@ use std::os::unix::net::UnixDatagram;
 use logforth_core::Append;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
-use logforth_core::kv::Key;
-use logforth_core::kv::Value;
+use logforth_core::kv::KeyView;
+use logforth_core::kv::ValueView;
 use logforth_core::kv::Visitor;
 use logforth_core::record::Level;
 use logforth_core::record::Record;
@@ -237,7 +237,7 @@ impl Journald {
 struct WriteKeyValues<'a>(&'a mut Vec<u8>);
 
 impl Visitor for WriteKeyValues<'_> {
-    fn visit(&mut self, key: Key, value: Value) -> Result<(), Error> {
+    fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
         let key = key.as_str();
         field::put_field_length_encoded(self.0, field::FieldName::WriteEscaped(key), value);
         Ok(())

@@ -16,6 +16,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt;
 use std::hash::Hash;
+use std::ops::Deref;
 
 #[derive(Clone, Copy)]
 pub enum RefStr<'a> {
@@ -55,6 +56,14 @@ impl<'a> RefStr<'a> {
             RefStr::Borrowed(s) => Cow::Owned(ToOwned::to_owned(s)),
             RefStr::Static(s) => Cow::Borrowed(s),
         }
+    }
+}
+
+impl Deref for RefStr<'_> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.get()
     }
 }
 
