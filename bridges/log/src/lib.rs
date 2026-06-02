@@ -32,7 +32,7 @@ pub struct LogBridge {
 }
 
 impl LogBridge {
-    /// Create a new `LogAdapter` instance.
+    /// Create a new `LogBridge` instance.
     pub fn new(logger: impl Into<Arc<Logger>>) -> Self {
         Self {
             logger: logger.into(),

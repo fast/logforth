@@ -153,7 +153,7 @@ pub struct LogStarterTestingBuilder {
     layout: Box<dyn Layout>,
 }
 
-/// Create a starter builder with a default [`append::Testing`] appender and an [`RustLogFilter`]
+/// Create a starter builder with a default [`append::Testing`] appender and a [`RustLogFilter`]
 /// respecting `RUST_LOG`.
 ///
 /// [`RustLogFilter`]: crate::filter::RustLogFilter
@@ -293,7 +293,7 @@ pub struct LogStarterStdStreamBuilder {
     layout: Box<dyn Layout>,
 }
 
-/// Create a starter builder with a default [`append::Stdout`] appender and an [`RustLogFilter`]
+/// Create a starter builder with a default [`append::Stdout`] appender and a [`RustLogFilter`]
 /// respecting `RUST_LOG`.
 ///
 /// [`RustLogFilter`]: crate::filter::RustLogFilter
@@ -312,7 +312,7 @@ pub fn stdout() -> LogStarterStdStreamBuilder {
     }
 }
 
-/// Create a starter builder with a default [`append::Stderr`] appender and an [`RustLogFilter`]
+/// Create a starter builder with a default [`append::Stderr`] appender and a [`RustLogFilter`]
 /// respecting `RUST_LOG`.
 ///
 /// [`RustLogFilter`]: crate::filter::RustLogFilter
