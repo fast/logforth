@@ -13,11 +13,11 @@
 # limitations under the License.
 
 [package]
-name = "logforth-core"
-version = "0.3.1"
+name = "logforth-filter-rustlog"
+version = "0.1.0"
 
-description = "Core structs and functions for Logforth."
-keywords = ["logging", "log"]
+description = "RUST_LOG directive pattern filter for Logforth."
+keywords = ["logging", "log", "fastrace"]
 
 categories.workspace = true
 edition.workspace = true
@@ -27,19 +27,11 @@ readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
-
-[features]
-default = []
-serde = ["dep:serde"]
-
 [dependencies]
-anyhow = { workspace = true }
+logforth-core = { workspace = true }
 
-# Optional dependencies
-serde = { workspace = true, optional = true }
+[dev-dependencies]
+insta = { workspace = true }
 
 [lints]
 workspace = true

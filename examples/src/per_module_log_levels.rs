@@ -13,15 +13,15 @@
 // limitations under the License.
 
 use logforth::append;
-use logforth::filter::env_filter::EnvFilterBuilder;
+use logforth::filter::rustlog::RustLogFilterBuilder;
 use logforth::record::Level;
 use logforth::record::LevelFilter;
 
 fn main() {
     // This is how you can allow trace level logs for everything else while silencing them
     // for the ones you probably don't need (in this case various rerun modules).
-    let my_filter = EnvFilterBuilder::from_default_env()
-        .filter_level(LevelFilter::MoreSevereEqual(logforth::record::Level::Trace))
+    let my_filter = RustLogFilterBuilder::from_default_env()
+        .filter_level(LevelFilter::MoreSevereEqual(Level::Trace))
         .filter_module("rerun", LevelFilter::MoreSevereEqual(Level::Warn))
         .filter_module("re_chunk", LevelFilter::MoreSevereEqual(Level::Warn))
         .filter_module("re_log", LevelFilter::MoreSevereEqual(Level::Warn))

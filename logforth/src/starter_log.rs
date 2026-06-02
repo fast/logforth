@@ -14,7 +14,7 @@
 
 //! Starter configurations for quickly setting up logforth with the `log` crate
 
-use logforth_bridge_log::LogAdapter;
+use logforth_bridge_log::LogBridge;
 use logforth_core::Logger;
 
 use crate::Append;
@@ -24,7 +24,7 @@ use crate::Layout;
 use crate::append;
 use crate::core::DispatchBuilder;
 use crate::core::LoggerBuilder;
-use crate::filter::env_filter::EnvFilterBuilder;
+use crate::filter::rustlog::RustLogFilterBuilder;
 
 /// A builder for setting up logforth with the `log` crate.
 pub struct LogStarterBuilder {
@@ -89,7 +89,7 @@ impl LogStarterBuilder {
     pub fn try_apply(self) -> Result<(), Error> {
         let make_error = |_| Error::new("logging system has already been setup");
 
-        let logger = Box::new(LogAdapter::new(self.build()));
+        let logger = Box::new(LogBridge::new(self.build()));
         log::set_boxed_logger(logger).map_err(make_error)?;
         log::set_max_level(log::LevelFilter::Trace);
 
@@ -131,10 +131,10 @@ impl LogStarterBuilder {
     /// ```
     /// use std::sync::Arc;
     ///
-    /// use logforth::bridge::log::LogAdapter;
+    /// use logforth::bridge::log::LogBridge;
     ///
     /// let logger = logforth::starter_log::builder().build();
-    /// let logger = Arc::new(LogAdapter::new(logger));
+    /// let logger = Arc::new(LogBridge::new(logger));
     /// log::set_boxed_logger(Box::new(logger.clone())).unwrap();
     /// log::set_max_level(log::LevelFilter::Trace);
     ///
@@ -153,10 +153,10 @@ pub struct LogStarterTestingBuilder {
     layout: Box<dyn Layout>,
 }
 
-/// Create a starter builder with a default [`append::Testing`] appender and an [`EnvFilter`]
+/// Create a starter builder with a default [`append::Testing`] appender and a [`RustLogFilter`]
 /// respecting `RUST_LOG`.
 ///
-/// [`EnvFilter`]: crate::filter::EnvFilter
+/// [`RustLogFilter`]: crate::filter::RustLogFilter
 ///
 /// # Examples
 ///
@@ -261,10 +261,10 @@ impl LogStarterTestingBuilder {
     /// ```
     /// use std::sync::Arc;
     ///
-    /// use logforth::bridge::log::LogAdapter;
+    /// use logforth::bridge::log::LogBridge;
     ///
     /// let logger = logforth::starter_log::testing().build();
-    /// let logger = Arc::new(LogAdapter::new(logger));
+    /// let logger = Arc::new(LogBridge::new(logger));
     /// log::set_boxed_logger(Box::new(logger.clone())).unwrap();
     /// log::set_max_level(log::LevelFilter::Trace);
     ///
@@ -293,10 +293,10 @@ pub struct LogStarterStdStreamBuilder {
     layout: Box<dyn Layout>,
 }
 
-/// Create a starter builder with a default [`append::Stdout`] appender and an [`EnvFilter`]
+/// Create a starter builder with a default [`append::Stdout`] appender and a [`RustLogFilter`]
 /// respecting `RUST_LOG`.
 ///
-/// [`EnvFilter`]: crate::filter::EnvFilter
+/// [`RustLogFilter`]: crate::filter::RustLogFilter
 ///
 /// # Examples
 ///
@@ -312,10 +312,10 @@ pub fn stdout() -> LogStarterStdStreamBuilder {
     }
 }
 
-/// Create a starter builder with a default [`append::Stderr`] appender and an [`EnvFilter`]
+/// Create a starter builder with a default [`append::Stderr`] appender and a [`RustLogFilter`]
 /// respecting `RUST_LOG`.
 ///
-/// [`EnvFilter`]: crate::filter::EnvFilter
+/// [`RustLogFilter`]: crate::filter::RustLogFilter
 ///
 /// # Examples
 ///
@@ -421,10 +421,10 @@ impl LogStarterStdStreamBuilder {
     /// ```
     /// use std::sync::Arc;
     ///
-    /// use logforth::bridge::log::LogAdapter;
+    /// use logforth::bridge::log::LogBridge;
     ///
     /// let logger = logforth::starter_log::stdout().build();
-    /// let logger = Arc::new(LogAdapter::new(logger));
+    /// let logger = Arc::new(LogBridge::new(logger));
     /// log::set_boxed_logger(Box::new(logger.clone())).unwrap();
     /// log::set_max_level(log::LevelFilter::Trace);
     ///
@@ -451,7 +451,7 @@ impl LogStarterStdStreamBuilder {
 }
 
 fn default_filter() -> Box<dyn Filter> {
-    Box::new(EnvFilterBuilder::from_default_env().build())
+    Box::new(RustLogFilterBuilder::from_default_env().build())
 }
 
 fn default_layout() -> Box<dyn Layout> {

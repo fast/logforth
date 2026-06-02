@@ -36,11 +36,12 @@ default = []
 
 # Starters
 starter-log = [
-  "bridge-log",
   "dep:log",
+  "bridge-log",
   "append-file",
   "layout-text",
   "layout-json",
+  "filter-rustlog",
 ]
 
 # Bridges
@@ -65,6 +66,9 @@ layout-text = ["dep:logforth-layout-text"]
 diagnostic-fastrace = ["dep:logforth-diagnostic-fastrace"]
 diagnostic-task-local = ["dep:logforth-diagnostic-task-local"]
 
+# Filters
+filter-rustlog = ["dep:logforth-filter-rustlog"]
+
 # Standalone features
 native-tls = ["logforth-append-syslog?/native-tls"]
 rustls = ["logforth-append-syslog?/rustls"]
@@ -83,6 +87,7 @@ logforth-append-syslog = { workspace = true, optional = true }
 logforth-bridge-log = { workspace = true, optional = true }
 logforth-diagnostic-fastrace = { workspace = true, optional = true }
 logforth-diagnostic-task-local = { workspace = true, optional = true }
+logforth-filter-rustlog = { workspace = true, optional = true }
 logforth-layout-google-cloud-logging = { workspace = true, optional = true }
 logforth-layout-json = { workspace = true, optional = true }
 logforth-layout-logfmt = { workspace = true, optional = true }

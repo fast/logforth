@@ -20,6 +20,7 @@ members = [
   "appenders/*",
   "bridges/*",
   "diagnostics/*",
+  "filters/*",
   "layouts/*",
   "xtask",
 ]
@@ -47,6 +48,7 @@ logforth-bridge-log = { version = "0.3.0", path = "bridges/log" }
 logforth-core = { version = "0.3.1", path = "core" }
 logforth-diagnostic-fastrace = { version = "0.3.0", path = "diagnostics/fastrace" }
 logforth-diagnostic-task-local = { version = "0.3.0", path = "diagnostics/task-local" }
+logforth-filter-rustlog = { version = "0.1.0", path = "filters/rustlog" }
 logforth-layout-google-cloud-logging = { version = "0.3.0", path = "layouts/google-cloud-logging" }
 logforth-layout-json = { version = "0.3.0", path = "layouts/json" }
 logforth-layout-logfmt = { version = "0.3.0", path = "layouts/logfmt" }

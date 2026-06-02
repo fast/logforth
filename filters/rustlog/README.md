@@ -1,4 +1,4 @@
-# RUST_LOG Environment Variable Filter
+# Logforth RUST_LOG Filter
 
 This filter is derived by [env_filter](https://crates.io/crates/env_filter), with significant modifications to suit our needs:
 

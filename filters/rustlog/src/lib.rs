@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! A filter that can be configured via environment variables.
+//! A filter that follows the famous `RUST_LOG` directive pattern.
 //!
 //! Log levels are controlled on a per-module basis, and by default all logging is disabled except
 //! for the `error` level.
 //!
-//! Despite having "env" in its name, you can also use [`EnvFilterBuilder::from_spec`] to configure
-//! the filter by directly passing a specification string.
+//! You can use [`RustLogFilterBuilder::from_default_env`] to configure the filter from the
+//! `RUST_LOG` environment variable, or [`RustLogFilterBuilder::from_spec`] to configure the
+//! filter by directly passing a specification string.
 //!
 //! The specification string is a comma-separated list of logging directives. A logging directive is
 //! of the form:
@@ -29,7 +30,7 @@
 //!
 //! `target` is typically `path::to::module`, but it may also be set manually via the log macros.
 //!
-//! The path to the module is rooted in the name of the crate it was compiled  for, so if your
+//! The path to the module is rooted in the name of the crate it was compiled for. Thus, if your
 //! program is contained in a file `hello.rs`, for example, to turn on logging for this file you
 //! would use a value of `RUST_LOG=hello`. Furthermore, this path is a prefix-search, so all modules
 //! nested in the specified module will also have logging enabled.
@@ -38,8 +39,9 @@
 //! If omitted, all logging for the item (and its children) will be enabled.
 //!
 //! The names of the log levels that may be specified correspond to the variations of the [`Level`]
-//! enum from this crate. They are:
+//! enum. The most common used levels include:
 //!
+//! * `fatal`
 //! * `error`
 //! * `warn`
 //! * `info`
@@ -53,7 +55,7 @@
 //! As the log level for a module is optional, the module to enable logging for is also optional. If
 //! only a level is provided, then the global log level for all modules is set to this value.
 //!
-//! Some examples of valid values  are:
+//! Some examples of valid values are:
 //!
 //! * `hello` turns on all logging for the 'hello' module
 //! * `trace` turns on all logging for the application, regardless of its name
@@ -63,21 +65,21 @@
 //! * `hello=debug` turns on debug logging for 'hello'
 //! * `hello=DEBUG` turns on debug logging for 'hello' (same as previous)
 //! * `hello,std::option` turns on hello, and std's option logging
-//! * `error,hello=warn` turn on global error logging and also warn for hello
-//! * `error,hello=off`  turn on global error logging, but turn off logging for hello
+//! * `error,hello=warn` turns on global error logging and also warn for hello
+//! * `error,hello=off` turns on global error logging, but turn off logging for hello
 //! * `off` turns off all logging for the application
 //! * `OFF` turns off all logging for the application (same as previous)
 
 use std::borrow::Cow;
 use std::str::FromStr;
 
-use crate::Diagnostic;
-use crate::Error;
-use crate::Filter;
-use crate::filter::FilterResult;
-use crate::record::FilterCriteria;
-use crate::record::Level;
-use crate::record::LevelFilter;
+use logforth_core::Diagnostic;
+use logforth_core::Error;
+use logforth_core::Filter;
+use logforth_core::filter::FilterResult;
+use logforth_core::record::FilterCriteria;
+use logforth_core::record::Level;
+use logforth_core::record::LevelFilter;
 
 #[cfg(test)]
 mod tests;
@@ -93,23 +95,23 @@ pub const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
 /// Less exclusive levels (like `trace` or `info`) are considered to be more verbose than more
 /// exclusive levels (like `error` or `warn`).
 ///
-/// Read more from the [module level documentation](self) about the directive syntax and use cases.
+/// Read more from the [crate level documentation](self) about the directive syntax and use cases.
 ///
-/// [`Record`]: crate::record::Record
+/// [`Record`]: logforth_core::record::Record
 #[derive(Debug)]
-pub struct EnvFilter {
+pub struct RustLogFilter {
     directives: Vec<Directive>,
 }
 
-impl EnvFilter {
+impl RustLogFilter {
     fn from_directives(directives: Vec<Directive>) -> Self {
         let mut directives = directives;
         directives.sort();
-        EnvFilter { directives }
+        RustLogFilter { directives }
     }
 }
 
-impl Filter for EnvFilter {
+impl Filter for RustLogFilter {
     fn enabled(&self, criteria: &FilterCriteria, _: &[Box<dyn Diagnostic>]) -> FilterResult {
         let level = criteria.level();
         let target = criteria.target();
@@ -131,46 +133,46 @@ impl Filter for EnvFilter {
     }
 }
 
-impl From<LevelFilter> for EnvFilter {
+impl From<LevelFilter> for RustLogFilter {
     fn from(filter: LevelFilter) -> Self {
-        EnvFilterBuilder::default().filter_level(filter).build()
+        RustLogFilterBuilder::default().filter_level(filter).build()
     }
 }
 
-impl<'a> From<&'a str> for EnvFilter {
+impl<'a> From<&'a str> for RustLogFilter {
     fn from(filter: &'a str) -> Self {
-        EnvFilterBuilder::from_spec(filter).build()
+        RustLogFilterBuilder::from_spec(filter).build()
     }
 }
 
-impl FromStr for EnvFilter {
+impl FromStr for RustLogFilter {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        EnvFilterBuilder::try_from_spec(s).map(|b| b.build())
+        RustLogFilterBuilder::try_from_spec(s).map(|b| b.build())
     }
 }
 
-/// A builder for [`EnvFilter`].
+/// A builder for [`RustLogFilter`].
 ///
-/// It can be used to parse a set of directives from a string before building an [`EnvFilter`]
+/// It can be used to parse a set of directives from a string before building an [`RustLogFilter`]
 /// instance.
 ///
 /// ## Example
 ///
 /// ```
-/// use logforth_core::filter::env_filter::EnvFilterBuilder;
+/// use logforth_filter_rustlog::RustLogFilterBuilder;
 ///
 /// // Parse the filter from the default environment variable `RUST_LOG`.
-/// let builder = EnvFilterBuilder::from_default_env();
+/// let builder = RustLogFilterBuilder::from_default_env();
 /// let filter = builder.build();
 /// ```
 #[derive(Debug, Default)]
-pub struct EnvFilterBuilder {
+pub struct RustLogFilterBuilder {
     directives: Vec<Directive>,
 }
 
-impl EnvFilterBuilder {
+impl RustLogFilterBuilder {
     /// Initialize the filter builder from the environment using default variable name `RUST_LOG`.
     ///
     /// # Examples
@@ -178,12 +180,12 @@ impl EnvFilterBuilder {
     /// Initialize a filter using the default environment variables:
     ///
     /// ```
-    /// use logforth_core::filter::env_filter::EnvFilterBuilder;
+    /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let filter = EnvFilterBuilder::from_default_env().build();
+    /// let filter = RustLogFilterBuilder::from_default_env().build();
     /// ```
     pub fn from_default_env() -> Self {
-        EnvFilterBuilder::from_env(DEFAULT_FILTER_ENV)
+        RustLogFilterBuilder::from_env(DEFAULT_FILTER_ENV)
     }
 
     /// Initialize the filter builder from the environment using default variable name `RUST_LOG`.
@@ -195,15 +197,15 @@ impl EnvFilterBuilder {
     /// value:
     ///
     /// ```
-    /// use logforth_core::filter::env_filter::EnvFilterBuilder;
+    /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let filter = EnvFilterBuilder::from_default_env_or("info").build();
+    /// let filter = RustLogFilterBuilder::from_default_env_or("info").build();
     /// ```
     pub fn from_default_env_or<'a, V>(default: V) -> Self
     where
         V: Into<Cow<'a, str>>,
     {
-        EnvFilterBuilder::from_env_or(DEFAULT_FILTER_ENV, default)
+        RustLogFilterBuilder::from_env_or(DEFAULT_FILTER_ENV, default)
     }
 
     /// Initialize the filter builder from the environment using specific variable name.
@@ -213,11 +215,11 @@ impl EnvFilterBuilder {
     /// Initialize a filter using the using specific variable name:
     ///
     /// ```
-    /// use logforth_core::filter::env_filter::EnvFilterBuilder;
+    /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let filter = EnvFilterBuilder::from_env("MY_LOG").build();
+    /// let filter = RustLogFilterBuilder::from_env("MY_LOG").build();
     /// ```
-    pub fn from_env<'a, V>(name: V) -> EnvFilterBuilder
+    pub fn from_env<'a, V>(name: V) -> RustLogFilterBuilder
     where
         V: Into<Cow<'a, str>>,
     {
@@ -238,9 +240,9 @@ impl EnvFilterBuilder {
     /// value:
     ///
     /// ```
-    /// use logforth_core::filter::env_filter::EnvFilterBuilder;
+    /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let filter = EnvFilterBuilder::from_env_or("MY_LOG", "info").build();
+    /// let filter = RustLogFilterBuilder::from_env_or("MY_LOG", "info").build();
     /// ```
     pub fn from_env_or<'a, 'b, E, V>(name: E, default: V) -> Self
     where
@@ -264,9 +266,9 @@ impl EnvFilterBuilder {
     /// Initialize a filter using the passed RUST_LOG specification:
     ///
     /// ```
-    /// use logforth_core::filter::env_filter::EnvFilterBuilder;
+    /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let filter = EnvFilterBuilder::from_spec("info,my_crate=debug").build();
+    /// let filter = RustLogFilterBuilder::from_spec("info,my_crate=debug").build();
     /// ```
     pub fn from_spec<'a, V>(spec: V) -> Self
     where
@@ -277,7 +279,7 @@ impl EnvFilterBuilder {
         for error in errors {
             eprintln!("warning: {error}, ignoring it");
         }
-        let mut builder = EnvFilterBuilder::default();
+        let mut builder = RustLogFilterBuilder::default();
         for directive in directives {
             builder.upsert_directive(directive);
         }
@@ -291,9 +293,9 @@ impl EnvFilterBuilder {
     /// Initialize a filter using the passed RUST_LOG specification:
     ///
     /// ```
-    /// use logforth_core::filter::env_filter::EnvFilterBuilder;
+    /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let filter = EnvFilterBuilder::try_from_spec("info,my_crate=debug")
+    /// let filter = RustLogFilterBuilder::try_from_spec("info,my_crate=debug")
     ///     .unwrap()
     ///     .build();
     /// ```
@@ -306,27 +308,27 @@ impl EnvFilterBuilder {
         if let Some(error) = errors.into_iter().next() {
             return Err(Error::new(error));
         }
-        let mut builder = EnvFilterBuilder::default();
+        let mut builder = RustLogFilterBuilder::default();
         for directive in directives {
             builder.upsert_directive(directive);
         }
         Ok(builder)
     }
 
-    /// Consume the builder to produce an [`EnvFilter`].
+    /// Consume the builder to produce an [`RustLogFilter`].
     ///
     /// If the builder has no directives configured, a default directive of the `error` level will
     /// be added.
-    pub fn build(self) -> EnvFilter {
+    pub fn build(self) -> RustLogFilter {
         let Self { directives } = self;
 
         if directives.is_empty() {
-            EnvFilter::from_directives(vec![Directive {
+            RustLogFilter::from_directives(vec![Directive {
                 name: None,
                 level: LevelFilter::MoreSevereEqual(Level::Error),
             }])
         } else {
-            EnvFilter::from_directives(directives)
+            RustLogFilter::from_directives(directives)
         }
     }
 

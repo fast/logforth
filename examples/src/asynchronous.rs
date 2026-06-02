@@ -14,7 +14,7 @@
 
 use logforth::append::asynchronous::AsyncBuilder;
 use logforth::append::file::FileBuilder;
-use logforth::bridge::log::LogAdapter;
+use logforth::bridge::log::LogBridge;
 use logforth::layout::JsonLayout;
 use logforth::record::LevelFilter;
 
@@ -31,7 +31,7 @@ fn main() {
         .dispatch(|d| d.filter(LevelFilter::All).append(asynchronous))
         .build();
 
-    log::set_boxed_logger(Box::new(LogAdapter::new(logger))).unwrap();
+    log::set_boxed_logger(Box::new(LogBridge::new(logger))).unwrap();
     log::set_max_level(log::LevelFilter::Trace);
 
     log::error!("Hello single error!");

@@ -17,8 +17,8 @@ use std::sync::OnceLock;
 use std::sync::RwLock;
 
 use logforth::append::Stdout;
-use logforth::filter::EnvFilter;
-use logforth::filter::env_filter::EnvFilterBuilder;
+use logforth::filter::RustLogFilter;
+use logforth::filter::rustlog::RustLogFilterBuilder;
 use logforth::record::Level;
 use logforth::starter_log;
 
@@ -59,7 +59,7 @@ fn main() {
                 .filter(
                     FILTER
                         .get_or_init(|| Filter::new(Level::Info))
-                        .build_env_filter(),
+                        .build_rustlog_filter(),
                 )
                 .append(Stdout::default())
         })
@@ -91,7 +91,7 @@ impl Filter {
         module_levels.insert(module_path.to_string(), level);
     }
 
-    pub fn build_env_filter(&self) -> EnvFilter {
+    pub fn build_rustlog_filter(&self) -> RustLogFilter {
         let module_levels = self.module_levels.read().expect("filter read is poisoned");
 
         let mut directives = vec![self.default_level.name().to_string()];
@@ -100,6 +100,6 @@ impl Filter {
             directives.push(format!("{module_path}={}", level.name()));
         }
 
-        EnvFilterBuilder::from_spec(directives.join(",")).build()
+        RustLogFilterBuilder::from_spec(directives.join(",")).build()
     }
 }
