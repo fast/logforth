@@ -27,11 +27,11 @@ use logforth_core::record::FilterCriteria;
 
 /// Adapter to use a `logforth` logger instance as a `log` crate logger.
 #[derive(Debug)]
-pub struct LogAdapter {
+pub struct LogBridge {
     logger: Arc<Logger>,
 }
 
-impl LogAdapter {
+impl LogBridge {
     /// Create a new `LogAdapter` instance.
     pub fn new(logger: impl Into<Arc<Logger>>) -> Self {
         Self {
@@ -40,7 +40,7 @@ impl LogAdapter {
     }
 }
 
-impl Deref for LogAdapter {
+impl Deref for LogBridge {
     type Target = Logger;
 
     fn deref(&self) -> &Self::Target {
@@ -48,7 +48,7 @@ impl Deref for LogAdapter {
     }
 }
 
-impl log::Log for LogAdapter {
+impl log::Log for LogBridge {
     fn enabled(&self, metadata: &Metadata) -> bool {
         forward_enabled(&self.logger, metadata)
     }

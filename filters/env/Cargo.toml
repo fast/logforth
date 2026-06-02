@@ -1,0 +1,15 @@
+[package]
+name = "logforth-filter-env"
+version = "0.1.0"
+categories.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

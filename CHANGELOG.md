@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 * `Record::payload` is now `std::fmt::Arguments` instead of `Cow<'static, str>`.
 * `RecordOwned::as_record` has been removed; use `RecordOwned::with` instead. (This is a limitation of Rust as described [here](https://github.com/rust-lang/rust/issues/92698#issuecomment-3311144848).)
 * `logforth_core::Error::with_source` now set the optional source field instead of append a sources list.
+* `logforth_core::kv` has been totally redesigned to decouple from `value-bag`. See [PR-229](https://github.com/fast/logforth/pull/229) for details.
 
 ## [0.29.1] 2025-11-03
 

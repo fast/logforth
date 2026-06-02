@@ -14,7 +14,7 @@
 
 //! Starter configurations for quickly setting up logforth with the `log` crate
 
-use logforth_bridge_log::LogAdapter;
+use logforth_bridge_log::LogBridge;
 use logforth_core::Logger;
 
 use crate::Append;
@@ -89,7 +89,7 @@ impl LogStarterBuilder {
     pub fn try_apply(self) -> Result<(), Error> {
         let make_error = |_| Error::new("logging system has already been setup");
 
-        let logger = Box::new(LogAdapter::new(self.build()));
+        let logger = Box::new(LogBridge::new(self.build()));
         log::set_boxed_logger(logger).map_err(make_error)?;
         log::set_max_level(log::LevelFilter::Trace);
 
@@ -131,10 +131,10 @@ impl LogStarterBuilder {
     /// ```
     /// use std::sync::Arc;
     ///
-    /// use logforth::bridge::log::LogAdapter;
+    /// use logforth::bridge::log::LogBridge;
     ///
     /// let logger = logforth::starter_log::builder().build();
-    /// let logger = Arc::new(LogAdapter::new(logger));
+    /// let logger = Arc::new(LogBridge::new(logger));
     /// log::set_boxed_logger(Box::new(logger.clone())).unwrap();
     /// log::set_max_level(log::LevelFilter::Trace);
     ///
@@ -261,10 +261,10 @@ impl LogStarterTestingBuilder {
     /// ```
     /// use std::sync::Arc;
     ///
-    /// use logforth::bridge::log::LogAdapter;
+    /// use logforth::bridge::log::LogBridge;
     ///
     /// let logger = logforth::starter_log::testing().build();
-    /// let logger = Arc::new(LogAdapter::new(logger));
+    /// let logger = Arc::new(LogBridge::new(logger));
     /// log::set_boxed_logger(Box::new(logger.clone())).unwrap();
     /// log::set_max_level(log::LevelFilter::Trace);
     ///
@@ -421,10 +421,10 @@ impl LogStarterStdStreamBuilder {
     /// ```
     /// use std::sync::Arc;
     ///
-    /// use logforth::bridge::log::LogAdapter;
+    /// use logforth::bridge::log::LogBridge;
     ///
     /// let logger = logforth::starter_log::stdout().build();
-    /// let logger = Arc::new(LogAdapter::new(logger));
+    /// let logger = Arc::new(LogBridge::new(logger));
     /// log::set_boxed_logger(Box::new(logger.clone())).unwrap();
     /// log::set_max_level(log::LevelFilter::Trace);
     ///
