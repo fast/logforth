@@ -48,6 +48,9 @@ layout-text = ["logforth/layout-text"]
 diagnostic-fastrace = ["logforth/diagnostic-fastrace"]
 diagnostic-task-local = ["logforth/diagnostic-task-local"]
 
+# Filters
+filter-rustlog = ["logforth/filter-rustlog"]
+
 [dependencies]
 logforth = { workspace = true }
 

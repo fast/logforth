@@ -135,6 +135,10 @@ pub mod diagnostic {
 /// Filters for log records.
 pub mod filter {
     pub use logforth_core::filter::*;
+    #[cfg(feature = "filter-rustlog")]
+    pub use logforth_filter_rustlog as rustlog;
+    #[cfg(feature = "filter-rustlog")]
+    pub use logforth_filter_rustlog::RustLogFilter;
 }
 
 /// Layouts for formatting log records.

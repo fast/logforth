@@ -24,7 +24,7 @@ use crate::Layout;
 use crate::append;
 use crate::core::DispatchBuilder;
 use crate::core::LoggerBuilder;
-use crate::filter::env_filter::EnvFilterBuilder;
+use crate::filter::rustlog::RustLogFilterBuilder;
 
 /// A builder for setting up logforth with the `log` crate.
 pub struct LogStarterBuilder {
@@ -153,10 +153,10 @@ pub struct LogStarterTestingBuilder {
     layout: Box<dyn Layout>,
 }
 
-/// Create a starter builder with a default [`append::Testing`] appender and an [`EnvFilter`]
+/// Create a starter builder with a default [`append::Testing`] appender and an [`RustLogFilter`]
 /// respecting `RUST_LOG`.
 ///
-/// [`EnvFilter`]: crate::filter::EnvFilter
+/// [`RustLogFilter`]: crate::filter::RustLogFilter
 ///
 /// # Examples
 ///
@@ -293,10 +293,10 @@ pub struct LogStarterStdStreamBuilder {
     layout: Box<dyn Layout>,
 }
 
-/// Create a starter builder with a default [`append::Stdout`] appender and an [`EnvFilter`]
+/// Create a starter builder with a default [`append::Stdout`] appender and an [`RustLogFilter`]
 /// respecting `RUST_LOG`.
 ///
-/// [`EnvFilter`]: crate::filter::EnvFilter
+/// [`RustLogFilter`]: crate::filter::RustLogFilter
 ///
 /// # Examples
 ///
@@ -312,10 +312,10 @@ pub fn stdout() -> LogStarterStdStreamBuilder {
     }
 }
 
-/// Create a starter builder with a default [`append::Stderr`] appender and an [`EnvFilter`]
+/// Create a starter builder with a default [`append::Stderr`] appender and an [`RustLogFilter`]
 /// respecting `RUST_LOG`.
 ///
-/// [`EnvFilter`]: crate::filter::EnvFilter
+/// [`RustLogFilter`]: crate::filter::RustLogFilter
 ///
 /// # Examples
 ///
@@ -451,7 +451,7 @@ impl LogStarterStdStreamBuilder {
 }
 
 fn default_filter() -> Box<dyn Filter> {
-    Box::new(EnvFilterBuilder::from_default_env().build())
+    Box::new(RustLogFilterBuilder::from_default_env().build())
 }
 
 fn default_layout() -> Box<dyn Layout> {

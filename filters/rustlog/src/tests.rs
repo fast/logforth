@@ -13,13 +13,17 @@
 // limitations under the License.
 
 use insta::assert_snapshot;
-
 use logforth_core::Filter;
 use logforth_core::filter::FilterResult;
 use logforth_core::record::FilterCriteria;
 use logforth_core::record::Level;
 use logforth_core::record::LevelFilter;
-use crate::{parse_spec, Directive, RustLogFilter, RustLogFilterBuilder, ParseResult};
+
+use crate::Directive;
+use crate::ParseResult;
+use crate::RustLogFilter;
+use crate::RustLogFilterBuilder;
+use crate::parse_spec;
 
 impl RustLogFilter {
     fn rejected(&self, level: Level, target: &str) -> bool {

@@ -41,8 +41,5 @@ anyhow = { workspace = true }
 # Optional dependencies
 serde = { workspace = true, optional = true }
 
-[dev-dependencies]
-insta = { workspace = true }
-
 [lints]
 workspace = true

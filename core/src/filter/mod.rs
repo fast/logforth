@@ -21,10 +21,6 @@ use crate::record::FilterCriteria;
 use crate::record::LevelFilter;
 use crate::record::Record;
 
-pub mod env_filter;
-
-pub use self::env_filter::EnvFilter;
-
 /// The result of a filter check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FilterResult {
