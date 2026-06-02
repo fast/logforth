@@ -19,9 +19,9 @@ use logforth_core::filter::FilterResult;
 use logforth_core::record::FilterCriteria;
 use logforth_core::record::Level;
 use logforth_core::record::LevelFilter;
-use crate::{parse_spec, Directive, EnvFilter, EnvFilterBuilder, ParseResult};
+use crate::{parse_spec, Directive, RustLogFilter, RustLogFilterBuilder, ParseResult};
 
-impl EnvFilter {
+impl RustLogFilter {
     fn rejected(&self, level: Level, target: &str) -> bool {
         let criteria = FilterCriteria::builder()
             .level(level)
@@ -324,7 +324,7 @@ fn parse_error_message_multiple_errors() {
 
 #[test]
 fn filter_info() {
-    let logger = EnvFilterBuilder::default()
+    let logger = RustLogFilterBuilder::default()
         .filter_level(LevelFilter::MoreSevereEqual(Level::Info))
         .build();
     assert!(!logger.rejected(Level::Info, "crate1"));
@@ -333,7 +333,7 @@ fn filter_info() {
 
 #[test]
 fn filter_beginning_longest_match() {
-    let logger = EnvFilterBuilder::default()
+    let logger = RustLogFilterBuilder::default()
         .filter_module("crate2", LevelFilter::MoreSevereEqual(Level::Info))
         .filter_module("crate2::mod", LevelFilter::MoreSevereEqual(Level::Debug))
         .filter_module("crate1::mod1", LevelFilter::MoreSevereEqual(Level::Warn))
@@ -387,14 +387,14 @@ fn ensure_tests_cover_level_universe() {
 
 #[test]
 fn parse_default() {
-    let logger = EnvFilterBuilder::from_spec("info,crate1::mod1=warn").build();
+    let logger = RustLogFilterBuilder::from_spec("info,crate1::mod1=warn").build();
     assert!(!logger.rejected(Level::Warn, "crate1::mod1"));
     assert!(!logger.rejected(Level::Info, "crate2::mod2"));
 }
 
 #[test]
 fn parse_default_bare_level_off_lc() {
-    let logger = EnvFilterBuilder::from_spec("off").build();
+    let logger = RustLogFilterBuilder::from_spec("off").build();
     assert!(logger.rejected(Level::Error, ""));
     assert!(logger.rejected(Level::Warn, ""));
     assert!(logger.rejected(Level::Info, ""));
@@ -404,7 +404,7 @@ fn parse_default_bare_level_off_lc() {
 
 #[test]
 fn parse_default_bare_level_off_uc() {
-    let logger = EnvFilterBuilder::from_spec("OFF").build();
+    let logger = RustLogFilterBuilder::from_spec("OFF").build();
     assert!(logger.rejected(Level::Error, ""));
     assert!(logger.rejected(Level::Warn, ""));
     assert!(logger.rejected(Level::Info, ""));
@@ -414,7 +414,7 @@ fn parse_default_bare_level_off_uc() {
 
 #[test]
 fn parse_default_bare_level_error_lc() {
-    let logger = EnvFilterBuilder::from_spec("error").build();
+    let logger = RustLogFilterBuilder::from_spec("error").build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(logger.rejected(Level::Warn, ""));
     assert!(logger.rejected(Level::Info, ""));
@@ -424,7 +424,7 @@ fn parse_default_bare_level_error_lc() {
 
 #[test]
 fn parse_default_bare_level_error_uc() {
-    let logger = EnvFilterBuilder::from_spec("ERROR").build();
+    let logger = RustLogFilterBuilder::from_spec("ERROR").build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(logger.rejected(Level::Warn, ""));
     assert!(logger.rejected(Level::Info, ""));
@@ -434,7 +434,7 @@ fn parse_default_bare_level_error_uc() {
 
 #[test]
 fn parse_default_bare_level_warn_lc() {
-    let logger = EnvFilterBuilder::from_spec("warn").build();
+    let logger = RustLogFilterBuilder::from_spec("warn").build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(!logger.rejected(Level::Warn, ""));
     assert!(logger.rejected(Level::Info, ""));
@@ -444,7 +444,7 @@ fn parse_default_bare_level_warn_lc() {
 
 #[test]
 fn parse_default_bare_level_warn_uc() {
-    let logger = EnvFilterBuilder::from_spec("WARN").build();
+    let logger = RustLogFilterBuilder::from_spec("WARN").build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(!logger.rejected(Level::Warn, ""));
     assert!(logger.rejected(Level::Info, ""));
@@ -454,7 +454,7 @@ fn parse_default_bare_level_warn_uc() {
 
 #[test]
 fn parse_default_bare_level_info_lc() {
-    let logger = EnvFilterBuilder::from_spec("info").build();
+    let logger = RustLogFilterBuilder::from_spec("info").build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(!logger.rejected(Level::Warn, ""));
     assert!(!logger.rejected(Level::Info, ""));
@@ -464,7 +464,7 @@ fn parse_default_bare_level_info_lc() {
 
 #[test]
 fn parse_default_bare_level_info_uc() {
-    let logger = EnvFilterBuilder::from_spec("INFO").build();
+    let logger = RustLogFilterBuilder::from_spec("INFO").build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(!logger.rejected(Level::Warn, ""));
     assert!(!logger.rejected(Level::Info, ""));
@@ -474,7 +474,7 @@ fn parse_default_bare_level_info_uc() {
 
 #[test]
 fn parse_default_bare_level_debug_lc() {
-    let logger = EnvFilterBuilder::from_spec("debug").build();
+    let logger = RustLogFilterBuilder::from_spec("debug").build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(!logger.rejected(Level::Warn, ""));
     assert!(!logger.rejected(Level::Info, ""));
@@ -484,7 +484,7 @@ fn parse_default_bare_level_debug_lc() {
 
 #[test]
 fn parse_default_bare_level_debug_uc() {
-    let logger = EnvFilterBuilder::from_spec("DEBUG").build();
+    let logger = RustLogFilterBuilder::from_spec("DEBUG").build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(!logger.rejected(Level::Warn, ""));
     assert!(!logger.rejected(Level::Info, ""));
@@ -494,7 +494,7 @@ fn parse_default_bare_level_debug_uc() {
 
 #[test]
 fn parse_default_bare_level_trace_lc() {
-    let logger = EnvFilterBuilder::from_spec("trace").build();
+    let logger = RustLogFilterBuilder::from_spec("trace").build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(!logger.rejected(Level::Warn, ""));
     assert!(!logger.rejected(Level::Info, ""));
@@ -504,7 +504,7 @@ fn parse_default_bare_level_trace_lc() {
 
 #[test]
 fn parse_default_bare_level_trace_uc() {
-    let logger = EnvFilterBuilder::from_spec("TRACE").build();
+    let logger = RustLogFilterBuilder::from_spec("TRACE").build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(!logger.rejected(Level::Warn, ""));
     assert!(!logger.rejected(Level::Info, ""));
@@ -519,7 +519,7 @@ fn parse_default_bare_level_trace_uc() {
 #[test]
 fn parse_default_bare_level_debug_mixed() {
     {
-        let logger = EnvFilterBuilder::from_spec("Debug").build();
+        let logger = RustLogFilterBuilder::from_spec("Debug").build();
         assert!(!logger.rejected(Level::Error, ""));
         assert!(!logger.rejected(Level::Warn, ""));
         assert!(!logger.rejected(Level::Info, ""));
@@ -527,7 +527,7 @@ fn parse_default_bare_level_debug_mixed() {
         assert!(logger.rejected(Level::Trace, ""));
     }
     {
-        let logger = EnvFilterBuilder::from_spec("debuG").build();
+        let logger = RustLogFilterBuilder::from_spec("debuG").build();
         assert!(!logger.rejected(Level::Error, ""));
         assert!(!logger.rejected(Level::Warn, ""));
         assert!(!logger.rejected(Level::Info, ""));
@@ -535,7 +535,7 @@ fn parse_default_bare_level_debug_mixed() {
         assert!(logger.rejected(Level::Trace, ""));
     }
     {
-        let logger = EnvFilterBuilder::from_spec("deBug").build();
+        let logger = RustLogFilterBuilder::from_spec("deBug").build();
         assert!(!logger.rejected(Level::Error, ""));
         assert!(!logger.rejected(Level::Warn, ""));
         assert!(!logger.rejected(Level::Info, ""));
@@ -543,7 +543,7 @@ fn parse_default_bare_level_debug_mixed() {
         assert!(logger.rejected(Level::Trace, ""));
     }
     {
-        let logger = EnvFilterBuilder::from_spec("DeBuG").build(); // LaTeX flavor!
+        let logger = RustLogFilterBuilder::from_spec("DeBuG").build(); // LaTeX flavor!
         assert!(!logger.rejected(Level::Error, ""));
         assert!(!logger.rejected(Level::Warn, ""));
         assert!(!logger.rejected(Level::Info, ""));
@@ -554,7 +554,7 @@ fn parse_default_bare_level_debug_mixed() {
 
 #[test]
 fn try_parse_valid_filter() {
-    let logger = EnvFilterBuilder::try_from_spec("info,crate1::mod1=warn")
+    let logger = RustLogFilterBuilder::try_from_spec("info,crate1::mod1=warn")
         .expect("valid filter returned error")
         .build();
     assert!(!logger.rejected(Level::Warn, "crate1::mod1"));
@@ -563,13 +563,13 @@ fn try_parse_valid_filter() {
 
 #[test]
 fn try_parse_invalid_filter() {
-    let error = EnvFilterBuilder::try_from_spec("info,crate1=invalid").unwrap_err();
+    let error = RustLogFilterBuilder::try_from_spec("info,crate1=invalid").unwrap_err();
     assert_snapshot!(error.to_string(), @"malformed logging spec 'invalid'");
 }
 
 #[test]
 fn match_full_path() {
-    let logger = EnvFilter::from_directives(vec![
+    let logger = RustLogFilter::from_directives(vec![
         Directive {
             name: Some("crate2".to_owned()),
             level: LevelFilter::MoreSevereEqual(Level::Info),
@@ -587,7 +587,7 @@ fn match_full_path() {
 
 #[test]
 fn no_match() {
-    let logger = EnvFilter::from_directives(vec![
+    let logger = RustLogFilter::from_directives(vec![
         Directive {
             name: Some("crate2".to_owned()),
             level: LevelFilter::MoreSevereEqual(Level::Info),
@@ -602,7 +602,7 @@ fn no_match() {
 
 #[test]
 fn match_beginning() {
-    let logger = EnvFilter::from_directives(vec![
+    let logger = RustLogFilter::from_directives(vec![
         Directive {
             name: Some("crate2".to_owned()),
             level: LevelFilter::MoreSevereEqual(Level::Info),
@@ -617,7 +617,7 @@ fn match_beginning() {
 
 #[test]
 fn match_beginning_longest_match() {
-    let logger = EnvFilter::from_directives(vec![
+    let logger = RustLogFilter::from_directives(vec![
         Directive {
             name: Some("crate2".to_owned()),
             level: LevelFilter::MoreSevereEqual(Level::Info),
@@ -637,7 +637,7 @@ fn match_beginning_longest_match() {
 
 #[test]
 fn match_default() {
-    let logger = EnvFilter::from_directives(vec![
+    let logger = RustLogFilter::from_directives(vec![
         Directive {
             name: None,
             level: LevelFilter::MoreSevereEqual(Level::Info),
@@ -653,7 +653,7 @@ fn match_default() {
 
 #[test]
 fn zero_level() {
-    let logger = EnvFilter::from_directives(vec![
+    let logger = RustLogFilter::from_directives(vec![
         Directive {
             name: None,
             level: LevelFilter::MoreSevereEqual(Level::Info),
