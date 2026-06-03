@@ -37,7 +37,7 @@ rust-version = "1.89.0"
 
 [workspace.dependencies]
 # Workspace dependencies
-logforth = { version = "0.30.0", path = "logforth" }
+logforth = { version = "0.30.1", path = "logforth" }
 logforth-append-async = { version = "0.4.0", path = "appenders/async" }
 logforth-append-fastrace = { version = "0.4.0", path = "appenders/fastrace" }
 logforth-append-file = { version = "0.4.0", path = "appenders/file" }
