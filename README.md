@@ -41,7 +41,7 @@ fn main() {
 }
 ```
 
-By default, all logging except the error level is disabled. You can enable logging at other levels by setting the [`RUST_LOG`](https://docs.rs/logforth-core/*/logforth_core/filter/env_filter/index.html) environment variable. For example, `RUST_LOG=trace cargo run` will print all logs.
+By default, all logging except the `error` level is disabled. You can enable logging at other levels by setting the [`RUST_LOG`](https://docs.rs/logforth-filter-rustlog/*/logforth_filter_rustlog/index.html) environment variable. For example, `RUST_LOG=all cargo run` will print all logs.
 
 ## Advanced Usage
 
