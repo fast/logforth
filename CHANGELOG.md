@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## [0.30.1] 2026-06-03
+
 ### Improvements
 
 * Leverage `log::kv::Key::to_static_str` when possible.
