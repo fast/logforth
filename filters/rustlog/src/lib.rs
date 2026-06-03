@@ -70,6 +70,9 @@
 //! * `off` turns off all logging for the application
 //! * `OFF` turns off all logging for the application (same as previous)
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
+
 use std::borrow::Cow;
 use std::str::FromStr;
 
