@@ -36,8 +36,6 @@ jiff = { workspace = true }
 logforth-core = { workspace = true }
 
 [dev-dependencies]
-log = { workspace = true }
-logforth-bridge-log = { workspace = true }
 logforth-layout-json = { workspace = true }
 rand = { workspace = true }
 tempfile = { workspace = true }
