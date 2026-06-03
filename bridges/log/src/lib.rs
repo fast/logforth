@@ -248,7 +248,11 @@ mod kv {
     pub(super) fn key_value_stage_two<'a>(kvs: &'a KeyValuesStageOne<'a>) -> KeyValuesStageTwo<'a> {
         let mut new_kvs = Vec::with_capacity(kvs.kvs.len());
         for (k, v) in &kvs.kvs {
-            let k = logforth_core::kv::Key::borrowed(k.0.as_str());
+            let k = if let Some(k) = k.0.to_static_str() {
+                logforth_core::kv::Key::new(k)
+            } else {
+                logforth_core::kv::Key::borrowed(k.0.as_str())
+            };
             let v = match &v.0 {
                 MaybeOwnedValue::Borrowed(v) => v.clone(),
                 MaybeOwnedValue::Owned(s) => logforth_core::kv::Value::str(s.as_str()),
@@ -289,8 +293,11 @@ mod kv {
                 key: log::kv::Key<'a>,
                 value: log::kv::Value<'a>,
             ) -> Result<(), log::kv::Error> {
-                // TODO(@tisonkun): see https://github.com/rust-lang/log/pull/727
-                let key = KeyOwned::new(key.to_string());
+                let key = if let Some(key) = key.to_static_str() {
+                    KeyOwned::new(key)
+                } else {
+                    KeyOwned::new(key.to_string())
+                };
                 if let Some(value) = value_to_value(value) {
                     self.0.push((key, value));
                 }
