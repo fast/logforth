@@ -159,9 +159,11 @@ The following appenders do *not* use layouts:
 
 ### Filters
 
-Logforth provides a built-in [`EnvFilter`] that allows you to configure logging levels and targets via the `RUST_LOG` environment variable.
+Logforth supports filtering log records at the dispatch level. Log records that do not pass the filters will not be sent to the appenders. Logforth provides several built-in filters:
 
-[`EnvFilter`]: https://docs.rs/logforth/*/logforth/filter/struct.EnvFilter.html
+* [`RustLogFilter`] allows you to configure logging levels and targets via the famous `RUST_LOG` directive pattern.
+
+[`RustLogFilter`]: https://docs.rs/logforth-filter-rustlog/*/logforth_filter_rustlog/struct.RustLogFilter.html
 
 Users can also create their own filters by implementing the [`Filter`] trait.
 
@@ -197,7 +199,7 @@ Components are organized into several crates:
 
 * Core APIs: [`logforth-core`](https://docs.rs/logforth-core)
   * Built-in appenders: `Stdout`, `Stderr`, `Testing`
-  * Built-in filters: `EnvFilter`
+  * Built-in filters: `LevelFilter`
   * Built-in layouts: `PlainTextLayout`
   * Built-in diagnostics: `StaticDiagnostic`, `ThreadLocalDiagnostic`
 * Appenders: `logforth-append-*`
@@ -212,6 +214,8 @@ Components are organized into several crates:
   * [`logforth-layout-json`](https://docs.rs/logforth-layout-json)
   * [`logforth-layout-logfmt`](https://docs.rs/logforth-layout-logfmt)
   * [`logforth-layout-text`](https://docs.rs/logforth-layout-text)
+* Filters: `logforth-filter-*`
+  * [`logforth-filter-rustlog`](https://docs.rs/logforth-filter-rustlog)
 * Diagnostics: `logforth-diagnostic-*`
   * [`logforth-diagnostic-fastrace`](https://docs.rs/logforth-diagnostic-fastrace)
   * [`logforth-diagnostic-task-local`](https://docs.rs/logforth-diagnostic-task-local)
