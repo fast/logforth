@@ -44,7 +44,7 @@ logforth-append-file = { version = "0.4.0", path = "appenders/file" }
 logforth-append-journald = { version = "0.4.0", path = "appenders/journald" }
 logforth-append-opentelemetry = { version = "0.4.0", path = "appenders/opentelemetry" }
 logforth-append-syslog = { version = "0.4.0", path = "appenders/syslog" }
-logforth-bridge-log = { version = "0.4.0", path = "bridges/log" }
+logforth-bridge-log = { version = "0.4.1", path = "bridges/log" }
 logforth-core = { version = "0.4.0", path = "core" }
 logforth-diagnostic-fastrace = { version = "0.4.0", path = "diagnostics/fastrace" }
 logforth-diagnostic-task-local = { version = "0.4.0", path = "diagnostics/task-local" }
