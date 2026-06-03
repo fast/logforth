@@ -14,7 +14,7 @@
 
 [package]
 name = "logforth-filter-rustlog"
-version = "0.1.0"
+version = "0.4.0"
 
 description = "RUST_LOG directive pattern filter for Logforth."
 keywords = ["logging", "log", "fastrace"]
@@ -26,6 +26,10 @@ license.workspace = true
 readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 logforth-core = { workspace = true }

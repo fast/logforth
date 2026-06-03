@@ -25,6 +25,9 @@
 //! fut.with_task_local_context([("key".into(), "value".into())]);
 //! ```
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
+
 use std::cell::RefCell;
 use std::pin::Pin;
 use std::task::Context;

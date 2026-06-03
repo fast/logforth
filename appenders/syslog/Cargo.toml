@@ -14,7 +14,7 @@
 
 [package]
 name = "logforth-append-syslog"
-version = "0.3.0"
+version = "0.4.0"
 
 description = "Syslog appender for Logforth."
 keywords = ["logging", "log", "syslog"]
