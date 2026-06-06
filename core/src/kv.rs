@@ -40,7 +40,7 @@ where
 }
 
 /// A key in a key-value pair.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Key<'a>(RefStr<'a>);
 
 impl fmt::Display for Key<'_> {
@@ -363,10 +363,10 @@ impl<'a> Iterator for MapValueIter<'a> {
 }
 
 /// A borrowed value in a key-value pair.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Value<'a>(ValueState<'a>);
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 enum ValueState<'a> {
     None,
     Bool(bool),
