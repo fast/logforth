@@ -130,7 +130,7 @@ impl KeyOwned {
 }
 
 /// A borrowed view of a key in a key-value pair.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct KeyView<'a>(RefStr<'a>);
 
 impl Borrow<str> for KeyView<'_> {
@@ -647,7 +647,7 @@ impl ValueOwned {
 }
 
 /// A borrowed view of a value.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
 pub enum ValueView<'a> {
     /// The absence of a value.
