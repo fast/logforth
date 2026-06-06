@@ -152,7 +152,7 @@ impl Visitor for KvCollector<'_> {
             }
         }
 
-        let value = match serde_json::to_value(&value) {
+        let value = match serde_json::to_value(value) {
             Ok(value) => value,
             Err(_) => value.to_string().into(),
         };

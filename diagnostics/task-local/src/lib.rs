@@ -35,11 +35,12 @@ use std::task::Poll;
 
 use logforth_core::Diagnostic;
 use logforth_core::Error;
-use logforth_core::kv::{KeyOwned, ValueOwned};
-use logforth_core::kv::{KeyView, ValueView, Visitor};
+use logforth_core::kv::KeyOwned;
+use logforth_core::kv::ValueOwned;
+use logforth_core::kv::Visitor;
 
 thread_local! {
-    static TASK_LOCAL_MAP: RefCell<Vec<(KeyView<'_>, ValueView<'_>)>> = const { RefCell::new(Vec::new()) };
+    static TASK_LOCAL_MAP: RefCell<Vec<(KeyOwned, ValueOwned)>> = const { RefCell::new(Vec::new()) };
 }
 
 /// A diagnostic that stores key-value pairs in a task-local context.
@@ -54,7 +55,7 @@ impl Diagnostic for TaskLocalDiagnostic {
         TASK_LOCAL_MAP.with(|map| {
             let map = map.borrow();
             for (key, value) in map.iter() {
-                visitor.visit(*key, *value)?;
+                visitor.visit(key.view(), value.view())?;
             }
             Ok(())
         })
@@ -114,17 +115,14 @@ impl<F: Future> Future for TaskLocalFuture<F> {
         TASK_LOCAL_MAP.with(|map| {
             let mut map = map.borrow_mut();
             for (key, value) in this.context.iter() {
-                map.push((key.view(), value.view()));
+                map.push((key.clone(), value.clone()));
             }
         });
 
         let n = this.context.len();
         let guard = Guard { n };
 
-        let result = match future.poll(cx) {
-            Poll::Ready(output) => Poll::Ready(output),
-            Poll::Pending => Poll::Pending,
-        };
+        let result = future.poll(cx);
 
         drop(guard);
         result
