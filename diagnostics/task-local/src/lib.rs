@@ -102,28 +102,17 @@ impl<F: Future> Future for TaskLocalFuture<F> {
 
         let future = this.future;
 
-        struct Guard {
-            n: usize,
-        }
+        struct Guard(());
 
         impl Drop for Guard {
             fn drop(&mut self) {
-                TASK_LOCAL_MAP.with(|map| {
-                    let mut map = map.borrow_mut();
-                    for _ in 0..self.n {
-                        map.pop();
-                    }
-                });
+                TASK_LOCAL_MAP.with(|map| map.borrow_mut().pop());
             }
         }
 
-        TASK_LOCAL_MAP.with(|map| {
-            let mut map = map.borrow_mut();
-            map.push(this.context.clone());
-        });
+        TASK_LOCAL_MAP.with(|map| map.borrow_mut().push(this.context.clone()));
 
-        let n = this.context.len();
-        let guard = Guard { n };
+        let guard = Guard(());
 
         let result = future.poll(cx);
 
@@ -143,13 +132,15 @@ mod tests {
     fn test_task_local_diagnostic() {
         let diag = TaskLocalDiagnostic {};
         let fut = async {
+            let mut n = 0;
             diag.visit(&mut |key: KeyView<'_>, value: ValueView<'_>| {
-                assert_eq!(key.as_str(), "key");
-                assert_eq!(value.to_str().unwrap(), "value");
+                n += 1;
+                assert_eq!(key.as_str(), format!("k{n}"));
+                assert_eq!(value.to_str().unwrap(), format!("v{n}"));
                 Ok(())
             })
             .unwrap();
         };
-        pollster::block_on(fut.with_task_local_context([("key", "value")]));
+        pollster::block_on(fut.with_task_local_context([("k1", "v1"), ("k2", "v2")]));
     }
 }
