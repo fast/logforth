@@ -80,6 +80,19 @@ impl Key<'_> {
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct KeyOwned(Cow<'static, str>);
 
+macro_rules! impl_key_owned_from {
+    ($ty:ty) => {
+        impl From<$ty> for KeyOwned {
+            fn from(v: $ty) -> Self {
+                KeyOwned(Cow::from(v))
+            }
+        }
+    };
+}
+
+impl_key_owned_from!(&'static str);
+impl_key_owned_from!(String);
+
 impl Borrow<str> for KeyOwned {
     fn borrow(&self) -> &str {
         &self.0
@@ -512,6 +525,26 @@ enum ValueOwnedState {
     #[expect(clippy::box_collection)]
     Map(Box<HashMap<KeyOwned, ValueOwned>>),
 }
+
+macro_rules! impl_value_owned_from {
+    ($ty:ty, $new:ident) => {
+        impl From<$ty> for ValueOwned {
+            fn from(v: $ty) -> Self {
+                Self::$new(v)
+            }
+        }
+    };
+}
+
+impl_value_owned_from!(bool, bool);
+impl_value_owned_from!(i64, i64);
+impl_value_owned_from!(u64, u64);
+impl_value_owned_from!(f64, f64);
+impl_value_owned_from!(i128, i128);
+impl_value_owned_from!(u128, u128);
+impl_value_owned_from!(char, char);
+impl_value_owned_from!(String, str);
+impl_value_owned_from!(&'static str, str);
 
 #[cfg(feature = "serde")]
 impl serde::Serialize for ValueOwned {

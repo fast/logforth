@@ -98,7 +98,7 @@ pub const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
 /// Less exclusive levels (like `trace` or `info`) are considered to be more verbose than more
 /// exclusive levels (like `error` or `warn`).
 ///
-/// Read more from the [crate level documentation](self) about the directive syntax and use cases.
+/// Read more from the [crate documentation](self) about the directive syntax and use cases.
 ///
 /// [`Record`]: logforth_core::record::Record
 #[derive(Debug)]
