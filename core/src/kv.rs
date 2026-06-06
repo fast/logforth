@@ -30,6 +30,15 @@ pub trait Visitor {
     fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error>;
 }
 
+impl<F> Visitor for F
+where
+    F: FnMut(KeyView, ValueView) -> Result<(), Error>,
+{
+    fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
+        self(key, value)
+    }
+}
+
 /// A key in a key-value pair.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Key<'a>(RefStr<'a>);

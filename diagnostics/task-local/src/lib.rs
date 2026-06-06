@@ -30,6 +30,7 @@
 
 use std::cell::RefCell;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::Context;
 use std::task::Poll;
 
@@ -39,8 +40,10 @@ use logforth_core::kv::KeyOwned;
 use logforth_core::kv::ValueOwned;
 use logforth_core::kv::Visitor;
 
+type TaskLocalContext = Arc<[(KeyOwned, ValueOwned)]>;
+
 thread_local! {
-    static TASK_LOCAL_MAP: RefCell<Vec<(KeyOwned, ValueOwned)>> = const { RefCell::new(Vec::new()) };
+    static TASK_LOCAL_MAP: RefCell<Vec<TaskLocalContext>> = const { RefCell::new(Vec::new()) };
 }
 
 /// A diagnostic that stores key-value pairs in a task-local context.
@@ -54,8 +57,10 @@ impl Diagnostic for TaskLocalDiagnostic {
     fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
         TASK_LOCAL_MAP.with(|map| {
             let map = map.borrow();
-            for (key, value) in map.iter() {
-                visitor.visit(key.view(), value.view())?;
+            for context in map.iter() {
+                for (key, value) in context.iter() {
+                    visitor.visit(key.view(), value.view())?;
+                }
             }
             Ok(())
         })
@@ -86,7 +91,7 @@ impl<F: Future> FutureExt for F {}
 struct TaskLocalFuture<F> {
     #[pin]
     future: F,
-    context: Vec<(KeyOwned, ValueOwned)>,
+    context: Arc<[(KeyOwned, ValueOwned)]>,
 }
 
 impl<F: Future> Future for TaskLocalFuture<F> {
@@ -114,9 +119,7 @@ impl<F: Future> Future for TaskLocalFuture<F> {
 
         TASK_LOCAL_MAP.with(|map| {
             let mut map = map.borrow_mut();
-            for (key, value) in this.context.iter() {
-                map.push((key.clone(), value.clone()));
-            }
+            map.push(this.context.clone());
         });
 
         let n = this.context.len();
@@ -126,5 +129,27 @@ impl<F: Future> Future for TaskLocalFuture<F> {
 
         drop(guard);
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use logforth_core::kv::KeyView;
+    use logforth_core::kv::ValueView;
+
+    use super::*;
+
+    #[test]
+    fn test_task_local_diagnostic() {
+        let diag = TaskLocalDiagnostic {};
+        let fut = async {
+            diag.visit(&mut |key: KeyView<'_>, value: ValueView<'_>| {
+                assert_eq!(key.as_str(), "key");
+                assert_eq!(value.to_str().unwrap(), "value");
+                Ok(())
+            })
+            .unwrap();
+        };
+        pollster::block_on(fut.with_task_local_context([("key", "value")]));
     }
 }
