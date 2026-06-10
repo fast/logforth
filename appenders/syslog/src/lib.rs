@@ -273,7 +273,7 @@ mod unix_ext {
 
 /// An appender that writes log records to syslog.
 ///
-/// See [module-level documentation](self) for usage examples.
+/// See the [crate documentation](self) for usage examples.
 #[derive(Debug)]
 pub struct Syslog {
     sender: Mutex<SyslogSender>,

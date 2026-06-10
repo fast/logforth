@@ -37,6 +37,7 @@ pin-project = { workspace = true }
 
 [dev-dependencies]
 log = { workspace = true }
+pollster = { workspace = true }
 
 [lints]
 workspace = true

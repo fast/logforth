@@ -90,12 +90,14 @@ fn main() {
             .build()
     });
 
-    logforth::starter_log::builder().dispatch(|b| {
-        b.filter(filter)
-            .diagnostic(FastraceDiagnostic::default())
-            .diagnostic(static_diagnostic)
-            .append(appender)
-    });
+    logforth::starter_log::builder()
+        .dispatch(|b| {
+            b.filter(filter)
+                .diagnostic(FastraceDiagnostic::default())
+                .diagnostic(static_diagnostic)
+                .append(appender)
+        })
+        .apply();
 }
 ```
 
