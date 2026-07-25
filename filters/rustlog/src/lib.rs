@@ -101,7 +101,7 @@ pub const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
 /// Read more from the [crate documentation](self) about the directive syntax and use cases.
 ///
 /// [`Record`]: logforth_core::record::Record
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct RustLogFilter {
     directives: Vec<Directive>,
 }
@@ -366,7 +366,7 @@ impl RustLogFilterBuilder {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct Directive {
     name: Option<String>,
     level: LevelFilter,
