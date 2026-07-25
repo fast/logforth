@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### Breaking changes
+
+* Bump minimum supported Rust version (MSRV) to 1.91.0.
+
 ## [0.30.1] 2026-06-03
 
 ### Improvements
