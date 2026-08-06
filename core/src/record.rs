@@ -526,13 +526,11 @@ pub enum LevelFilter {
     NotEqual(Level),
     /// Enabled if the target level is more severe than the filter level.
     MoreSevere(Level),
-    /// Enabled if the target level is more severe than or equal to the filter
-    /// level.
+    /// Enabled if the target level is more severe than or equal to the filter level.
     MoreSevereEqual(Level),
     /// Enabled if the target level is more verbose than the filter level.
     MoreVerbose(Level),
-    /// Enabled if the target level is more verbose than or equal to the filter
-    /// level.
+    /// Enabled if the target level is more verbose than or equal to the filter level.
     MoreVerboseEqual(Level),
     /// Enable all levels.
     All,
@@ -554,15 +552,16 @@ impl LevelFilter {
     /// assert_eq!(level_filter.test(Level::Warn), true);
     /// assert_eq!(level_filter.test(Level::Error), true);
     /// ```
-    pub fn test(&self, level: Level) -> bool {
+    pub const fn test(&self, level: Level) -> bool {
+        let level = level as u8;
         match self {
             LevelFilter::Off => false,
-            LevelFilter::Equal(l) => level == *l,
-            LevelFilter::NotEqual(l) => level != *l,
-            LevelFilter::MoreSevere(l) => level > *l,
-            LevelFilter::MoreSevereEqual(l) => level >= *l,
-            LevelFilter::MoreVerbose(l) => level < *l,
-            LevelFilter::MoreVerboseEqual(l) => level <= *l,
+            LevelFilter::Equal(l) => level == (*l as u8),
+            LevelFilter::NotEqual(l) => level != (*l as u8),
+            LevelFilter::MoreSevere(l) => level > (*l as u8),
+            LevelFilter::MoreSevereEqual(l) => level >= (*l as u8),
+            LevelFilter::MoreVerbose(l) => level < (*l as u8),
+            LevelFilter::MoreVerboseEqual(l) => level <= (*l as u8),
             LevelFilter::All => true,
         }
     }
