@@ -209,7 +209,10 @@ fn captures_fine_grained_level_metadata_and_typed_fields() {
     assert_eq!(record.target, "custom.target");
     assert_eq!(record.target_static, None);
     assert_eq!(record.module_path.as_deref(), Some("macros"));
-    assert!(record.file.as_deref().unwrap().ends_with("tests/macros.rs"));
+    assert!(
+        std::path::Path::new(record.file.as_deref().unwrap())
+            .ends_with(std::path::Path::new("tests").join("macros.rs"))
+    );
     assert_eq!(record.line, Some(expected_line));
     assert!(record.column.unwrap() > 0);
     assert_eq!(record.payload, "accepted 12");
