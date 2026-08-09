@@ -43,6 +43,26 @@ fn main() {
 
 By default, all logging except the `error` level is disabled. You can enable logging at other levels by setting the [`RUST_LOG`](https://docs.rs/logforth-filter-rustlog/*/logforth_filter_rustlog/index.html) environment variable. For example, `RUST_LOG=all cargo run` will print all logs.
 
+### Native Logforth macros
+
+Applications can use Logforth's native macros when they need fine-grained OpenTelemetry severity levels or want to avoid the `log` facade. Native macros take an explicit logger instance instead of using a second global logger:
+
+```rust
+use logforth::append;
+use logforth::record::Level;
+
+fn main() {
+    let logger = logforth::core::builder()
+        .dispatch(|d| d.append(append::Stdout::default()))
+        .build();
+
+    logforth::info!(logger: logger, request_id = 42_u64; "request accepted");
+    logforth::log!(logger: logger, Level::Info2, "request details");
+}
+```
+
+The `log` facade remains the recommended API for libraries because it lets the final application choose its logging implementation.
+
 ## Advanced Usage
 
 Configure multiple dispatches with different filters and appenders:

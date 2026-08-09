@@ -384,6 +384,16 @@ enum ValueState<'a> {
     Display(&'a dyn fmt::Display),
 }
 
+/// Convert a value into its structured logging representation.
+///
+/// Implementations are provided for primitive scalar values, strings, byte slices, [`Option`],
+/// references, and [`Value`] itself. Other values can implement this trait or use the `:?` and `:%`
+/// capture modifiers in Logforth's logging macros.
+pub trait ToValue {
+    /// Convert this value into a borrowed [`Value`].
+    fn to_value(&self) -> Value<'_>;
+}
+
 impl fmt::Debug for ValueState<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -509,6 +519,136 @@ impl<'a> Value<'a> {
     /// Create a value that is formatted lazily with [`fmt::Display`].
     pub fn display(d: &'a dyn fmt::Display) -> Self {
         Value(ValueState::Display(d))
+    }
+}
+
+impl ToValue for Value<'_> {
+    fn to_value(&self) -> Value<'_> {
+        *self
+    }
+}
+
+impl ToValue for bool {
+    fn to_value(&self) -> Value<'_> {
+        Value::bool(*self)
+    }
+}
+
+macro_rules! impl_to_value_signed {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl ToValue for $ty {
+                fn to_value(&self) -> Value<'_> {
+                    Value::i64(*self as i64)
+                }
+            }
+        )+
+    };
+}
+
+impl_to_value_signed!(i8, i16, i32, i64, isize);
+
+impl ToValue for i128 {
+    fn to_value(&self) -> Value<'_> {
+        Value::i128(*self)
+    }
+}
+
+macro_rules! impl_to_value_unsigned {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl ToValue for $ty {
+                fn to_value(&self) -> Value<'_> {
+                    Value::u64(*self as u64)
+                }
+            }
+        )+
+    };
+}
+
+impl_to_value_unsigned!(u8, u16, u32, u64, usize);
+
+impl ToValue for u128 {
+    fn to_value(&self) -> Value<'_> {
+        Value::u128(*self)
+    }
+}
+
+impl ToValue for f32 {
+    fn to_value(&self) -> Value<'_> {
+        Value::f64((*self).into())
+    }
+}
+
+impl ToValue for f64 {
+    fn to_value(&self) -> Value<'_> {
+        Value::f64(*self)
+    }
+}
+
+impl ToValue for char {
+    fn to_value(&self) -> Value<'_> {
+        Value::char(*self)
+    }
+}
+
+impl ToValue for str {
+    fn to_value(&self) -> Value<'_> {
+        Value::str(self)
+    }
+}
+
+impl ToValue for String {
+    fn to_value(&self) -> Value<'_> {
+        Value::str(self)
+    }
+}
+
+impl ToValue for Cow<'_, str> {
+    fn to_value(&self) -> Value<'_> {
+        Value::str(self)
+    }
+}
+
+impl ToValue for [u8] {
+    fn to_value(&self) -> Value<'_> {
+        Value::bytes(self)
+    }
+}
+
+impl ToValue for Vec<u8> {
+    fn to_value(&self) -> Value<'_> {
+        Value::bytes(self)
+    }
+}
+
+impl<T> ToValue for Option<T>
+where
+    T: ToValue,
+{
+    fn to_value(&self) -> Value<'_> {
+        match self {
+            Some(value) => value.to_value(),
+            None => Value::none(),
+        }
+    }
+}
+
+impl<T> ToValue for &T
+where
+    T: ToValue + ?Sized,
+{
+    fn to_value(&self) -> Value<'_> {
+        (*self).to_value()
+    }
+}
+
+impl<T> ToValue for &mut T
+where
+    T: ToValue + ?Sized,
+{
+    fn to_value(&self) -> Value<'_> {
+        (**self).to_value()
     }
 }
 

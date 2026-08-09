@@ -12,31 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Core structs and functions for the logforth logging framework.
+use logforth::record::Level;
 
-#![cfg_attr(docsrs, feature(doc_cfg))]
-#![deny(missing_docs)]
+#[test]
+fn native_macros_are_reexported() {
+    let logger = logforth::core::builder().build();
 
-pub mod append;
-pub mod diagnostic;
-pub mod filter;
-pub mod kv;
-pub mod layout;
-pub mod record;
-pub mod trap;
-
-mod macros;
-
-pub use self::append::Append;
-pub use self::diagnostic::Diagnostic;
-pub use self::filter::Filter;
-pub use self::layout::Layout;
-pub use self::trap::Trap;
-
-mod error;
-pub use self::error::*;
-
-mod logger;
-pub use self::logger::*;
-
-mod str;
+    logforth::info!(logger: logger, answer = 42_u64; "hello");
+    logforth::log!(logger: logger, Level::Info2, "fine-grained");
+    assert!(!logforth::log_enabled!(logger: logger, Level::Info));
+}

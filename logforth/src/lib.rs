@@ -60,6 +60,21 @@
 //! log::info!("Info message.");
 //! ```
 //!
+//! Applications that need Logforth's fine-grained severity levels can keep a [`core::Logger`]
+//! instance and use the native macros directly, without installing a second global logger:
+//!
+//! ```
+//! use logforth::append;
+//! use logforth::record::Level;
+//!
+//! let logger = logforth::core::builder()
+//!     .dispatch(|d| d.append(append::Stdout::default()))
+//!     .build();
+//!
+//! logforth::info!(logger: logger, request_id = 42_u64; "request accepted");
+//! logforth::log!(logger: logger, Level::Info2, "request details");
+//! ```
+//!
 //! See the [README] file for more details and examples.
 //!
 //! [README]: https://github.com/fast/logforth?tab=readme-ov-file
@@ -69,11 +84,19 @@
 
 pub use logforth_core::Error;
 pub use logforth_core::append::Append;
+pub use logforth_core::debug;
 pub use logforth_core::diagnostic::Diagnostic;
+pub use logforth_core::error;
+pub use logforth_core::fatal;
 pub use logforth_core::filter::Filter;
+pub use logforth_core::info;
 pub use logforth_core::kv;
 pub use logforth_core::layout::Layout;
+pub use logforth_core::log;
+pub use logforth_core::log_enabled;
 pub use logforth_core::record;
+pub use logforth_core::trace;
+pub use logforth_core::warn;
 
 /// Dispatch log records to various targets.
 pub mod append {
