@@ -165,7 +165,7 @@ fn make_clippy_cmd(fix: bool) -> StdCommand {
 }
 
 fn make_hawkeye_cmd(fix: bool) -> StdCommand {
-    ensure_installed("hawkeye", "hawkeye@7.0.0");
+    ensure_installed("hawkeye", "hawkeye");
     let mut cmd = find_command("hawkeye");
     if fix {
         cmd.args(["format"]);
