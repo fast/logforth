@@ -43,6 +43,44 @@ fn main() {
 
 By default, all logging except the `error` level is disabled. You can enable logging at other levels by setting the [`RUST_LOG`](https://docs.rs/logforth-filter-rustlog/*/logforth_filter_rustlog/index.html) environment variable. For example, `RUST_LOG=all cargo run` will print all logs.
 
+### Native Logforth macros
+
+Applications can use Logforth's native macros when they need fine-grained OpenTelemetry severity levels or want to avoid the `log` facade. Native macros take an explicit logger instance instead of using a second global logger:
+
+```rust
+use logforth::append;
+use logforth::record::Level;
+
+fn main() {
+    let logger = logforth::core::builder()
+        .dispatch(|d| d.append(append::Stdout::default()))
+        .build();
+
+    logforth::info!(logger, request_id = 42_u64; "request accepted");
+    logforth::log!(logger, Level::Info2, "request details");
+}
+```
+
+The logger is the first argument, following the same instance-first convention as `slog`. An unnamed logger uses the call-site module path as its target. A dedicated logger can instead carry one stable name, which keeps target-based `RustLogFilter` directives without repeating `target:` at every call site:
+
+```rust
+let metering = logforth::core::builder()
+    .name("metering")
+    .dispatch(|d| d.append(logforth::append::Stdout::default()))
+    .build();
+
+logforth::info!(
+    metering,
+    tenant_id = "acme",
+    metering_kind = "compute",
+    compute_time_ms = 42_u64;
+);
+```
+
+The logger name is a stable channel or source scope, so a directive such as `RUST_LOG=metering=info` keeps working. Event kinds, tenant IDs, and other varying classifications remain structured fields. The record still carries the call-site module path separately.
+
+The macros check the logger before evaluating the message or its fields, so an extra enabled check is unnecessary. The `log` facade remains the recommended API for libraries because it lets the final application choose its logging implementation.
+
 ## Advanced Usage
 
 Configure multiple dispatches with different filters and appenders:

@@ -14,7 +14,7 @@
 
 //! A filter that follows the famous `RUST_LOG` directive pattern.
 //!
-//! Log levels are controlled on a per-module basis, and by default all logging is disabled except
+//! Log levels are controlled on a per-target basis, and by default all logging is disabled except
 //! for the `error` level.
 //!
 //! You can use [`RustLogFilterBuilder::from_default_env`] to configure the filter from the
@@ -28,7 +28,10 @@
 //! target=level
 //! ```
 //!
-//! `target` is typically `path::to::module`, but it may also be set manually via the log macros.
+//! For Logforth's native macros, `target` is the call-site module path when the logger is unnamed,
+//! or the stable logger name configured with [`LoggerBuilder::name`]. Records forwarded from the
+//! `log` facade retain that facade's target. This lets existing target directives keep working
+//! during incremental migration while new code avoids repeating a target at every call site.
 //!
 //! The path to the module is rooted in the name of the crate it was compiled for. Thus, if your
 //! program is contained in a file `hello.rs`, for example, to turn on logging for this file you
@@ -69,6 +72,8 @@
 //! * `error,hello=off` turns on global error logging, but turn off logging for hello
 //! * `off` turns off all logging for the application
 //! * `OFF` turns off all logging for the application (same as previous)
+//!
+//! [`LoggerBuilder::name`]: logforth_core::LoggerBuilder::name
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]

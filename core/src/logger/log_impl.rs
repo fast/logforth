@@ -26,17 +26,33 @@ use crate::record::Record;
 /// A logger that dispatches log records to one or more dispatcher.
 #[derive(Debug)]
 pub struct Logger {
+    name: Option<&'static str>,
     dispatches: Vec<Dispatch>,
 }
 
 impl Logger {
-    pub(super) fn new(dispatches: Vec<Dispatch>) -> Self {
-        Self { dispatches }
+    pub(super) fn new(name: Option<&'static str>, dispatches: Vec<Dispatch>) -> Self {
+        Self { name, dispatches }
     }
 }
 
 impl Logger {
-    /// Determine if a log message with the specified metadata would be logged.
+    /// Return the logger's stable name, if configured.
+    ///
+    /// Native logging macros use a named logger's name as the record target. For an unnamed logger,
+    /// they use the call-site module path instead. [`Record::module_path`] continues to identify
+    /// the source module independently of this name.
+    pub const fn name(&self) -> Option<&'static str> {
+        self.name
+    }
+
+    /// Determine whether any dispatch may log a record with the specified criteria.
+    ///
+    /// This is a prefiltering hint, not a promise that a subsequent record will be logged. Filters
+    /// may make their final decision from the complete [`Record`], and configuration may change
+    /// between this call and [`Logger::log`]. Calling this method before `log` is optional; the
+    /// native logging macros already avoid evaluating messages and fields when prefiltering rejects
+    /// them.
     pub fn enabled(&self, criteria: &FilterCriteria) -> bool {
         self.dispatches
             .iter()

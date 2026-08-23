@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file.
 
 * Bump minimum supported Rust version (MSRV) to 1.91.0.
 
+### New features
+
+* Add native Logforth logging macros with positional logger instances, optional stable logger names, fine-grained levels, lazy evaluation, and structured key-value fields.
+
 ## [0.30.1] 2026-06-03
 
 ### Improvements

@@ -34,7 +34,12 @@ pub enum FilterResult {
 
 /// A filter that can be applied to log records.
 pub trait Filter: fmt::Debug + Send + Sync + 'static {
-    /// Whether the record is filtered by its given metadata.
+    /// Prefilter a record using criteria available before the complete record is constructed.
+    ///
+    /// A filter that needs the message or structured fields to decide must return
+    /// [`FilterResult::Neutral`] here and make that decision in [`Filter::matches`]. Returning
+    /// [`FilterResult::Reject`] promises that every record with these criteria can be rejected
+    /// without constructing it.
     fn enabled(&self, criteria: &FilterCriteria, diags: &[Box<dyn Diagnostic>]) -> FilterResult;
 
     /// Whether the record is filtered.

@@ -12,12 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
+
 use insta::assert_snapshot;
+use logforth_core::Append;
+use logforth_core::Diagnostic;
+use logforth_core::Error;
 use logforth_core::Filter;
 use logforth_core::filter::FilterResult;
 use logforth_core::record::FilterCriteria;
 use logforth_core::record::Level;
 use logforth_core::record::LevelFilter;
+use logforth_core::record::Record;
 
 use crate::Directive;
 use crate::ParseResult;
@@ -34,6 +42,38 @@ impl RustLogFilter {
 
         matches!(Filter::enabled(self, &criteria, &[]), FilterResult::Reject)
     }
+}
+
+#[derive(Debug)]
+struct CountAppend(Arc<AtomicUsize>);
+
+impl Append for CountAppend {
+    fn append(&self, _: &Record<'_>, _: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+        self.0.fetch_add(1, Ordering::Relaxed);
+        Ok(())
+    }
+
+    fn flush(&self) -> Result<(), Error> {
+        Ok(())
+    }
+}
+
+#[test]
+fn named_native_logger_matches_target_directive() {
+    let count = Arc::new(AtomicUsize::new(0));
+    let logger = logforth_core::builder()
+        .name("metering")
+        .dispatch(|dispatch| {
+            dispatch
+                .filter(RustLogFilterBuilder::from_spec("off,metering=info").build())
+                .append(CountAppend(Arc::clone(&count)))
+        })
+        .build();
+
+    logforth_core::debug!(logger, "disabled by the metering directive");
+    logforth_core::info!(logger, "accepted by the metering directive");
+
+    assert_eq!(count.load(Ordering::Relaxed), 1);
 }
 
 #[test]
