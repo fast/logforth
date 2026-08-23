@@ -18,7 +18,6 @@ use logforth::record::Level;
 fn native_macros_are_reexported() {
     let logger = logforth::core::builder().build();
 
-    logforth::info!(logger: logger, answer = 42_u64; "hello");
-    logforth::log!(logger: logger, Level::Info2, "fine-grained");
-    assert!(!logforth::log_enabled!(logger: logger, Level::Info));
+    logforth::info!(logger, answer = 42_u64; "hello");
+    logforth::log!(logger, Level::Info2, "fine-grained");
 }

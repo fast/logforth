@@ -71,8 +71,8 @@
 //!     .dispatch(|d| d.append(append::Stdout::default()))
 //!     .build();
 //!
-//! logforth::info!(logger: logger, request_id = 42_u64; "request accepted");
-//! logforth::log!(logger: logger, Level::Info2, "request details");
+//! logforth::info!(logger, request_id = 42_u64; "request accepted");
+//! logforth::log!(logger, Level::Info2, "request details");
 //! ```
 //!
 //! See the [README] file for more details and examples.
@@ -93,7 +93,6 @@ pub use logforth_core::info;
 pub use logforth_core::kv;
 pub use logforth_core::layout::Layout;
 pub use logforth_core::log;
-pub use logforth_core::log_enabled;
 pub use logforth_core::record;
 pub use logforth_core::trace;
 pub use logforth_core::warn;

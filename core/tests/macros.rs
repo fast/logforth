@@ -180,8 +180,7 @@ fn captures_fine_grained_level_metadata_and_typed_fields() {
     let dynamic_key = String::from("dynamic.key");
     let expected_line = line!() + 1;
     logforth_core::log!(
-        logger: logger,
-        target: "custom.target",
+        logger,
         Level::Info2,
         shorthand,
         signed = -2_i32,
@@ -206,8 +205,8 @@ fn captures_fine_grained_level_metadata_and_typed_fields() {
     assert_eq!(records.len(), 1);
     let record = &records[0];
     assert_eq!(record.level, Level::Info2);
-    assert_eq!(record.target, "custom.target");
-    assert_eq!(record.target_static, None);
+    assert_eq!(record.target, "macros");
+    assert_eq!(record.target_static.as_deref(), Some("macros"));
     assert_eq!(record.module_path.as_deref(), Some("macros"));
     assert!(
         std::path::Path::new(record.file.as_deref().unwrap())
@@ -249,12 +248,12 @@ fn convenience_macros_cover_standard_levels() {
     let capture = Capture::default();
     let logger = Arc::new(make_logger(capture.clone()));
 
-    logforth_core::fatal!(logger: logger, "fatal");
-    logforth_core::error!(logger: logger, target: "error.target", "error");
-    logforth_core::warn!(logger: &logger, "warn");
-    logforth_core::info!(logger: logger, "info");
-    logforth_core::debug!(logger: logger, "debug");
-    logforth_core::trace!(logger: logger, "trace");
+    logforth_core::fatal!(logger, "fatal");
+    logforth_core::error!(logger, "error");
+    logforth_core::warn!(&logger, "warn");
+    logforth_core::info!(logger, "info");
+    logforth_core::debug!(logger, "debug");
+    logforth_core::trace!(logger, "trace");
 
     let records = capture.take();
     assert_eq!(
@@ -271,20 +270,12 @@ fn convenience_macros_cover_standard_levels() {
             (Level::Trace, "trace"),
         ]
     );
-    assert_eq!(records[1].target, "error.target");
+    assert!(records.iter().all(|record| record.target == "macros"));
     assert!(
         records
             .iter()
-            .enumerate()
-            .all(|(index, record)| index == 1 || record.target == "macros")
+            .all(|record| record.target_static.as_deref() == Some("macros"))
     );
-    assert!(
-        records
-            .iter()
-            .enumerate()
-            .all(|(index, record)| index == 1 || record.target_static.as_deref() == Some("macros"))
-    );
-    assert_eq!(records[1].target_static, None);
 }
 
 #[test]
@@ -298,7 +289,7 @@ fn disabled_records_do_not_evaluate_payload_or_fields() {
     };
 
     logforth_core::info!(
-        logger: logger,
+        logger,
         value = expensive();
         "value is {}",
         expensive()
@@ -306,12 +297,6 @@ fn disabled_records_do_not_evaluate_payload_or_fields() {
 
     assert_eq!(evaluations.get(), 0);
     assert!(capture.take().is_empty());
-    assert!(!logforth_core::log_enabled!(logger: logger, Level::Info));
-    assert!(logforth_core::log_enabled!(
-        logger: logger,
-        target: "custom.target",
-        Level::Error
-    ));
 }
 
 #[test]
@@ -320,7 +305,6 @@ fn macro_inputs_are_evaluated_once() {
     let logger = make_logger(capture.clone());
     let logger_evaluations = Cell::new(0);
     let level_evaluations = Cell::new(0);
-    let target_evaluations = Cell::new(0);
 
     let logger_expression = || {
         logger_evaluations.set(logger_evaluations.get() + 1);
@@ -330,21 +314,10 @@ fn macro_inputs_are_evaluated_once() {
         level_evaluations.set(level_evaluations.get() + 1);
         Level::Debug3
     };
-    let target_expression = || {
-        target_evaluations.set(target_evaluations.get() + 1);
-        "evaluated.once"
-    };
-
-    logforth_core::log!(
-        logger: logger_expression(),
-        target: target_expression(),
-        level_expression(),
-        "once"
-    );
+    logforth_core::log!(logger_expression(), level_expression(), "once");
 
     assert_eq!(logger_evaluations.get(), 1);
     assert_eq!(level_evaluations.get(), 1);
-    assert_eq!(target_evaluations.get(), 1);
     assert_eq!(capture.take()[0].level, Level::Debug3);
 }
 
@@ -353,7 +326,7 @@ fn structured_record_may_omit_message() {
     let capture = Capture::default();
     let logger = make_logger(capture.clone());
 
-    logforth_core::info!(logger: logger, answer = 42_u64;);
+    logforth_core::info!(logger, answer = 42_u64;);
 
     let records = capture.take();
     assert_eq!(records[0].payload, "");

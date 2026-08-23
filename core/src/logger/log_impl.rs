@@ -36,7 +36,13 @@ impl Logger {
 }
 
 impl Logger {
-    /// Determine if a log message with the specified metadata would be logged.
+    /// Determine whether any dispatch may log a record with the specified criteria.
+    ///
+    /// This is a prefiltering hint, not a promise that a subsequent record will be logged. Filters
+    /// may make their final decision from the complete [`Record`], and configuration may change
+    /// between this call and [`Logger::log`]. Calling this method before `log` is optional; the
+    /// native logging macros already avoid evaluating messages and fields when prefiltering rejects
+    /// them.
     pub fn enabled(&self, criteria: &FilterCriteria) -> bool {
         self.dispatches
             .iter()

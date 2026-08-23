@@ -56,12 +56,14 @@ fn main() {
         .dispatch(|d| d.append(append::Stdout::default()))
         .build();
 
-    logforth::info!(logger: logger, request_id = 42_u64; "request accepted");
-    logforth::log!(logger: logger, Level::Info2, "request details");
+    logforth::info!(logger, request_id = 42_u64; "request accepted");
+    logforth::log!(logger, Level::Info2, "request details");
 }
 ```
 
-The `log` facade remains the recommended API for libraries because it lets the final application choose its logging implementation.
+The logger is the first argument, following the same instance-first convention as `slog`. A record's target is its call-site module path; application-specific classifications belong in structured fields.
+
+The macros check the logger before evaluating the message or its fields, so an extra enabled check is unnecessary. The `log` facade remains the recommended API for libraries because it lets the final application choose its logging implementation.
 
 ## Advanced Usage
 

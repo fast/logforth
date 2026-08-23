@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ### New features
 
-* Add native Logforth logging macros with explicit logger instances, fine-grained levels, and structured key-value fields.
+* Add native Logforth logging macros with positional logger instances, fine-grained levels, lazy evaluation, and structured key-value fields.
 
 ## [0.30.1] 2026-06-03
 
