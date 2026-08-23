@@ -14,10 +14,11 @@
 
 /// Log a message at a dynamically selected level.
 ///
-/// A logger instance is required as the first argument. The target is the caller's module path.
-/// Structured key-value pairs precede the message and are separated from it by a semicolon. Values
-/// retain their native type by default; use `:?` or `:%` to capture a value with
-/// [`Debug`](std::fmt::Debug) or [`Display`](std::fmt::Display).
+/// A logger instance is required as the first argument. The target is the logger's configured name,
+/// or the caller's module path when the logger is unnamed. Structured key-value pairs precede the
+/// message and are separated from it by a semicolon. Values retain their native type by default;
+/// use `:?` or `:%` to capture a value with [`Debug`](std::fmt::Debug) or
+/// [`Display`](std::fmt::Display).
 ///
 /// Keys can be identifiers, string literals, or parenthesized string expressions. An identifier
 /// without `= value` captures the variable with the same name. The message can be omitted for a
@@ -174,7 +175,9 @@ macro_rules! __log {
     ($logger:expr, $level:expr, $($key:tt $(:$capture:tt)? $(= $value:expr)?),+; $($message:tt)+) => {{
         let __logforth_logger: &$crate::Logger = &$logger;
         let __logforth_level = $level;
-        let __logforth_target = ::std::module_path!();
+        let __logforth_target = __logforth_logger
+            .name()
+            .unwrap_or(::std::module_path!());
         let __logforth_criteria = $crate::record::FilterCriteria::builder()
             .level(__logforth_level)
             .target(__logforth_target)
@@ -205,7 +208,9 @@ macro_rules! __log {
     ($logger:expr, $level:expr, $($message:tt)+) => {{
         let __logforth_logger: &$crate::Logger = &$logger;
         let __logforth_level = $level;
-        let __logforth_target = ::std::module_path!();
+        let __logforth_target = __logforth_logger
+            .name()
+            .unwrap_or(::std::module_path!());
         let __logforth_criteria = $crate::record::FilterCriteria::builder()
             .level(__logforth_level)
             .target(__logforth_target)

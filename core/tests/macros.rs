@@ -244,6 +244,23 @@ fn captures_fine_grained_level_metadata_and_typed_fields() {
 }
 
 #[test]
+fn named_logger_changes_target_without_hiding_source_module() {
+    let capture = Capture::default();
+    let logger = logforth_core::builder()
+        .name("metering")
+        .dispatch(|dispatch| dispatch.append(capture.clone()))
+        .build();
+
+    logforth_core::info!(logger, metering_kind = "compute";);
+
+    let records = capture.take();
+    assert_eq!(logger.name(), Some("metering"));
+    assert_eq!(records[0].target, "metering");
+    assert_eq!(records[0].target_static.as_deref(), Some("metering"));
+    assert_eq!(records[0].module_path.as_deref(), Some("macros"));
+}
+
+#[test]
 fn convenience_macros_cover_standard_levels() {
     let capture = Capture::default();
     let logger = Arc::new(make_logger(capture.clone()));

@@ -58,16 +58,18 @@ impl<'a> Record<'a> {
         self.level
     }
 
-    /// The name of the target of the directive.
+    /// The stable namespace used for target-based filtering.
     ///
-    /// This is typically the same as the module path, but can be set explicitly.
+    /// Native macros use the call-site module path for an unnamed logger and the logger name for a
+    /// named logger. Bridges preserve the target supplied by the source logging facade. The actual
+    /// source module, when known, is available separately from [`Record::module_path`].
     pub fn target(&self) -> &'a str {
         self.target.get()
     }
 
-    /// The name of the target of the directive, if it is a `'static` str.
+    /// The stable namespace used for target-based filtering, if it is a `'static` str.
     ///
-    /// This is typically the same as the module path, but can be set explicitly.
+    /// See [`Record::target`] for target semantics.
     pub fn target_static(&self) -> Option<&'static str> {
         self.target.get_static()
     }

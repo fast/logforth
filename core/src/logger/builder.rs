@@ -30,7 +30,10 @@ use crate::logger::log_impl::Dispatch;
 ///     .build();
 /// ```
 pub fn builder() -> LoggerBuilder {
-    LoggerBuilder { dispatches: vec![] }
+    LoggerBuilder {
+        name: None,
+        dispatches: vec![],
+    }
 }
 
 /// A builder for configuring log dispatching.
@@ -47,11 +50,44 @@ pub fn builder() -> LoggerBuilder {
 #[must_use = "call `build` to construct a logger instance"]
 #[derive(Debug)]
 pub struct LoggerBuilder {
+    // optional stable logger name
+    name: Option<&'static str>,
+
     // stashed dispatches
     dispatches: Vec<Dispatch>,
 }
 
 impl LoggerBuilder {
+    /// Assign a stable name to the logger.
+    ///
+    /// Native logging macros use this name as the record target. An unnamed logger instead uses
+    /// the call-site module path. The source module is recorded separately in both cases.
+    ///
+    /// A name is useful for a dedicated event channel such as `metering` or `audit`: routing is
+    /// selected by the logger instance, while target-based filters such as `RustLogFilter` can
+    /// retain the same stable namespace. Per-event classifications should remain structured
+    /// fields rather than logger names.
+    ///
+    /// Names must be static because they describe a bounded, application-defined namespace rather
+    /// than dynamic event data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth_core::append;
+    ///
+    /// let metering = logforth_core::builder()
+    ///     .name("metering")
+    ///     .dispatch(|d| d.append(append::Stdout::default()))
+    ///     .build();
+    ///
+    /// assert_eq!(metering.name(), Some("metering"));
+    /// ```
+    pub fn name(mut self, name: &'static str) -> Self {
+        self.name = Some(name);
+        self
+    }
+
     /// Register a new dispatch with the [`LoggerBuilder`].
     ///
     /// # Examples
@@ -85,7 +121,7 @@ impl LoggerBuilder {
     /// l.log(&r);
     /// ```
     pub fn build(self) -> Logger {
-        Logger::new(self.dispatches)
+        Logger::new(self.name, self.dispatches)
     }
 }
 

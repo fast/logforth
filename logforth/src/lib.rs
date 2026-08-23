@@ -75,6 +75,14 @@
 //! logforth::log!(logger, Level::Info2, "request details");
 //! ```
 //!
+//! Dedicated channels can use a named logger. Its name becomes the native record target while the
+//! call-site module remains available as source metadata:
+//!
+//! ```
+//! let metering = logforth::core::builder().name("metering").build();
+//! logforth::info!(metering, tenant_id = "acme", compute_time_ms = 42_u64;);
+//! ```
+//!
 //! See the [README] file for more details and examples.
 //!
 //! [README]: https://github.com/fast/logforth?tab=readme-ov-file
