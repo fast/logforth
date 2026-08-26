@@ -22,9 +22,9 @@ use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::Filter;
 use logforth_core::filter::FilterResult;
-use logforth_core::record::FilterCriteria;
 use logforth_core::record::Level;
 use logforth_core::record::LevelFilter;
+use logforth_core::record::Metadata;
 use logforth_core::record::Record;
 
 use crate::Directive;
@@ -35,12 +35,9 @@ use crate::parse_spec;
 
 impl RustLogFilter {
     fn rejected(&self, level: Level, target: &str) -> bool {
-        let criteria = FilterCriteria::builder()
-            .level(level)
-            .target(target)
-            .build();
+        let metadata = Metadata::builder().level(level).target(target).build();
 
-        matches!(Filter::enabled(self, &criteria, &[]), FilterResult::Reject)
+        matches!(Filter::enabled(self, &metadata, &[]), FilterResult::Reject)
     }
 }
 
@@ -61,14 +58,14 @@ impl Append for CountAppend {
 #[test]
 fn named_native_logger_matches_target_directive() {
     let count = Arc::new(AtomicUsize::new(0));
-    let logger = logforth_core::builder()
-        .name("metering")
+    let provider = logforth_core::builder()
         .dispatch(|dispatch| {
             dispatch
                 .filter(RustLogFilterBuilder::from_spec("off,metering=info").build())
                 .append(CountAppend(Arc::clone(&count)))
         })
         .build();
+    let logger = provider.named_logger("metering");
 
     logforth_core::debug!(logger, "disabled by the metering directive");
     logforth_core::info!(logger, "accepted by the metering directive");

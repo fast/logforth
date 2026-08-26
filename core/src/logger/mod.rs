@@ -14,8 +14,9 @@
 
 mod builder;
 pub use self::builder::DispatchBuilder;
-pub use self::builder::LoggerBuilder;
+pub use self::builder::LoggerProviderBuilder;
 pub use self::builder::builder;
 
 mod log_impl;
 pub use self::log_impl::Logger;
+pub use self::log_impl::LoggerProvider;

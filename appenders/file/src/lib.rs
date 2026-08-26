@@ -30,7 +30,8 @@
 //!
 //! let logger = logforth_core::builder()
 //!     .dispatch(|d| d.filter(LevelFilter::All).append(rolling))
-//!     .build();
+//!     .build()
+//!     .logger();
 //! ```
 
 #![cfg_attr(docsrs, feature(doc_cfg))]

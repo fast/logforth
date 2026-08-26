@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file.
 ### Breaking changes
 
 * Bump minimum supported Rust version (MSRV) to 1.91.0.
+* Replace `LoggerBuilder` with `LoggerProviderBuilder`; build a `LoggerProvider` first and obtain lightweight `Logger` handles from it.
+* Replace the prefilter-only `FilterCriteria` with `Metadata`, which is shared by prefiltering and the resulting `Record`.
 
 ### New features
 

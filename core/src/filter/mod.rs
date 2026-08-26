@@ -17,8 +17,8 @@
 use std::fmt;
 
 use crate::Diagnostic;
-use crate::record::FilterCriteria;
 use crate::record::LevelFilter;
+use crate::record::Metadata;
 use crate::record::Record;
 
 /// The result of a filter check.
@@ -34,28 +34,23 @@ pub enum FilterResult {
 
 /// A filter that can be applied to log records.
 pub trait Filter: fmt::Debug + Send + Sync + 'static {
-    /// Prefilter a record using criteria available before the complete record is constructed.
+    /// Prefilter a record using metadata available before the complete record is constructed.
     ///
     /// A filter that needs the message or structured fields to decide must return
     /// [`FilterResult::Neutral`] here and make that decision in [`Filter::matches`]. Returning
-    /// [`FilterResult::Reject`] promises that every record with these criteria can be rejected
+    /// [`FilterResult::Reject`] promises that every record with this metadata can be rejected
     /// without constructing it.
-    fn enabled(&self, criteria: &FilterCriteria, diags: &[Box<dyn Diagnostic>]) -> FilterResult;
+    fn enabled(&self, metadata: &Metadata, diags: &[Box<dyn Diagnostic>]) -> FilterResult;
 
     /// Whether the record is filtered.
     fn matches(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> FilterResult {
-        let criteria = FilterCriteria::builder()
-            .level(record.level())
-            .target(record.target())
-            .build();
-
-        self.enabled(&criteria, diags)
+        self.enabled(record.metadata(), diags)
     }
 }
 
 impl Filter for LevelFilter {
-    fn enabled(&self, criteria: &FilterCriteria, _: &[Box<dyn Diagnostic>]) -> FilterResult {
-        if self.test(criteria.level()) {
+    fn enabled(&self, metadata: &Metadata, _: &[Box<dyn Diagnostic>]) -> FilterResult {
+        if self.test(metadata.level()) {
             FilterResult::Neutral
         } else {
             FilterResult::Reject

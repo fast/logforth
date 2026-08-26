@@ -52,22 +52,23 @@ use logforth::append;
 use logforth::record::Level;
 
 fn main() {
-    let logger = logforth::core::builder()
+    let provider = logforth::core::builder()
         .dispatch(|d| d.append(append::Stdout::default()))
         .build();
+    let logger = provider.logger();
 
     logforth::info!(logger, request_id = 42_u64; "request accepted");
     logforth::log!(logger, Level::Info2, "request details");
 }
 ```
 
-The logger is the first argument, following the same instance-first convention as `slog`. An unnamed logger uses the call-site module path as its target. A dedicated logger can instead carry one stable name, which keeps target-based `RustLogFilter` directives without repeating `target:` at every call site:
+The logger is the first argument, following the same instance-first convention as `slog`. A `LoggerProvider` owns the configured dispatches and creates lightweight logger handles. An unnamed logger uses the call-site module path as its target. A logger can instead carry one stable name, which keeps target-based `RustLogFilter` directives without repeating `target:` at every call site:
 
 ```rust
-let metering = logforth::core::builder()
-    .name("metering")
+let provider = logforth::core::builder()
     .dispatch(|d| d.append(logforth::append::Stdout::default()))
     .build();
+let metering = provider.named_logger("metering");
 
 logforth::info!(
     metering,
@@ -77,7 +78,7 @@ logforth::info!(
 );
 ```
 
-The logger name is a stable channel or source scope, so a directive such as `RUST_LOG=metering=info` keeps working. Event kinds, tenant IDs, and other varying classifications remain structured fields. The record still carries the call-site module path separately.
+The logger name is a stable filtering namespace, so a directive such as `RUST_LOG=metering=info` keeps working. Event kinds, tenant IDs, and other varying classifications remain structured fields. The record still carries the call-site module path separately.
 
 The macros check the logger before evaluating the message or its fields, so an extra enabled check is unnecessary. The `log` facade remains the recommended API for libraries because it lets the final application choose its logging implementation.
 

@@ -20,13 +20,16 @@ use std::sync::Mutex;
 use logforth_core::Append;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
+use logforth_core::Filter;
 use logforth_core::Logger;
+use logforth_core::filter::FilterResult;
 use logforth_core::kv::KeyView;
 use logforth_core::kv::ToValue;
 use logforth_core::kv::Value;
 use logforth_core::kv::ValueView;
 use logforth_core::record::Level;
 use logforth_core::record::LevelFilter;
+use logforth_core::record::Metadata;
 use logforth_core::record::Record;
 
 #[derive(Debug, PartialEq)]
@@ -130,10 +133,40 @@ impl Append for Capture {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+struct MetadataCapture {
+    metadata: Arc<Mutex<Vec<CapturedMetadata>>>,
+}
+
+#[derive(Debug, PartialEq)]
+struct CapturedMetadata {
+    level: Level,
+    target: String,
+    module_path: Option<String>,
+    file: Option<String>,
+    line: Option<u32>,
+    column: Option<u32>,
+}
+
+impl Filter for MetadataCapture {
+    fn enabled(&self, metadata: &Metadata, _: &[Box<dyn Diagnostic>]) -> FilterResult {
+        self.metadata.lock().unwrap().push(CapturedMetadata {
+            level: metadata.level(),
+            target: metadata.target().to_owned(),
+            module_path: metadata.module_path().map(str::to_owned),
+            file: metadata.file().map(str::to_owned),
+            line: metadata.line(),
+            column: metadata.column(),
+        });
+        FilterResult::Reject
+    }
+}
+
 fn make_logger(capture: Capture) -> Logger {
     logforth_core::builder()
         .dispatch(|dispatch| dispatch.append(capture))
         .build()
+        .logger()
 }
 
 fn make_filtered_logger(capture: Capture) -> Logger {
@@ -144,6 +177,7 @@ fn make_filtered_logger(capture: Capture) -> Logger {
                 .append(capture)
         })
         .build()
+        .logger()
 }
 
 #[test]
@@ -246,10 +280,10 @@ fn captures_fine_grained_level_metadata_and_typed_fields() {
 #[test]
 fn named_logger_changes_target_without_hiding_source_module() {
     let capture = Capture::default();
-    let logger = logforth_core::builder()
-        .name("metering")
+    let provider = logforth_core::builder()
         .dispatch(|dispatch| dispatch.append(capture.clone()))
         .build();
+    let logger = provider.named_logger("metering");
 
     logforth_core::info!(logger, metering_kind = "compute";);
 
@@ -314,6 +348,53 @@ fn disabled_records_do_not_evaluate_payload_or_fields() {
 
     assert_eq!(evaluations.get(), 0);
     assert!(capture.take().is_empty());
+}
+
+#[test]
+fn prefilter_receives_complete_source_metadata() {
+    let capture = Capture::default();
+    let metadata_capture = MetadataCapture::default();
+    let logger = logforth_core::builder()
+        .dispatch(|dispatch| {
+            dispatch
+                .filter(metadata_capture.clone())
+                .append(capture.clone())
+        })
+        .build()
+        .logger();
+    let expected_line = line!() + 1;
+    logforth_core::info!(logger, "filtered");
+
+    let metadata = metadata_capture.metadata.lock().unwrap();
+    assert_eq!(metadata.len(), 1);
+    assert_eq!(metadata[0].level, Level::Info);
+    assert_eq!(metadata[0].target, "macros");
+    assert_eq!(metadata[0].module_path.as_deref(), Some("macros"));
+    assert!(
+        std::path::Path::new(metadata[0].file.as_deref().unwrap())
+            .ends_with(std::path::Path::new("tests").join("macros.rs"))
+    );
+    assert_eq!(metadata[0].line, Some(expected_line));
+    assert!(metadata[0].column.unwrap() > 0);
+    assert!(capture.take().is_empty());
+}
+
+#[test]
+fn provider_creates_logger_handles_that_share_dispatches() {
+    let capture = Capture::default();
+    let provider = logforth_core::builder()
+        .dispatch(|dispatch| dispatch.append(capture.clone()))
+        .build();
+    let logger = provider.logger();
+    let metering = provider.named_logger("metering");
+
+    logforth_core::info!(logger, "application");
+    logforth_core::info!(metering, "usage");
+
+    let records = capture.take();
+    assert_eq!(records.len(), 2);
+    assert_eq!(records[0].target, "macros");
+    assert_eq!(records[1].target, "metering");
 }
 
 #[test]

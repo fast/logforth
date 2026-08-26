@@ -67,19 +67,21 @@
 //! use logforth::append;
 //! use logforth::record::Level;
 //!
-//! let logger = logforth::core::builder()
+//! let provider = logforth::core::builder()
 //!     .dispatch(|d| d.append(append::Stdout::default()))
 //!     .build();
+//! let logger = provider.logger();
 //!
 //! logforth::info!(logger, request_id = 42_u64; "request accepted");
 //! logforth::log!(logger, Level::Info2, "request details");
 //! ```
 //!
-//! Dedicated channels can use a named logger. Its name becomes the native record target while the
-//! call-site module remains available as source metadata:
+//! A logger can carry a stable name. Its name becomes the native record target while the call-site
+//! module remains available as source metadata:
 //!
 //! ```
-//! let metering = logforth::core::builder().name("metering").build();
+//! let provider = logforth::core::builder().build();
+//! let metering = provider.named_logger("metering");
 //! logforth::info!(metering, tenant_id = "acme", compute_time_ms = 42_u64;);
 //! ```
 //!
@@ -146,7 +148,8 @@ pub mod core {
     // structs
     pub use logforth_core::DispatchBuilder;
     pub use logforth_core::Logger;
-    pub use logforth_core::LoggerBuilder;
+    pub use logforth_core::LoggerProvider;
+    pub use logforth_core::LoggerProviderBuilder;
     // methods
     pub use logforth_core::builder;
 }

@@ -23,7 +23,7 @@ use std::sync::Arc;
 use log::Metadata;
 use log::Record;
 use logforth_core::Logger;
-use logforth_core::record::FilterCriteria;
+use logforth_core::record::Metadata as LogforthMetadata;
 
 /// Adapter to use a `logforth` logger instance as a `log` crate logger.
 #[derive(Debug)]
@@ -63,36 +63,38 @@ impl log::Log for LogBridge {
 }
 
 fn forward_enabled(logger: &Logger, metadata: &Metadata) -> bool {
-    let criteria = FilterCriteria::builder()
+    let metadata = LogforthMetadata::builder()
         .target(metadata.target())
         .level(level_to_level(metadata.level()))
         .build();
 
-    Logger::enabled(logger, &criteria)
+    Logger::enabled(logger, &metadata)
 }
 
 fn forward_log(logger: &Logger, record: &Record) {
-    if !forward_enabled(logger, record.metadata()) {
-        return;
-    }
-
-    // basic fields
-    let mut builder = logforth_core::record::Record::builder()
+    let mut metadata = LogforthMetadata::builder()
         .level(level_to_level(record.level()))
         .target(record.target())
         .line(record.line());
 
     // optional static fields
-    builder = if let Some(module_path) = record.module_path_static() {
-        builder.module_path_static(module_path)
+    metadata = if let Some(module_path) = record.module_path_static() {
+        metadata.module_path_static(module_path)
     } else {
-        builder.module_path(record.module_path())
+        metadata.module_path(record.module_path())
     };
-    builder = if let Some(file) = record.file_static() {
-        builder.file_static(file)
+    metadata = if let Some(file) = record.file_static() {
+        metadata.file_static(file)
     } else {
-        builder.file(record.file())
+        metadata.file(record.file())
     };
+    let metadata = metadata.build();
+
+    if !Logger::enabled(logger, &metadata) {
+        return;
+    }
+
+    let mut builder = logforth_core::record::Record::builder().metadata(metadata);
 
     // payload
     builder = builder.payload(*record.args());

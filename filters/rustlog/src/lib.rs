@@ -29,9 +29,10 @@
 //! ```
 //!
 //! For Logforth's native macros, `target` is the call-site module path when the logger is unnamed,
-//! or the stable logger name configured with [`LoggerBuilder::name`]. Records forwarded from the
-//! `log` facade retain that facade's target. This lets existing target directives keep working
-//! during incremental migration while new code avoids repeating a target at every call site.
+//! or the stable logger name configured with [`LoggerProvider::named_logger`]. Records forwarded
+//! from the `log` facade retain that facade's target. This lets existing target directives keep
+//! working during incremental migration while new code avoids repeating a target at every call
+//! site.
 //!
 //! The path to the module is rooted in the name of the crate it was compiled for. Thus, if your
 //! program is contained in a file `hello.rs`, for example, to turn on logging for this file you
@@ -73,7 +74,7 @@
 //! * `off` turns off all logging for the application
 //! * `OFF` turns off all logging for the application (same as previous)
 //!
-//! [`LoggerBuilder::name`]: logforth_core::LoggerBuilder::name
+//! [`LoggerProvider::named_logger`]: logforth_core::LoggerProvider::named_logger
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
@@ -85,9 +86,9 @@ use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::Filter;
 use logforth_core::filter::FilterResult;
-use logforth_core::record::FilterCriteria;
 use logforth_core::record::Level;
 use logforth_core::record::LevelFilter;
+use logforth_core::record::Metadata;
 
 #[cfg(test)]
 mod tests;
@@ -120,9 +121,9 @@ impl RustLogFilter {
 }
 
 impl Filter for RustLogFilter {
-    fn enabled(&self, criteria: &FilterCriteria, _: &[Box<dyn Diagnostic>]) -> FilterResult {
-        let level = criteria.level();
-        let target = criteria.target();
+    fn enabled(&self, metadata: &Metadata, _: &[Box<dyn Diagnostic>]) -> FilterResult {
+        let level = metadata.level();
+        let target = metadata.target();
 
         // search for the longest match, the vector is assumed to be pre-sorted
         for directive in self.directives.iter().rev() {

@@ -32,7 +32,7 @@
 /// ```
 /// use logforth_core::record::Level;
 ///
-/// let logger = logforth_core::builder().build();
+/// let logger = logforth_core::builder().build().logger();
 /// let request_id = 42_u64;
 /// logforth_core::log!(
 ///     logger,
@@ -60,7 +60,7 @@ macro_rules! log {
 /// # Examples
 ///
 /// ```
-/// let logger = logforth_core::builder().build();
+/// let logger = logforth_core::builder().build().logger();
 /// logforth_core::fatal!(logger, "unrecoverable failure");
 /// ```
 #[macro_export]
@@ -79,7 +79,7 @@ macro_rules! fatal {
 /// # Examples
 ///
 /// ```
-/// let logger = logforth_core::builder().build();
+/// let logger = logforth_core::builder().build().logger();
 /// logforth_core::error!(logger, "operation failed");
 /// ```
 #[macro_export]
@@ -98,7 +98,7 @@ macro_rules! error {
 /// # Examples
 ///
 /// ```
-/// let logger = logforth_core::builder().build();
+/// let logger = logforth_core::builder().build().logger();
 /// logforth_core::warn!(logger, "retrying operation");
 /// ```
 #[macro_export]
@@ -117,7 +117,7 @@ macro_rules! warn {
 /// # Examples
 ///
 /// ```
-/// let logger = logforth_core::builder().build();
+/// let logger = logforth_core::builder().build().logger();
 /// logforth_core::info!(logger, user_id = 42_u64; "user connected");
 /// ```
 #[macro_export]
@@ -136,7 +136,7 @@ macro_rules! info {
 /// # Examples
 ///
 /// ```
-/// let logger = logforth_core::builder().build();
+/// let logger = logforth_core::builder().build().logger();
 /// logforth_core::debug!(logger, "state updated");
 /// ```
 #[macro_export]
@@ -155,7 +155,7 @@ macro_rules! debug {
 /// # Examples
 ///
 /// ```
-/// let logger = logforth_core::builder().build();
+/// let logger = logforth_core::builder().build().logger();
 /// logforth_core::trace!(logger, "entered operation");
 /// ```
 #[macro_export]
@@ -178,19 +178,18 @@ macro_rules! __log {
         let __logforth_target = __logforth_logger
             .name()
             .unwrap_or(::std::module_path!());
-        let __logforth_criteria = $crate::record::FilterCriteria::builder()
+        let __logforth_metadata = $crate::record::Metadata::builder()
             .level(__logforth_level)
-            .target(__logforth_target)
+            .target_static(__logforth_target)
+            .module_path_static(::std::module_path!())
+            .file_static(::std::file!())
+            .line(::std::option::Option::Some(::std::line!()))
+            .column(::std::option::Option::Some(::std::column!()))
             .build();
-        if __logforth_logger.enabled(&__logforth_criteria) {
+        if __logforth_logger.enabled(&__logforth_metadata) {
             __logforth_logger.log(
                 &$crate::record::Record::builder()
-                    .level(__logforth_level)
-                    .target_static(__logforth_target)
-                    .module_path_static(::std::module_path!())
-                    .file_static(::std::file!())
-                    .line(::std::option::Option::Some(::std::line!()))
-                    .column(::std::option::Option::Some(::std::column!()))
+                    .metadata(__logforth_metadata)
                     .payload(::std::format_args!($($message)+))
                     .key_values(&[
                         $((
@@ -211,19 +210,18 @@ macro_rules! __log {
         let __logforth_target = __logforth_logger
             .name()
             .unwrap_or(::std::module_path!());
-        let __logforth_criteria = $crate::record::FilterCriteria::builder()
+        let __logforth_metadata = $crate::record::Metadata::builder()
             .level(__logforth_level)
-            .target(__logforth_target)
+            .target_static(__logforth_target)
+            .module_path_static(::std::module_path!())
+            .file_static(::std::file!())
+            .line(::std::option::Option::Some(::std::line!()))
+            .column(::std::option::Option::Some(::std::column!()))
             .build();
-        if __logforth_logger.enabled(&__logforth_criteria) {
+        if __logforth_logger.enabled(&__logforth_metadata) {
             __logforth_logger.log(
                 &$crate::record::Record::builder()
-                    .level(__logforth_level)
-                    .target_static(__logforth_target)
-                    .module_path_static(::std::module_path!())
-                    .file_static(::std::file!())
-                    .line(::std::option::Option::Some(::std::line!()))
-                    .column(::std::option::Option::Some(::std::column!()))
+                    .metadata(__logforth_metadata)
                     .payload(::std::format_args!($($message)+))
                     .build(),
             );

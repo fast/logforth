@@ -29,7 +29,8 @@ fn main() {
 
     let logger = logforth::core::builder()
         .dispatch(|d| d.filter(LevelFilter::All).append(asynchronous))
-        .build();
+        .build()
+        .logger();
 
     log::set_boxed_logger(Box::new(LogBridge::new(logger))).unwrap();
     log::set_max_level(log::LevelFilter::Trace);
