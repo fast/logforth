@@ -20,7 +20,8 @@ fn main() {
 
     let l = logforth::core::builder()
         .dispatch(|d| d.append(append::Stdout::default()))
-        .build();
+        .build()
+        .logger();
 
     let l = LogBridge::new(l);
     log::error!(logger: l, "Hello error!");

@@ -14,26 +14,88 @@
 
 use std::io::Write;
 use std::panic;
+use std::sync::Arc;
 
 use crate::Append;
 use crate::Diagnostic;
 use crate::Error;
 use crate::Filter;
 use crate::filter::FilterResult;
-use crate::record::FilterCriteria;
+use crate::record::Metadata;
 use crate::record::Record;
 
-/// A logger that dispatches log records to one or more dispatcher.
+/// A provider that owns log dispatch configuration and creates [`Logger`] instances.
+#[derive(Clone, Debug)]
+pub struct LoggerProvider {
+    inner: Arc<LoggerProviderInner>,
+}
+
 #[derive(Debug)]
-pub struct Logger {
-    name: Option<&'static str>,
+struct LoggerProviderInner {
     dispatches: Vec<Dispatch>,
 }
 
-impl Logger {
-    pub(super) fn new(name: Option<&'static str>, dispatches: Vec<Dispatch>) -> Self {
-        Self { name, dispatches }
+impl LoggerProvider {
+    /// Create a builder for a logger provider.
+    pub fn builder() -> super::LoggerProviderBuilder {
+        super::builder()
     }
+
+    pub(super) fn new(dispatches: Vec<Dispatch>) -> Self {
+        Self {
+            inner: Arc::new(LoggerProviderInner { dispatches }),
+        }
+    }
+
+    /// Create a logger backed by this provider.
+    pub fn logger(&self) -> Logger {
+        Logger {
+            provider: self.clone(),
+            name: None,
+        }
+    }
+
+    /// Create a logger with a stable name.
+    ///
+    /// Native logging macros use this name as the record target. The source module remains
+    /// available separately in [`Record::module_path`].
+    pub fn named_logger(&self, name: &'static str) -> Logger {
+        Logger {
+            provider: self.clone(),
+            name: Some(name),
+        }
+    }
+
+    /// Flush any buffered records from every configured dispatch.
+    pub fn flush(&self) {
+        for dispatch in &self.inner.dispatches {
+            for err in dispatch.flush() {
+                handle_flush_error(&err);
+            }
+        }
+    }
+
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        self.inner
+            .dispatches
+            .iter()
+            .any(|dispatch| dispatch.enabled(metadata))
+    }
+
+    fn log(&self, record: &Record) {
+        for dispatch in &self.inner.dispatches {
+            for err in dispatch.log(record) {
+                handle_log_error(record, &err);
+            }
+        }
+    }
+}
+
+/// A lightweight handle that emits records through a [`LoggerProvider`].
+#[derive(Clone, Debug)]
+pub struct Logger {
+    provider: LoggerProvider,
+    name: Option<&'static str>,
 }
 
 impl Logger {
@@ -46,35 +108,25 @@ impl Logger {
         self.name
     }
 
-    /// Determine whether any dispatch may log a record with the specified criteria.
+    /// Determine whether any dispatch may log a record with the specified metadata.
     ///
     /// This is a prefiltering hint, not a promise that a subsequent record will be logged. Filters
     /// may make their final decision from the complete [`Record`], and configuration may change
     /// between this call and [`Logger::log`]. Calling this method before `log` is optional; the
     /// native logging macros already avoid evaluating messages and fields when prefiltering rejects
     /// them.
-    pub fn enabled(&self, criteria: &FilterCriteria) -> bool {
-        self.dispatches
-            .iter()
-            .any(|dispatch| dispatch.enabled(criteria))
+    pub fn enabled(&self, metadata: &Metadata) -> bool {
+        self.provider.enabled(metadata)
     }
 
     /// Log the [`Record`].
     pub fn log(&self, record: &Record) {
-        for dispatch in &self.dispatches {
-            for err in dispatch.log(record) {
-                handle_log_error(record, &err);
-            }
-        }
+        self.provider.log(record);
     }
 
     /// Flush any buffered records.
     pub fn flush(&self) {
-        for dispatch in &self.dispatches {
-            for err in dispatch.flush() {
-                handle_flush_error(&err);
-            }
-        }
+        self.provider.flush();
     }
 }
 
@@ -110,11 +162,11 @@ impl Dispatch {
         }
     }
 
-    fn enabled(&self, criteria: &FilterCriteria) -> bool {
+    fn enabled(&self, metadata: &Metadata) -> bool {
         let diagnostics = &self.diagnostics;
 
         for filter in &self.filters {
-            match filter.enabled(criteria, diagnostics) {
+            match filter.enabled(metadata, diagnostics) {
                 FilterResult::Reject => return false,
                 FilterResult::Accept => return true,
                 FilterResult::Neutral => {}

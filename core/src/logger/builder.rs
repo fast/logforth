@@ -15,89 +15,56 @@
 use crate::Append;
 use crate::Diagnostic;
 use crate::Filter;
-use crate::Logger;
+use crate::LoggerProvider;
 use crate::logger::log_impl::Dispatch;
 
-/// Create a new empty [`LoggerBuilder`] instance for configuring log dispatching.
+/// Create a new empty [`LoggerProviderBuilder`] for configuring log dispatching.
 ///
 /// # Examples
 ///
 /// ```
 /// use logforth_core::append;
 ///
-/// let logger = logforth_core::builder()
+/// let provider = logforth_core::builder()
 ///     .dispatch(|d| d.append(append::Stderr::default()))
 ///     .build();
+/// let logger = provider.logger();
 /// ```
-pub fn builder() -> LoggerBuilder {
-    LoggerBuilder {
-        name: None,
-        dispatches: vec![],
-    }
+pub fn builder() -> LoggerProviderBuilder {
+    LoggerProviderBuilder { dispatches: vec![] }
 }
 
-/// A builder for configuring log dispatching.
+/// A builder for configuring a [`LoggerProvider`].
 ///
 /// # Examples
 ///
 /// ```
 /// use logforth_core::append;
 ///
-/// let logger = logforth_core::builder()
+/// let provider = logforth_core::builder()
 ///     .dispatch(|d| d.append(append::Stdout::default()))
 ///     .build();
+/// let logger = provider.logger();
 /// ```
-#[must_use = "call `build` to construct a logger instance"]
+#[must_use = "call `build` to construct a logger provider"]
 #[derive(Debug)]
-pub struct LoggerBuilder {
-    // optional stable logger name
-    name: Option<&'static str>,
-
+pub struct LoggerProviderBuilder {
     // stashed dispatches
     dispatches: Vec<Dispatch>,
 }
 
-impl LoggerBuilder {
-    /// Assign a stable name to the logger.
-    ///
-    /// Native logging macros use this name as the record target. An unnamed logger instead uses
-    /// the call-site module path. The source module is recorded separately in both cases.
-    ///
-    /// A name is useful for a dedicated event channel such as `metering` or `audit`: routing is
-    /// selected by the logger instance, while target-based filters such as `RustLogFilter` can
-    /// retain the same stable namespace. Per-event classifications should remain structured
-    /// fields rather than logger names.
-    ///
-    /// Names must be static because they describe a bounded, application-defined namespace rather
-    /// than dynamic event data.
+impl LoggerProviderBuilder {
+    /// Register a new dispatch with the [`LoggerProviderBuilder`].
     ///
     /// # Examples
     ///
     /// ```
     /// use logforth_core::append;
     ///
-    /// let metering = logforth_core::builder()
-    ///     .name("metering")
-    ///     .dispatch(|d| d.append(append::Stdout::default()))
-    ///     .build();
-    ///
-    /// assert_eq!(metering.name(), Some("metering"));
-    /// ```
-    pub fn name(mut self, name: &'static str) -> Self {
-        self.name = Some(name);
-        self
-    }
-
-    /// Register a new dispatch with the [`LoggerBuilder`].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use logforth_core::append;
-    ///
-    /// let logger = logforth_core::builder()
+    /// let provider = logforth_core::builder()
     ///     .dispatch(|d| d.append(append::Stderr::default()))
     ///     .build();
+    /// let logger = provider.logger();
     /// ```
     pub fn dispatch<F>(mut self, f: F) -> Self
     where
@@ -107,21 +74,22 @@ impl LoggerBuilder {
         self
     }
 
-    /// Build the [`Logger`].
+    /// Build the [`LoggerProvider`].
     ///
     /// # Examples
     ///
     /// ```
     /// use logforth_core::record::Record;
     ///
-    /// let l = logforth_core::builder().build();
-    /// let r = Record::builder()
+    /// let provider = logforth_core::builder().build();
+    /// let logger = provider.logger();
+    /// let record = Record::builder()
     ///     .payload(format_args!("hello world!"))
     ///     .build();
-    /// l.log(&r);
+    /// logger.log(&record);
     /// ```
-    pub fn build(self) -> Logger {
-        Logger::new(self.name, self.dispatches)
+    pub fn build(self) -> LoggerProvider {
+        LoggerProvider::new(self.dispatches)
     }
 }
 
@@ -134,12 +102,13 @@ impl LoggerBuilder {
 /// use logforth_core::record::Level;
 /// use logforth_core::record::LevelFilter;
 ///
-/// let logger = logforth_core::builder()
+/// let provider = logforth_core::builder()
 ///     .dispatch(|d| {
 ///         d.filter(LevelFilter::MoreSevereEqual(Level::Info))
 ///             .append(append::Stdout::default())
 ///     })
 ///     .build();
+/// let logger = provider.logger();
 /// ```
 #[derive(Debug)]
 pub struct DispatchBuilder<const APPEND: bool> {
@@ -166,12 +135,13 @@ impl DispatchBuilder<false> {
     /// use logforth_core::record::Level;
     /// use logforth_core::record::LevelFilter;
     ///
-    /// let logger = logforth_core::builder()
+    /// let provider = logforth_core::builder()
     ///     .dispatch(|d| {
     ///         d.filter(LevelFilter::MoreSevereEqual(Level::Error))
     ///             .append(append::Stderr::default())
     ///     })
     ///     .build();
+    /// let logger = provider.logger();
     /// ```
     pub fn filter(mut self, filter: impl Into<Box<dyn Filter>>) -> Self {
         self.filters.push(filter.into());
@@ -188,13 +158,14 @@ impl DispatchBuilder<false> {
     /// use logforth_core::record::Level;
     /// use logforth_core::record::LevelFilter;
     ///
-    /// let logger = logforth_core::builder()
+    /// let provider = logforth_core::builder()
     ///     .dispatch(|d| {
     ///         d.filter(LevelFilter::MoreSevereEqual(Level::Error))
     ///             .diagnostic(diagnostic::ThreadLocalDiagnostic::default())
     ///             .append(append::Stderr::default())
     ///     })
     ///     .build();
+    /// let logger = provider.logger();
     /// ```
     pub fn diagnostic(mut self, diagnostic: impl Into<Box<dyn Diagnostic>>) -> Self {
         self.diagnostics.push(diagnostic.into());
@@ -216,9 +187,10 @@ impl<const APPEND: bool> DispatchBuilder<APPEND> {
     /// ```
     /// use logforth_core::append;
     ///
-    /// let logger = logforth_core::builder()
+    /// let provider = logforth_core::builder()
     ///     .dispatch(|d| d.append(append::Stdout::default()))
     ///     .build();
+    /// let logger = provider.logger();
     /// ```
     pub fn append(mut self, append: impl Into<Box<dyn Append>>) -> DispatchBuilder<true> {
         self.appends.push(append.into());

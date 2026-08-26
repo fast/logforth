@@ -15,7 +15,7 @@
 //! Starter configurations for quickly setting up logforth with the `log` crate
 
 use logforth_bridge_log::LogBridge;
-use logforth_core::Logger;
+use logforth_core::LoggerProvider;
 
 use crate::Append;
 use crate::Error;
@@ -23,12 +23,12 @@ use crate::Filter;
 use crate::Layout;
 use crate::append;
 use crate::core::DispatchBuilder;
-use crate::core::LoggerBuilder;
+use crate::core::LoggerProviderBuilder;
 use crate::filter::rustlog::RustLogFilterBuilder;
 
 /// A builder for setting up logforth with the `log` crate.
 pub struct LogStarterBuilder {
-    builder: LoggerBuilder,
+    builder: LoggerProviderBuilder,
 }
 
 /// Create a new empty [`LogStarterBuilder`] instance for configuring logforth setups.
@@ -89,7 +89,7 @@ impl LogStarterBuilder {
     pub fn try_apply(self) -> Result<(), Error> {
         let make_error = |_| Error::new("logging system has already been setup");
 
-        let logger = Box::new(LogBridge::new(self.build()));
+        let logger = Box::new(LogBridge::new(self.build().logger()));
         log::set_boxed_logger(logger).map_err(make_error)?;
         log::set_max_level(log::LevelFilter::Trace);
 
@@ -121,7 +121,7 @@ impl LogStarterBuilder {
             .expect("LogStarterBuilder::apply must be called before the global logger initialized");
     }
 
-    /// Build the configured [`Logger`].
+    /// Build the configured [`LoggerProvider`].
     ///
     /// This is useful for advanced use cases where you want to intercept extra configs before
     /// setting the logger as the global logger.
@@ -133,14 +133,14 @@ impl LogStarterBuilder {
     ///
     /// use logforth::bridge::log::LogBridge;
     ///
-    /// let logger = logforth::starter_log::builder().build();
-    /// let logger = Arc::new(LogBridge::new(logger));
+    /// let provider = logforth::starter_log::builder().build();
+    /// let logger = Arc::new(LogBridge::new(provider.logger()));
     /// log::set_boxed_logger(Box::new(logger.clone())).unwrap();
     /// log::set_max_level(log::LevelFilter::Trace);
     ///
     /// logger.flush();
     /// ```
-    pub fn build(self) -> Logger {
+    pub fn build(self) -> LoggerProvider {
         self.builder.build()
     }
 }
@@ -251,7 +251,7 @@ impl LogStarterTestingBuilder {
         );
     }
 
-    /// Build the configured [`Logger`].
+    /// Build the configured [`LoggerProvider`].
     ///
     /// This is useful for advanced use cases where you want to intercept extra configs before
     /// setting the logger as the global logger.
@@ -263,14 +263,14 @@ impl LogStarterTestingBuilder {
     ///
     /// use logforth::bridge::log::LogBridge;
     ///
-    /// let logger = logforth::starter_log::testing().build();
-    /// let logger = Arc::new(LogBridge::new(logger));
+    /// let provider = logforth::starter_log::testing().build();
+    /// let logger = Arc::new(LogBridge::new(provider.logger()));
     /// log::set_boxed_logger(Box::new(logger.clone())).unwrap();
     /// log::set_max_level(log::LevelFilter::Trace);
     ///
     /// logger.flush();
     /// ```
-    pub fn build(self) -> Logger {
+    pub fn build(self) -> LoggerProvider {
         self.into_builder().build()
     }
 
@@ -411,7 +411,7 @@ impl LogStarterStdStreamBuilder {
         );
     }
 
-    /// Build the configured [`Logger`].
+    /// Build the configured [`LoggerProvider`].
     ///
     /// This is useful for advanced use cases where you want to intercept extra configs before
     /// setting the logger as the global logger.
@@ -423,14 +423,14 @@ impl LogStarterStdStreamBuilder {
     ///
     /// use logforth::bridge::log::LogBridge;
     ///
-    /// let logger = logforth::starter_log::stdout().build();
-    /// let logger = Arc::new(LogBridge::new(logger));
+    /// let provider = logforth::starter_log::stdout().build();
+    /// let logger = Arc::new(LogBridge::new(provider.logger()));
     /// log::set_boxed_logger(Box::new(logger.clone())).unwrap();
     /// log::set_max_level(log::LevelFilter::Trace);
     ///
     /// logger.flush();
     /// ```
-    pub fn build(self) -> Logger {
+    pub fn build(self) -> LoggerProvider {
         self.into_builder().build()
     }
 

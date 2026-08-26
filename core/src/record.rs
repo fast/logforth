@@ -24,6 +24,167 @@ use crate::kv;
 use crate::kv::KeyValues;
 use crate::str::RefStr;
 
+/// Metadata that identifies a log record before its body and structured values are evaluated.
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub struct Metadata<'a> {
+    level: Level,
+    target: RefStr<'a>,
+    module_path: Option<RefStr<'a>>,
+    file: Option<RefStr<'a>>,
+    line: Option<u32>,
+    column: Option<u32>,
+}
+
+impl<'a> Metadata<'a> {
+    /// The severity level of the record.
+    pub fn level(&self) -> Level {
+        self.level
+    }
+
+    /// The stable namespace used for target-based filtering.
+    pub fn target(&self) -> &'a str {
+        self.target.get()
+    }
+
+    /// The target, if it is a `'static` string.
+    pub fn target_static(&self) -> Option<&'static str> {
+        self.target.get_static()
+    }
+
+    /// The module path of the source that emitted the record.
+    pub fn module_path(&self) -> Option<&'a str> {
+        self.module_path.map(|path| path.get())
+    }
+
+    /// The module path, if it is a `'static` string.
+    pub fn module_path_static(&self) -> Option<&'static str> {
+        self.module_path.and_then(|path| path.get_static())
+    }
+
+    /// The source file that emitted the record.
+    pub fn file(&self) -> Option<&'a str> {
+        self.file.map(|file| file.get())
+    }
+
+    /// The source file, if it is a `'static` string.
+    pub fn file_static(&self) -> Option<&'static str> {
+        self.file.and_then(|file| file.get_static())
+    }
+
+    /// The line number in the source file.
+    pub fn line(&self) -> Option<u32> {
+        self.line
+    }
+
+    /// The column number in the source file.
+    pub fn column(&self) -> Option<u32> {
+        self.column
+    }
+
+    /// Create a builder initialized with this metadata.
+    pub fn to_builder(&self) -> MetadataBuilder<'a> {
+        MetadataBuilder { metadata: *self }
+    }
+
+    /// Create a new metadata builder.
+    pub fn builder() -> MetadataBuilder<'a> {
+        MetadataBuilder::default()
+    }
+
+    fn to_owned(self) -> MetadataOwned {
+        MetadataOwned {
+            level: self.level,
+            target: self.target.into_cow_static(),
+            module_path: self.module_path.map(|path| path.into_cow_static()),
+            file: self.file.map(|file| file.into_cow_static()),
+            line: self.line,
+            column: self.column,
+        }
+    }
+}
+
+/// Builder for [`Metadata`].
+#[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub struct MetadataBuilder<'a> {
+    metadata: Metadata<'a>,
+}
+
+impl Default for MetadataBuilder<'_> {
+    fn default() -> Self {
+        Self {
+            metadata: Metadata {
+                level: Level::Info,
+                target: RefStr::Static(""),
+                module_path: None,
+                file: None,
+                line: None,
+                column: None,
+            },
+        }
+    }
+}
+
+impl<'a> MetadataBuilder<'a> {
+    /// Set the severity level.
+    pub fn level(mut self, level: Level) -> Self {
+        self.metadata.level = level;
+        self
+    }
+
+    /// Set the target.
+    pub fn target(mut self, target: &'a str) -> Self {
+        self.metadata.target = RefStr::Borrowed(target);
+        self
+    }
+
+    /// Set the target to a `'static` string.
+    pub fn target_static(mut self, target: &'static str) -> Self {
+        self.metadata.target = RefStr::Static(target);
+        self
+    }
+
+    /// Set the source module path.
+    pub fn module_path(mut self, path: Option<&'a str>) -> Self {
+        self.metadata.module_path = path.map(RefStr::Borrowed);
+        self
+    }
+
+    /// Set the source module path to a `'static` string.
+    pub fn module_path_static(mut self, path: &'static str) -> Self {
+        self.metadata.module_path = Some(RefStr::Static(path));
+        self
+    }
+
+    /// Set the source file.
+    pub fn file(mut self, file: Option<&'a str>) -> Self {
+        self.metadata.file = file.map(RefStr::Borrowed);
+        self
+    }
+
+    /// Set the source file to a `'static` string.
+    pub fn file_static(mut self, file: &'static str) -> Self {
+        self.metadata.file = Some(RefStr::Static(file));
+        self
+    }
+
+    /// Set the source line.
+    pub fn line(mut self, line: Option<u32>) -> Self {
+        self.metadata.line = line;
+        self
+    }
+
+    /// Set the source column.
+    pub fn column(mut self, column: Option<u32>) -> Self {
+        self.metadata.column = column;
+        self
+    }
+
+    /// Build the metadata.
+    pub fn build(self) -> Metadata<'a> {
+        self.metadata
+    }
+}
+
 /// The payload of a log message.
 #[derive(Clone, Debug)]
 pub struct Record<'a> {
@@ -31,12 +192,7 @@ pub struct Record<'a> {
     now: SystemTime,
 
     // the metadata
-    level: Level,
-    target: RefStr<'a>,
-    module_path: Option<RefStr<'a>>,
-    file: Option<RefStr<'a>>,
-    line: Option<u32>,
-    column: Option<u32>,
+    metadata: Metadata<'a>,
 
     // the payload
     payload: fmt::Arguments<'a>,
@@ -51,11 +207,16 @@ impl<'a> Record<'a> {
         self.now
     }
 
+    /// The metadata associated with this record.
+    pub fn metadata(&self) -> &Metadata<'a> {
+        &self.metadata
+    }
+
     /// The severity level of the message.
     ///
     /// See [`Level`] for details.
     pub fn level(&self) -> Level {
-        self.level
+        self.metadata.level()
     }
 
     /// The stable namespace used for target-based filtering.
@@ -64,34 +225,34 @@ impl<'a> Record<'a> {
     /// named logger. Bridges preserve the target supplied by the source logging facade. The actual
     /// source module, when known, is available separately from [`Record::module_path`].
     pub fn target(&self) -> &'a str {
-        self.target.get()
+        self.metadata.target()
     }
 
     /// The stable namespace used for target-based filtering, if it is a `'static` str.
     ///
     /// See [`Record::target`] for target semantics.
     pub fn target_static(&self) -> Option<&'static str> {
-        self.target.get_static()
+        self.metadata.target_static()
     }
 
     /// The module path of the message.
     pub fn module_path(&self) -> Option<&'a str> {
-        self.module_path.map(|s| s.get())
+        self.metadata.module_path()
     }
 
     /// The module path of the message, if it is a `'static` str.
     pub fn module_path_static(&self) -> Option<&'static str> {
-        self.module_path.and_then(|s| s.get_static())
+        self.metadata.module_path_static()
     }
 
     /// The source file containing the message.
     pub fn file(&self) -> Option<&'a str> {
-        self.file.map(|s| s.get())
+        self.metadata.file()
     }
 
     /// The source file containing the message, if it is a `'static` str.
     pub fn file_static(&self) -> Option<&'static str> {
-        self.file.and_then(|s| s.get_static())
+        self.metadata.file_static()
     }
 
     /// The filename of the source file.
@@ -110,14 +271,14 @@ impl<'a> Record<'a> {
     /// This is typically set by the logging macro. If set, returns `Some(column)`; otherwise,
     /// returns `None`.
     pub fn line(&self) -> Option<u32> {
-        self.line
+        self.metadata.line()
     }
 
     /// The column number in the source file.
     ///
     /// This is typically not set. If set, returns `Some(column)`; otherwise, returns `None`.
     pub fn column(&self) -> Option<u32> {
-        self.column
+        self.metadata.column()
     }
 
     /// The message body.
@@ -140,12 +301,7 @@ impl<'a> Record<'a> {
         RecordBuilder {
             record: Record {
                 now: self.now,
-                level: self.level,
-                target: self.target,
-                module_path: self.module_path,
-                file: self.file,
-                line: self.line,
-                column: self.column,
+                metadata: self.metadata,
                 payload: self.payload,
                 kvs: self.kvs,
             },
@@ -156,12 +312,7 @@ impl<'a> Record<'a> {
     pub fn to_owned(&self) -> RecordOwned {
         RecordOwned {
             now: self.now,
-            level: self.level,
-            target: self.target.into_cow_static(),
-            module_path: self.module_path.map(|m| m.into_cow_static()),
-            file: self.file.map(|f| f.into_cow_static()),
-            line: self.line,
-            column: self.column,
+            metadata: self.metadata.to_owned(),
             payload: if let Some(s) = self.payload.as_str() {
                 Cow::Borrowed(s)
             } else {
@@ -192,12 +343,7 @@ impl Default for RecordBuilder<'_> {
         RecordBuilder {
             record: Record {
                 now: SystemTime::now(),
-                level: Level::Info,
-                target: RefStr::Static(""),
-                module_path: None,
-                file: None,
-                line: None,
-                column: None,
+                metadata: MetadataBuilder::default().build(),
                 payload: format_args!(""),
                 kvs: KeyValues::empty(),
             },
@@ -206,6 +352,12 @@ impl Default for RecordBuilder<'_> {
 }
 
 impl<'a> RecordBuilder<'a> {
+    /// Set the record metadata.
+    pub fn metadata(mut self, metadata: Metadata<'a>) -> Self {
+        self.record.metadata = metadata;
+        self
+    }
+
     /// Set [`payload`](Record::payload).
     pub fn payload(mut self, payload: fmt::Arguments<'a>) -> Self {
         self.record.payload = payload;
@@ -214,55 +366,55 @@ impl<'a> RecordBuilder<'a> {
 
     /// Set [`level`](Record::level).
     pub fn level(mut self, level: Level) -> Self {
-        self.record.level = level;
+        self.record.metadata.level = level;
         self
     }
 
     /// Set [`target`](Record::target).
     pub fn target(mut self, target: &'a str) -> Self {
-        self.record.target = RefStr::Borrowed(target);
+        self.record.metadata.target = RefStr::Borrowed(target);
         self
     }
 
     /// Set [`target`](Record::target) to a `'static` string.
     pub fn target_static(mut self, target: &'static str) -> Self {
-        self.record.target = RefStr::Static(target);
+        self.record.metadata.target = RefStr::Static(target);
         self
     }
 
     /// Set [`module_path`](Record::module_path).
     pub fn module_path(mut self, path: Option<&'a str>) -> Self {
-        self.record.module_path = path.map(RefStr::Borrowed);
+        self.record.metadata.module_path = path.map(RefStr::Borrowed);
         self
     }
 
     /// Set [`module_path`](Record::module_path) to a `'static` string.
     pub fn module_path_static(mut self, path: &'static str) -> Self {
-        self.record.module_path = Some(RefStr::Static(path));
+        self.record.metadata.module_path = Some(RefStr::Static(path));
         self
     }
 
     /// Set [`file`](Record::file).
     pub fn file(mut self, file: Option<&'a str>) -> Self {
-        self.record.file = file.map(RefStr::Borrowed);
+        self.record.metadata.file = file.map(RefStr::Borrowed);
         self
     }
 
     /// Set [`file`](Record::file) to a `'static` string.
     pub fn file_static(mut self, file: &'static str) -> Self {
-        self.record.file = Some(RefStr::Static(file));
+        self.record.metadata.file = Some(RefStr::Static(file));
         self
     }
 
     /// Set [`line`](Record::line).
     pub fn line(mut self, line: Option<u32>) -> Self {
-        self.record.line = line;
+        self.record.metadata.line = line;
         self
     }
 
     /// Set [`column`](Record::column).
     pub fn column(mut self, column: Option<u32>) -> Self {
-        self.record.column = column;
+        self.record.metadata.column = column;
         self
     }
 
@@ -285,12 +437,7 @@ pub struct RecordOwned {
     now: SystemTime,
 
     // the metadata
-    level: Level,
-    target: Cow<'static, str>,
-    module_path: Option<Cow<'static, str>>,
-    file: Option<Cow<'static, str>>,
-    line: Option<u32>,
-    column: Option<u32>,
+    metadata: MetadataOwned,
 
     // the payload
     payload: Cow<'static, str>,
@@ -299,101 +446,49 @@ pub struct RecordOwned {
     kvs: Vec<(kv::KeyOwned, kv::ValueOwned)>,
 }
 
+#[derive(Clone, Debug)]
+struct MetadataOwned {
+    level: Level,
+    target: Cow<'static, str>,
+    module_path: Option<Cow<'static, str>>,
+    file: Option<Cow<'static, str>>,
+    line: Option<u32>,
+    column: Option<u32>,
+}
+
+impl MetadataOwned {
+    fn as_metadata(&self) -> Metadata<'_> {
+        Metadata {
+            level: self.level,
+            target: match &self.target {
+                Cow::Borrowed(target) => RefStr::Static(target),
+                Cow::Owned(target) => RefStr::Borrowed(target),
+            },
+            module_path: match &self.module_path {
+                Some(Cow::Borrowed(path)) => Some(RefStr::Static(path)),
+                Some(Cow::Owned(path)) => Some(RefStr::Borrowed(path)),
+                None => None,
+            },
+            file: match &self.file {
+                Some(Cow::Borrowed(file)) => Some(RefStr::Static(file)),
+                Some(Cow::Owned(file)) => Some(RefStr::Borrowed(file)),
+                None => None,
+            },
+            line: self.line,
+            column: self.column,
+        }
+    }
+}
+
 impl RecordOwned {
     /// Execute the given function with the `Record`.
     pub fn with(&self, f: impl FnOnce(Record<'_>)) {
         f(Record {
             now: self.now,
-            level: self.level,
-            target: match &self.target {
-                Cow::Borrowed(s) => RefStr::Static(s),
-                Cow::Owned(s) => RefStr::Borrowed(s.as_ref()),
-            },
-            module_path: match &self.module_path {
-                Some(Cow::Borrowed(s)) => Some(RefStr::Static(s)),
-                Some(Cow::Owned(s)) => Some(RefStr::Borrowed(s)),
-                None => None,
-            },
-            file: match &self.file {
-                Some(Cow::Borrowed(s)) => Some(RefStr::Static(s)),
-                Some(Cow::Owned(s)) => Some(RefStr::Borrowed(s)),
-                None => None,
-            },
-            line: self.line,
-            column: self.column,
+            metadata: self.metadata.as_metadata(),
             payload: format_args!("{}", self.payload),
             kvs: KeyValues::from(self.kvs.as_slice()),
         });
-    }
-}
-
-/// A minimal set of criteria for pre-filtering purposes.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct FilterCriteria<'a> {
-    level: Level,
-    target: &'a str,
-}
-
-impl<'a> FilterCriteria<'a> {
-    /// Get the [`level`](Record::level).
-    pub fn level(&self) -> Level {
-        self.level
-    }
-
-    /// Get the [`target`](Record::target).
-    pub fn target(&self) -> &'a str {
-        self.target
-    }
-
-    /// Create a builder initialized with the current criteria's values.
-    pub fn to_builder(&self) -> FilterCriteriaBuilder<'a> {
-        FilterCriteriaBuilder {
-            metadata: FilterCriteria {
-                level: self.level,
-                target: self.target,
-            },
-        }
-    }
-
-    /// Return a brand-new builder.
-    pub fn builder() -> FilterCriteriaBuilder<'a> {
-        FilterCriteriaBuilder::default()
-    }
-}
-
-/// Builder for [`FilterCriteria`].
-#[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct FilterCriteriaBuilder<'a> {
-    metadata: FilterCriteria<'a>,
-}
-
-impl Default for FilterCriteriaBuilder<'_> {
-    fn default() -> Self {
-        FilterCriteriaBuilder {
-            metadata: FilterCriteria {
-                level: Level::Info,
-                target: "",
-            },
-        }
-    }
-}
-
-impl<'a> FilterCriteriaBuilder<'a> {
-    /// Setter for [`level`](FilterCriteria::level).
-    pub fn level(mut self, arg: Level) -> Self {
-        self.metadata.level = arg;
-        self
-    }
-
-    /// Setter for [`target`](FilterCriteria::target).
-    pub fn target(mut self, target: &'a str) -> Self {
-        self.metadata.target = target;
-        self
-    }
-
-    /// Invoke the builder and return a `Metadata`
-    pub fn build(self) -> FilterCriteria<'a> {
-        self.metadata
     }
 }
 

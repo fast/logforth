@@ -25,7 +25,8 @@
 //!
 //! let logger = logforth_core::builder()
 //!     .dispatch(|d| d.filter(LevelFilter::All).append(append))
-//!     .build();
+//!     .build()
+//!     .logger();
 //! ```
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
