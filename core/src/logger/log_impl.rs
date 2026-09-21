@@ -14,7 +14,6 @@
 
 use std::io::Write;
 use std::panic;
-use std::sync::Arc;
 
 use crate::Append;
 use crate::Diagnostic;
@@ -24,62 +23,23 @@ use crate::filter::FilterResult;
 use crate::record::FilterCriteria;
 use crate::record::Record;
 
-/// A handle to shared dispatches, filters, diagnostics, and appenders.
-///
-/// Cloning or naming a logger shares the configured pipeline. The final handle
-/// owns appender teardown; flushing any handle flushes the shared pipeline.
-#[derive(Debug, Clone)]
+/// A logger that dispatches log records to one or more dispatcher.
+#[derive(Debug)]
 pub struct Logger {
-    dispatches: Arc<[Dispatch]>,
-    name: Option<&'static str>,
+    dispatches: Vec<Dispatch>,
 }
 
 impl Logger {
     pub(super) fn new(dispatches: Vec<Dispatch>) -> Self {
-        Self {
-            dispatches: dispatches.into(),
-            name: None,
-        }
+        Self { dispatches }
     }
 }
 
 impl Logger {
-    /// Create a named handle sharing this logger's dispatches and diagnostics.
-    ///
-    /// Native macros use this name as the record target, while source metadata
-    /// still identifies the actual call site. Names replace rather than append
-    /// to the current name. Cloning or naming a handle never rebuilds appenders.
-    ///
-    /// Use stable application categories such as `"worker"`. Event-specific data
-    /// belongs in fields. For an independent filtering or output policy, build
-    /// a separate logger instead of naming a shared handle.
-    ///
-    /// ```
-    /// let logger = logforth_core::builder().build();
-    /// let worker = logger.named("worker");
-    /// logforth_core::info!(worker, "started");
-    /// ```
-    #[must_use = "use the returned logger handle to emit events with this name"]
-    pub fn named(&self, name: &'static str) -> Self {
-        Self {
-            dispatches: self.dispatches.clone(),
-            name: Some(name),
-        }
-    }
-
-    /// The native logging category, or `None` for call-site module targets.
-    ///
-    /// Names do not rewrite records passed directly to [`Self::log`], including
-    /// records forwarded by a bridge.
-    pub fn name(&self) -> Option<&'static str> {
-        self.name
-    }
-
     /// Test whether any dispatch might accept an event with this level and target.
     ///
-    /// This is a conservative prefilter. A full-record filter can still reject
-    /// the event, and dynamic filters can change before emission. Native macros
-    /// call this before evaluating the message and fields.
+    /// This is a conservative prefilter. Full-record filters can still reject
+    /// the event. Native macros call this before evaluating messages and fields.
     pub fn enabled(&self, criteria: &FilterCriteria) -> bool {
         self.dispatches
             .iter()
@@ -88,7 +48,7 @@ impl Logger {
 
     /// Log the [`Record`].
     pub fn log(&self, record: &Record) {
-        for dispatch in self.dispatches.iter() {
+        for dispatch in &self.dispatches {
             for err in dispatch.log(record) {
                 handle_log_error(record, &err);
             }
@@ -97,12 +57,11 @@ impl Logger {
 
     /// Flush buffered records through every configured appender.
     ///
-    /// Stop logging producers before calling this during graceful shutdown, and
-    /// keep any runtimes required by appenders alive until it returns. This does
-    /// not disable the logger or prevent later events. Appender errors use the
-    /// same stderr fallback as logging errors. There is no implicit exit hook.
+    /// Stop producers before flushing during shutdown, and keep resources needed
+    /// by appenders alive until this returns. This does not disable the logger.
+    /// Errors use the existing stderr fallback. There is no implicit exit hook.
     pub fn flush(&self) {
-        for dispatch in self.dispatches.iter() {
+        for dispatch in &self.dispatches {
             for err in dispatch.flush() {
                 handle_flush_error(&err);
             }

@@ -23,7 +23,6 @@ rust-version.workspace = true
 release = false
 
 [features]
-serde = ["logforth/serde"]
 # Starters
 starter-log = ["logforth/starter-log"]
 
@@ -153,4 +152,3 @@ required-features = [
 [[example]]
 name = "native"
 path = "src/native.rs"
-required-features = ["serde", "bridge-log", "filter-rustlog", "layout-json"]

@@ -15,58 +15,71 @@
 use super::Value;
 use super::ValueOwned;
 
-/// Borrow a typed value for a structured log field.
-///
-/// Native macros borrow their arguments through this trait, so strings and owned
-/// values are not consumed. Implement it for domain types with a natural scalar
-/// representation. Use [`Value::debug`] or [`Value::display`] for text, and
-/// `ValueOwned::from_serde` (with the `serde` feature) for nested structures.
-pub trait ToValue {
-    /// Borrow this value, preserving its supported scalar or structured type.
-    fn to_value(&self) -> Value<'_>;
-}
-
-impl<T: ToValue + ?Sized> ToValue for &T {
-    fn to_value(&self) -> Value<'_> {
-        T::to_value(self)
+impl<'a> From<&&'a str> for Value<'a> {
+    fn from(value: &&'a str) -> Self {
+        Self::str(value)
     }
 }
 
-impl ToValue for Value<'_> {
-    fn to_value(&self) -> Value<'_> {
-        *self
+impl<'a> From<&'a Value<'_>> for Value<'a> {
+    fn from(value: &'a Value<'_>) -> Self {
+        *value
     }
 }
 
-impl ToValue for ValueOwned {
-    fn to_value(&self) -> Value<'_> {
-        Value::borrowed(self)
+impl<'a> From<&'a ValueOwned> for Value<'a> {
+    fn from(value: &'a ValueOwned) -> Self {
+        Self::borrowed(value)
     }
 }
 
-impl ToValue for str {
-    fn to_value(&self) -> Value<'_> {
-        Value::str(self)
+impl<'a> From<&'a str> for Value<'a> {
+    fn from(value: &'a str) -> Self {
+        Self::str(value)
     }
 }
 
-impl ToValue for String {
-    fn to_value(&self) -> Value<'_> {
-        Value::str(self)
+impl<'a> From<&'a String> for Value<'a> {
+    fn from(value: &'a String) -> Self {
+        Self::str(value)
     }
 }
 
-impl<T: ToValue> ToValue for Option<T> {
-    fn to_value(&self) -> Value<'_> {
-        self.as_ref().map_or_else(Value::none, ToValue::to_value)
+impl<'a> From<&&'a String> for Value<'a> {
+    fn from(value: &&'a String) -> Self {
+        Self::str(value)
+    }
+}
+
+impl<'a> From<&&'a Value<'_>> for Value<'a> {
+    fn from(value: &&'a Value<'_>) -> Self {
+        **value
+    }
+}
+
+impl<'a> From<&&'a ValueOwned> for Value<'a> {
+    fn from(value: &&'a ValueOwned) -> Self {
+        Self::borrowed(value)
     }
 }
 
 macro_rules! scalar {
     ($constructor:ident, $repr:ty, $($ty:ty),+ $(,)?) => {
-        $(impl ToValue for $ty {
-            fn to_value(&self) -> Value<'_> {
-                Value::$constructor(*self as $repr)
+        $(impl From<$ty> for Value<'_> {
+            fn from(value: $ty) -> Self {
+                Self::$constructor(value as $repr)
+            }
+        }
+
+        impl From<&$ty> for Value<'_> {
+            fn from(value: &$ty) -> Self {
+                <Self as From<$ty>>::from(*value)
+            }
+        }
+
+        impl From<&&$ty> for Value<'_> {
+            fn from(value: &&$ty) -> Self {
+                <Self as From<$ty>>::from(**value)
             }
         })+
     };

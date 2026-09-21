@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Improvements
 
-* Add instance-based native logging macros with lazy typed fields, shared named logger handles, and optional direct Serde capture.
+* Add instance-based native logging macros with lazy typed fields using the existing record and value model.
 * Make native logging the primary documented API while retaining the optional `log` compatibility bridge.
 
 ### Breaking changes

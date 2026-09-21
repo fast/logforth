@@ -66,8 +66,8 @@ impl Append for Capture {
 #[test]
 fn disabled_events_skip_payload_keys_and_conversions() {
     struct Expensive;
-    impl logforth::kv::ToValue for Expensive {
-        fn to_value(&self) -> Value<'_> {
+    impl From<&Expensive> for Value<'_> {
+        fn from(_: &Expensive) -> Self {
             panic!("disabled field conversion");
         }
     }
@@ -100,20 +100,31 @@ fn disabled_events_skip_payload_keys_and_conversions() {
 #[test]
 fn fields_are_borrowed_typed_and_evaluated_once_across_dispatches() {
     let output = Capture::default();
+    let mut context = logforth::diagnostic::StaticDiagnostic::default();
+    context.insert("name", "service");
+    let nested = ValueOwned::map([("depth".into(), 2u64.into())]);
     let logger = Arc::new(
         logforth::builder()
-            .dispatch(|d| d.append(output.clone()))
-            .dispatch(|d| d.append(output.clone()))
+            .dispatch(|d| d.diagnostic(context.clone()).append(output.clone()))
+            .dispatch(|d| d.diagnostic(context.clone()).append(output.clone()))
             .build(),
     );
     let name = String::from("worker");
+    let name_ref = &name;
+    let count = 3u32;
+    let count_ref = &count;
+    let nested_ref = &nested;
+    let ready = Value::from(true);
+    let ready_ref = &ready;
     let calls = Cell::new(0);
     let expected_line = line!() + 1;
     logforth::info!(&logger, {
         String::from("name") => name,
-        "count" => { calls.set(calls.get() + 1); 3u32 },
-        "ready" => true,
-        "missing" => None::<u64>,
+        "count" => { calls.set(calls.get() + 1); count_ref },
+        "borrowed_name" => name_ref,
+        "ready" => ready_ref,
+        "missing" => Value::none(),
+        "nested" => nested_ref,
         "wide" => u128::MAX,
         "debug" => Value::debug(&vec![1, 2]),
         "display" => Value::display(&format_args!("{name}:{}", 3)),
@@ -122,7 +133,10 @@ fn fields_are_borrowed_typed_and_evaluated_once_across_dispatches() {
     assert_eq!(name, "worker");
     let events = output.events.lock().unwrap();
     assert_eq!(events.len(), 2);
-    for (event, _) in events.iter() {
+    for (event, diagnostics) in events.iter() {
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].0.view().as_str(), "name");
+        assert_eq!(diagnostics[0].1.view().to_str(), Some("service"));
         event.with(|r| {
             assert_eq!(r.target_static(), Some(module_path!()));
             assert_eq!(r.module_path_static(), Some(module_path!()));
@@ -133,6 +147,21 @@ fn fields_are_borrowed_typed_and_evaluated_once_across_dispatches() {
             let fields = r.key_values();
             assert_eq!(fields.get("name").unwrap().to_str(), Some("worker"));
             assert_eq!(fields.get("count").unwrap().to_u64(), Some(3));
+            assert_eq!(
+                fields.get("borrowed_name").unwrap().to_str(),
+                Some("worker")
+            );
+            assert_eq!(
+                fields
+                    .get("nested")
+                    .unwrap()
+                    .to_map()
+                    .unwrap()
+                    .get("depth")
+                    .unwrap()
+                    .to_u64(),
+                Some(2)
+            );
             assert_eq!(fields.get("ready").unwrap().to_bool(), Some(true));
             assert!(matches!(
                 fields.get("missing").unwrap(),
@@ -171,13 +200,13 @@ fn full_record_filtering_and_explicit_flush_keep_the_logger_usable() {
     logforth::info!(logger, "discard");
     logforth::fatal!(logger, "keep going");
     logger.flush();
-    logforth::log!(logger.named("runtime"), Level::Warn4, "keep this too");
+    logforth::log!(logger, Level::Warn4, "keep this too");
     let events = output.events.lock().unwrap();
     assert_eq!(events.len(), 2);
     events[0].0.with(|r| assert_eq!(r.level(), Level::Fatal));
     events[1].0.with(|r| {
         assert_eq!(r.level(), Level::Warn4);
-        assert_eq!(r.target(), "runtime");
+        assert_eq!(r.target(), module_path!());
         assert_eq!(r.module_path(), Some(module_path!()));
     });
     assert_eq!(output.flushes.load(Ordering::SeqCst), 1);
@@ -185,39 +214,27 @@ fn full_record_filtering_and_explicit_flush_keep_the_logger_usable() {
 
 #[cfg(feature = "filter-rustlog")]
 #[test]
-fn targets_route_fields_only_events_and_prefilter_expensive_values() {
+fn module_filters_apply_before_fields_only_events_are_built() {
     use logforth::filter::RustLogFilter;
 
-    let ordinary = Capture::default();
-    let usage = Capture::default();
+    let output = Capture::default();
+    let filter = format!("off,{}=info", module_path!())
+        .parse::<RustLogFilter>()
+        .unwrap();
     let logger = logforth::builder()
-        .dispatch(|d| {
-            d.filter("info,usage=off".parse::<RustLogFilter>().unwrap())
-                .append(ordinary.clone())
-        })
-        .dispatch(|d| {
-            d.filter("off,usage=info".parse::<RustLogFilter>().unwrap())
-                .append(usage.clone())
-        })
+        .dispatch(|d| d.filter(filter).append(output.clone()))
         .build();
-    logforth::debug!(logger.named("usage"), "{}", panic_if_called());
-    logforth::info!(logger.named("usage"), { "units" => 7u64 });
-    logforth::warn!(logger, "queue is full");
-    logforth::error!(logger, "worker failed");
-    logforth::trace!(logger, "{}", panic_if_called());
-    assert_eq!(ordinary.events.lock().unwrap().len(), 2);
-    let usage = usage.events.lock().unwrap();
-    assert_eq!(usage.len(), 1);
-    usage[0].0.with(|r| {
-        assert_eq!(r.target(), "usage");
+    let calls = Cell::new(0);
+    logforth::debug!(logger, { "units" => { calls.set(calls.get() + 1); 7u64 } });
+    logforth::info!(logger, { "units" => 7u64 },);
+    assert_eq!(calls.get(), 0);
+    let events = output.events.lock().unwrap();
+    assert_eq!(events.len(), 1);
+    events[0].0.with(|r| {
+        assert_eq!(r.target(), module_path!());
         assert_eq!(r.payload().to_string(), "");
         assert_eq!(r.key_values().get("units").unwrap().to_u64(), Some(7));
     });
-}
-
-#[cfg(feature = "filter-rustlog")]
-fn panic_if_called() -> usize {
-    panic!("disabled message expression");
 }
 
 #[cfg(feature = "bridge-log")]
@@ -230,16 +247,16 @@ fn dependency_logs_and_native_events_share_dispatch_and_flush() {
             .build(),
     );
     log::set_boxed_logger(Box::new(logforth::bridge::log::LogBridge::new(
-        logger.named("bridge"),
+        logger.clone(),
     )))
     .unwrap();
     log::set_max_level(log::LevelFilter::Trace);
-    logforth::info!(logger.named("service"), { "ready" => true }, "started");
+    logforth::info!(logger, { "ready" => true }, "started");
     log::warn!(target: "dependency", attempts = 2u64; "retrying");
     logger.flush();
     let events = output.events.lock().unwrap();
     assert_eq!(events.len(), 2);
-    events[0].0.with(|r| assert_eq!(r.target(), "service"));
+    events[0].0.with(|r| assert_eq!(r.target(), module_path!()));
     events[1].0.with(|r| {
         assert_eq!(r.target(), "dependency");
         assert_eq!(r.key_values().get("attempts").unwrap().to_u64(), Some(2));
@@ -247,136 +264,18 @@ fn dependency_logs_and_native_events_share_dispatch_and_flush() {
     assert_eq!(output.flushes.load(Ordering::SeqCst), 1);
 }
 
-#[cfg(all(
-    feature = "serde",
-    feature = "append-async",
-    feature = "layout-json",
-    feature = "diagnostic-fastrace"
-))]
 #[test]
-fn async_dispatch_owns_nested_values_and_captures_diagnostics_before_flush() -> Result<(), Error> {
-    use logforth::Layout;
-    use logforth::append::asynchronous::AsyncBuilder;
-    use logforth::diagnostic::FastraceDiagnostic;
-    use logforth::diagnostic::StaticDiagnostic;
-
-    #[derive(serde::Serialize)]
-    struct Snapshot {
-        queues: Vec<Vec<u32>>,
-        healthy: bool,
-    }
-
+fn independent_loggers_keep_their_filtering_and_flush_policy() {
     let output = Capture::default();
-    let mut context = StaticDiagnostic::default();
-    context.insert("service", "worker");
-    let logger = logforth::builder()
-        .dispatch(|d| {
-            d.diagnostic(context)
-                .diagnostic(FastraceDiagnostic::default())
-                .append(
-                    AsyncBuilder::new("native-test")
-                        .append(output.clone())
-                        .build(),
-                )
-        })
+    let ordinary = logforth::builder()
+        .dispatch(|d| d.filter(LevelFilter::Off).append(output.clone()))
         .build();
-    {
-        let span = fastrace::Span::root("batch", fastrace::collector::SpanContext::random());
-        let _guard = span.set_local_parent();
-        let snapshot = Snapshot {
-            queues: vec![vec![1, 2], vec![3]],
-            healthy: true,
-        };
-        logforth::info!(logger, {
-            "snapshot" => logforth::kv::serde(&snapshot),
-            "details" => Value::debug(&snapshot.queues),
-        }, "resource sample");
-    }
-    logger.flush();
-    let events = output.events.lock().unwrap();
-    assert_eq!(events.len(), 1);
-    let (record, diags) = &events[0];
-    record.with(|r| {
-        let data = logforth::layout::JsonLayout::default()
-            .format(&r, &[])
-            .unwrap();
-        let json: serde_json::Value = serde_json::from_slice(&data).unwrap();
-        assert_eq!(
-            json["kvs"]["snapshot"],
-            serde_json::json!({"queues": [[1, 2], [3]], "healthy": true})
-        );
-        assert_eq!(json["kvs"]["details"], "[[1, 2], [3]]");
-    });
-    let get = |key: &str| {
-        diags
-            .iter()
-            .find(|(k, _)| k.view().as_str() == key)
-            .unwrap()
-            .1
-            .view()
-    };
-    assert_eq!(get("service").to_str(), Some("worker"));
-    assert_eq!(get("trace_id").to_str().unwrap().len(), 32);
-    assert_eq!(get("span_id").to_str().unwrap().len(), 16);
-    assert_eq!(output.flushes.load(Ordering::SeqCst), 1);
-    Ok(())
-}
-
-#[test]
-fn named_handles_share_the_pipeline_and_independent_loggers_keep_their_policy() {
-    let ordinary = Capture::default();
-    let logger = logforth::builder()
-        .dispatch(|d| d.filter(LevelFilter::Off).append(ordinary.clone()))
-        .build();
-    let usage_output = Capture::default();
     let usage = logforth::builder()
-        .dispatch(|d| d.append(usage_output.clone()))
-        .build()
-        .named("usage");
-    let cloned = usage.clone();
-    let other = usage.named("resource");
-    drop(usage);
-    logforth::info!(logger.named("worker"), "disabled");
-    logforth::info!(cloned, { "units" => 5i64 },);
-    logforth::info!(other, "enabled");
-    other.flush();
-    assert!(ordinary.events.lock().unwrap().is_empty());
-    let events = usage_output.events.lock().unwrap();
-    assert_eq!(events.len(), 2);
-    events[0]
-        .0
-        .with(|r| assert_eq!(r.target_static(), Some("usage")));
-    events[1]
-        .0
-        .with(|r| assert_eq!(r.target_static(), Some("resource")));
-    assert_eq!(usage_output.flushes.load(Ordering::SeqCst), 1);
-}
-
-#[cfg(feature = "serde")]
-#[test]
-fn failed_serialization_preserves_the_event_and_other_fields() {
-    struct Broken;
-    impl serde::Serialize for Broken {
-        fn serialize<S: serde::Serializer>(&self, _: S) -> Result<S::Ok, S::Error> {
-            Err(serde::ser::Error::custom("snapshot unavailable"))
-        }
-    }
-    let output = Capture::default();
-    let logger = logforth::builder()
         .dispatch(|d| d.append(output.clone()))
         .build();
-    logforth::warn!(logger, {
-        "snapshot" => logforth::kv::serde(&Broken),
-        "retry" => true,
-    }, "resource monitor failed");
-    let events = output.events.lock().unwrap();
-    assert_eq!(events.len(), 1);
-    events[0].0.with(|r| {
-        assert_eq!(r.payload().to_string(), "resource monitor failed");
-        assert_eq!(r.key_values().get("retry").unwrap().to_bool(), Some(true));
-        let value = r.key_values().get("snapshot").unwrap();
-        let error = value.to_str().unwrap();
-        assert!(error.starts_with("<serialization failed:"));
-        assert!(error.contains("snapshot unavailable"));
-    });
+    logforth::info!(ordinary, "disabled");
+    logforth::info!(usage, { "resource" => "worker", "units" => 5i64 });
+    usage.flush();
+    assert_eq!(output.events.lock().unwrap().len(), 1);
+    assert_eq!(output.flushes.load(Ordering::SeqCst), 1);
 }

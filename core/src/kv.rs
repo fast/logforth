@@ -15,10 +15,7 @@
 //! Key-value pairs in a log record or a diagnostic context.
 
 mod convert;
-pub use self::convert::ToValue;
 
-#[cfg(feature = "serde")]
-mod serialize;
 use std::borrow::Borrow;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -26,8 +23,6 @@ use std::collections::hash_map;
 use std::fmt;
 use std::slice;
 
-#[cfg(feature = "serde")]
-pub use self::serialize::serde;
 use crate::Error;
 use crate::str::RefStr;
 
@@ -370,6 +365,10 @@ impl<'a> Iterator for MapValueIter<'a> {
 }
 
 /// A borrowed value in a key-value pair.
+///
+/// Standard [`From`] conversions preserve scalar types and borrow strings,
+/// and existing values. Use [`Self::display`] or [`Self::debug`]
+/// to explicitly capture a value as text.
 #[derive(Debug, Clone, Copy)]
 pub struct Value<'a>(ValueState<'a>);
 

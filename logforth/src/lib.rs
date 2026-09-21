@@ -25,20 +25,21 @@
 //!         .filter(LevelFilter::MoreSevereEqual(Level::Info))
 //!         .append(append::Stderr::default()))
 //!     .build();
-//! let worker = logger.named("worker");
-//! logforth::info!(worker, { "jobs" => 3u64, "healthy" => true }, "batch complete");
+//! logforth::info!(logger, { "jobs" => 3u64, "healthy" => true }, "batch complete");
 //! logger.flush();
 //! ```
 //!
-//! [`log!`] accepts every native severity; [`info!`] and the other convenience
-//! macros use the same syntax. Fields borrow values through [`kv::ToValue`].
-//! Use [`kv::Value::display`] / [`kv::Value::debug`] for text, or `kv::serde`
-//! (feature `serde`) for nested structures. A fields-only event needs no message.
+//! [`log!`] accepts every native severity; the convenience macros use the same
+//! syntax. Fields use standard [`From`] conversions into [`kv::Value`], borrowing
+//! strings and existing values. Use [`kv::Value::display`] / [`kv::Value::debug`]
+//! for text, and [`kv::Value::list`] / [`kv::Value::map`] for structured values.
+//! A fields-only event needs no message.
 //!
-//! [`Logger::named`] shares dispatches and selects a stable target, while source
-//! metadata always describes the call site. Build a separate logger for an
-//! independent output or filtering policy. Stop producers and flush each shared
-//! dispatch graph before shutting down resources used by appenders.
+//! The target and source metadata come from the call site. Custom targets remain
+//! available through [`record::RecordBuilder`] and compatibility bridges.
+//! Diagnostics supply context through the existing dispatch API; these macros
+//! do not bind context to loggers or change how appenders combine it with fields.
+//! Stop producers and flush before shutting down resources used by appenders.
 //!
 //! The optional `bridge-log` feature forwards dependency logs to a native logger.
 //! Existing `starter-log` helpers configure the `log` facade as a compatibility

@@ -12,60 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use logforth::Level;
+use logforth::LevelFilter;
 use logforth::append;
-use logforth::bridge::log::LogBridge;
 use logforth::diagnostic::StaticDiagnostic;
-use logforth::filter::RustLogFilter;
-use logforth::filter::rustlog::RustLogFilterBuilder;
-use logforth::layout::JsonLayout;
+use logforth::kv::Value;
 
-#[derive(serde::Serialize)]
-struct Snapshot {
-    queue_depths: Vec<u64>,
-    healthy: bool,
-}
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
     let mut context = StaticDiagnostic::default();
     context.insert("service", "worker");
-    let worker_filter = "off,worker=info".parse::<RustLogFilter>()?;
     let logger = logforth::builder()
         .dispatch(|d| {
-            d.filter(RustLogFilterBuilder::from_default_env_or("info").build())
-                .diagnostic(context.clone())
+            d.filter(LevelFilter::MoreSevereEqual(Level::Info))
+                .diagnostic(context)
                 .append(append::Stderr::default())
         })
-        .dispatch(|d| {
-            d.filter(worker_filter)
-                .diagnostic(context.clone())
-                .append(append::Stdout::default().with_layout(JsonLayout::default()))
-        })
         .build();
-    log::set_boxed_logger(Box::new(LogBridge::new(logger.clone())))?;
-    log::set_max_level(log::LevelFilter::Trace);
 
-    // A dedicated stream has independent filtering and output policy.
-    let usage = logforth::builder()
-        .dispatch(|d| {
-            d.diagnostic(context)
-                .append(append::Stdout::default().with_layout(JsonLayout::default()))
-        })
-        .build()
-        .named("usage");
-    let worker = logger.named("worker");
-    let snapshot = Snapshot {
-        queue_depths: vec![3, 5],
-        healthy: true,
-    };
-    logforth::info!(worker, {
-        "snapshot" => logforth::kv::serde(&snapshot),
-        "completed" => 8u64,
+    let queue = String::from("background");
+    logforth::info!(logger, {
+        "queue" => queue,
+        "completed" => 3u64,
+        "healthy" => true,
+        "details" => Value::debug(&[1, 2, 3]),
     }, "batch complete");
-    logforth::info!(usage, { "resource" => "worker", "units" => 8i64 });
-    log::warn!("dependency connection interrupted");
+    logforth::info!(logger, { "queue.depth" => 0 });
+    logforth::debug!(logger, "this event is filtered out");
 
-    // Stop producers first; keep exporter runtimes alive through both flushes.
+    // Stop producers before flushing, while appender resources are still alive.
     logger.flush();
-    usage.flush();
-    Ok(())
 }

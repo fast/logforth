@@ -16,18 +16,19 @@
 ///
 /// The logger is borrowed and evaluated once. An optional field map follows the
 /// logger (and level for `log!`). Keys are string expressions;
-/// values implement [`ToValue`](crate::kv::ToValue). A fields-only event has an
-/// empty message. The message uses the standard Rust formatting syntax.
+/// values use the standard [`From`] conversions into [`Value`](crate::kv::Value).
+/// A fields-only event has an empty message. The message uses the standard Rust
+/// formatting syntax.
 ///
 /// Logger and level are evaluated once before metadata filtering. Message, key,
 /// and value expressions are only evaluated if at least one dispatch may accept
 /// the event. Full-record filters can still reject it. Formatting can happen more
 /// than once when several appenders consume the same event.
 ///
-/// A named logger uses its name as the target; otherwise the target is the calling
-/// module. Module, file, line, and column always describe the actual call site. All native levels
-/// are supported, including `Level::Fatal`, which neither terminates the process nor implicitly
-/// flushes the logger.
+/// The target and source metadata identify the calling module and location.
+/// Use [`Record::builder`](crate::record::Record::builder) for a custom target.
+/// All native levels are supported, including `Level::Fatal`, which neither
+/// terminates the process nor implicitly flushes the logger.
 ///
 /// ```
 /// use logforth_core::{builder, info, log};
@@ -37,7 +38,7 @@
 /// let logger = builder().build();
 /// let count = 3;
 /// info!(logger, "processed {count} jobs");
-/// log!(logger.named("worker"), Level::Info2, {
+/// log!(logger, Level::Info2, {
 ///     "jobs.completed" => count,
 ///     "healthy" => true,
 ///     "details" => Value::debug(&[1, 2, 3]),
@@ -63,7 +64,7 @@ macro_rules! __log {
         match (&$logger, $level) {
             (logger, level) => {
                 let logger: &$crate::Logger = logger;
-                let target = logger.name().unwrap_or(::core::module_path!());
+                let target = ::core::module_path!();
                 let criteria = $crate::record::FilterCriteria::builder()
                     .level(level)
                     .target(target)
@@ -78,7 +79,7 @@ macro_rules! __log {
                         .column(::core::option::Option::Some(::core::column!()))
                         .payload(::core::format_args!($($message)+))
                         .key_values(&[
-                            $(($crate::kv::Key::borrowed(&$key), $crate::kv::ToValue::to_value(&$value))),*
+                            $(($crate::kv::Key::borrowed(&$key), $crate::kv::Value::from(&$value))),*
                         ][..] as &[($crate::kv::Key<'_>, $crate::kv::Value<'_>)])
                         .build());
                 }

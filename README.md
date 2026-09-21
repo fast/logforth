@@ -48,7 +48,7 @@ The native API is always available and does not depend on the `log` crate. There
 
 ## Events and structured fields
 
-Use `trace!`, `debug!`, `info!`, `warn!`, `error!`, or `fatal!` for common severities, or `log!(logger, level, ...)` for any Logforth `Level`. `fatal!` records severity; it does not terminate the process or flush.
+Use `trace!`, `debug!`, `info!`, `warn!`, `error!`, or `fatal!`, or `log!(logger, level, ...)` for any Logforth `Level`. `fatal!` records severity; it does not terminate the process or flush.
 
 ```rust
 use logforth::kv::Value;
@@ -57,82 +57,40 @@ let logger = logforth::builder()
     .dispatch(|d| d.append(logforth::append::Stderr::default()))
     .build();
 let queue = String::from("background");
-let completed = 3u64;
 logforth::info!(logger, {
     "queue" => queue,
-    "completed" => completed,
+    "completed" => 3u64,
     "healthy" => true,
     "details" => Value::debug(&[1, 2, 3]),
-    "description" => Value::display(&format_args!("{queue}: {completed}")),
-}, "batch completed");
-
-// Fields-only events have an empty message.
+}, "batch complete");
 logforth::info!(logger, { "queue.depth" => 0 });
 ```
 
-Keys are string expressions; values are borrowed through `kv::ToValue`, retaining scalar types. Use `Value::debug` and `Value::display` when a field should be text. The message uses standard Rust formatting, including named arguments and captures. The optional field map is one syntax, without capture modifiers or a separate enabled probe.
+Fields use standard `From` conversions into the existing `kv::Value`: scalars retain their types, and strings and existing values are borrowed. Use `Value::none()` for an absent value. Use `Value::display` or `Value::debug` for text and `Value::list` or `Value::map` for nested values. No logging-specific conversion trait is required.
 
-Macros check level and target before evaluating messages, keys, fields, or conversions. Full-record filters may still reject an event afterward; filters requiring payload or source information must return `Neutral` during prefiltering. Formatting can happen once per consuming appender, so formatting implementations should avoid side effects.
+Macros prefilter before evaluating messages, keys, fields, or conversions. Full-record filters may still reject an event afterward. The target defaults to the calling module, and source module/file/line/column identify the actual call site. Existing `RustLogFilter` module directives apply directly. Custom targets remain available through `RecordBuilder` and the `log` bridge.
 
-Enable `serde` for nested structures, arrays, and snapshots:
+Event fields describe one event. Existing `Diagnostic` implementations supply dispatch, thread, task, or trace context. These macros do not introduce logger-bound fields, merging precedence, or a context propagation API. Appenders keep their existing field/context handling. For independent filtering or output policy, build independent loggers; use `Arc<Logger>` to share a pipeline.
 
-```shell
-cargo add logforth -F serde
-```
-
-```rust
-let logger = logforth::builder()
-    .dispatch(|d| d.append(logforth::append::Stderr::default()))
-    .build();
-logforth::info!(logger, {
-    "samples" => logforth::kv::serde(&vec![Some(1), None, Some(3)]),
-}, "resource sample");
-```
-
-`kv::serde` converts directly into Logforth values after prefiltering. If serialization returns an error, that field becomes an explicit `<serialization failed: ...>` string and the event continues. Use `ValueOwned::from_serde` when you need to handle the error yourself. This path does not use `log`, value-bag, or sval.
-
-## Categories, dispatches, and diagnostics
-
-A logger without a name uses the calling Rust module as its target. `logger.named("worker")` creates a cheap handle sharing the same dispatches and diagnostics, with `"worker"` as its target. Source module, file, line, and column always identify the actual call site. Names replace the current category; there is no implicit logger hierarchy or appender inheritance.
-
-```rust
-use logforth::append;
-
-let logger = logforth::builder()
-    .dispatch(|d| d.append(append::Stderr::default()))
-    .build();
-let worker = logger.named("worker");
-logforth::info!(worker, "started");
-```
-
-Existing `RustLogFilter` directives such as `worker=debug` match named handles. Migrate a stable `log` target by creating a handle with the same name; ordinary module directives continue to match unnamed loggers. Bridge records retain their original targets even if the bridge was given a named logger.
-
-For independent policy, build a separate logger with its own dispatches. For example, a usage stream can use an unfiltered dedicated logger so that changing ordinary diagnostic logging to `off` does not discard usage events. Add multiple dispatches or appenders explicitly when an event should reach several destinations. Names alone do not isolate output or filtering.
-
-Existing `StaticDiagnostic`, `FastraceDiagnostic`, thread/task diagnostics, text/JSON layouts, rolling files, async appenders, and OTLP all work with native events. Diagnostics remain dispatch context; per-event data belongs in fields. The [native example](examples/src/native.rs) combines categories, JSON, static context, a dedicated stream, and dependency logs. [Appender documentation](https://docs.rs/logforth-append-opentelemetry) covers OTLP configuration.
+See the [native example](examples/src/native.rs) for static context and typed fields. Existing text/JSON layouts, rolling files, async appenders, and OTLP consume the same records. [Appender documentation](https://docs.rs/logforth-append-opentelemetry) covers OTLP configuration.
 
 ## Lifecycle and dependency logs
 
-Keep a logger handle until shutdown. Stop producers, call `logger.flush()`, and only then tear down runtimes or exporters needed by the appenders. Flushing any clone or named handle flushes the whole shared dispatch graph; it does not disable further logging. Independent loggers must each be flushed. Async appenders wait for pending work during flush; configured overflow policies still apply. This is logging, not a transactional delivery guarantee.
+Stop logging producers, call `logger.flush()`, and then tear down resources required by appenders. Flush does not disable the logger or provide a transactional delivery guarantee. Independent loggers must each be flushed.
 
-The optional `log` bridge is the compatibility entry point for dependencies. Enable `bridge-log` and install it once at startup:
-
-```shell
-cargo add log
-cargo add logforth -F bridge-log
-```
+The optional `bridge-log` feature forwards dependency logs into a native logger. Install the bridge once at startup, retaining the `Arc<Logger>` for native calls and shutdown:
 
 ```rust
+use std::sync::Arc;
 use logforth::append;
 use logforth::bridge::log::LogBridge;
 
 fn main() -> Result<(), log::SetLoggerError> {
-    let logger = logforth::builder()
+    let logger = Arc::new(logforth::builder()
         .dispatch(|d| d.append(append::Stderr::default()))
-        .build();
+        .build());
     log::set_boxed_logger(Box::new(LogBridge::new(logger.clone())))?;
     log::set_max_level(log::LevelFilter::Trace);
-
     logforth::info!(logger, "native event");
     log::info!("dependency event");
     logger.flush();
@@ -140,7 +98,7 @@ fn main() -> Result<(), log::SetLoggerError> {
 }
 ```
 
-Use `bridge-log-serde` only when incoming `log` fields require Serde support. Native Serde capture needs only `serde`. The `starter-log` helpers remain available for applications using the `log` facade. More examples are in the [examples](examples) directory.
+Add `log` and enable `logforth/bridge-log` for this example. `bridge-log-serde` continues to support Serde fields from the `log` facade. Native Serde capture is outside this API; the existing `Value` model supports explicit nested fields. The `starter-log` helpers remain available for applications using the compatibility facade.
 
 ## Features
 
