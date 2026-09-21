@@ -12,68 +12,66 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Logforth is a flexible logging framework for Rust applications, providing easy log dispatching
-//! and configuration.
+//! Native structured logging with configurable dispatches, filters, diagnostics, and appenders.
 //!
-//! # Overview
-//!
-//! Logforth allows you to set up multiple log dispatches with different filters and appenders. You
-//! can configure global log levels, use built-in appenders for stdout, stderr, files, or create
-//! custom appenders.
-//!
-//! It provides out-of-the-box integrations with the `log` crate:
-//!
-//! ```shell
-//! cargo add log
-//! cargo add logforth -F starter-log
-//! ```
-//!
-//! # Examples
-//!
-//! Simple setup with a stderr appender:
+//! Build an explicit [`Logger`] and use the native macros. They skip message and
+//! field evaluation when metadata filtering rejects the event.
 //!
 //! ```
-//! logforth::starter_log::stderr().apply();
+//! use logforth::{Level, LevelFilter, append};
 //!
-//! log::info!("This is an info message.");
+//! let logger = logforth::builder()
+//!     .dispatch(|d| d
+//!         .filter(LevelFilter::MoreSevereEqual(Level::Info))
+//!         .append(append::Stderr::default()))
+//!     .build();
+//! logforth::info!(logger, { "jobs" => 3u64, "healthy" => true }, "batch complete");
+//! logger.flush();
 //! ```
 //!
-//! Advanced setup with custom filters and multiple appenders:
+//! [`log!`] accepts every native severity; the convenience macros use the same
+//! syntax. Fields use standard [`From`] conversions into [`kv::Value`], borrowing
+//! strings and existing values. Use [`kv::Value::display`] / [`kv::Value::debug`]
+//! for text, and [`kv::Value::list`] / [`kv::Value::map`] for structured values.
+//! A fields-only event needs no message.
 //!
-//! ```
-//! use logforth::append;
-//! use logforth::record::Level;
-//! use logforth::record::LevelFilter;
+//! The target and source metadata come from the call site. Custom targets remain
+//! available through [`record::RecordBuilder`] and compatibility bridges.
+//! Diagnostics supply context through the existing dispatch API; these macros
+//! do not bind context to loggers or change how appenders combine it with fields.
+//! Stop producers and flush before shutting down resources used by appenders.
 //!
-//! logforth::starter_log::builder()
-//!     .dispatch(|d| {
-//!         d.filter(LevelFilter::MoreSevereEqual(Level::Error))
-//!             .append(append::Stderr::default())
-//!     })
-//!     .dispatch(|d| {
-//!         d.filter(LevelFilter::MoreSevereEqual(Level::Info))
-//!             .append(append::Stdout::default())
-//!     })
-//!     .apply();
+//! The optional `bridge-log` feature forwards dependency logs to a native logger.
+//! Existing `starter-log` helpers configure the `log` facade as a compatibility
+//! entry point. Native logging does not require either feature.
 //!
-//! log::error!("Error message.");
-//! log::info!("Info message.");
-//! ```
+//! See the [README] for setup, migration, and lifecycle details.
 //!
-//! See the [README] file for more details and examples.
-//!
-//! [README]: https://github.com/fast/logforth?tab=readme-ov-file
+//! [README]: https://github.com/fast/logforth#readme
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
 
+pub use logforth_core::DispatchBuilder;
 pub use logforth_core::Error;
+pub use logforth_core::Logger;
+pub use logforth_core::LoggerBuilder;
 pub use logforth_core::append::Append;
+pub use logforth_core::builder;
+pub use logforth_core::debug;
 pub use logforth_core::diagnostic::Diagnostic;
+pub use logforth_core::error;
+pub use logforth_core::fatal;
 pub use logforth_core::filter::Filter;
+pub use logforth_core::info;
 pub use logforth_core::kv;
 pub use logforth_core::layout::Layout;
+pub use logforth_core::log;
 pub use logforth_core::record;
+pub use logforth_core::record::Level;
+pub use logforth_core::record::LevelFilter;
+pub use logforth_core::trace;
+pub use logforth_core::warn;
 
 /// Dispatch log records to various targets.
 pub mod append {

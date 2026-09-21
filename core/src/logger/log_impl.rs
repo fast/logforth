@@ -36,7 +36,10 @@ impl Logger {
 }
 
 impl Logger {
-    /// Determine if a log message with the specified metadata would be logged.
+    /// Test whether any dispatch might accept an event with this level and target.
+    ///
+    /// This is a conservative prefilter. Full-record filters can still reject
+    /// the event. Native macros call this before evaluating messages and fields.
     pub fn enabled(&self, criteria: &FilterCriteria) -> bool {
         self.dispatches
             .iter()
@@ -52,7 +55,11 @@ impl Logger {
         }
     }
 
-    /// Flush any buffered records.
+    /// Flush buffered records through every configured appender.
+    ///
+    /// Stop producers before flushing during shutdown, and keep resources needed
+    /// by appenders alive until this returns. This does not disable the logger.
+    /// Errors use the existing stderr fallback. There is no implicit exit hook.
     pub fn flush(&self) {
         for dispatch in &self.dispatches {
             for err in dispatch.flush() {

@@ -34,6 +34,8 @@ pub use self::trap::Trap;
 mod error;
 pub use self::error::*;
 
+mod macros;
+
 mod logger;
 pub use self::logger::*;
 

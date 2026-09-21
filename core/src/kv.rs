@@ -14,6 +14,8 @@
 
 //! Key-value pairs in a log record or a diagnostic context.
 
+mod convert;
+
 use std::borrow::Borrow;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -363,6 +365,10 @@ impl<'a> Iterator for MapValueIter<'a> {
 }
 
 /// A borrowed value in a key-value pair.
+///
+/// Standard [`From`] conversions preserve scalar types and borrow strings,
+/// and existing values. Use [`Self::display`] or [`Self::debug`]
+/// to explicitly capture a value as text.
 #[derive(Debug, Clone, Copy)]
 pub struct Value<'a>(ValueState<'a>);
 
@@ -382,6 +388,7 @@ enum ValueState<'a> {
     Map(&'a [(Key<'a>, Value<'a>)]),
     Debug(&'a dyn fmt::Debug),
     Display(&'a dyn fmt::Display),
+    Owned(&'a ValueOwned),
 }
 
 impl fmt::Debug for ValueState<'_> {
@@ -401,6 +408,7 @@ impl fmt::Debug for ValueState<'_> {
             ValueState::Map(v) => v.fmt(f),
             ValueState::Debug(v) => fmt::Debug::fmt(v, f),
             ValueState::Display(v) => fmt::Display::fmt(v, f),
+            ValueState::Owned(v) => fmt::Debug::fmt(v, f),
         }
     }
 }
@@ -431,11 +439,17 @@ impl Value<'_> {
             ValueState::Map(m) => ValueView::Map(MapValue(MapValueState::Borrowed(m))),
             ValueState::Debug(d) => ValueView::Debug(DebugValue(d)),
             ValueState::Display(d) => ValueView::Display(DisplayValue(d)),
+            ValueState::Owned(v) => v.view(),
         }
     }
 }
 
 impl<'a> Value<'a> {
+    /// Borrow an owned value without copying its strings or nested values.
+    pub fn borrowed(value: &'a ValueOwned) -> Self {
+        Self(ValueState::Owned(value))
+    }
+
     /// Create a value representing the absence of data.
     pub fn none() -> Value<'a> {
         Value(ValueState::None)

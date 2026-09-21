@@ -148,3 +148,7 @@ required-features = [
   "diagnostic-fastrace",
   "layout-google-cloud-logging",
 ]
+
+[[example]]
+name = "native"
+path = "src/native.rs"
