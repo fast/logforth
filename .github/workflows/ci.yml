@@ -89,6 +89,7 @@ jobs:
         run: |
           set -x
 
+          cargo run --features="serde,bridge-log,filter-rustlog,layout-json" --example native
           cargo run --features="bridge-log" --example log_with_logger
 
           cargo run --features="starter-log" --example simple_stdout

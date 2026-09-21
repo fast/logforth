@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### Improvements
+
+* Add instance-based native logging macros with lazy typed fields, shared named logger handles, and optional direct Serde capture.
+* Make native logging the primary documented API while retaining the optional `log` compatibility bridge.
+
 ### Breaking changes
 
 * Bump minimum supported Rust version (MSRV) to 1.91.0.

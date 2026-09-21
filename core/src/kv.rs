@@ -14,6 +14,11 @@
 
 //! Key-value pairs in a log record or a diagnostic context.
 
+mod convert;
+pub use self::convert::ToValue;
+
+#[cfg(feature = "serde")]
+mod serialize;
 use std::borrow::Borrow;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -21,6 +26,8 @@ use std::collections::hash_map;
 use std::fmt;
 use std::slice;
 
+#[cfg(feature = "serde")]
+pub use self::serialize::serde;
 use crate::Error;
 use crate::str::RefStr;
 
@@ -382,6 +389,7 @@ enum ValueState<'a> {
     Map(&'a [(Key<'a>, Value<'a>)]),
     Debug(&'a dyn fmt::Debug),
     Display(&'a dyn fmt::Display),
+    Owned(&'a ValueOwned),
 }
 
 impl fmt::Debug for ValueState<'_> {
@@ -401,6 +409,7 @@ impl fmt::Debug for ValueState<'_> {
             ValueState::Map(v) => v.fmt(f),
             ValueState::Debug(v) => fmt::Debug::fmt(v, f),
             ValueState::Display(v) => fmt::Display::fmt(v, f),
+            ValueState::Owned(v) => fmt::Debug::fmt(v, f),
         }
     }
 }
@@ -431,11 +440,17 @@ impl Value<'_> {
             ValueState::Map(m) => ValueView::Map(MapValue(MapValueState::Borrowed(m))),
             ValueState::Debug(d) => ValueView::Debug(DebugValue(d)),
             ValueState::Display(d) => ValueView::Display(DisplayValue(d)),
+            ValueState::Owned(v) => v.view(),
         }
     }
 }
 
 impl<'a> Value<'a> {
+    /// Borrow an owned value without copying its strings or nested values.
+    pub fn borrowed(value: &'a ValueOwned) -> Self {
+        Self(ValueState::Owned(value))
+    }
+
     /// Create a value representing the absence of data.
     pub fn none() -> Value<'a> {
         Value(ValueState::None)

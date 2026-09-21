@@ -34,7 +34,12 @@ pub enum FilterResult {
 
 /// A filter that can be applied to log records.
 pub trait Filter: fmt::Debug + Send + Sync + 'static {
-    /// Whether the record is filtered by its given metadata.
+    /// Prefilter an event by level and target before its payload is evaluated.
+    ///
+    /// Return `Neutral` if the decision needs message, fields, or source location,
+    /// and inspect those in [`Self::matches`]. `Reject` must mean no matching
+    /// record could be accepted with these criteria. An accepted prefilter does
+    /// not bypass the full-record filter pass.
     fn enabled(&self, criteria: &FilterCriteria, diags: &[Box<dyn Diagnostic>]) -> FilterResult;
 
     /// Whether the record is filtered.

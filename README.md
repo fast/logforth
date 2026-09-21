@@ -20,88 +20,127 @@ Logforth is a versatile, extensible, and easy-to-use logging framework for Rust 
 
 ## Getting Started
 
-Add `log` and `logforth` to your `Cargo.toml`:
+Add Logforth to your application:
+
+```shell
+cargo add logforth
+```
+
+Build a logger and pass it to the native logging macros:
+
+```rust
+use logforth::{Level, LevelFilter, append};
+
+fn main() {
+    let logger = logforth::builder()
+        .dispatch(|d| d
+            .filter(LevelFilter::MoreSevereEqual(Level::Info))
+            .append(append::Stderr::default()))
+        .build();
+
+    logforth::info!(logger, "service started");
+    logforth::debug!(logger, "this message is filtered out");
+    logger.flush();
+}
+```
+
+The native API is always available and does not depend on the `log` crate. There is no implicit global logger or global maximum level: each logger's dispatches decide what to emit. An unfiltered dispatch accepts every level; a logger without dispatches emits nothing.
+
+## Events and structured fields
+
+Use `trace!`, `debug!`, `info!`, `warn!`, `error!`, or `fatal!` for common severities, or `log!(logger, level, ...)` for any Logforth `Level`. `fatal!` records severity; it does not terminate the process or flush.
+
+```rust
+use logforth::kv::Value;
+
+let logger = logforth::builder()
+    .dispatch(|d| d.append(logforth::append::Stderr::default()))
+    .build();
+let queue = String::from("background");
+let completed = 3u64;
+logforth::info!(logger, {
+    "queue" => queue,
+    "completed" => completed,
+    "healthy" => true,
+    "details" => Value::debug(&[1, 2, 3]),
+    "description" => Value::display(&format_args!("{queue}: {completed}")),
+}, "batch completed");
+
+// Fields-only events have an empty message.
+logforth::info!(logger, { "queue.depth" => 0 });
+```
+
+Keys are string expressions; values are borrowed through `kv::ToValue`, retaining scalar types. Use `Value::debug` and `Value::display` when a field should be text. The message uses standard Rust formatting, including named arguments and captures. The optional field map is one syntax, without capture modifiers or a separate enabled probe.
+
+Macros check level and target before evaluating messages, keys, fields, or conversions. Full-record filters may still reject an event afterward; filters requiring payload or source information must return `Neutral` during prefiltering. Formatting can happen once per consuming appender, so formatting implementations should avoid side effects.
+
+Enable `serde` for nested structures, arrays, and snapshots:
+
+```shell
+cargo add logforth -F serde
+```
+
+```rust
+let logger = logforth::builder()
+    .dispatch(|d| d.append(logforth::append::Stderr::default()))
+    .build();
+logforth::info!(logger, {
+    "samples" => logforth::kv::serde(&vec![Some(1), None, Some(3)]),
+}, "resource sample");
+```
+
+`kv::serde` converts directly into Logforth values after prefiltering. If serialization returns an error, that field becomes an explicit `<serialization failed: ...>` string and the event continues. Use `ValueOwned::from_serde` when you need to handle the error yourself. This path does not use `log`, value-bag, or sval.
+
+## Categories, dispatches, and diagnostics
+
+A logger without a name uses the calling Rust module as its target. `logger.named("worker")` creates a cheap handle sharing the same dispatches and diagnostics, with `"worker"` as its target. Source module, file, line, and column always identify the actual call site. Names replace the current category; there is no implicit logger hierarchy or appender inheritance.
+
+```rust
+use logforth::append;
+
+let logger = logforth::builder()
+    .dispatch(|d| d.append(append::Stderr::default()))
+    .build();
+let worker = logger.named("worker");
+logforth::info!(worker, "started");
+```
+
+Existing `RustLogFilter` directives such as `worker=debug` match named handles. Migrate a stable `log` target by creating a handle with the same name; ordinary module directives continue to match unnamed loggers. Bridge records retain their original targets even if the bridge was given a named logger.
+
+For independent policy, build a separate logger with its own dispatches. For example, a usage stream can use an unfiltered dedicated logger so that changing ordinary diagnostic logging to `off` does not discard usage events. Add multiple dispatches or appenders explicitly when an event should reach several destinations. Names alone do not isolate output or filtering.
+
+Existing `StaticDiagnostic`, `FastraceDiagnostic`, thread/task diagnostics, text/JSON layouts, rolling files, async appenders, and OTLP all work with native events. Diagnostics remain dispatch context; per-event data belongs in fields. The [native example](examples/src/native.rs) combines categories, JSON, static context, a dedicated stream, and dependency logs. [Appender documentation](https://docs.rs/logforth-append-opentelemetry) covers OTLP configuration.
+
+## Lifecycle and dependency logs
+
+Keep a logger handle until shutdown. Stop producers, call `logger.flush()`, and only then tear down runtimes or exporters needed by the appenders. Flushing any clone or named handle flushes the whole shared dispatch graph; it does not disable further logging. Independent loggers must each be flushed. Async appenders wait for pending work during flush; configured overflow policies still apply. This is logging, not a transactional delivery guarantee.
+
+The optional `log` bridge is the compatibility entry point for dependencies. Enable `bridge-log` and install it once at startup:
 
 ```shell
 cargo add log
-cargo add logforth -F starter-log
+cargo add logforth -F bridge-log
 ```
 
-## Simple Usage
-
-Set up a basic logger that outputs to stdout:
-
 ```rust
-fn main() {
-    logforth::starter_log::stdout().apply();
+use logforth::append;
+use logforth::bridge::log::LogBridge;
 
-    log::error!("This is an error message.");
-    log::info!("This is an info message.");
-    log::debug!("This debug message will not be printed by default.");
+fn main() -> Result<(), log::SetLoggerError> {
+    let logger = logforth::builder()
+        .dispatch(|d| d.append(append::Stderr::default()))
+        .build();
+    log::set_boxed_logger(Box::new(LogBridge::new(logger.clone())))?;
+    log::set_max_level(log::LevelFilter::Trace);
+
+    logforth::info!(logger, "native event");
+    log::info!("dependency event");
+    logger.flush();
+    Ok(())
 }
 ```
 
-By default, all logging except the `error` level is disabled. You can enable logging at other levels by setting the [`RUST_LOG`](https://docs.rs/logforth-filter-rustlog/*/logforth_filter_rustlog/index.html) environment variable. For example, `RUST_LOG=all cargo run` will print all logs.
-
-## Advanced Usage
-
-Configure multiple dispatches with different filters and appenders:
-
-```rust
-fn main() {
-    logforth::starter_log::builder()
-        .dispatch(|d| d
-            .filter(LevelFilter::MoreSevereEqual(Level::Error))
-            .append(append::Stderr::default()))
-        .dispatch(|d| d
-            .filter(LevelFilter::MoreSevereEqual(Level::Info))
-            .append(append::Stdout::default()))
-        .apply();
-
-    log::error!("This error will be logged to stderr.");
-    log::info!("This info will be logged to stdout.");
-    log::debug!("This debug message will not be logged.");
-}
-```
-
-Configure OpenTelemetry appender to export logs to an OpenTelemetry backend ([full example](https://github.com/scopedb/percas/blob/d01db13b/crates/server/src/telemetry.rs#L131-L227)):
-
-```rust
-fn main() {
-    let static_diagnostic = {
-        let mut static_diagnostic = StaticDiagnostic::default();
-        static_diagnostic.insert("node_id", node_id);
-        static_diagnostic.insert("nodegroup", nodegroup);
-        static_diagnostic
-    };
-
-    let runtime = async_runtime();
-    let filter = make_rust_log_filter(&opentelemetry.filter);
-    let appender = runtime.block_on(async {
-        let exporter = opentelemetry_otlp::LogExporter::builder()
-            .with_tonic()
-            .with_endpoint(&opentelemetry.otlp_endpoint)
-            .with_protocol(opentelemetry_otlp::Protocol::Grpc)
-            .build()
-            .expect("failed to initialize opentelemetry logger");
-
-        append::opentelemetry::OpentelemetryLogBuilder::new(service_name, exporter)
-            .label("service.name", service_name)
-            .build()
-    });
-
-    logforth::starter_log::builder()
-        .dispatch(|b| {
-            b.filter(filter)
-                .diagnostic(FastraceDiagnostic::default())
-                .diagnostic(static_diagnostic)
-                .append(appender)
-        })
-        .apply();
-}
-```
-
-Read more demos under the [examples](examples) directory.
+Use `bridge-log-serde` only when incoming `log` fields require Serde support. Native Serde capture needs only `serde`. The `starter-log` helpers remain available for applications using the `log` facade. More examples are in the [examples](examples) directory.
 
 ## Features
 
@@ -191,7 +230,7 @@ Users can also provide their own MDC by implementing the [`Diagnostic`] trait.
 
 ### Bridges
 
-So far, Logforth provides out-of-the-box integration with the `log` crate. You can use Logforth as the backend for any crate that uses the `log` facade.
+The optional `log` bridge forwards dependency logs into the same dispatch graph as native events. It preserves the original level, target, source location, and supported structured fields.
 
 ## Documentation
 

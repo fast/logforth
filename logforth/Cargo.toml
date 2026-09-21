@@ -72,6 +72,7 @@ filter-rustlog = ["dep:logforth-filter-rustlog"]
 # Standalone features
 native-tls = ["logforth-append-syslog?/native-tls"]
 rustls = ["logforth-append-syslog?/rustls"]
+serde = ["logforth-core/serde"]
 
 [dependencies]
 logforth-core = { workspace = true }
@@ -94,8 +95,11 @@ logforth-layout-logfmt = { workspace = true, optional = true }
 logforth-layout-text = { workspace = true, optional = true }
 
 [dev-dependencies]
+fastrace = { workspace = true, features = ["enable"] }
 log = { workspace = true }
 logforth-append-file = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 [lints]
 workspace = true
