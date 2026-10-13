@@ -66,9 +66,9 @@ jiff = { version = "0.2" }
 libc = { version = "0.2.162" }
 log = { version = "0.4.31", default-features = false }
 oneshot = { version = "0.2.1", default-features = false, features = ["std"] }
-opentelemetry = { version = "0.32.0", default-features = false }
-opentelemetry-otlp = { version = "0.32.0", default-features = false }
-opentelemetry_sdk = { version = "0.32.0", default-features = false }
+opentelemetry = { version = "0.33.1", default-features = false }
+opentelemetry-otlp = { version = "0.33.1", default-features = false }
+opentelemetry_sdk = { version = "0.33.1", default-features = false }
 pin-project = { version = "1.1.10" }
 pollster = { version = "0.4.0" }
 rand = { version = "0.10.1" }

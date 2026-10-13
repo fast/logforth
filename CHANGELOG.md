@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Breaking changes
 
 * Bump minimum supported Rust version (MSRV) to 1.91.0.
+* `logforth-append-opentelemetry` upgrades `opentelemetry`, `opentelemetry-otlp` and `opentelemetry_sdk` to 0.33.1.
 
 ## [0.30.1] 2026-06-03
 
