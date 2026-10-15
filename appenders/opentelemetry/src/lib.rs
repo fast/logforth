@@ -33,6 +33,9 @@ use logforth_core::record::Level;
 use logforth_core::record::Record;
 use opentelemetry::InstrumentationScope;
 use opentelemetry::Key;
+use opentelemetry::SpanId;
+use opentelemetry::TraceFlags;
+use opentelemetry::TraceId;
 use opentelemetry::logs::AnyValue;
 use opentelemetry::logs::LogRecord;
 use opentelemetry::logs::Logger;
@@ -274,8 +277,13 @@ impl Append for OpentelemetryLog {
             record: &mut log_record,
         };
         record.key_values().visit(&mut extractor)?;
+
+        let mut extractor = TraceContextExtractor::new(extractor);
         for d in diags {
             d.visit(&mut extractor)?;
+        }
+        if let Some((trace_id, span_id, trace_flags)) = extractor.into_trace_context() {
+            log_record.set_trace_context(trace_id, span_id, Some(trace_flags));
         }
 
         self.logger.emit(log_record);
@@ -355,6 +363,57 @@ impl MakeBody for MakeBodyLayout {
     fn create(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<AnyValue, Error> {
         let body = self.layout.format(record, diags)?;
         Ok(AnyValue::Bytes(Box::new(body)))
+    }
+}
+
+struct TraceContextExtractor<V> {
+    inner: V,
+    trace_id: Option<TraceId>,
+    span_id: Option<SpanId>,
+    sampled: Option<bool>,
+}
+
+impl<V> TraceContextExtractor<V> {
+    fn new(inner: V) -> Self {
+        Self {
+            inner,
+            trace_id: None,
+            span_id: None,
+            sampled: None,
+        }
+    }
+
+    fn into_trace_context(self) -> Option<(TraceId, SpanId, TraceFlags)> {
+        Some((
+            self.trace_id?,
+            self.span_id?,
+            TraceFlags::NOT_SAMPLED.with_sampled(self.sampled?),
+        ))
+    }
+}
+
+impl<V: Visitor> Visitor for TraceContextExtractor<V> {
+    fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
+        match key.as_str() {
+            "trace_id" if self.trace_id.is_none() => {
+                self.trace_id = value
+                    .to_str()
+                    .and_then(|value| TraceId::from_hex(value).ok())
+                    .filter(|trace_id| *trace_id != TraceId::INVALID);
+            }
+            "span_id" if self.span_id.is_none() => {
+                self.span_id = value
+                    .to_str()
+                    .and_then(|value| SpanId::from_hex(value).ok())
+                    .filter(|span_id| *span_id != SpanId::INVALID);
+            }
+            "sampled" if self.sampled.is_none() => {
+                self.sampled = value.to_bool();
+            }
+            _ => {}
+        }
+
+        self.inner.visit(key, value)
     }
 }
 
