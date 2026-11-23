@@ -15,8 +15,8 @@
 use jiff::RoundMode;
 use jiff::ToSpan;
 use jiff::Unit;
-use jiff::Zoned;
-use jiff::ZonedRound;
+use jiff::ZonedDateTime;
+use jiff::ZonedDateTimeRound;
 
 /// Rotation policies for rolling files.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,8 +33,8 @@ pub enum Rotation {
 
 impl Rotation {
     /// Get the next date timestamp based on the current date and rotation policy.
-    pub fn next_date_timestamp(&self, current_date: &Zoned) -> Option<usize> {
-        let round = ZonedRound::new().mode(RoundMode::Trunc);
+    pub fn next_date_timestamp(&self, current_date: &ZonedDateTime) -> Option<usize> {
+        let round = ZonedDateTimeRound::new().mode(RoundMode::Trunc);
         let next_date = match *self {
             Rotation::Never => return None,
             Rotation::Minutely => (current_date + 1.minute()).round(round.smallest(Unit::Minute)),
@@ -62,13 +62,13 @@ mod tests {
     use std::str::FromStr;
 
     use jiff::Timestamp;
-    use jiff::Zoned;
+    use jiff::ZonedDateTime;
 
     use super::Rotation;
 
     #[test]
     fn test_next_date_timestamp() {
-        let current_date = Zoned::from_str("2024-08-10T17:12:52+08[+08]").unwrap();
+        let current_date = ZonedDateTime::from_str("2024-08-10T17:12:52+08[+08]").unwrap();
 
         assert_eq!(Rotation::Never.next_date_timestamp(&current_date), None);
 

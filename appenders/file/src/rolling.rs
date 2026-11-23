@@ -23,7 +23,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use jiff::Zoned;
+use jiff::ZonedDateTime;
 use jiff::civil::DateTime;
 use logforth_core::Error;
 use logforth_core::Trap;
@@ -214,7 +214,7 @@ struct State {
     date_format: &'static str,
     rotation: Rotation,
     current_filesize: usize,
-    this_date_timestamp: Zoned,
+    this_date_timestamp: ZonedDateTime,
     next_date_timestamp: Option<usize>,
     max_size: Option<NonZeroUsize>,
     max_files: Option<NonZeroUsize>,
@@ -274,7 +274,7 @@ impl State {
                     state.current_filesize = last.metadata.len() as usize;
 
                     if let Ok(mtime) = last.metadata.modified()
-                        && let Ok(mtime) = Zoned::try_from(mtime)
+                        && let Ok(mtime) = ZonedDateTime::try_from(mtime)
                     {
                         state.next_date_timestamp = state.rotation.next_date_timestamp(&mtime);
                         state.this_date_timestamp = mtime;
@@ -309,7 +309,7 @@ impl State {
             .map_err(|err| Error::new("failed to create log file").with_source(err))
     }
 
-    fn join_date(&self, date: &Zoned, cnt: usize) -> PathBuf {
+    fn join_date(&self, date: &ZonedDateTime, cnt: usize) -> PathBuf {
         let date = date.strftime(self.date_format);
         let filename = match (
             &self.rotation,
@@ -420,7 +420,7 @@ impl State {
         Ok(())
     }
 
-    fn rotate_log_writer(&self, now: &Zoned) -> Result<File, Error> {
+    fn rotate_log_writer(&self, now: &ZonedDateTime) -> Result<File, Error> {
         let mut renames = vec![];
         for i in 1..self.max_files.map_or(usize::MAX, |n| n.get()) {
             let filepath = self.join_date(now, i);
@@ -458,7 +458,7 @@ impl State {
         self.create_log_writer()
     }
 
-    fn refresh_writer(&self, now: &Zoned, file: &mut File) {
+    fn refresh_writer(&self, now: &ZonedDateTime, file: &mut File) {
         match self.rotate_log_writer(now) {
             Ok(new_file) => {
                 if let Err(err) = file.flush() {
@@ -474,7 +474,7 @@ impl State {
         }
     }
 
-    fn should_rollover_on_date(&self, date: &Zoned) -> bool {
+    fn should_rollover_on_date(&self, date: &ZonedDateTime) -> bool {
         self.next_date_timestamp
             .is_some_and(|ts| date.timestamp().as_millisecond() as usize >= ts)
     }
@@ -495,7 +495,7 @@ mod tests {
     use std::str::FromStr;
 
     use jiff::Span;
-    use jiff::Zoned;
+    use jiff::ZonedDateTime;
     use rand::RngExt;
     use rand::distr::Alphanumeric;
     use tempfile::TempDir;
@@ -572,7 +572,7 @@ mod tests {
         let max_files = NonZeroUsize::new(10).unwrap();
         let temp_dir = TempDir::new().unwrap();
 
-        let start_time = Zoned::from_str("2024-08-10T00:00:00[UTC]").unwrap();
+        let start_time = ZonedDateTime::from_str("2024-08-10T00:00:00[UTC]").unwrap();
         let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref(), "test_file")
             .rotation(rotation)
             .filename_suffix("log")
@@ -637,7 +637,7 @@ mod tests {
         let total_files = 100;
         let temp_dir = TempDir::new().unwrap();
 
-        let start_time = Zoned::from_str("2024-08-10T00:00:00[UTC]").unwrap();
+        let start_time = ZonedDateTime::from_str("2024-08-10T00:00:00[UTC]").unwrap();
         let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref(), "test_file")
             .rotation(rotation)
             .filename_suffix("log")
