@@ -19,7 +19,7 @@
 
 use std::borrow::Cow;
 
-use jiff::Zoned;
+use jiff::ZonedDateTime;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::append::Append;
@@ -65,7 +65,10 @@ impl Append for FastraceEvent {
             || {
                 [
                     (Cow::from("level"), Cow::from(record.level().name())),
-                    (Cow::from("timestamp"), Cow::from(Zoned::now().to_string())),
+                    (
+                        Cow::from("timestamp"),
+                        Cow::from(ZonedDateTime::now().to_string()),
+                    ),
                 ]
                 .into_iter()
                 .chain(collector.kv)

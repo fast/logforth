@@ -62,7 +62,7 @@ ctor = { version = "1.0.6" }
 fastrace = { version = "0.7" }
 fasyslog = { version = "1.0.0" }
 insta = { version = "1.43.2" }
-jiff = { version = "0.2" }
+jiff = { version = "1.0" }
 libc = { version = "0.2.162" }
 log = { version = "0.4.31", default-features = false }
 oneshot = { version = "0.2.1", default-features = false, features = ["std"] }
