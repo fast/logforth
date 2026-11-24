@@ -18,7 +18,7 @@ Logforth separates three concerns into distinct primitives:
 | Fan-out (`Dispatch`) | Which output slices and destinations receive this stream? | Ordered `Dispatch` branches inside a `Logger`                 |
 
 - `Logger` is a lightweight `Clone` handle backed by a shared pipeline and an inline per-handle level gate, without a global singleton in `logforth-core`. Libraries accepting an optional logger can default to a zero-allocation `const fn Logger::noop()`, and derived handles created with static or atomic `LevelMask` gates share the same underlying dispatches and `flush` lifecycle while enforcing independent `O(1)` callsite thresholds.
-- All five component traits (`Append`, `Layout`, `Filter`, `Diagnostic`, and `ErrorSink`) implement forwarding for `Arc<T>` and `&'static T`. Multiple dispatches or independent `Logger` instances can share stateful components as a directed acyclic graph without a separate provider wrapper.
+- All five component traits (`Append`, `Layout`, `Filter`, `Diagnostic`, and `ErrorSink`) implement forwarding for `Arc<T>` and `&'static T`, allowing multiple dispatches or independent `Logger` instances to share stateful components directly as a directed acyclic graph.
 - Configuration placement follows each component's role in the pipeline. `LoggerBuilder::error_sink` sets the logger-wide failure fallback, and `DispatchBuilder::error_sink` optionally overrides it for a specific branch. Out-of-band executors such as `Async` manage an independent worker lifecycle and configure their own `ErrorSink`. `Filter` and `Diagnostic` are configured on `DispatchBuilder` because branches within a `Logger` exist to select distinct event subsets and context; branches that share a filter or diagnostic share it explicitly via `Arc`.
 
 For example, an application can isolate `audit` events on a dedicated `Logger` while its main diagnostic `Logger` fans out `Warn` records to standard error and `Debug` records to a shared `Arc<File>`.
@@ -84,9 +84,9 @@ enum DiagnosticsState<'a> {
   - `Neutral` expresses no decision and passes control to the next filter; a `Dispatch` accepts the record if all filters finish `Neutral`.
 - `LevelMask(u32)` represents any subset of the 24 levels, including non-monotonic `LevelFilter` predicates, in a single machine register. Each `Filter` reports static `may_accept` and `may_neutral` masks through `Filter::bounds`. `DispatchBuilder::build` computes the branch `LevelMask` by backwards induction `mask = may_accept | (may_neutral & next)` and folds pure `LevelFilter` items directly into the mask without retaining `Box<dyn Filter>` allocations.
 - `Logger::enabled(level)` tests the handle's level gate and the underlying dispatches' `LevelMask` union with bitwise AND operations before a callsite constructs a `Record`. Attaching a leading context-driven `Accept` filter widens that branch's `LevelMask` to `ALL`, trading static level pruning for per-event context inspection on that branch; runtime-mutable filters likewise report `ALL` so dynamic updates take effect immediately.
-- Module-level switching operates at two granularities without scanning `Record::key_values()`:
+- Module-level switching operates at two granularities:
   1. Per-subsystem or per-module `Logger` handles, passed explicitly or cached in a module `LazyLock<Logger>` resolved once at initialization, achieve `O(1)` callsite pruning with zero string matching; dynamic reconfiguration updates each handle's `Arc<AtomicLevelMask>` on the cold control path.
-  2. A single shared `Logger` paired with `RustLogFilter` reads `Record::module_path()` in `O(1)` after passing the level mask, and `RustLogFilter` exposes a module-matching method so custom filters can compose directive matching on arbitrary fields without adding KV-scanning options to `RustLogFilter`.
+  2. A single shared `Logger` paired with `RustLogFilter` matches `Record::module_path()` after passing the level mask, and `RustLogFilter` exposes its module-matching method so custom filters can reuse directive matching on arbitrary fields.
 
 ## Structured Key-Values and Diagnostics
 
