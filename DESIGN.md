@@ -84,7 +84,7 @@ enum DiagnosticsState<'a> {
   - `Neutral` expresses no decision and passes control to the next filter; a `Dispatch` accepts the record if all filters finish `Neutral`.
 - `LevelMask(u32)` represents any subset of the 24 levels, including non-monotonic `LevelFilter` predicates, in a single machine register. Each `Filter` reports static `may_accept` and `may_neutral` masks through `Filter::bounds`, and `DispatchBuilder::build` computes the branch `LevelMask` by backwards induction `mask = may_accept | (may_neutral & next)`.
 - `Logger::enabled(level)` tests the union of its dispatches' `LevelMask` values in a single bitwise operation before a callsite constructs a `Record`, and `Logger::log` tests each branch's `LevelMask` before evaluating its `Filter` chain. Attaching a leading context-driven `Accept` filter widens that branch's `LevelMask` to `ALL`, trading static level pruning for per-event context inspection on that branch; runtime-mutable filters likewise report `ALL` so dynamic updates take effect immediately.
-- `RustLogFilter` matches `Record::module_path()` after passing the level mask, and exposes its module-matching method so custom filters can reuse directive matching on arbitrary fields.
+- `RustLogFilter` matches `Record::module_path()` after passing the level mask, and exposes named-directive lookup so custom filters can match explicit key-value fields before falling back to module paths.
 
 ## Structured Key-Values and Diagnostics
 
