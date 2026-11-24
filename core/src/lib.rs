@@ -19,6 +19,7 @@
 
 pub mod append;
 pub mod diagnostic;
+pub mod error;
 pub mod filter;
 pub mod kv;
 pub mod layout;
@@ -27,12 +28,10 @@ pub mod trap;
 
 pub use self::append::Append;
 pub use self::diagnostic::Diagnostic;
+pub use self::error::Error;
 pub use self::filter::Filter;
 pub use self::layout::Layout;
 pub use self::trap::Trap;
-
-mod error;
-pub use self::error::*;
 
 mod logger;
 pub use self::logger::*;

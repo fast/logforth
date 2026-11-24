@@ -132,6 +132,11 @@ pub mod diagnostic {
     pub use logforth_diagnostic_task_local::TaskLocalDiagnostic;
 }
 
+/// Errors and internal error handling.
+pub mod error {
+    pub use logforth_core::error::*;
+}
+
 /// Filters for log records.
 pub mod filter {
     pub use logforth_core::filter::*;
