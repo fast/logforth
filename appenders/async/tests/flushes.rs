@@ -22,6 +22,7 @@ use logforth_append_async::AsyncBuilder;
 use logforth_core::Append;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
+use logforth_core::ErrorSink;
 use logforth_core::record::Record;
 
 #[derive(Debug)]
@@ -84,14 +85,23 @@ fn flush_waits_for_worker_completion() {
         .expect("flush should succeed");
 }
 
+#[derive(Debug)]
+struct CapturedErrors {
+    errors: mpsc::Sender<String>,
+}
+
+impl ErrorSink for CapturedErrors {
+    fn sink(&self, err: &Error) {
+        self.errors.send(err.to_string()).unwrap();
+    }
+}
+
 #[test]
 fn flush_handles_errors_in_worker_thread() {
     let (tx, rx) = mpsc::channel();
 
     let async_append = AsyncBuilder::new("async-flush-error")
-        .error_sink(move |err: &Error| {
-            tx.send(err.to_string()).unwrap();
-        })
+        .error_sink(CapturedErrors { errors: tx })
         .append(FailingFlush)
         .build();
 

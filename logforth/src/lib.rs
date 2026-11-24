@@ -133,9 +133,9 @@ pub mod diagnostic {
     pub use logforth_diagnostic_task_local::TaskLocalDiagnostic;
 }
 
-/// Errors and internal error handling.
-pub mod error {
-    pub use logforth_core::error::*;
+/// Sinks for processing internal runtime errors.
+pub mod error_sink {
+    pub use logforth_core::error_sink::*;
 }
 
 /// Filters for log records.

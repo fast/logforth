@@ -25,11 +25,11 @@ use crate::record::Record;
 #[derive(Debug)]
 pub struct Logger {
     dispatches: Vec<Dispatch>,
-    error_sink: ErrorSink,
+    error_sink: Box<dyn ErrorSink>,
 }
 
 impl Logger {
-    pub(super) fn new(dispatches: Vec<Dispatch>, error_sink: ErrorSink) -> Self {
+    pub(super) fn new(dispatches: Vec<Dispatch>, error_sink: Box<dyn ErrorSink>) -> Self {
         Self {
             dispatches,
             error_sink,
@@ -47,21 +47,17 @@ impl Logger {
 
     /// Log the [`Record`].
     pub fn log(&self, record: &Record) {
+        let default_error_sink = &*self.error_sink;
         for dispatch in &self.dispatches {
-            for err in dispatch.log(record) {
-                let err = Error::new("failed to append record").with_source(err);
-                self.error_sink.report(&err);
-            }
+            dispatch.log(record, default_error_sink);
         }
     }
 
     /// Flush any buffered records.
     pub fn flush(&self) {
+        let default_error_sink = &*self.error_sink;
         for dispatch in &self.dispatches {
-            for err in dispatch.flush() {
-                let err = Error::new("failed to flush appender").with_source(err);
-                self.error_sink.report(&err);
-            }
+            dispatch.flush(default_error_sink);
         }
     }
 }
@@ -78,6 +74,7 @@ pub(super) struct Dispatch {
     filters: Vec<Box<dyn Filter>>,
     diagnostics: Vec<Box<dyn Diagnostic>>,
     appends: Vec<Box<dyn Append>>,
+    error_sink: Option<Box<dyn ErrorSink>>,
 }
 
 impl Dispatch {
@@ -85,6 +82,7 @@ impl Dispatch {
         filters: Vec<Box<dyn Filter>>,
         diagnostics: Vec<Box<dyn Diagnostic>>,
         appends: Vec<Box<dyn Append>>,
+        error_sink: Option<Box<dyn ErrorSink>>,
     ) -> Self {
         debug_assert!(
             !appends.is_empty(),
@@ -95,6 +93,7 @@ impl Dispatch {
             filters,
             diagnostics,
             appends,
+            error_sink,
         }
     }
 
@@ -112,34 +111,34 @@ impl Dispatch {
         true
     }
 
-    fn log(&self, record: &Record) -> Vec<Error> {
+    fn log(&self, record: &Record, default_error_sink: &dyn ErrorSink) {
         let diagnostics = &self.diagnostics;
 
         for filter in &self.filters {
             match filter.matches(record, diagnostics) {
-                FilterResult::Reject => return vec![],
+                FilterResult::Reject => return,
                 FilterResult::Accept => break,
                 FilterResult::Neutral => {}
             }
         }
 
-        let mut errors = vec![];
+        let error_sink = self.error_sink.as_deref().unwrap_or(default_error_sink);
         for append in &self.appends {
             if let Err(err) = append.append(record, diagnostics) {
-                errors.push(err);
+                let err = Error::new("failed to append record").with_source(err);
+                error_sink.sink(&err);
             }
         }
-        errors
     }
 
-    fn flush(&self) -> Vec<Error> {
-        let mut errors = vec![];
+    fn flush(&self, default_error_sink: &dyn ErrorSink) {
+        let error_sink = self.error_sink.as_deref().unwrap_or(default_error_sink);
         for append in &self.appends {
             if let Err(err) = append.flush() {
-                errors.push(err);
+                let err = Error::new("failed to flush appender").with_source(err);
+                error_sink.sink(&err);
             }
         }
-        errors
     }
 }
 
@@ -150,17 +149,18 @@ mod tests {
 
     use super::*;
     use crate::builder;
+    use crate::error_sink;
 
     #[derive(Debug)]
-    struct FailingAppender;
+    struct FailingAppender(&'static str);
 
     impl Append for FailingAppender {
         fn append(&self, _: &Record, _: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
-            Err(Error::new("disk full"))
+            Err(Error::new(self.0))
         }
 
         fn flush(&self) -> Result<(), Error> {
-            Err(Error::new("sync failed"))
+            Err(Error::new(self.0))
         }
     }
 
@@ -178,19 +178,36 @@ mod tests {
         }
     }
 
+    #[derive(Debug, Default)]
+    struct RecordingErrorSink {
+        errors: Mutex<Vec<String>>,
+    }
+
+    impl ErrorSink for RecordingErrorSink {
+        fn sink(&self, err: &Error) {
+            self.errors.lock().unwrap().push(err.to_string());
+        }
+    }
+
     #[test]
-    fn logger_routes_errors_to_sink_and_continues_remaining_appenders() {
-        let errors = Arc::new(Mutex::new(Vec::new()));
-        let errors_sink = errors.clone();
+    fn logger_routes_errors_with_dispatch_fallback_and_override() {
+        let logger_errors = Arc::new(RecordingErrorSink::default());
+        let override_errors = Arc::new(RecordingErrorSink::default());
         let delivered = Arc::new(Mutex::new(Vec::new()));
 
         let logger = builder()
-            .error_sink(move |err: &Error| {
-                errors_sink.lock().unwrap().push(err.to_string());
+            .error_sink(logger_errors.clone())
+            .dispatch(|d| {
+                d.append(FailingAppender("primary failed"))
+                    .append(RecordingAppender(delivered.clone()))
             })
             .dispatch(|d| {
-                d.append(FailingAppender)
-                    .append(RecordingAppender(delivered.clone()))
+                d.error_sink(error_sink::BlackHole::default())
+                    .append(FailingAppender("silenced failed"))
+            })
+            .dispatch(|d| {
+                d.error_sink(override_errors.clone())
+                    .append(FailingAppender("override failed"))
             })
             .build();
 
@@ -200,10 +217,17 @@ mod tests {
 
         assert_eq!(&*delivered.lock().unwrap(), &["hello"]);
         assert_eq!(
-            &*errors.lock().unwrap(),
+            &*logger_errors.errors.lock().unwrap(),
             &[
-                "failed to append record: disk full",
-                "failed to flush appender: sync failed",
+                "failed to append record: primary failed",
+                "failed to flush appender: primary failed",
+            ]
+        );
+        assert_eq!(
+            &*override_errors.errors.lock().unwrap(),
+            &[
+                "failed to append record: override failed",
+                "failed to flush appender: override failed",
             ]
         );
     }

@@ -19,7 +19,7 @@
 
 pub mod append;
 pub mod diagnostic;
-pub mod error;
+pub mod error_sink;
 pub mod filter;
 pub mod kv;
 pub mod layout;
@@ -27,10 +27,12 @@ pub mod record;
 
 pub use self::append::Append;
 pub use self::diagnostic::Diagnostic;
-pub use self::error::Error;
-pub use self::error::ErrorSink;
+pub use self::error_sink::ErrorSink;
 pub use self::filter::Filter;
 pub use self::layout::Layout;
+
+mod error;
+pub use self::error::Error;
 
 mod logger;
 pub use self::logger::*;

@@ -25,6 +25,7 @@ use crate::Layout;
 use crate::append;
 use crate::core::DispatchBuilder;
 use crate::core::LoggerBuilder;
+use crate::error_sink;
 use crate::filter::rustlog::RustLogFilterBuilder;
 
 /// A builder for setting up logforth with the `log` crate.
@@ -68,22 +69,22 @@ impl LogStarterBuilder {
         self
     }
 
-    /// Configure the [`ErrorSink`] used when dispatches fail to append or flush records.
+    /// Configure the default [`ErrorSink`] used when dispatches fail to append or flush records.
     ///
-    /// Defaults to [`ErrorSink::stderr`].
+    /// Defaults to [`error_sink::Stderr`].
     ///
     /// # Examples
     ///
     /// ```
-    /// use logforth::ErrorSink;
     /// use logforth::append;
+    /// use logforth::error_sink;
     ///
     /// logforth::starter_log::builder()
-    ///     .error_sink(ErrorSink::black_hole())
+    ///     .error_sink(error_sink::BlackHole::default())
     ///     .dispatch(|d| d.append(append::Stderr::default()))
     ///     .apply();
     /// ```
-    pub fn error_sink(mut self, error_sink: impl Into<ErrorSink>) -> Self {
+    pub fn error_sink(mut self, error_sink: impl Into<Box<dyn ErrorSink>>) -> Self {
         self.builder = self.builder.error_sink(error_sink);
         self
     }
@@ -172,7 +173,7 @@ impl LogStarterBuilder {
 pub struct LogStarterTestingBuilder {
     filter: Box<dyn Filter>,
     layout: Box<dyn Layout>,
-    error_sink: ErrorSink,
+    error_sink: Box<dyn ErrorSink>,
 }
 
 /// Create a starter builder with a default [`append::Testing`] appender and a [`RustLogFilter`]
@@ -190,7 +191,7 @@ pub fn testing() -> LogStarterTestingBuilder {
     LogStarterTestingBuilder {
         filter: default_filter(),
         layout: default_layout(),
-        error_sink: ErrorSink::default(),
+        error_sink: Box::new(error_sink::Stderr::default()),
     }
 }
 
@@ -227,8 +228,8 @@ impl LogStarterTestingBuilder {
 
     /// Configure the [`ErrorSink`] used when the testing appender fails to format or write.
     ///
-    /// Defaults to [`ErrorSink::stderr`].
-    pub fn error_sink(mut self, error_sink: impl Into<ErrorSink>) -> Self {
+    /// Defaults to [`error_sink::Stderr`].
+    pub fn error_sink(mut self, error_sink: impl Into<Box<dyn ErrorSink>>) -> Self {
         self.error_sink = error_sink.into();
         self
     }
@@ -328,7 +329,7 @@ pub struct LogStarterStdStreamBuilder {
     append: StdStream,
     filter: Box<dyn Filter>,
     layout: Box<dyn Layout>,
-    error_sink: ErrorSink,
+    error_sink: Box<dyn ErrorSink>,
 }
 
 /// Create a starter builder with a default [`append::Stdout`] appender and a [`RustLogFilter`]
@@ -347,7 +348,7 @@ pub fn stdout() -> LogStarterStdStreamBuilder {
         append: StdStream::Stdout(append::Stdout::default()),
         filter: default_filter(),
         layout: default_layout(),
-        error_sink: ErrorSink::default(),
+        error_sink: Box::new(error_sink::Stderr::default()),
     }
 }
 
@@ -367,7 +368,7 @@ pub fn stderr() -> LogStarterStdStreamBuilder {
         append: StdStream::Stderr(append::Stderr::default()),
         filter: default_filter(),
         layout: default_layout(),
-        error_sink: ErrorSink::default(),
+        error_sink: Box::new(error_sink::Stderr::default()),
     }
 }
 
@@ -404,8 +405,8 @@ impl LogStarterStdStreamBuilder {
 
     /// Configure the [`ErrorSink`] used when the stream appender fails to write or flush.
     ///
-    /// Defaults to [`ErrorSink::stderr`].
-    pub fn error_sink(mut self, error_sink: impl Into<ErrorSink>) -> Self {
+    /// Defaults to [`error_sink::Stderr`].
+    pub fn error_sink(mut self, error_sink: impl Into<Box<dyn ErrorSink>>) -> Self {
         self.error_sink = error_sink.into();
         self
     }

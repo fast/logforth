@@ -25,14 +25,14 @@ use crate::channel::Receiver;
 pub(crate) struct Worker {
     appends: Vec<Box<dyn Append>>,
     receiver: Receiver<Task>,
-    error_sink: ErrorSink,
+    error_sink: Box<dyn ErrorSink>,
 }
 
 impl Worker {
     pub(crate) fn new(
         appends: Vec<Box<dyn Append>>,
         receiver: Receiver<Task>,
-        error_sink: ErrorSink,
+        error_sink: Box<dyn ErrorSink>,
     ) -> Self {
         Self {
             appends,
@@ -61,7 +61,7 @@ impl Worker {
                         for append in appends.iter() {
                             if let Err(err) = append.append(&record, diags) {
                                 let err = Error::new("failed to append record").with_source(err);
-                                error_sink.report(&err);
+                                error_sink.sink(&err);
                             }
                         }
                     });
@@ -70,7 +70,7 @@ impl Worker {
                     for append in appends.iter() {
                         if let Err(err) = append.flush() {
                             let err = Error::new("failed to flush appender").with_source(err);
-                            error_sink.report(&err);
+                            error_sink.sink(&err);
                         }
                     }
                     let _ = done.send(());

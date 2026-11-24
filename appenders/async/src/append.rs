@@ -16,6 +16,7 @@ use logforth_core::Append;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::ErrorSink;
+use logforth_core::error_sink;
 use logforth_core::kv;
 use logforth_core::kv::Visitor;
 use logforth_core::record::Record;
@@ -83,11 +84,12 @@ impl Append for Async {
 }
 
 /// A builder for configuring an async appender.
+#[derive(Debug)]
 pub struct AsyncBuilder {
     thread_name: String,
     appends: Vec<Box<dyn Append>>,
     buffered_lines_limit: Option<usize>,
-    error_sink: ErrorSink,
+    error_sink: Box<dyn ErrorSink>,
     overflow: Overflow,
 }
 
@@ -98,7 +100,7 @@ impl AsyncBuilder {
             thread_name: thread_name.into(),
             appends: vec![],
             buffered_lines_limit: None,
-            error_sink: ErrorSink::default(),
+            error_sink: Box::new(error_sink::Stderr::default()),
             overflow: Overflow::Block,
         }
     }
@@ -123,8 +125,8 @@ impl AsyncBuilder {
 
     /// Configure the [`ErrorSink`] used when worker appenders fail to emit or flush records.
     ///
-    /// Defaults to [`ErrorSink::stderr`].
-    pub fn error_sink(mut self, error_sink: impl Into<ErrorSink>) -> Self {
+    /// Defaults to [`error_sink::Stderr`].
+    pub fn error_sink(mut self, error_sink: impl Into<Box<dyn ErrorSink>>) -> Self {
         self.error_sink = error_sink.into();
         self
     }

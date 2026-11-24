@@ -17,6 +17,7 @@ use crate::Diagnostic;
 use crate::ErrorSink;
 use crate::Filter;
 use crate::Logger;
+use crate::error_sink;
 use crate::logger::log_impl::Dispatch;
 
 /// Create a new empty [`LoggerBuilder`] instance for configuring log dispatching.
@@ -33,7 +34,7 @@ use crate::logger::log_impl::Dispatch;
 pub fn builder() -> LoggerBuilder {
     LoggerBuilder {
         dispatches: vec![],
-        error_sink: ErrorSink::default(),
+        error_sink: Box::new(error_sink::Stderr::default()),
     }
 }
 
@@ -53,7 +54,7 @@ pub fn builder() -> LoggerBuilder {
 pub struct LoggerBuilder {
     // stashed dispatches
     dispatches: Vec<Dispatch>,
-    error_sink: ErrorSink,
+    error_sink: Box<dyn ErrorSink>,
 }
 
 impl LoggerBuilder {
@@ -76,22 +77,23 @@ impl LoggerBuilder {
         self
     }
 
-    /// Configure the [`ErrorSink`] used when dispatches fail to append or flush records.
+    /// Configure the default [`ErrorSink`] used when dispatches fail to append or flush records.
     ///
-    /// Defaults to [`ErrorSink::stderr`].
+    /// Defaults to [`error_sink::Stderr`]. Individual dispatches may override this via
+    /// [`DispatchBuilder::error_sink`].
     ///
     /// # Examples
     ///
     /// ```
-    /// use logforth_core::ErrorSink;
     /// use logforth_core::append;
+    /// use logforth_core::error_sink;
     ///
     /// let logger = logforth_core::builder()
-    ///     .error_sink(ErrorSink::black_hole())
+    ///     .error_sink(error_sink::BlackHole::default())
     ///     .dispatch(|d| d.append(append::Stdout::default()))
     ///     .build();
     /// ```
-    pub fn error_sink(mut self, error_sink: impl Into<ErrorSink>) -> Self {
+    pub fn error_sink(mut self, error_sink: impl Into<Box<dyn ErrorSink>>) -> Self {
         self.error_sink = error_sink.into();
         self
     }
@@ -135,6 +137,7 @@ pub struct DispatchBuilder<const APPEND: bool> {
     filters: Vec<Box<dyn Filter>>,
     diagnostics: Vec<Box<dyn Diagnostic>>,
     appends: Vec<Box<dyn Append>>,
+    error_sink: Option<Box<dyn ErrorSink>>,
 }
 
 impl DispatchBuilder<false> {
@@ -143,6 +146,7 @@ impl DispatchBuilder<false> {
             filters: vec![],
             diagnostics: vec![],
             appends: vec![],
+            error_sink: None,
         }
     }
 
@@ -189,11 +193,38 @@ impl DispatchBuilder<false> {
         self.diagnostics.push(diagnostic.into());
         self
     }
+
+    /// Configure an [`ErrorSink`] specific to this dispatch.
+    ///
+    /// When unset, errors from this dispatch fall back to the [`Logger`]'s [`ErrorSink`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth_core::append;
+    /// use logforth_core::error_sink;
+    ///
+    /// let logger = logforth_core::builder()
+    ///     .dispatch(|d| {
+    ///         d.error_sink(error_sink::BlackHole::default())
+    ///             .append(append::Stdout::default())
+    ///     })
+    ///     .build();
+    /// ```
+    pub fn error_sink(mut self, error_sink: impl Into<Box<dyn ErrorSink>>) -> Self {
+        self.error_sink = Some(error_sink.into());
+        self
+    }
 }
 
 impl DispatchBuilder<true> {
     fn build(self) -> Dispatch {
-        Dispatch::new(self.filters, self.diagnostics, self.appends)
+        Dispatch::new(
+            self.filters,
+            self.diagnostics,
+            self.appends,
+            self.error_sink,
+        )
     }
 }
 
@@ -215,6 +246,7 @@ impl<const APPEND: bool> DispatchBuilder<APPEND> {
             filters: self.filters,
             diagnostics: self.diagnostics,
             appends: self.appends,
+            error_sink: self.error_sink,
         }
     }
 }

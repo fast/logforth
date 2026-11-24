@@ -12,15 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Errors and internal error handling for Logforth.
-
 use std::borrow::Cow;
+use std::error::Error as StdError;
 use std::fmt;
-use std::io;
-use std::io::Write;
-use std::sync::Arc;
-
-type BoxedError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 /// An error returned or reported by Logforth components.
 pub struct Error {
@@ -29,7 +23,7 @@ pub struct Error {
 
 struct ErrorInner {
     message: Cow<'static, str>,
-    source: Option<BoxedError>,
+    source: Option<Box<dyn StdError + Send + Sync + 'static>>,
 }
 
 impl Error {
@@ -49,7 +43,10 @@ impl Error {
     }
 
     /// Attach or replace the underlying causal error.
-    pub fn with_source(mut self, src: impl Into<BoxedError>) -> Self {
+    pub fn with_source(
+        mut self,
+        src: impl Into<Box<dyn StdError + Send + Sync + 'static>>,
+    ) -> Self {
         self.inner.source = Some(src.into());
         self
     }
@@ -83,7 +80,7 @@ impl fmt::Debug for Error {
             writeln!(f)?;
             writeln!(f)?;
             writeln!(f, "Caused by:")?;
-            let mut curr: Option<&(dyn std::error::Error + 'static)> = Some(source.as_ref());
+            let mut curr: Option<&(dyn StdError + 'static)> = Some(source.as_ref());
             let mut index = 0usize;
             while let Some(err) = curr {
                 if let Some(lf) = err.downcast_ref::<Error>() {
@@ -100,99 +97,18 @@ impl fmt::Debug for Error {
     }
 }
 
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl StdError for Error {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
         self.inner
             .source
             .as_deref()
-            .map(|err| err as &(dyn std::error::Error + 'static))
-    }
-}
-
-/// A sink that handles internal runtime errors produced by the logging pipeline.
-///
-/// Logging operations are designed not to crash the host application at runtime. When an appender
-/// fails to emit or flush records, execution roots such as [`Logger`](crate::Logger) and
-/// asynchronous workers report the resulting [`Error`] to their configured [`ErrorSink`].
-#[derive(Clone)]
-pub struct ErrorSink {
-    inner: ErrorSinkInner,
-}
-
-#[derive(Clone)]
-enum ErrorSinkInner {
-    Stderr,
-    BlackHole,
-    Custom(Arc<dyn Fn(&Error) + Send + Sync>),
-}
-
-impl Default for ErrorSink {
-    fn default() -> Self {
-        Self::stderr()
-    }
-}
-
-impl fmt::Debug for ErrorSink {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.inner {
-            ErrorSinkInner::Stderr => f.write_str("ErrorSink::Stderr"),
-            ErrorSinkInner::BlackHole => f.write_str("ErrorSink::BlackHole"),
-            ErrorSinkInner::Custom(_) => f.write_str("ErrorSink::Custom(..)"),
-        }
-    }
-}
-
-impl ErrorSink {
-    /// Create a sink that writes internal errors to standard error on a best-effort basis.
-    ///
-    /// If writing to standard error fails (for example, when standard error is closed), the
-    /// failure is silently ignored.
-    pub const fn stderr() -> Self {
-        Self {
-            inner: ErrorSinkInner::Stderr,
-        }
-    }
-
-    /// Create a sink that silently discards all internal errors.
-    pub const fn black_hole() -> Self {
-        Self {
-            inner: ErrorSinkInner::BlackHole,
-        }
-    }
-
-    /// Create a sink backed by a custom callback.
-    pub fn new(f: impl Fn(&Error) + Send + Sync + 'static) -> Self {
-        Self {
-            inner: ErrorSinkInner::Custom(Arc::new(f)),
-        }
-    }
-
-    /// Report an internal runtime error to this sink.
-    pub fn report(&self, err: &Error) {
-        match &self.inner {
-            ErrorSinkInner::Stderr => {
-                let _ = writeln!(io::stderr(), "logforth: {err}");
-            }
-            ErrorSinkInner::BlackHole => {}
-            ErrorSinkInner::Custom(f) => f(err),
-        }
-    }
-}
-
-impl<F> From<F> for ErrorSink
-where
-    F: Fn(&Error) + Send + Sync + 'static,
-{
-    fn from(f: F) -> Self {
-        Self::new(f)
+            .map(|err| err as &(dyn StdError + 'static))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error as StdError;
-    use std::sync::atomic::AtomicUsize;
-    use std::sync::atomic::Ordering;
+    use std::io;
 
     use super::*;
 
@@ -219,7 +135,6 @@ mod tests {
     #[test]
     fn error_layout_and_auto_traits() {
         assert_send_sync_static::<Error>();
-        assert_send_sync_static::<ErrorSink>();
         assert_eq!(size_of::<Error>(), size_of::<usize>());
         assert_eq!(size_of::<Result<(), Error>>(), size_of::<usize>());
     }
@@ -259,22 +174,5 @@ mod tests {
             .with_source("second cause");
 
         assert_eq!(err.to_string(), "operation failed: second cause");
-    }
-
-    #[test]
-    fn error_sink_variants_and_cloned_closure() {
-        ErrorSink::black_hole().report(&Error::new("ignored"));
-
-        let count = Arc::new(AtomicUsize::new(0));
-        let count_ref = count.clone();
-        let sink = ErrorSink::from(move |err: &Error| {
-            assert_eq!(err.message(), "boom");
-            count_ref.fetch_add(1, Ordering::Relaxed);
-        });
-        let cloned = sink.clone();
-
-        sink.report(&Error::new("boom"));
-        cloned.report(&Error::new("boom"));
-        assert_eq!(count.load(Ordering::Relaxed), 2);
     }
 }

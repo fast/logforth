@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file.
 * `logforth-append-opentelemetry` upgrades `opentelemetry`, `opentelemetry-otlp` and `opentelemetry_sdk` to 0.33.1.
 * Upgrade `jiff` to 1.0.
 * Redesign `logforth_core::Error` without `anyhow`, removing `with_context`, `sources`, `from_io_error`, and `from_fmt_error`, and adding `Error::message()`.
-* Replace `trap::Trap` and `BestEffortTrap` with `error::ErrorSink` (`ErrorSink::stderr()`, `ErrorSink::black_hole()`, `ErrorSink::new(...)`). Configure runtime error handling on `LoggerBuilder::error_sink`, `LogStarterBuilder::error_sink`, and `AsyncBuilder::error_sink`; remove `FileBuilder::trap` in favor of reporting non-fatal rollover errors through `Append::append`.
+* Replace `trap::Trap` and `BestEffortTrap` with the `error_sink::ErrorSink` trait (`error_sink::Stderr`, `error_sink::BlackHole`). Configure runtime error handling on `LoggerBuilder::error_sink`, `DispatchBuilder::error_sink`, `LogStarterBuilder::error_sink`, and `AsyncBuilder::error_sink`; remove `FileBuilder::trap` in favor of reporting non-fatal rollover errors through `Append::append`.
 
 ## [0.30.1] 2026-06-03
 
