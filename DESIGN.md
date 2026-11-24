@@ -122,11 +122,11 @@ Logforth provides bidirectional adapters for `log` and `tracing` so applications
 
 | Direction                                | Crate                     | Role                                                                                                                                             |
 | :--------------------------------------- | :------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Inbound (`log` -> `logforth`)            | `logforth-bridge-log`     | Implements `log::Log`, mapping `log::Record::target()` to `Record::module_path` and setting `log::set_max_level` from `Logger`'s `LevelMask`     |
+| Inbound (`log` -> `logforth`)            | `logforth-bridge-log`     | Implements `log::Log`, forwarding structured key-values and setting `log::set_max_level` from `Logger`'s `LevelMask`                             |
 | Inbound (`tracing` -> `logforth`)        | `logforth-bridge-tracing` | Implements `tracing_subscriber::Layer`, translating `tracing::Event` fields and flattening active `event_scope()` span attributes into `Record`  |
 | Outbound (`logforth` -> `log`/`tracing`) | `logforth-append-log`     | Implements `Append` by forwarding `Record` and `Diagnostics` to `log::logger()`, supporting both `log` hosts and `tracing-log` hosts             |
 
-- `LogBridge::enabled` delegates directly to `Logger::enabled` on the mapped severity level without constructing a synthetic `Record`.
+- Inbound `log` and `tracing` bridges populate `Record::module_path` from the event's module path and emit a `"target"` key-value entry only when the upstream caller explicitly overrode `target` to differ from `module_path`. `LogBridge::enabled` delegates directly to `Logger::enabled` on the mapped severity level.
 - Libraries adopting `logforth` natively can accept an injected `Logger` whose default routes to `logforth-append-log` or `Logger::noop()`, remaining observable inside host applications that use another subscriber.
 - If `LogBridge` is installed as the global `log` logger while a dispatch also attaches `logforth-append-log`, a panic-safe thread-local guard set by `logforth-append-log` and checked at `LogBridge` entry breaks the cycle, drops the reentrant record, and reports the misconfiguration once via `ErrorSink`.
 
