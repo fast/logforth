@@ -55,10 +55,10 @@ pub trait ErrorSink: fmt::Debug + Send + Sync + 'static {
 
 ```rust
 #[derive(Clone, Copy)]
-pub struct Diagnostics<'a>(DiagnosticsInner<'a>);
+pub struct Diagnostics<'a>(DiagnosticsState<'a>);
 
 #[derive(Clone, Copy)]
-enum DiagnosticsInner<'a> {
+enum DiagnosticsState<'a> {
     Empty,
     // Borrows a Dispatch's owned diagnostic list without copying or re-boxing.
     Boxed(&'a [Box<dyn Diagnostic>]),
