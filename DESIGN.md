@@ -83,8 +83,8 @@ enum DiagnosticsInner<'a> {
   - `Accept` short-circuits remaining filters in the current `Dispatch` and accepts the record immediately, supporting context-driven dynamic promotion ahead of baseline level thresholds.
   - `Neutral` expresses no decision and passes control to the next filter; a `Dispatch` accepts the record if all filters finish `Neutral`.
 - `LevelMask(u32)` represents any subset of the 24 levels, including non-monotonic `LevelFilter` predicates, in a single machine register. Each `Filter` reports static `may_accept` and `may_neutral` masks through `Filter::bounds`. `DispatchBuilder::build` computes the branch `LevelMask` by backwards induction `mask = may_accept | (may_neutral & next)` and folds pure `LevelFilter` items directly into the mask without retaining `Box<dyn Filter>` allocations.
-- `Logger::level_enabled(level)` tests each dispatch's `LevelMask` with a bitwise AND before a callsite constructs a `Record`, and `Logger::enabled(&record)` evaluates dispatch masks and filters without invoking appenders. Attaching a leading context-driven `Accept` filter widens that branch's `LevelMask` to `ALL`, trading static level pruning for per-event context inspection on that branch; runtime-mutable filters likewise report `ALL` so dynamic updates take effect immediately.
-- Module-level switching operates at two granularities without scanning `Record::key_values()`: subsystems that hold dedicated `Logger` instances achieve `O(1)` callsite pruning via `Logger::level_enabled`, while a shared `Logger` using `RustLogFilter` reads `Record::module_path()` in `O(1)` after passing the level mask.
+- `Logger::enabled(level)` tests each dispatch's `LevelMask` with a bitwise AND before a callsite constructs a `Record`. Attaching a leading context-driven `Accept` filter widens that branch's `LevelMask` to `ALL`, trading static level pruning for per-event context inspection on that branch; runtime-mutable filters likewise report `ALL` so dynamic updates take effect immediately.
+- Module-level switching operates at two granularities without scanning `Record::key_values()`: subsystems that hold dedicated `Logger` instances achieve `O(1)` callsite pruning via `Logger::enabled(level)`, while a shared `Logger` using `RustLogFilter` reads `Record::module_path()` in `O(1)` after passing the level mask.
 
 ## Structured Key-Values and Diagnostics
 
@@ -111,7 +111,7 @@ logforth::info!(logger, ["jobs.completed" = count]);
 ```
 
 - Structured fields precede the format string using bracketed assignment expressions. Every macro argument is a valid Rust `ast::Expr` so `rustfmt` formats the entire invocation without colliding with `format_args!` named parameters.
-- `$logger` and `$level` evaluate once. When `logger.level_enabled(level)` succeeds, value expressions evaluate at most once and bind shared references before constructing `!Send` `Value<'_>` or `fmt::Arguments<'_>` temporaries, keeping enclosing `async` futures `Send` across `.await` points inside log arguments.
+- `$logger` and `$level` evaluate once. When `logger.enabled(level)` succeeds, value expressions evaluate at most once and bind shared references before constructing `!Send` `Value<'_>` or `fmt::Arguments<'_>` temporaries, keeping enclosing `async` futures `Send` across `.await` points inside log arguments.
 - String literal keys and identifier shorthands expand to `Key::new` with `'static` provenance, and record construction delegates to a non-generic `__private_log` helper backed by a `static` callsite location descriptor. `Level::Fatal` records severity metadata only and neither flushes nor terminates the process.
 
 ## Ecosystem Interop and Bridges
@@ -124,7 +124,7 @@ Logforth provides bidirectional adapters for `log` and `tracing` so applications
 | Inbound (`tracing` -> `logforth`)        | `logforth-bridge-tracing` | Implements `tracing_subscriber::Layer`, translating `tracing::Event` fields and flattening active `event_scope()` span attributes into `Record`  |
 | Outbound (`logforth` -> `log`/`tracing`) | `logforth-append-log`     | Implements `Append` by forwarding `Record` and `Diagnostics` to `log::logger()`, supporting both `log` hosts and `tracing-log` hosts             |
 
-- `LogBridge::enabled` checks `Logger::level_enabled` first and falls back to `Logger::enabled` with a stack-allocated `Record` carrying the metadata module path when callers invoke `log::log_enabled!`.
+- `LogBridge::enabled` delegates directly to `Logger::enabled` on the mapped severity level without constructing a synthetic `Record`.
 - Libraries adopting `logforth` natively can accept an injected `Logger` whose default routes to `logforth-append-log` or `Logger::noop()`, remaining observable inside host applications that use another subscriber.
 - If `LogBridge` is installed as the global `log` logger while a dispatch also attaches `logforth-append-log`, a panic-safe thread-local guard set by `logforth-append-log` and checked at `LogBridge` entry breaks the cycle, drops the reentrant record, and reports the misconfiguration once via `ErrorSink`.
 
