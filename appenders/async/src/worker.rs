@@ -15,7 +15,7 @@
 use logforth_core::Append;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
-use logforth_core::Trap;
+use logforth_core::ErrorSink;
 use logforth_core::kv;
 use logforth_core::kv::Visitor;
 
@@ -25,19 +25,19 @@ use crate::channel::Receiver;
 pub(crate) struct Worker {
     appends: Vec<Box<dyn Append>>,
     receiver: Receiver<Task>,
-    trap: Box<dyn Trap>,
+    error_sink: ErrorSink,
 }
 
 impl Worker {
     pub(crate) fn new(
         appends: Vec<Box<dyn Append>>,
         receiver: Receiver<Task>,
-        trap: Box<dyn Trap>,
+        error_sink: ErrorSink,
     ) -> Self {
         Self {
             appends,
             receiver,
-            trap,
+            error_sink,
         }
     }
 
@@ -45,7 +45,7 @@ impl Worker {
         let Self {
             appends,
             receiver,
-            trap,
+            error_sink,
         } = self;
 
         while let Ok(task) = receiver.recv() {
@@ -61,7 +61,7 @@ impl Worker {
                         for append in appends.iter() {
                             if let Err(err) = append.append(&record, diags) {
                                 let err = Error::new("failed to append record").with_source(err);
-                                trap.trap(&err);
+                                error_sink.report(&err);
                             }
                         }
                     });
@@ -69,7 +69,8 @@ impl Worker {
                 Task::Flush { done } => {
                     for append in appends.iter() {
                         if let Err(err) = append.flush() {
-                            trap.trap(&err);
+                            let err = Error::new("failed to flush appender").with_source(err);
+                            error_sink.report(&err);
                         }
                     }
                     let _ = done.send(());

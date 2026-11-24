@@ -22,7 +22,6 @@ use logforth_append_async::AsyncBuilder;
 use logforth_core::Append;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
-use logforth_core::Trap;
 use logforth_core::record::Record;
 
 #[derive(Debug)]
@@ -53,17 +52,6 @@ impl Append for FailingFlush {
 
     fn flush(&self) -> Result<(), Error> {
         Err(Error::new("flush failed"))
-    }
-}
-
-#[derive(Debug)]
-struct CapturedTrap {
-    errors: mpsc::Sender<String>,
-}
-
-impl Trap for CapturedTrap {
-    fn trap(&self, err: &Error) {
-        self.errors.send(err.to_string()).unwrap();
     }
 }
 
@@ -101,12 +89,14 @@ fn flush_handles_errors_in_worker_thread() {
     let (tx, rx) = mpsc::channel();
 
     let async_append = AsyncBuilder::new("async-flush-error")
-        .trap(CapturedTrap { errors: tx })
+        .error_sink(move |err: &Error| {
+            tx.send(err.to_string()).unwrap();
+        })
         .append(FailingFlush)
         .build();
 
     async_append.flush().unwrap();
 
     let err = rx.recv().unwrap();
-    assert!(err.contains("flush failed"));
+    assert_eq!(err, "failed to flush appender: flush failed");
 }

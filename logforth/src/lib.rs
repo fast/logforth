@@ -68,6 +68,7 @@
 #![deny(missing_docs)]
 
 pub use logforth_core::Error;
+pub use logforth_core::ErrorSink;
 pub use logforth_core::append::Append;
 pub use logforth_core::diagnostic::Diagnostic;
 pub use logforth_core::filter::Filter;
@@ -159,11 +160,6 @@ pub mod layout {
     pub use logforth_layout_text as text;
     #[cfg(feature = "layout-text")]
     pub use logforth_layout_text::TextLayout;
-}
-
-/// Traps for processing errors.
-pub mod trap {
-    pub use logforth_core::trap::*;
 }
 
 #[cfg(feature = "starter-log")]

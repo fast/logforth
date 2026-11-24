@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::Write;
-use std::panic;
-
 use crate::Append;
 use crate::Diagnostic;
 use crate::Error;
+use crate::ErrorSink;
 use crate::Filter;
 use crate::filter::FilterResult;
 use crate::record::FilterCriteria;
@@ -27,11 +25,15 @@ use crate::record::Record;
 #[derive(Debug)]
 pub struct Logger {
     dispatches: Vec<Dispatch>,
+    error_sink: ErrorSink,
 }
 
 impl Logger {
-    pub(super) fn new(dispatches: Vec<Dispatch>) -> Self {
-        Self { dispatches }
+    pub(super) fn new(dispatches: Vec<Dispatch>, error_sink: ErrorSink) -> Self {
+        Self {
+            dispatches,
+            error_sink,
+        }
     }
 }
 
@@ -47,7 +49,8 @@ impl Logger {
     pub fn log(&self, record: &Record) {
         for dispatch in &self.dispatches {
             for err in dispatch.log(record) {
-                handle_log_error(record, &err);
+                let err = Error::new("failed to append record").with_source(err);
+                self.error_sink.report(&err);
             }
         }
     }
@@ -56,7 +59,8 @@ impl Logger {
     pub fn flush(&self) {
         for dispatch in &self.dispatches {
             for err in dispatch.flush() {
-                handle_flush_error(&err);
+                let err = Error::new("failed to flush appender").with_source(err);
+                self.error_sink.report(&err);
             }
         }
     }
@@ -139,53 +143,68 @@ impl Dispatch {
     }
 }
 
-fn handle_log_error(record: &Record, error: &Error) {
-    let Err(fallback_error) = write!(
-        std::io::stderr(),
-        r###"
-Error perform logging.
-    Attempted to log: {args}
-    Record: {record:?}
-    Error: {error:?}
-"###,
-        args = record.payload(),
-        record = record,
-        error = error,
-    ) else {
-        return;
-    };
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+    use std::sync::Mutex;
 
-    panic!(
-        r###"
-Error performing stderr logging after error occurred during regular logging.
-    Attempted to log: {args}
-    Record: {record:?}
-    Error: {error:?}
-    Fallback error: {fallback_error}
-"###,
-        args = record.payload(),
-        record = record,
-        error = error,
-        fallback_error = fallback_error,
-    );
-}
+    use super::*;
+    use crate::builder;
 
-fn handle_flush_error(error: &Error) {
-    let Err(fallback_error) = write!(
-        std::io::stderr(),
-        r###"
-Error perform flush.
-    Error: {error:?}
-"###,
-    ) else {
-        return;
-    };
+    #[derive(Debug)]
+    struct FailingAppender;
 
-    panic!(
-        r###"
-Error performing stderr logging after error occurred during regular flush.
-    Error: {error:?}
-    Fallback error: {fallback_error}
-"###,
-    );
+    impl Append for FailingAppender {
+        fn append(&self, _: &Record, _: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+            Err(Error::new("disk full"))
+        }
+
+        fn flush(&self) -> Result<(), Error> {
+            Err(Error::new("sync failed"))
+        }
+    }
+
+    #[derive(Debug)]
+    struct RecordingAppender(Arc<Mutex<Vec<String>>>);
+
+    impl Append for RecordingAppender {
+        fn append(&self, record: &Record, _: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+            self.0.lock().unwrap().push(record.payload().to_string());
+            Ok(())
+        }
+
+        fn flush(&self) -> Result<(), Error> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn logger_routes_errors_to_sink_and_continues_remaining_appenders() {
+        let errors = Arc::new(Mutex::new(Vec::new()));
+        let errors_sink = errors.clone();
+        let delivered = Arc::new(Mutex::new(Vec::new()));
+
+        let logger = builder()
+            .error_sink(move |err: &Error| {
+                errors_sink.lock().unwrap().push(err.to_string());
+            })
+            .dispatch(|d| {
+                d.append(FailingAppender)
+                    .append(RecordingAppender(delivered.clone()))
+            })
+            .build();
+
+        let record = Record::builder().payload(format_args!("hello")).build();
+        logger.log(&record);
+        logger.flush();
+
+        assert_eq!(&*delivered.lock().unwrap(), &["hello"]);
+        assert_eq!(
+            &*errors.lock().unwrap(),
+            &[
+                "failed to append record: disk full",
+                "failed to flush appender: sync failed",
+            ]
+        );
+    }
 }

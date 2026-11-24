@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::Write;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -21,7 +20,6 @@ use std::sync::MutexGuard;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::Layout;
-use logforth_core::Trap;
 use logforth_core::append::Append;
 use logforth_core::layout::PlainTextLayout;
 use logforth_core::record::Record;
@@ -77,26 +75,6 @@ impl FileBuilder {
     /// ```
     pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
         self.layout = layout.into();
-        self
-    }
-
-    /// Set the trap for the file writer.
-    ///
-    /// Default to [`BestEffortTrap`].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use logforth_append_file::FileBuilder;
-    /// use logforth_core::trap::BestEffortTrap;
-    ///
-    /// let builder = FileBuilder::new("my_service", "my_app");
-    /// builder.trap(BestEffortTrap::default());
-    /// ```
-    ///
-    /// [`BestEffortTrap`]: logforth_core::trap::BestEffortTrap
-    pub fn trap(mut self, trap: impl Into<Box<dyn Trap>>) -> Self {
-        self.builder = self.builder.trap(trap);
         self
     }
 
@@ -164,18 +142,12 @@ impl Append for File {
         let mut bytes = self.layout.format(record, diags)?;
         bytes.push(b'\n');
         let mut writer = self.writer();
-        writer
-            .write_all(&bytes)
-            .map_err(|err| Error::new("failed to write log file").with_source(err))?;
-        Ok(())
+        writer.write_all(&bytes)
     }
 
     fn flush(&self) -> Result<(), Error> {
         let mut writer = self.writer();
-        writer
-            .flush()
-            .map_err(|err| Error::new("failed to flush log file").with_source(err))?;
-        Ok(())
+        writer.flush()
     }
 }
 

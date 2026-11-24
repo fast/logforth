@@ -14,6 +14,7 @@
 
 use crate::Append;
 use crate::Diagnostic;
+use crate::ErrorSink;
 use crate::Filter;
 use crate::Logger;
 use crate::logger::log_impl::Dispatch;
@@ -30,7 +31,10 @@ use crate::logger::log_impl::Dispatch;
 ///     .build();
 /// ```
 pub fn builder() -> LoggerBuilder {
-    LoggerBuilder { dispatches: vec![] }
+    LoggerBuilder {
+        dispatches: vec![],
+        error_sink: ErrorSink::default(),
+    }
 }
 
 /// A builder for configuring log dispatching.
@@ -49,6 +53,7 @@ pub fn builder() -> LoggerBuilder {
 pub struct LoggerBuilder {
     // stashed dispatches
     dispatches: Vec<Dispatch>,
+    error_sink: ErrorSink,
 }
 
 impl LoggerBuilder {
@@ -71,6 +76,26 @@ impl LoggerBuilder {
         self
     }
 
+    /// Configure the [`ErrorSink`] used when dispatches fail to append or flush records.
+    ///
+    /// Defaults to [`ErrorSink::stderr`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth_core::ErrorSink;
+    /// use logforth_core::append;
+    ///
+    /// let logger = logforth_core::builder()
+    ///     .error_sink(ErrorSink::black_hole())
+    ///     .dispatch(|d| d.append(append::Stdout::default()))
+    ///     .build();
+    /// ```
+    pub fn error_sink(mut self, error_sink: impl Into<ErrorSink>) -> Self {
+        self.error_sink = error_sink.into();
+        self
+    }
+
     /// Build the [`Logger`].
     ///
     /// # Examples
@@ -85,7 +110,7 @@ impl LoggerBuilder {
     /// l.log(&r);
     /// ```
     pub fn build(self) -> Logger {
-        Logger::new(self.dispatches)
+        Logger::new(self.dispatches, self.error_sink)
     }
 }
 

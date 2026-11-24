@@ -19,6 +19,7 @@ use logforth_core::Logger;
 
 use crate::Append;
 use crate::Error;
+use crate::ErrorSink;
 use crate::Filter;
 use crate::Layout;
 use crate::append;
@@ -64,6 +65,26 @@ impl LogStarterBuilder {
         F: FnOnce(DispatchBuilder<false>) -> DispatchBuilder<true>,
     {
         self.builder = self.builder.dispatch(f);
+        self
+    }
+
+    /// Configure the [`ErrorSink`] used when dispatches fail to append or flush records.
+    ///
+    /// Defaults to [`ErrorSink::stderr`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth::ErrorSink;
+    /// use logforth::append;
+    ///
+    /// logforth::starter_log::builder()
+    ///     .error_sink(ErrorSink::black_hole())
+    ///     .dispatch(|d| d.append(append::Stderr::default()))
+    ///     .apply();
+    /// ```
+    pub fn error_sink(mut self, error_sink: impl Into<ErrorSink>) -> Self {
+        self.builder = self.builder.error_sink(error_sink);
         self
     }
 
@@ -151,6 +172,7 @@ impl LogStarterBuilder {
 pub struct LogStarterTestingBuilder {
     filter: Box<dyn Filter>,
     layout: Box<dyn Layout>,
+    error_sink: ErrorSink,
 }
 
 /// Create a starter builder with a default [`append::Testing`] appender and a [`RustLogFilter`]
@@ -168,6 +190,7 @@ pub fn testing() -> LogStarterTestingBuilder {
     LogStarterTestingBuilder {
         filter: default_filter(),
         layout: default_layout(),
+        error_sink: ErrorSink::default(),
     }
 }
 
@@ -199,6 +222,14 @@ impl LogStarterTestingBuilder {
     /// log::info!("This info message will be ignored.");
     pub fn filter(mut self, filter: impl Into<Box<dyn Filter>>) -> Self {
         self.filter = filter.into();
+        self
+    }
+
+    /// Configure the [`ErrorSink`] used when the testing appender fails to format or write.
+    ///
+    /// Defaults to [`ErrorSink::stderr`].
+    pub fn error_sink(mut self, error_sink: impl Into<ErrorSink>) -> Self {
+        self.error_sink = error_sink.into();
         self
     }
 
@@ -275,9 +306,15 @@ impl LogStarterTestingBuilder {
     }
 
     fn into_builder(self) -> LogStarterBuilder {
-        let Self { filter, layout } = self;
+        let Self {
+            filter,
+            layout,
+            error_sink,
+        } = self;
         let append: Box<dyn Append> = Box::new(append::Testing::default().with_layout(layout));
-        builder().dispatch(|d| d.filter(filter).append(append))
+        builder()
+            .error_sink(error_sink)
+            .dispatch(|d| d.filter(filter).append(append))
     }
 }
 
@@ -291,6 +328,7 @@ pub struct LogStarterStdStreamBuilder {
     append: StdStream,
     filter: Box<dyn Filter>,
     layout: Box<dyn Layout>,
+    error_sink: ErrorSink,
 }
 
 /// Create a starter builder with a default [`append::Stdout`] appender and a [`RustLogFilter`]
@@ -309,6 +347,7 @@ pub fn stdout() -> LogStarterStdStreamBuilder {
         append: StdStream::Stdout(append::Stdout::default()),
         filter: default_filter(),
         layout: default_layout(),
+        error_sink: ErrorSink::default(),
     }
 }
 
@@ -328,6 +367,7 @@ pub fn stderr() -> LogStarterStdStreamBuilder {
         append: StdStream::Stderr(append::Stderr::default()),
         filter: default_filter(),
         layout: default_layout(),
+        error_sink: ErrorSink::default(),
     }
 }
 
@@ -359,6 +399,14 @@ impl LogStarterStdStreamBuilder {
     /// log::info!("This info message will be ignored.");
     pub fn filter(mut self, filter: impl Into<Box<dyn Filter>>) -> Self {
         self.filter = filter.into();
+        self
+    }
+
+    /// Configure the [`ErrorSink`] used when the stream appender fails to write or flush.
+    ///
+    /// Defaults to [`ErrorSink::stderr`].
+    pub fn error_sink(mut self, error_sink: impl Into<ErrorSink>) -> Self {
+        self.error_sink = error_sink.into();
         self
     }
 
@@ -439,6 +487,7 @@ impl LogStarterStdStreamBuilder {
             append,
             filter,
             layout,
+            error_sink,
         } = self;
 
         let append: Box<dyn Append> = match append {
@@ -446,7 +495,9 @@ impl LogStarterStdStreamBuilder {
             StdStream::Stderr(a) => Box::new(a.with_layout(layout)),
         };
 
-        builder().dispatch(|d| d.filter(filter).append(append))
+        builder()
+            .error_sink(error_sink)
+            .dispatch(|d| d.filter(filter).append(append))
     }
 }
 
