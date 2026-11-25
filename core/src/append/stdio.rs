@@ -68,12 +68,14 @@ impl Append for Stdout {
         bytes.push(b'\n');
         std::io::stdout()
             .write_all(&bytes)
-            .map_err(Error::from_io_error)?;
+            .map_err(|err| Error::new("failed to write to stdout").with_source(err))?;
         Ok(())
     }
 
     fn flush(&self) -> Result<(), Error> {
-        std::io::stdout().flush().map_err(Error::from_io_error)?;
+        std::io::stdout()
+            .flush()
+            .map_err(|err| Error::new("failed to flush stdout").with_source(err))?;
         Ok(())
     }
 }
@@ -125,12 +127,14 @@ impl Append for Stderr {
         bytes.push(b'\n');
         std::io::stderr()
             .write_all(&bytes)
-            .map_err(Error::from_io_error)?;
+            .map_err(|err| Error::new("failed to write to stderr").with_source(err))?;
         Ok(())
     }
 
     fn flush(&self) -> Result<(), Error> {
-        std::io::stderr().flush().map_err(Error::from_io_error)?;
+        std::io::stderr()
+            .flush()
+            .map_err(|err| Error::new("failed to flush stderr").with_source(err))?;
         Ok(())
     }
 }

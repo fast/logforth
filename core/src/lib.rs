@@ -32,7 +32,7 @@ pub use self::layout::Layout;
 pub use self::trap::Trap;
 
 mod error;
-pub use self::error::*;
+pub use self::error::Error;
 
 mod logger;
 pub use self::logger::*;
