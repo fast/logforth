@@ -4,7 +4,7 @@ This document defines the architectural model, public contracts, and target `1.0
 
 ## Scope and Crate Versioning
 
-- `logforth-core` carries zero mandatory third-party dependencies. Stabilizing `logforth-core 1.0` establishes a permanent contract for `Logger`, `Record`, `kv`, and the five core extension traits without coupling SemVer stability to external SDKs.
+- `logforth-core` carries zero mandatory third-party dependencies. Stabilizing `logforth-core 1.0` establishes a stable contract for `Logger`, `Record`, `kv`, and the five core extension traits without coupling SemVer stability to external SDKs.
 - The `logforth` umbrella facade and peripheral appenders, layouts, filters, diagnostics, and ecosystem bridges evolve on independent `0.x` tracks so external dependencies such as `opentelemetry`, `jiff`, `fastrace`, `log`, and `tracing` can upgrade at their own pace.
 
 ## Pipeline Topology and Assembly
@@ -69,11 +69,9 @@ enum DiagnosticsState<'a> {
 }
 ```
 
-- `Append` consumes structured `&Record` and `Diagnostics` directly so protocol-native sinks can encode typed fields without intermediate text serialization, whereas byte-stream sinks compose a `Layout` internally.
-- `Layout::format` appends formatted bytes into a caller-supplied `&mut Vec<u8>`:
-  1. Implementations must only append to `buf` without clearing or reading prior bytes, and callers must truncate `buf` back to its starting length on `Err`.
-  2. Record framing such as a trailing newline belongs to the owning `Append`, not `Layout`.
-  3. Synchronous appenders may pool thread-local `Vec<u8>` buffers outside I/O locks via `try_borrow_mut`, falling back to a fresh `Vec<u8>` if user `Display::fmt` logs reentrantly.
+`Append` consumes structured `&Record` and `Diagnostics` directly so protocol-native sinks can encode typed fields without intermediate text serialization, whereas byte-stream sinks compose a `Layout` internally.
+
+`Layout::format` appends formatted bytes into a caller-supplied `&mut Vec<u8>` rather than allocating a new buffer per record. Implementations must only append to `buf` without clearing or reading prior bytes, callers must truncate `buf` back to its starting length on `Err`, and record framing such as a trailing newline belongs to the owning `Append` rather than `Layout`. Synchronous appenders may pool thread-local `Vec<u8>` buffers outside I/O locks via `try_borrow_mut`, falling back to a fresh `Vec<u8>` if user `Display::fmt` logs reentrantly.
 
 ## Filtering and Fast-Path Pruning
 
@@ -90,8 +88,8 @@ enum DiagnosticsState<'a> {
 
 - `Record<'a>` carries `time`, `level`, `module_path`, `file`, `line`, `column`, `payload`, and a zero-allocation `KeyValues<'a>` slice.
 - Synchronous paths borrow `Record<'a>`, `Key<'a>`, and `Value<'a>` on the caller stack, using `RefStr<'a>` to distinguish ephemeral `&'a str` borrows from zero-copy `&'static str` literals. Across asynchronous boundaries, `Record::to_owned()` promotes records into `'static + Send` `RecordOwned`, `KeyOwned`, and `ValueOwned` snapshots that workers re-project via `RecordOwned::with`.
-- `Value<'a>` (`Clone + Send + Sync`) provides `From` conversions for scalars, strings including `Cow<str>`, byte slices, `Option<T>`, `ValueOwned`, and `&'a ValueOwned`, alongside explicit `Value::debug` (`&(dyn Debug + Sync)`), `Value::display` (`&(dyn Display + Sync)`), and (under the optional `serde` feature) `Value::serde` constructors; workspace domain types can implement `From<&'a T> for Value<'a>` directly to emit either borrowed values or `ValueOwned` containers. `ValueView<'a>` is `Copy`, marked `#[non_exhaustive]`, and implements `fmt::Display` so unhandled variants degrade cleanly to strings, while `KeyView` and `ValueView` expose typed scalar, byte, container, and `'static` string accessors.
-- `ValueOwned` stores `Box<[u8]>`, `Box<[ValueOwned]>`, and insertion-ordered `Box<[(KeyOwned, ValueOwned)]>` slices so synchronous and asynchronous paths preserve identical field ordering and duplicate-key semantics; under the optional `serde` feature, `Value::serde` and `ValueOwned::from_serde` serialize directly into `ValueOwned` (degrading serialization errors to a diagnostic string alongside fallible `ValueOwned::try_from_serde`).
+- `Value<'a>` (`Copy + Send + Sync`) is a lightweight borrowed carrier providing `From` conversions for scalars, strings including `Cow<str>`, byte slices, `Option<T>`, and `&'a ValueOwned`, alongside explicit `Value::debug` (`&(dyn Debug + Sync)`) and `Value::display` (`&(dyn Display + Sync)`) constructors; workspace types borrowing internal state can implement `From<&'a T> for Value<'a>` directly. `ValueView<'a>` (`Copy`, `#[non_exhaustive]`) unifies read-only projection across both `Value<'a>` and `ValueOwned`, implementing `fmt::Display` so unhandled variants degrade cleanly to strings while `KeyView` and `ValueView` expose typed scalar, byte, container, and `'static` string accessors.
+- `ValueOwned` (`Clone + Send + Sync + 'static`) owns heap-backed values (`Cow<'static, str>`, `Box<[u8]>`, `Box<[ValueOwned]>`, and insertion-ordered `Box<[(KeyOwned, ValueOwned)]>`) for asynchronous snapshots, diagnostics, and nested structures that cannot be borrowed directly. On enabled callsites, nested custom types construct a temporary `ValueOwned` (via custom methods or, under the optional `serde` feature, `ValueOwned::from_serde` degrading errors to a diagnostic string alongside fallible `ValueOwned::try_from_serde`) and borrow into `KeyValues<'a>` at zero copy cost via `From<&'a ValueOwned> for Value<'a>`.
 - `StaticDiagnostic`, `ThreadLocalDiagnostic` with `!Send` RAII scope guards that restore shadowed values on drop, and `TaskLocalDiagnostic` store `(KeyOwned, ValueOwned)`. `Diagnostic::visit` may run multiple times per record and must remain side-effect-free; when keys collide in map-based outputs, explicit `Record` key-values take precedence over `Diagnostic` entries.
 
 ## Error Handling and Operational Safety
