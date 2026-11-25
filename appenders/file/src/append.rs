@@ -30,9 +30,10 @@ use crate::rolling::RollingFileWriter;
 use crate::rolling::RollingFileWriterBuilder;
 use crate::rotation::Rotation;
 
-/// Configures the directory, segment names, rotation, and retention of a [`File`] appender.
+/// Builder for creating [`File`] appenders.
 ///
-/// See the [crate documentation](super) for usage examples.
+/// Construct a builder with [`FileBuilder::new`], optionally configure layout, suffix, rotation,
+/// and retention settings, and finalize with [`build`](Self::build).
 #[derive(Debug)]
 pub struct FileBuilder {
     builder: RollingFileWriterBuilder,
@@ -40,11 +41,11 @@ pub struct FileBuilder {
 }
 
 impl FileBuilder {
-    /// Append to `filename` in `basedir`, creating the directory as needed. Rotation is disabled by
-    /// default.
+    /// Creates a builder for log files named `filename` in `basedir`.
     ///
-    /// The filename is used literally. Use `FileBuilder::new(dir, "my_app").filename_suffix("log")`
-    /// to place the period and sequence before the extension, as in `my_app.2026-11-25.1.log`.
+    /// Rotation is disabled by default. `filename` is used as a literal stem; pass an extension
+    /// via [`filename_suffix`](Self::filename_suffix) so period and sequence fields appear before
+    /// the extension (for example, `FileBuilder::new(dir, "my_app").filename_suffix("log")`).
     pub fn new(basedir: impl Into<PathBuf>, filename: impl Into<String>) -> Self {
         Self {
             builder: RollingFileWriterBuilder::new(basedir, filename),
@@ -52,93 +53,95 @@ impl FileBuilder {
         }
     }
 
-    /// Build the [`File`] appender.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for an invalid filename or suffix, an unrepresentable rotation period, or
-    /// an I/O failure while preparing the directory or opening the initial file.
-    pub fn build(self) -> Result<File, Error> {
-        let FileBuilder { builder, layout } = self;
-        let writer = builder.build()?;
-        Ok(File::new(writer, layout))
-    }
-
-    /// Set the layout for the logs.
-    ///
-    /// Default to [`PlainTextLayout`].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use logforth_append_file::FileBuilder;
-    /// use logforth_layout_json::JsonLayout;
-    ///
-    /// let builder = FileBuilder::new("my_service", "my_app");
-    /// builder.layout(JsonLayout::default());
-    /// ```
+    /// Sets the layout used to format each log record before appending a trailing newline
+    /// (default: [`PlainTextLayout`]).
     pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
         self.layout = layout.into();
         self
     }
 
-    /// Set the rotation strategy to roll over log files minutely.
-    pub fn rollover_minutely(mut self) -> Self {
-        self.builder = self.builder.rotation(Rotation::Minutely);
-        self
-    }
-
-    /// Set the rotation strategy to roll over log files hourly.
-    pub fn rollover_hourly(mut self) -> Self {
-        self.builder = self.builder.rotation(Rotation::Hourly);
-        self
-    }
-
-    /// Roll over at the start of each day in the configured timezone.
-    pub fn rollover_daily(mut self) -> Self {
-        self.builder = self.builder.rotation(Rotation::Daily);
-        self
-    }
-
-    /// Set the timezone used for rotation boundaries and segment names. Defaults to the system
-    /// timezone.
-    pub fn timezone(mut self, tz: TimeZone) -> Self {
-        self.builder = self.builder.timezone(tz);
-        self
-    }
-
-    /// Roll over before a record would exceed the given size in bytes, including its trailing
-    /// newline.
+    /// Sets the filename suffix appended after any period and sequence fields.
     ///
-    /// A single oversized record is written whole to an empty segment. Sequence numbers increase
-    /// while the period stays active. On entering another period, numbering starts at 1 and
-    /// skips existing names.
-    pub fn rollover_size(mut self, n: NonZeroU64) -> Self {
-        self.builder = self.builder.max_file_size(n);
-        self
-    }
-
-    /// Add a suffix after all rotation fields. A single leading dot is stripped and an empty input
-    /// clears the suffix.
+    /// At most one leading `.` is stripped, and an empty string clears a previously configured
+    /// suffix.
     pub fn filename_suffix(mut self, suffix: impl Into<String>) -> Self {
         self.builder = self.builder.filename_suffix(suffix);
         self
     }
 
-    /// Keep at most `n` matching files across all periods, including the active file.
+    /// Configures time-based rotation at the start of each minute in the configured
+    /// [`timezone`](Self::timezone).
+    pub fn rollover_minutely(mut self) -> Self {
+        self.builder = self.builder.rotation(Rotation::Minutely);
+        self
+    }
+
+    /// Configures time-based rotation at the start of each hour in the configured
+    /// [`timezone`](Self::timezone).
+    pub fn rollover_hourly(mut self) -> Self {
+        self.builder = self.builder.rotation(Rotation::Hourly);
+        self
+    }
+
+    /// Configures time-based rotation at the start of each calendar day (`00:00`) in the
+    /// configured [`timezone`](Self::timezone).
+    pub fn rollover_daily(mut self) -> Self {
+        self.builder = self.builder.rotation(Rotation::Daily);
+        self
+    }
+
+    /// Sets the timezone used for time-based rotation boundaries and period filenames
+    /// (default: [`TimeZone::system()`]).
+    pub fn timezone(mut self, tz: TimeZone) -> Self {
+        self.builder = self.builder.timezone(tz);
+        self
+    }
+
+    /// Configures size-based rotation before a formatted record (including its trailing newline)
+    /// would cause the active segment to exceed `n` bytes.
     ///
-    /// With rotation enabled, the oldest inactive segments are pruned at startup and after
-    /// rollover. By default all segments are retained.
+    /// A single record larger than `n` bytes is written whole to an empty segment without rotating
+    /// again beforehand. Segments are numbered in ascending order starting from `1` within each
+    /// rotation period.
+    pub fn rollover_size(mut self, n: NonZeroU64) -> Self {
+        self.builder = self.builder.max_file_size(n);
+        self
+    }
+
+    /// Sets the maximum number of matching log files retained across all periods, including the
+    /// active segment.
+    ///
+    /// By default, all segments are retained. With rotation enabled, excess inactive segments are
+    /// removed on a best-effort basis during [`build`](Self::build) and pruned on each rollover;
+    /// the active segment is never removed.
     pub fn max_log_files(mut self, n: NonZeroUsize) -> Self {
         self.builder = self.builder.max_log_files(n);
         self
     }
+
+    /// Validates the builder configuration, creates `basedir` if needed, and opens the initial log
+    /// file.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Error`] if:
+    /// * `filename` is empty, `.`, `..`, or contains `/`, `\`, or `\0`.
+    /// * `filename_suffix` (after stripping at most one leading `.`) is `.`, `..`, or contains `/`,
+    ///   `\`, or `\0`.
+    /// * The initial rotation period cannot be represented in `jiff`.
+    /// * Creating `basedir`, scanning existing segments, or opening the initial segment file fails.
+    pub fn build(self) -> Result<File, Error> {
+        let FileBuilder { builder, layout } = self;
+        let writer = builder.build()?;
+        Ok(File::new(writer, layout))
+    }
 }
 
-/// Appends each formatted record and a newline directly to the active file.
+/// A file appender that writes formatted log records to a single file or rotating segment files.
 ///
-/// If opening the next segment fails, the appender writes the record to the current file and
-/// returns the rollover error if the write succeeds. It waits one second before retrying rotation.
+/// Each record is formatted with the configured [`Layout`], terminated with `\n`, and written to
+/// an append-mode file. See the [crate documentation](crate) for segment naming, retention, and
+/// rollover error semantics.
 #[derive(Debug)]
 pub struct File {
     writer: Mutex<RollingFileWriter>,

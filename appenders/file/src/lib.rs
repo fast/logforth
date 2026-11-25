@@ -12,55 +12,71 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Append log records directly to a single file or to rotating segments.
+//! File appender for writing log records to a single file or rotating segment files.
 //!
-//! With `FileBuilder::new(dir, "my_app").filename_suffix("log")`, the filename depends on the
-//! rotation policy.
+//! [`File`] formats each record with a configured [`Layout`](logforth_core::Layout), appends a
+//! trailing newline, and writes directly to an append-mode file. Construct an instance with
+//! [`FileBuilder`].
 //!
-//! | Policy          | Example filename             |
-//! | :-------------- | :--------------------------- |
-//! | No rotation     | `my_app.log`                 |
-//! | Daily           | `my_app.2026-11-25.log`      |
-//! | Size            | `my_app.1.log`               |
-//! | Hourly and size | `my_app.2026-11-25-17.1.log` |
+//! # Segment naming
 //!
-//! Hourly periods include the hour and minutely periods also include the minute, both with two
-//! digits. [`FileBuilder::timezone`] selects the timezone for these periods and defaults to the
-//! system timezone. The filename is a literal stem. Passing `"my_app.log"` as the stem puts
-//! rotation fields after `.log`.
+//! Given `FileBuilder::new(dir, "my_app").filename_suffix("log")`, segment filenames depend on the
+//! configured rotation policy:
 //!
-//! [`FileBuilder::rollover_size`] numbers segments from 1 within each period. Files keep the same
-//! name throughout their lifetime. On startup, the highest numbered segment in the current period
-//! is reused if it has room. [`FileBuilder::max_log_files`] limits the total number of matching
-//! files across all periods, including the active file.
+//! | Policy          | Example filename                |
+//! | :-------------- | :------------------------------ |
+//! | No rotation     | `my_app.log`                    |
+//! | Minutely        | `my_app.2026-11-25-17-05.log`   |
+//! | Hourly          | `my_app.2026-11-25-17.log`      |
+//! | Daily           | `my_app.2026-11-25.log`         |
+//! | Size            | `my_app.1.log`                  |
+//! | Hourly and size | `my_app.2026-11-25-17.1.log`    |
 //!
-//! # Example
+//! * `filename` is treated as a literal stem. Configure an extension via
+//!   [`FileBuilder::filename_suffix`] so period and sequence fields appear before the extension.
+//! * [`FileBuilder::timezone`] selects the timezone used for rotation boundaries and period fields
+//!   (default: [`TimeZone::system()`](jiff::tz::TimeZone::system)).
+//! * Segment files keep their initial name for their entire lifetime and are never renamed on
+//!   rollover.
+//! * [`FileBuilder::rollover_size`] numbers segments in ascending order starting from `1` (oldest)
+//!   within each period. On startup, [`FileBuilder::build`] resumes the highest-numbered segment in
+//!   the active period if its size is below the limit, or opens the next sequence number.
+//!
+//! # Retention and error handling
+//!
+//! * [`FileBuilder::max_log_files`] limits the total number of matching regular files across all
+//!   periods, including the active segment. Non-matching files, directories, symlinks, and the
+//!   active segment itself are never removed.
+//! * If opening the next segment or pruning old segments fails at runtime, [`File`] records a
+//!   `1`-second retry cooldown, appends the current record to the active segment, and returns the
+//!   rollover or cleanup [`Error`](logforth_core::Error).
+//!
+//! # Examples
 //!
 //! ```
 //! use std::num::NonZeroU64;
 //! use std::num::NonZeroUsize;
 //!
-//! use jiff::tz::TimeZone;
 //! use logforth_append_file::FileBuilder;
+//! use logforth_append_file::jiff::tz::TimeZone;
 //! use logforth_core::record::LevelFilter;
 //! use logforth_layout_json::JsonLayout;
 //!
-//! # fn configure(dir: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
-//! let rolling = FileBuilder::new(dir, "my_app")
+//! # let temp_dir = tempfile::tempdir()?;
+//! # let log_dir = temp_dir.path();
+//! let file = FileBuilder::new(log_dir, "my_app")
 //!     .filename_suffix("log")
 //!     .layout(JsonLayout::default())
 //!     .rollover_daily()
 //!     .timezone(TimeZone::UTC)
-//!     .rollover_size(NonZeroU64::try_from(1024 * 1024)?)
-//!     .max_log_files(NonZeroUsize::try_from(7)?)
+//!     .rollover_size(NonZeroU64::new(10 * 1024 * 1024).unwrap())
+//!     .max_log_files(NonZeroUsize::new(7).unwrap())
 //!     .build()?;
 //!
 //! let logger = logforth_core::builder()
-//!     .dispatch(|d| d.filter(LevelFilter::All).append(rolling))
+//!     .dispatch(|d| d.filter(LevelFilter::All).append(file))
 //!     .build();
-//! # Ok(())
-//! # }
-//! # configure(tempfile::tempdir()?.path())?;
+//! # drop(logger);
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
