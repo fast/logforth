@@ -90,8 +90,8 @@ enum DiagnosticsState<'a> {
 
 - `Record<'a>` carries `time`, `level`, `module_path`, `file`, `line`, `column`, `payload`, and a zero-allocation `KeyValues<'a>` slice.
 - Synchronous paths borrow `Record<'a>`, `Key<'a>`, and `Value<'a>` on the caller stack, using `RefStr<'a>` to distinguish ephemeral `&'a str` borrows from zero-copy `&'static str` literals. Across asynchronous boundaries, `Record::to_owned()` promotes records into `'static + Send` `RecordOwned`, `KeyOwned`, and `ValueOwned` snapshots that workers re-project via `RecordOwned::with`.
-- `Value<'a>` provides `From` conversions for scalars, strings including `Cow<str>`, byte slices, `Option<T>`, and `&'a ValueOwned`, alongside explicit `Value::debug` and `Value::display` constructors. `ValueView<'a>` is marked `#[non_exhaustive]` and implements `fmt::Display` so unhandled variants degrade cleanly to strings, while `KeyView` and `ValueView` expose typed scalar, byte, container, and `'static` string accessors.
-- `ValueOwned` stores `Box<[u8]>`, `Box<[ValueOwned]>`, and insertion-ordered `Box<[(KeyOwned, ValueOwned)]>` slices so synchronous and asynchronous paths preserve identical field ordering and duplicate-key semantics. Custom nested structures convert into `ValueOwned` on enabled callsites and borrow into `KeyValues<'a>` through `From<&'a ValueOwned> for Value<'a>`; under the optional `serde` feature, `ValueOwned::from_serde` degrades serialization errors to a diagnostic string alongside fallible `ValueOwned::try_from_serde`.
+- `Value<'a>` (`Clone`) provides `From` conversions for scalars, strings including `Cow<str>`, byte slices, `Option<T>`, `ValueOwned`, and `&'a ValueOwned`, alongside explicit `Value::debug`, `Value::display`, and (under the optional `serde` feature) `Value::serde` adapters; workspace domain types can implement `From<&'a T> for Value<'a>` directly to emit either borrowed values or `ValueOwned` containers. `ValueView<'a>` is `Copy`, marked `#[non_exhaustive]`, and implements `fmt::Display` so unhandled variants degrade cleanly to strings, while `KeyView` and `ValueView` expose typed scalar, byte, container, and `'static` string accessors.
+- `ValueOwned` stores `Box<[u8]>`, `Box<[ValueOwned]>`, and insertion-ordered `Box<[(KeyOwned, ValueOwned)]>` slices so synchronous and asynchronous paths preserve identical field ordering and duplicate-key semantics; under the optional `serde` feature, `Value::serde` and `ValueOwned::from_serde` serialize directly into `ValueOwned` (degrading serialization errors to a diagnostic string alongside fallible `ValueOwned::try_from_serde`).
 - `StaticDiagnostic`, `ThreadLocalDiagnostic` with `!Send` RAII scope guards that restore shadowed values on drop, and `TaskLocalDiagnostic` store `(KeyOwned, ValueOwned)`. `Diagnostic::visit` may run multiple times per record and must remain side-effect-free; when keys collide in map-based outputs, explicit `Record` key-values take precedence over `Diagnostic` entries.
 
 ## Error Handling and Operational Safety
@@ -106,13 +106,13 @@ enum DiagnosticsState<'a> {
 
 ```rust
 logforth::info!(logger, "listening on {}", addr);
-logforth::info!(logger, ["port" = port, tls = true], "server started");
-logforth::info!(logger, ["jobs.completed" = count]);
+logforth::info!(logger, ["port" = port, "tls" = true], "server started");
+logforth::info!(logger, ["jobs.completed" = count, "error" = Value::debug(&err)]);
 ```
 
-- Structured fields precede the format string using bracketed assignment expressions. Every macro argument is a valid Rust `ast::Expr` so `rustfmt` formats the entire invocation without colliding with `format_args!` named parameters.
-- `$logger` and `$level` evaluate once. When `logger.enabled(level)` succeeds, value expressions evaluate at most once and bind shared references before constructing `!Send` `Value<'_>` or `fmt::Arguments<'_>` temporaries, keeping enclosing `async` futures `Send` across `.await` points inside log arguments.
-- String literal keys and identifier shorthands expand to `Key::new` with `'static` provenance, and record construction delegates to a non-generic `__private_log` helper backed by a `static` callsite location descriptor. `Level::Fatal` records severity metadata only and neither flushes nor terminates the process.
+- Structured fields precede the format string using bracketed `"key" = value` assignment expressions with string literal keys and plain Rust value expressions rather than sigils or implicit field shorthands. Every macro argument is a valid Rust `ast::Expr` so `rustfmt` formats the entire invocation without colliding with `format_args!` named parameters.
+- `$logger` and `$level` evaluate once. When `logger.enabled(level)` succeeds, value and format-argument expressions evaluate at most once inside a `match` scrutinee that binds shared references (`Value::debug` and `Value::display` return typed wrappers so `T: Sync` remains `Send` until erased inside the synchronous `match` arm), keeping temporaries alive, leaving non-`Copy` locals unmoved, and keeping enclosing `async` futures `Send` across `.await` points inside log arguments.
+- String literal keys expand to `Key::new` with `'static` provenance, and record construction delegates to a non-generic `__private_log` helper backed by a `static` callsite location descriptor. `Level::Fatal` records severity metadata only and neither flushes nor terminates the process.
 
 ## Ecosystem Interop and Bridges
 
