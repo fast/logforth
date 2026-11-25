@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::Write;
-use std::panic;
-
 use crate::Append;
 use crate::Diagnostic;
 use crate::Error;
+use crate::ErrorSink;
 use crate::Filter;
 use crate::filter::FilterResult;
 use crate::record::FilterCriteria;
@@ -27,11 +25,15 @@ use crate::record::Record;
 #[derive(Debug)]
 pub struct Logger {
     dispatches: Vec<Dispatch>,
+    error_sink: Box<dyn ErrorSink>,
 }
 
 impl Logger {
-    pub(super) fn new(dispatches: Vec<Dispatch>) -> Self {
-        Self { dispatches }
+    pub(super) fn new(dispatches: Vec<Dispatch>, error_sink: Box<dyn ErrorSink>) -> Self {
+        Self {
+            dispatches,
+            error_sink,
+        }
     }
 }
 
@@ -45,19 +47,17 @@ impl Logger {
 
     /// Log the [`Record`].
     pub fn log(&self, record: &Record) {
+        let default_error_sink = &*self.error_sink;
         for dispatch in &self.dispatches {
-            for err in dispatch.log(record) {
-                handle_log_error(record, &err);
-            }
+            dispatch.log(record, default_error_sink);
         }
     }
 
     /// Flush any buffered records.
     pub fn flush(&self) {
+        let default_error_sink = &*self.error_sink;
         for dispatch in &self.dispatches {
-            for err in dispatch.flush() {
-                handle_flush_error(&err);
-            }
+            dispatch.flush(default_error_sink);
         }
     }
 }
@@ -74,6 +74,7 @@ pub(super) struct Dispatch {
     filters: Vec<Box<dyn Filter>>,
     diagnostics: Vec<Box<dyn Diagnostic>>,
     appends: Vec<Box<dyn Append>>,
+    error_sink: Option<Box<dyn ErrorSink>>,
 }
 
 impl Dispatch {
@@ -81,6 +82,7 @@ impl Dispatch {
         filters: Vec<Box<dyn Filter>>,
         diagnostics: Vec<Box<dyn Diagnostic>>,
         appends: Vec<Box<dyn Append>>,
+        error_sink: Option<Box<dyn ErrorSink>>,
     ) -> Self {
         debug_assert!(
             !appends.is_empty(),
@@ -91,6 +93,7 @@ impl Dispatch {
             filters,
             diagnostics,
             appends,
+            error_sink,
         }
     }
 
@@ -108,84 +111,124 @@ impl Dispatch {
         true
     }
 
-    fn log(&self, record: &Record) -> Vec<Error> {
+    fn log(&self, record: &Record, default_error_sink: &dyn ErrorSink) {
         let diagnostics = &self.diagnostics;
 
         for filter in &self.filters {
             match filter.matches(record, diagnostics) {
-                FilterResult::Reject => return vec![],
+                FilterResult::Reject => return,
                 FilterResult::Accept => break,
                 FilterResult::Neutral => {}
             }
         }
 
-        let mut errors = vec![];
+        let error_sink = self.error_sink.as_deref().unwrap_or(default_error_sink);
         for append in &self.appends {
             if let Err(err) = append.append(record, diagnostics) {
-                errors.push(err);
+                let err = Error::new("failed to append record").with_source(err);
+                error_sink.sink(&err);
             }
         }
-        errors
     }
 
-    fn flush(&self) -> Vec<Error> {
-        let mut errors = vec![];
+    fn flush(&self, default_error_sink: &dyn ErrorSink) {
+        let error_sink = self.error_sink.as_deref().unwrap_or(default_error_sink);
         for append in &self.appends {
             if let Err(err) = append.flush() {
-                errors.push(err);
+                let err = Error::new("failed to flush appender").with_source(err);
+                error_sink.sink(&err);
             }
         }
-        errors
     }
 }
 
-fn handle_log_error(record: &Record, error: &Error) {
-    let Err(fallback_error) = write!(
-        std::io::stderr(),
-        r###"
-Error perform logging.
-    Attempted to log: {args}
-    Record: {record:?}
-    Error: {error:?}
-"###,
-        args = record.payload(),
-        record = record,
-        error = error,
-    ) else {
-        return;
-    };
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+    use std::sync::Mutex;
 
-    panic!(
-        r###"
-Error performing stderr logging after error occurred during regular logging.
-    Attempted to log: {args}
-    Record: {record:?}
-    Error: {error:?}
-    Fallback error: {fallback_error}
-"###,
-        args = record.payload(),
-        record = record,
-        error = error,
-        fallback_error = fallback_error,
-    );
-}
+    use super::*;
+    use crate::builder;
+    use crate::error::BlackHoleErrorSink;
 
-fn handle_flush_error(error: &Error) {
-    let Err(fallback_error) = write!(
-        std::io::stderr(),
-        r###"
-Error perform flush.
-    Error: {error:?}
-"###,
-    ) else {
-        return;
-    };
+    #[derive(Debug)]
+    struct FailingAppender(&'static str);
 
-    panic!(
-        r###"
-Error performing stderr logging after error occurred during regular flush.
-    Error: {error:?}
-    Fallback error: {fallback_error}
-"###,
-    );
+    impl Append for FailingAppender {
+        fn append(&self, _: &Record, _: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+            Err(Error::new(self.0))
+        }
+
+        fn flush(&self) -> Result<(), Error> {
+            Err(Error::new(self.0))
+        }
+    }
+
+    #[derive(Debug)]
+    struct RecordingAppender(Arc<Mutex<Vec<String>>>);
+
+    impl Append for RecordingAppender {
+        fn append(&self, record: &Record, _: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+            self.0.lock().unwrap().push(record.payload().to_string());
+            Ok(())
+        }
+
+        fn flush(&self) -> Result<(), Error> {
+            Ok(())
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct RecordingErrorSink {
+        errors: Mutex<Vec<String>>,
+    }
+
+    impl ErrorSink for RecordingErrorSink {
+        fn sink(&self, err: &Error) {
+            self.errors.lock().unwrap().push(format!("{err:#}"));
+        }
+    }
+
+    #[test]
+    fn logger_routes_errors_with_dispatch_fallback_and_override() {
+        let logger_errors = Arc::new(RecordingErrorSink::default());
+        let override_errors = Arc::new(RecordingErrorSink::default());
+        let delivered = Arc::new(Mutex::new(Vec::new()));
+
+        let logger = builder()
+            .error_sink(logger_errors.clone())
+            .dispatch(|d| {
+                d.append(FailingAppender("primary failed"))
+                    .append(RecordingAppender(delivered.clone()))
+            })
+            .dispatch(|d| {
+                d.error_sink(BlackHoleErrorSink::new())
+                    .append(FailingAppender("silenced failed"))
+            })
+            .dispatch(|d| {
+                d.error_sink(override_errors.clone())
+                    .append(FailingAppender("override failed"))
+            })
+            .build();
+
+        let record = Record::builder().payload(format_args!("hello")).build();
+        logger.log(&record);
+        logger.flush();
+
+        assert_eq!(&*delivered.lock().unwrap(), &["hello"]);
+        assert_eq!(
+            &*logger_errors.errors.lock().unwrap(),
+            &[
+                "failed to append record: primary failed",
+                "failed to flush appender: primary failed",
+            ]
+        );
+        assert_eq!(
+            &*override_errors.errors.lock().unwrap(),
+            &[
+                "failed to append record: override failed",
+                "failed to flush appender: override failed",
+            ]
+        );
+    }
 }
