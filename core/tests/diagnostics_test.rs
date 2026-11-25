@@ -20,7 +20,6 @@ use std::sync::atomic::Ordering;
 
 use logforth_core::Append;
 use logforth_core::Diagnostic;
-use logforth_core::Diagnostics;
 use logforth_core::Error;
 use logforth_core::Filter;
 use logforth_core::Layout;
@@ -35,11 +34,6 @@ use logforth_core::record::FilterCriteria;
 use logforth_core::record::Level;
 use logforth_core::record::Record;
 
-const _: () = {
-    const fn assert_copy_send_sync<T: Copy + Send + Sync>() {}
-    assert_copy_send_sync::<Diagnostics<'_>>();
-};
-
 #[derive(Debug)]
 struct ConstDiag {
     key: &'static str,
@@ -51,6 +45,21 @@ impl Diagnostic for ConstDiag {
         visitor.visit(
             Key::new(self.key).view(),
             Value::static_str(self.value).view(),
+        )
+    }
+}
+
+#[derive(Debug)]
+struct ScopedDiag<'a> {
+    key: &'a str,
+    value: &'a str,
+}
+
+impl Diagnostic for ScopedDiag<'_> {
+    fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
+        visitor.visit(
+            Key::borrowed(self.key).view(),
+            Value::str(self.value).view(),
         )
     }
 }
@@ -84,7 +93,7 @@ impl Diagnostic for CountingDiag {
     }
 }
 
-fn collect_diags(diags: Diagnostics) -> Result<Vec<(String, String)>, Error> {
+fn collect_diags(diags: &dyn Diagnostic) -> Result<Vec<(String, String)>, Error> {
     let mut entries = Vec::new();
     diags.visit(&mut |key: KeyView, value: ValueView| {
         entries.push((key.as_str().to_owned(), value.to_string()));
@@ -94,18 +103,15 @@ fn collect_diags(diags: Diagnostics) -> Result<Vec<(String, String)>, Error> {
 }
 
 #[test]
-fn diagnostics_views_preserve_order_and_handle_empty_inputs() {
-    let empty_boxed: [Box<dyn Diagnostic>; 0] = [];
-    let empty_slice: [&dyn Diagnostic; 0] = [];
+fn composite_diagnostics_preserve_order_and_handle_empty_sources() {
+    let none_diag: Option<ConstDiag> = None;
+    let empty_slice: &[&dyn Diagnostic] = &[];
+    let empty_boxed: Vec<Box<dyn Diagnostic>> = Vec::new();
 
-    for view in [
-        Diagnostics::empty(),
-        Diagnostics::default(),
-        Diagnostics::from_boxed(&empty_boxed),
-        Diagnostics::from_slice(&empty_slice),
-    ] {
-        assert!(collect_diags(view).unwrap().is_empty());
-    }
+    assert!(collect_diags(&()).unwrap().is_empty());
+    assert!(collect_diags(&none_diag).unwrap().is_empty());
+    assert!(collect_diags(&empty_slice).unwrap().is_empty());
+    assert!(collect_diags(&empty_boxed).unwrap().is_empty());
 
     let first = ConstDiag {
         key: "env",
@@ -116,23 +122,29 @@ fn diagnostics_views_preserve_order_and_handle_empty_inputs() {
         value: "us-east",
     };
 
-    let single = Diagnostics::from_single(&first);
     assert_eq!(
-        collect_diags(single).unwrap(),
+        collect_diags(&Some(&first)).unwrap(),
         vec![("env".to_owned(), "prod".to_owned())]
     );
-
-    let slice_refs: [&dyn Diagnostic; 2] = [&first, &second];
-    let slice_view = Diagnostics::from_slice(&slice_refs);
     assert_eq!(
-        collect_diags(slice_view).unwrap(),
+        collect_diags(&(&first, &second)).unwrap(),
         vec![
             ("env".to_owned(), "prod".to_owned()),
             ("region".to_owned(), "us-east".to_owned()),
         ]
     );
 
-    let boxed: Vec<Box<dyn Diagnostic>> = vec![
+    let array_refs: [&dyn Diagnostic; 2] = [&first, &second];
+    let slice_refs: &[&dyn Diagnostic] = &array_refs;
+    assert_eq!(
+        collect_diags(&slice_refs).unwrap(),
+        vec![
+            ("env".to_owned(), "prod".to_owned()),
+            ("region".to_owned(), "us-east".to_owned()),
+        ]
+    );
+
+    let boxed_vec: Vec<Box<dyn Diagnostic>> = vec![
         Box::new(ConstDiag {
             key: "service",
             value: "api",
@@ -142,18 +154,36 @@ fn diagnostics_views_preserve_order_and_handle_empty_inputs() {
             value: "1",
         }),
     ];
-    let boxed_view = Diagnostics::from_boxed(&boxed);
     assert_eq!(
-        collect_diags(boxed_view).unwrap(),
+        collect_diags(&boxed_vec).unwrap(),
         vec![
             ("service".to_owned(), "api".to_owned()),
             ("version".to_owned(), "1".to_owned()),
         ]
     );
+
+    let arc_boxed_slice: Box<[Arc<dyn Diagnostic>]> = vec![
+        Arc::new(ConstDiag {
+            key: "cluster",
+            value: "c1",
+        }) as Arc<dyn Diagnostic>,
+        Arc::new(ConstDiag {
+            key: "zone",
+            value: "z2",
+        }),
+    ]
+    .into_boxed_slice();
+    assert_eq!(
+        collect_diags(&arc_boxed_slice).unwrap(),
+        vec![
+            ("cluster".to_owned(), "c1".to_owned()),
+            ("zone".to_owned(), "z2".to_owned()),
+        ]
+    );
 }
 
 #[test]
-fn diagnostics_visit_short_circuits_on_error() {
+fn composite_diagnostics_short_circuit_on_error() {
     let failing = FailingDiag {
         calls: AtomicUsize::new(0),
     };
@@ -162,12 +192,64 @@ fn diagnostics_visit_short_circuits_on_error() {
         value: "unreachable",
         calls: AtomicUsize::new(0),
     };
-    let slice_refs: [&dyn Diagnostic; 2] = [&failing, &trailing];
 
-    let err = collect_diags(Diagnostics::from_slice(&slice_refs)).unwrap_err();
+    let err = collect_diags(&[&failing as &dyn Diagnostic, &trailing]).unwrap_err();
     assert_eq!(err.message(), "diagnostic failure");
     assert_eq!(failing.calls.load(Ordering::Relaxed), 1);
     assert_eq!(trailing.calls.load(Ordering::Relaxed), 0);
+}
+
+#[derive(Debug)]
+struct ScopedDecorator<A> {
+    inner: A,
+}
+
+impl<A: Append> Append for ScopedDecorator<A> {
+    fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
+        let key = String::from("request_id");
+        let value = format!("req-{}", record.payload());
+        let extra = ScopedDiag {
+            key: &key,
+            value: &value,
+        };
+        self.inner.append(record, &(diags, extra))
+    }
+
+    fn flush(&self) -> Result<(), Error> {
+        self.inner.flush()
+    }
+}
+
+#[test]
+fn decorator_chains_borrowed_non_static_context_onto_dispatch_diagnostics() {
+    let sink = Arc::new(RecordingAppend::new(PrefixLayout { prefix: "dec" }));
+    let logger = logforth_core::builder()
+        .dispatch(|d| {
+            d.diagnostic(ConstDiag {
+                key: "service",
+                value: "billing",
+            })
+            .diagnostic(ConstDiag {
+                key: "env",
+                value: "staging",
+            })
+            .append(ScopedDecorator {
+                inner: sink.clone(),
+            })
+        })
+        .build();
+
+    logger.log(
+        &Record::builder()
+            .level(Level::Info)
+            .payload(format_args!("42"))
+            .build(),
+    );
+
+    assert_eq!(
+        sink.lines(),
+        vec!["dec:42 service=billing env=staging request_id=req-42".to_owned()]
+    );
 }
 
 #[derive(Debug)]
@@ -176,11 +258,11 @@ struct MatchOverrideFilter {
 }
 
 impl Filter for MatchOverrideFilter {
-    fn enabled(&self, _: &FilterCriteria, _: Diagnostics) -> FilterResult {
+    fn enabled(&self, _: &FilterCriteria, _: &dyn Diagnostic) -> FilterResult {
         FilterResult::Neutral
     }
 
-    fn matches(&self, record: &Record, _: Diagnostics) -> FilterResult {
+    fn matches(&self, record: &Record, _: &dyn Diagnostic) -> FilterResult {
         if record
             .payload()
             .to_string()
@@ -199,7 +281,7 @@ struct PrefixLayout {
 }
 
 impl Layout for PrefixLayout {
-    fn format(&self, record: &Record, diags: Diagnostics) -> Result<Vec<u8>, Error> {
+    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
         let mut line = format!("{}:{}", self.prefix, record.payload());
         diags.visit(&mut |key: KeyView, value: ValueView| {
             line.push_str(&format!(" {key}={value}"));
@@ -231,7 +313,7 @@ impl RecordingAppend {
 }
 
 impl Append for RecordingAppend {
-    fn append(&self, record: &Record, diags: Diagnostics) -> Result<(), Error> {
+    fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
         let bytes = self.layout.format(record, diags)?;
         self.lines
             .lock()

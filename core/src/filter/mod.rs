@@ -17,7 +17,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use crate::Diagnostics;
+use crate::Diagnostic;
 use crate::record::FilterCriteria;
 use crate::record::LevelFilter;
 use crate::record::Record;
@@ -36,10 +36,10 @@ pub enum FilterResult {
 /// A filter that can be applied to log records.
 pub trait Filter: fmt::Debug + Send + Sync + 'static {
     /// Whether the record is filtered by its given metadata.
-    fn enabled(&self, criteria: &FilterCriteria, diags: Diagnostics) -> FilterResult;
+    fn enabled(&self, criteria: &FilterCriteria, diags: &dyn Diagnostic) -> FilterResult;
 
     /// Whether the record is filtered.
-    fn matches(&self, record: &Record, diags: Diagnostics) -> FilterResult {
+    fn matches(&self, record: &Record, diags: &dyn Diagnostic) -> FilterResult {
         let criteria = FilterCriteria::builder()
             .level(record.level())
             .target(record.target())
@@ -50,7 +50,7 @@ pub trait Filter: fmt::Debug + Send + Sync + 'static {
 }
 
 impl Filter for LevelFilter {
-    fn enabled(&self, criteria: &FilterCriteria, _: Diagnostics) -> FilterResult {
+    fn enabled(&self, criteria: &FilterCriteria, _: &dyn Diagnostic) -> FilterResult {
         if self.test(criteria.level()) {
             FilterResult::Neutral
         } else {
@@ -66,21 +66,21 @@ impl<T: Filter> From<T> for Box<dyn Filter> {
 }
 
 impl<T: Filter + ?Sized> Filter for Arc<T> {
-    fn enabled(&self, criteria: &FilterCriteria, diags: Diagnostics) -> FilterResult {
+    fn enabled(&self, criteria: &FilterCriteria, diags: &dyn Diagnostic) -> FilterResult {
         (**self).enabled(criteria, diags)
     }
 
-    fn matches(&self, record: &Record, diags: Diagnostics) -> FilterResult {
+    fn matches(&self, record: &Record, diags: &dyn Diagnostic) -> FilterResult {
         (**self).matches(record, diags)
     }
 }
 
 impl<T: Filter + ?Sized> Filter for &'static T {
-    fn enabled(&self, criteria: &FilterCriteria, diags: Diagnostics) -> FilterResult {
+    fn enabled(&self, criteria: &FilterCriteria, diags: &dyn Diagnostic) -> FilterResult {
         (**self).enabled(criteria, diags)
     }
 
-    fn matches(&self, record: &Record, diags: Diagnostics) -> FilterResult {
+    fn matches(&self, record: &Record, diags: &dyn Diagnostic) -> FilterResult {
         (**self).matches(record, diags)
     }
 }

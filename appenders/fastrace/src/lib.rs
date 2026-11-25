@@ -20,7 +20,7 @@
 use std::borrow::Cow;
 
 use jiff::ZonedDateTime;
-use logforth_core::Diagnostics;
+use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::append::Append;
 use logforth_core::kv::KeyView;
@@ -48,7 +48,7 @@ use logforth_core::record::Record;
 pub struct FastraceEvent {}
 
 impl Append for FastraceEvent {
-    fn append(&self, record: &Record, diags: Diagnostics) -> Result<(), Error> {
+    fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
         let message = if let Some(msg) = record.payload_static() {
             Cow::Borrowed(msg)
         } else {

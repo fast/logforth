@@ -39,7 +39,7 @@ use fasyslog::SDElement;
 use fasyslog::format::SyslogContext;
 use fasyslog::sender::SyslogSender;
 use logforth_core::Append;
-use logforth_core::Diagnostics;
+use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::Layout;
 use logforth_core::record::Level;
@@ -293,7 +293,7 @@ impl Syslog {
 }
 
 impl Append for Syslog {
-    fn append(&self, record: &Record, diags: Diagnostics) -> Result<(), Error> {
+    fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
         let message = self.formatter.format_message(record, diags)?;
         let mut sender = self.sender();
         sender
@@ -349,7 +349,7 @@ fn log_level_to_syslog_severity(level: Level) -> fasyslog::Severity {
 }
 
 impl SyslogFormatter {
-    fn format_message(&self, record: &Record, diags: Diagnostics) -> Result<Vec<u8>, Error> {
+    fn format_message(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
         let severity = log_level_to_syslog_severity(record.level());
 
         let message = match self.format {

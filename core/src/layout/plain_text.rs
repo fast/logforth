@@ -15,7 +15,7 @@
 use std::fmt::Write;
 use std::time::SystemTime;
 
-use crate::Diagnostics;
+use crate::Diagnostic;
 use crate::Error;
 use crate::Layout;
 use crate::kv::KeyView;
@@ -60,7 +60,7 @@ impl Visitor for KvWriter {
 }
 
 impl Layout for PlainTextLayout {
-    fn format(&self, record: &Record, diags: Diagnostics) -> Result<Vec<u8>, Error> {
+    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
         let mut text = String::new();
 
         let time = record.time();

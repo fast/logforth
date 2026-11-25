@@ -26,15 +26,27 @@ mod thread_local;
 pub use self::static_global::StaticDiagnostic;
 pub use self::thread_local::ThreadLocalDiagnostic;
 
-/// A Mapped Diagnostic Context (MDC) that provides diagnostic key-values.
-pub trait Diagnostic: fmt::Debug + Send + Sync + 'static {
-    /// Visit the MDC key-values with the provided visitor.
+/// A Mapped Diagnostic Context (MDC) source that visits diagnostic key-values.
+///
+/// Unlike long-lived pipeline traits (`Filter`, `Layout`, `Append`, and `ErrorSink`), `Diagnostic`
+/// does not require `'static` on the trait itself so callers and decorators can borrow scoped or
+/// composite diagnostic context on the stack per log call (`&dyn Diagnostic`). Registering a
+/// diagnostic into [`DispatchBuilder::diagnostic`](crate::DispatchBuilder::diagnostic) enforces
+/// `'static` at the `Box<dyn Diagnostic>` boundary.
+pub trait Diagnostic: fmt::Debug + Send + Sync {
+    /// Visits diagnostic key-value pairs with `visitor`.
     fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error>;
 }
 
-impl<T: Diagnostic> From<T> for Box<dyn Diagnostic> {
+impl<T: Diagnostic + 'static> From<T> for Box<dyn Diagnostic> {
     fn from(value: T) -> Self {
         Box::new(value)
+    }
+}
+
+impl<T: Diagnostic + ?Sized> Diagnostic for &T {
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
+        (**self).visit(visitor)
     }
 }
 
@@ -44,71 +56,72 @@ impl<T: Diagnostic + ?Sized> Diagnostic for Arc<T> {
     }
 }
 
-impl<T: Diagnostic + ?Sized> Diagnostic for &'static T {
+impl Diagnostic for () {
+    fn visit(&self, _: &mut dyn kv::Visitor) -> Result<(), Error> {
+        Ok(())
+    }
+}
+
+impl<T: Diagnostic> Diagnostic for Option<T> {
     fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
-        (**self).visit(visitor)
-    }
-}
-
-/// Borrowed view over zero or more [`Diagnostic`] sources passed to filters, layouts, and
-/// appenders.
-#[derive(Debug, Clone, Copy)]
-pub struct Diagnostics<'a>(DiagnosticsState<'a>);
-
-#[derive(Debug, Clone, Copy)]
-enum DiagnosticsState<'a> {
-    Boxed(&'a [Box<dyn Diagnostic>]),
-    Single(&'a dyn Diagnostic),
-    Slice(&'a [&'a dyn Diagnostic]),
-}
-
-impl Default for Diagnostics<'_> {
-    fn default() -> Self {
-        Self::empty()
-    }
-}
-
-impl<'a> Diagnostics<'a> {
-    /// Creates an empty [`Diagnostics`] view with no attached sources.
-    pub const fn empty() -> Self {
-        Self(DiagnosticsState::Boxed(&[]))
-    }
-
-    /// Creates a [`Diagnostics`] view borrowing a slice of boxed [`Diagnostic`] trait objects.
-    pub const fn from_boxed(diags: &'a [Box<dyn Diagnostic>]) -> Self {
-        Self(DiagnosticsState::Boxed(diags))
-    }
-
-    /// Creates a [`Diagnostics`] view borrowing a single [`Diagnostic`] source.
-    pub const fn from_single(diag: &'a dyn Diagnostic) -> Self {
-        Self(DiagnosticsState::Single(diag))
-    }
-
-    /// Creates a [`Diagnostics`] view borrowing a slice of [`Diagnostic`] trait-object references.
-    pub const fn from_slice(diags: &'a [&'a dyn Diagnostic]) -> Self {
-        Self(DiagnosticsState::Slice(diags))
-    }
-
-    /// Visits key-value pairs from each attached [`Diagnostic`] in order.
-    ///
-    /// # Errors
-    ///
-    /// Returns the first [`Error`] produced by a [`Diagnostic`] or `visitor`, stopping traversal.
-    pub fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
-        match self.0 {
-            DiagnosticsState::Boxed(diags) => {
-                for diag in diags {
-                    diag.visit(visitor)?;
-                }
-                Ok(())
-            }
-            DiagnosticsState::Single(diag) => (*diag).visit(visitor),
-            DiagnosticsState::Slice(diags) => {
-                for &diag in diags {
-                    (*diag).visit(visitor)?;
-                }
-                Ok(())
-            }
+        if let Some(diag) = self {
+            diag.visit(visitor)?;
         }
+        Ok(())
+    }
+}
+
+impl<A: Diagnostic, B: Diagnostic> Diagnostic for (A, B) {
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
+        self.0.visit(visitor)?;
+        self.1.visit(visitor)
+    }
+}
+
+impl<T: Diagnostic, const N: usize> Diagnostic for [T; N] {
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
+        self.as_slice().visit(visitor)
+    }
+}
+
+impl<T: Diagnostic> Diagnostic for [T] {
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
+        for diag in self {
+            diag.visit(visitor)?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: Diagnostic> Diagnostic for Box<[T]> {
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
+        self.as_ref().visit(visitor)
+    }
+}
+
+impl<T: Diagnostic> Diagnostic for Vec<T> {
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
+        self.as_slice().visit(visitor)
+    }
+}
+
+impl Diagnostic for [Box<dyn Diagnostic>] {
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
+        for diag in self {
+            diag.as_ref().visit(visitor)?;
+        }
+        Ok(())
+    }
+}
+
+impl Diagnostic for Box<[Box<dyn Diagnostic>]> {
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
+        self.as_ref().visit(visitor)
+    }
+}
+
+impl Diagnostic for Vec<Box<dyn Diagnostic>> {
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
+        self.as_slice().visit(visitor)
     }
 }

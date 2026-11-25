@@ -22,7 +22,7 @@ use std::io::Write;
 use std::os::unix::net::UnixDatagram;
 
 use logforth_core::Append;
-use logforth_core::Diagnostics;
+use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::kv::KeyView;
 use logforth_core::kv::ValueView;
@@ -248,7 +248,7 @@ impl Visitor for WriteKeyValues<'_> {
 impl Append for Journald {
     /// Extract all fields (standard and custom) from `record`, append all `extra_fields` given
     /// to this appender, and send the result to journald.
-    fn append(&self, record: &Record, diags: Diagnostics) -> Result<(), Error> {
+    fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
         use field::*;
 
         let mut buffer = vec![];

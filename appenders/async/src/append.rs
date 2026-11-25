@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use logforth_core::Append;
-use logforth_core::Diagnostics;
+use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::ErrorSink;
 use logforth_core::error::StderrErrorSink;
@@ -56,7 +56,7 @@ pub struct Async {
 }
 
 impl Append for Async {
-    fn append(&self, record: &Record, diags: Diagnostics) -> Result<(), Error> {
+    fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
         let mut diagnostics = vec![];
 
         let mut collector = DiagnosticCollector(&mut diagnostics);

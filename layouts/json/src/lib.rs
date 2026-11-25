@@ -21,7 +21,7 @@ pub extern crate jiff;
 
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
-use logforth_core::Diagnostics;
+use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::kv::KeyView;
 use logforth_core::kv::ValueView;
@@ -141,7 +141,7 @@ struct RecordLine<'a> {
 }
 
 impl Layout for JsonLayout {
-    fn format(&self, record: &Record, diags: Diagnostics) -> Result<Vec<u8>, Error> {
+    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
         let diagnostics = diags;
 
         // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is

@@ -23,7 +23,7 @@ use std::fmt;
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use logforth_core::Diagnostics;
+use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::Layout;
 use logforth_core::append::Append;
@@ -228,7 +228,7 @@ pub struct OpentelemetryLog {
 }
 
 impl Append for OpentelemetryLog {
-    fn append(&self, record: &Record, diags: Diagnostics) -> Result<(), Error> {
+    fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
         let now = SystemTime::now();
 
         let mut log_record = self.logger.create_log_record();
@@ -326,7 +326,7 @@ fn log_level_to_otel_severity(level: Level) -> opentelemetry::logs::Severity {
 /// A trait for formatting log records into a body that can be sent to OpenTelemetry.
 pub trait MakeBody: fmt::Debug + Send + Sync + 'static {
     /// Creates a log record with optional diagnostics.
-    fn create(&self, record: &Record, diags: Diagnostics) -> Result<AnyValue, Error>;
+    fn create(&self, record: &Record, diags: &dyn Diagnostic) -> Result<AnyValue, Error>;
 }
 
 impl<T: MakeBody> From<T> for Box<dyn MakeBody> {
@@ -336,13 +336,13 @@ impl<T: MakeBody> From<T> for Box<dyn MakeBody> {
 }
 
 impl<T: MakeBody + ?Sized> MakeBody for Arc<T> {
-    fn create(&self, record: &Record, diags: Diagnostics) -> Result<AnyValue, Error> {
+    fn create(&self, record: &Record, diags: &dyn Diagnostic) -> Result<AnyValue, Error> {
         (**self).create(record, diags)
     }
 }
 
 impl<T: MakeBody + ?Sized> MakeBody for &'static T {
-    fn create(&self, record: &Record, diags: Diagnostics) -> Result<AnyValue, Error> {
+    fn create(&self, record: &Record, diags: &dyn Diagnostic) -> Result<AnyValue, Error> {
         (**self).create(record, diags)
     }
 }
@@ -363,7 +363,7 @@ impl MakeBodyLayout {
 }
 
 impl MakeBody for MakeBodyLayout {
-    fn create(&self, record: &Record, diags: Diagnostics) -> Result<AnyValue, Error> {
+    fn create(&self, record: &Record, diags: &dyn Diagnostic) -> Result<AnyValue, Error> {
         let body = self.layout.format(record, diags)?;
         Ok(AnyValue::Bytes(Box::new(body)))
     }

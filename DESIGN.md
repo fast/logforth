@@ -18,31 +18,31 @@ Logforth separates three concerns into distinct primitives:
 | Fan-out (`Dispatch`) | Which output slices and destinations receive this stream? | Ordered `Dispatch` branches inside a `Logger`                 |
 
 - `Logger` is a lightweight `Clone` handle over a shared immutable pipeline, with no global singleton in `logforth-core`. Applications expose process-wide channels through their own initialized statics or dependency injection, while libraries accepting an optional logger can default to a zero-allocation `const fn Logger::noop()`.
-- All five component traits (`Append`, `Layout`, `Filter`, `Diagnostic`, and `ErrorSink`) implement forwarding for `Arc<T>` and `&'static T` across all trait methods, allowing multiple dispatches or independent `Logger` instances to share stateful components directly as a directed acyclic graph; an `Append` or `ErrorSink` must never route back into its owning `Logger`.
+- All five component traits (`Append`, `Layout`, `Filter`, `Diagnostic`, and `ErrorSink`) implement forwarding for `Arc<T>` and `&'static T` across all trait methods (with `Diagnostic` forwarding `&T` across any lifetime), allowing multiple dispatches or independent `Logger` instances to share stateful components directly as a directed acyclic graph; an `Append` or `ErrorSink` must never route back into its owning `Logger`.
 - Configuration placement follows each component's role in the pipeline. `LoggerBuilder::error_sink` sets the logger-wide failure fallback, and `DispatchBuilder::error_sink` optionally overrides it for a specific branch. Out-of-band executors such as `Async` manage an independent worker lifecycle and configure their own `ErrorSink`. `Filter` and `Diagnostic` are configured on `DispatchBuilder` because branches within a `Logger` exist to select distinct event subsets and context; branches that share a filter or diagnostic share it explicitly via `Arc`.
 
 For example, an application can isolate `audit` events on a dedicated `Logger` while its main diagnostic `Logger` fans out `Warn` records to standard error and `Debug` records to a shared `Arc<File>`.
 
 ## Core Extension Traits
 
-Every long-lived pipeline extension point is an object-safe trait (`fmt::Debug + Send + Sync + 'static`) paired with concrete struct implementations rather than closed enums or ad-hoc function pointers:
+Every long-lived pipeline extension point (`Filter`, `Layout`, `Append`, and `ErrorSink`) is an object-safe trait (`fmt::Debug + Send + Sync + 'static`) paired with concrete struct implementations rather than closed enums or ad-hoc function pointers. `Diagnostic` omits the `'static` supertrait bound so per-call and decorator contexts can borrow stack-resident data, while `Box<dyn Diagnostic>` enforces `'static` when registering diagnostics on a `Dispatch`:
 
 ```rust
 pub trait Filter: fmt::Debug + Send + Sync + 'static {
     fn bounds(&self) -> FilterBounds { FilterBounds::ALL }
-    fn filter(&self, record: &Record, diags: Diagnostics) -> FilterResult;
+    fn filter(&self, record: &Record, diags: &dyn Diagnostic) -> FilterResult;
 }
 
-pub trait Diagnostic: fmt::Debug + Send + Sync + 'static {
+pub trait Diagnostic: fmt::Debug + Send + Sync {
     fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error>;
 }
 
 pub trait Layout: fmt::Debug + Send + Sync + 'static {
-    fn format(&self, record: &Record, diags: Diagnostics, buf: &mut Vec<u8>) -> Result<(), Error>;
+    fn format(&self, record: &Record, diags: &dyn Diagnostic, buf: &mut Vec<u8>) -> Result<(), Error>;
 }
 
 pub trait Append: fmt::Debug + Send + Sync + 'static {
-    fn append(&self, record: &Record, diags: Diagnostics) -> Result<(), Error>;
+    fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error>;
     fn flush(&self) -> Result<(), Error>;
 }
 
@@ -51,24 +51,9 @@ pub trait ErrorSink: fmt::Debug + Send + Sync + 'static {
 }
 ```
 
-`Diagnostics<'a>` is a `Copy` view passed to filters, layouts, and appenders without exposing internal container types:
+`Diagnostic` is composable: `()` represents an empty context, and `&T`, `Arc<T>`, `Option<T>`, `(A, B)`, `[T; N]`, `[T]`, `Box<[T]>`, `Vec<T>`, `[Box<dyn Diagnostic>]`, `Box<[Box<dyn Diagnostic>]>`, and `Vec<Box<dyn Diagnostic>>` all implement `Diagnostic`. Callers pass `&dyn Diagnostic` directly without wrapper enums or intermediate allocations, and decorating appenders or layouts can chain borrowed per-call context onto incoming `diags` as `&(diags, extra)` or `&[diags, &extra]`.
 
-```rust
-#[derive(Clone, Copy)]
-pub struct Diagnostics<'a>(DiagnosticsState<'a>);
-
-#[derive(Clone, Copy)]
-enum DiagnosticsState<'a> {
-    // Borrows a Dispatch's owned diagnostic list without copying or re-boxing.
-    Boxed(&'a [Box<dyn Diagnostic>]),
-    // Borrows a stack-resident diagnostic, such as materialized context in an async worker.
-    Single(&'a dyn Diagnostic),
-    // Borrows a slice of trait-object references for ad-hoc composition and testing.
-    Slice(&'a [&'a dyn Diagnostic]),
-}
-```
-
-`Append` consumes structured `&Record` and `Diagnostics` directly so protocol-native sinks can encode typed fields without intermediate text serialization, whereas byte-stream sinks compose a `Layout` internally.
+`Append` consumes structured `&Record` and `&dyn Diagnostic` directly so protocol-native sinks can encode typed fields without intermediate text serialization, whereas byte-stream sinks compose a `Layout` internally.
 
 `Layout::format` appends formatted bytes into a caller-supplied `&mut Vec<u8>` rather than allocating a new buffer per record. Implementations must only append to `buf` without clearing or reading prior bytes, callers must truncate `buf` back to its starting length on `Err`, and record framing such as a trailing newline belongs to the owning `Append` rather than `Layout`. Synchronous appenders may pool thread-local `Vec<u8>` buffers outside I/O locks via `try_borrow_mut`, falling back to a fresh `Vec<u8>` if user `Display::fmt` logs reentrantly.
 
@@ -119,7 +104,7 @@ Logforth provides bidirectional adapters for `log` and `tracing` so applications
 | :--------------------------------------- | :------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Inbound (`log` -> `logforth`)            | `logforth-bridge-log`     | Implements `log::Log`, forwarding structured key-values and updating `log::set_max_level` from `Logger`'s `LevelMask` on global installation    |
 | Inbound (`tracing` -> `logforth`)        | `logforth-bridge-tracing` | Implements `tracing_subscriber::Layer`, translating `tracing::Event` fields and flattening active `event_scope()` span attributes into `Record` |
-| Outbound (`logforth` -> `log`/`tracing`) | `logforth-append-log`     | Implements `Append` by forwarding `Record` and `Diagnostics` to `log::logger()`, supporting both `log` hosts and `tracing-log` hosts            |
+| Outbound (`logforth` -> `log`/`tracing`) | `logforth-append-log`     | Implements `Append` by forwarding `Record` and `&dyn Diagnostic` to `log::logger()`, supporting both `log` hosts and `tracing-log` hosts        |
 
 - Inbound `log` and `tracing` bridges populate `Record::module_path` from the event's module path and emit a `"target"` key-value entry only when the upstream caller explicitly overrode `target` to differ from `module_path`. `LogBridge::enabled` delegates directly to `Logger::enabled` on the mapped severity level.
 - Libraries adopting `logforth` natively can accept an injected `Logger` whose default routes to `logforth-append-log` or `Logger::noop()`, remaining observable inside host applications that use another subscriber.

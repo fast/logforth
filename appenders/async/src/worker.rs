@@ -14,7 +14,6 @@
 
 use logforth_core::Append;
 use logforth_core::Diagnostic;
-use logforth_core::Diagnostics;
 use logforth_core::Error;
 use logforth_core::ErrorSink;
 use logforth_core::kv;
@@ -53,15 +52,10 @@ impl Worker {
             match task {
                 Task::Log { record, diags } => {
                     let async_diag = AsyncDiagnostic(diags);
-                    let diags = if async_diag.0.is_empty() {
-                        Diagnostics::empty()
-                    } else {
-                        Diagnostics::from_single(&async_diag)
-                    };
 
                     record.with(|record| {
                         for append in appends.iter() {
-                            if let Err(err) = append.append(&record, diags) {
+                            if let Err(err) = append.append(&record, &async_diag) {
                                 let err = Error::new("failed to append record").with_source(err);
                                 error_sink.sink(&err);
                             }

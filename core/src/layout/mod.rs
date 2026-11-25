@@ -17,7 +17,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use crate::Diagnostics;
+use crate::Diagnostic;
 use crate::Error;
 use crate::record::Record;
 
@@ -28,7 +28,7 @@ pub use self::plain_text::PlainTextLayout;
 /// A layout for formatting log records.
 pub trait Layout: fmt::Debug + Send + Sync + 'static {
     /// Format a log record with optional diagnostics.
-    fn format(&self, record: &Record, diags: Diagnostics) -> Result<Vec<u8>, Error>;
+    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error>;
 }
 
 impl<T: Layout> From<T> for Box<dyn Layout> {
@@ -38,13 +38,13 @@ impl<T: Layout> From<T> for Box<dyn Layout> {
 }
 
 impl<T: Layout + ?Sized> Layout for Arc<T> {
-    fn format(&self, record: &Record, diags: Diagnostics) -> Result<Vec<u8>, Error> {
+    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
         (**self).format(record, diags)
     }
 }
 
 impl<T: Layout + ?Sized> Layout for &'static T {
-    fn format(&self, record: &Record, diags: Diagnostics) -> Result<Vec<u8>, Error> {
+    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
         (**self).format(record, diags)
     }
 }

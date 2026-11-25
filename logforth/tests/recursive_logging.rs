@@ -15,7 +15,7 @@
 use std::num::NonZeroU64;
 use std::num::NonZeroUsize;
 
-use logforth::Diagnostics;
+use logforth::Diagnostic;
 use logforth::Error;
 use logforth::Layout;
 use logforth::append;
@@ -26,7 +26,7 @@ use logforth::record::Record;
 struct CustomLayout(&'static str);
 
 impl Layout for CustomLayout {
-    fn format(&self, record: &Record, diags: Diagnostics) -> Result<Vec<u8>, Error> {
+    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
         let _ = diags;
         Ok(format!("{} [{}] {}", self.0, record.level(), record.payload()).into_bytes())
     }
