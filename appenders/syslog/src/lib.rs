@@ -298,13 +298,15 @@ impl Append for Syslog {
         let mut sender = self.sender();
         sender
             .send_formatted(&message)
-            .map_err(Error::from_io_error)?;
+            .map_err(|err| Error::new("failed to send syslog message").with_source(err))?;
         Ok(())
     }
 
     fn flush(&self) -> Result<(), Error> {
         let mut sender = self.sender();
-        sender.flush().map_err(Error::from_io_error)?;
+        sender
+            .flush()
+            .map_err(|err| Error::new("failed to flush syslog writer").with_source(err))?;
         Ok(())
     }
 }

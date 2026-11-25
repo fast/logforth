@@ -55,7 +55,6 @@ logforth-layout-logfmt = { version = "0.4.0", path = "layouts/logfmt" }
 logforth-layout-text = { version = "0.4.0", path = "layouts/text" }
 
 # Crates.io dependencies
-anyhow = { version = "1.0" }
 clap = { version = "4.5.49", features = ["derive"] }
 colored = { version = "3.0" }
 ctor = { version = "1.0.6" }

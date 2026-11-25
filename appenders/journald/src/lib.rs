@@ -121,7 +121,8 @@ impl Journald {
     ///
     /// Fails if the journald socket couldn't be opened.
     pub fn new() -> Result<Self, Error> {
-        let socket = UnixDatagram::unbound().map_err(Error::from_io_error)?;
+        let socket = UnixDatagram::unbound()
+            .map_err(|err| Error::new("failed to open journald socket").with_source(err))?;
         let sub = Self {
             socket,
             extra_fields: Vec::new(),
@@ -216,7 +217,7 @@ impl Journald {
             if Some(libc::EMSGSIZE) == err.raw_os_error() {
                 self.send_large_payload(payload)
             } else {
-                Err(Error::from_io_error(err))
+                Err(Error::new("failed to send payload to journald").with_source(err))
             }
         })
     }

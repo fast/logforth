@@ -12,36 +12,52 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Cow;
+use std::error::Error as StdError;
 use std::fmt;
-use std::io;
 
-/// The error struct of logforth.
+/// An error returned or reported by Logforth components.
 pub struct Error {
-    message: String,
-    source: Option<anyhow::Error>,
-    context: Vec<(&'static str, String)>,
+    state: Box<ErrorState>,
+}
+
+struct ErrorState {
+    message: Cow<'static, str>,
+    source: Option<Box<dyn StdError + Send + Sync + 'static>>,
+}
+
+impl Error {
+    /// Create a new [`Error`] with the given message.
+    pub fn new(message: impl Into<Cow<'static, str>>) -> Self {
+        Self {
+            state: Box::new(ErrorState {
+                message: message.into(),
+                source: None,
+            }),
+        }
+    }
+
+    /// Return the error message.
+    pub fn message(&self) -> &str {
+        &self.state.message
+    }
+
+    /// Attach or replace the underlying causal error.
+    pub fn with_source(
+        mut self,
+        src: impl Into<Box<dyn StdError + Send + Sync + 'static>>,
+    ) -> Self {
+        self.state.source = Some(src.into());
+        self
+    }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.message)?;
+        f.write_str(&self.state.message)?;
 
-        if !self.context.is_empty() {
-            write!(f, ", context: {{ ")?;
-            write!(
-                f,
-                "{}",
-                self.context
-                    .iter()
-                    .map(|(k, v)| format!("{k}: {v}"))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )?;
-            write!(f, " }}")?;
-        }
-
-        if let Some(source) = &self.source {
-            write!(f, ", source: {source}")?;
+        if let Some(source) = &self.state.source {
+            write!(f, ": {source}")?;
         }
 
         Ok(())
@@ -50,82 +66,113 @@ impl fmt::Display for Error {
 
 impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // If alternate has been specified, we will print like Debug.
         if f.alternate() {
-            let mut de = f.debug_struct("Error");
-            de.field("message", &self.message);
-            de.field("context", &self.context);
-            de.field("sources", &self.source);
-            return de.finish();
+            return f
+                .debug_struct("Error")
+                .field("message", &self.state.message)
+                .field("source", &self.state.source)
+                .finish();
         }
 
-        write!(f, "{}", self.message)?;
-        writeln!(f)?;
+        write!(f, "{}", self.state.message)?;
 
-        if !self.context.is_empty() {
+        if let Some(source) = &self.state.source {
             writeln!(f)?;
-            writeln!(f, "Context:")?;
-            for (k, v) in self.context.iter() {
-                writeln!(f, "   {k}: {v}")?;
+            writeln!(f)?;
+            writeln!(f, "Caused by:")?;
+            let mut curr: Option<&(dyn StdError + 'static)> = Some(source.as_ref());
+            let mut index = 0usize;
+            while let Some(err) = curr {
+                if let Some(lf) = err.downcast_ref::<Error>() {
+                    writeln!(f, "   {index}: {}", lf.message())?;
+                } else {
+                    writeln!(f, "   {index}: {err}")?;
+                }
+                curr = err.source();
+                index += 1;
             }
-        }
-
-        if let Some(source) = &self.source {
-            writeln!(f)?;
-            writeln!(f, "Source:")?;
-            writeln!(f, "   {source:#}")?;
         }
 
         Ok(())
     }
 }
 
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.source.as_ref().map(|v| v.as_ref())
+impl StdError for Error {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        self.state
+            .source
+            .as_deref()
+            .map(|err| err as &(dyn StdError + 'static))
     }
 }
 
-impl Error {
-    /// Create a new Error with error kind and message.
-    pub fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-            source: None,
-            context: vec![],
+#[cfg(test)]
+mod tests {
+    use std::io;
+
+    use super::*;
+
+    fn assert_send_sync_static<T: Send + Sync + 'static>() {}
+
+    #[derive(Debug)]
+    struct TransportError {
+        detail: &'static str,
+        cause: io::Error,
+    }
+
+    impl fmt::Display for TransportError {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str(self.detail)
         }
     }
 
-    /// Add one more context in error.
-    pub fn with_context(mut self, key: &'static str, value: impl ToString) -> Self {
-        self.context.push((key, value.to_string()));
-        self
+    impl StdError for TransportError {
+        fn source(&self) -> Option<&(dyn StdError + 'static)> {
+            Some(&self.cause)
+        }
     }
 
-    /// Set source for error.
-    ///
-    /// # Panics
-    ///
-    /// If the source has been set, we will raise a panic here.
-    pub fn with_source(mut self, src: impl Into<anyhow::Error>) -> Self {
-        assert!(self.source.is_none(), "the source error has been set");
-
-        self.source = Some(src.into());
-        self
+    #[test]
+    fn error_layout_and_auto_traits() {
+        assert_send_sync_static::<Error>();
+        assert_eq!(size_of::<Error>(), size_of::<usize>());
+        assert_eq!(size_of::<Result<(), Error>>(), size_of::<usize>());
     }
 
-    /// Return an iterator over all sources of this error.
-    pub fn sources(&self) -> impl ExactSizeIterator<Item = &(dyn std::error::Error + 'static)> {
-        self.source.iter().map(|v| v.as_ref())
+    #[test]
+    fn error_display_debug_and_downcast_chain() {
+        let leaf = io::Error::new(io::ErrorKind::BrokenPipe, "broken pipe");
+        let transport = TransportError {
+            detail: "connection reset",
+            cause: leaf,
+        };
+        let middle = Error::new("failed to export batch").with_source(transport);
+        let outer = Error::new("failed to flush appender").with_source(middle);
+
+        assert_eq!(outer.message(), "failed to flush appender");
+        assert_eq!(
+            outer.to_string(),
+            "failed to flush appender: failed to export batch: connection reset"
+        );
+
+        let debug = format!("{outer:?}");
+        assert_eq!(
+            debug,
+            "failed to flush appender\n\nCaused by:\n   0: failed to export batch\n   1: connection reset\n   2: broken pipe\n"
+        );
+
+        let hop1 = outer.source().unwrap();
+        let hop2 = hop1.source().unwrap();
+        let hop3 = hop2.source().unwrap().downcast_ref::<io::Error>().unwrap();
+        assert_eq!(hop3.kind(), io::ErrorKind::BrokenPipe);
     }
 
-    /// Default constructor for [`Error`] from [`io::Error`].
-    pub fn from_io_error(err: io::Error) -> Error {
-        Error::new("failed to perform io").with_source(err)
-    }
+    #[test]
+    fn with_source_replaces_existing_source_without_panicking() {
+        let err = Error::new("operation failed")
+            .with_source("first cause")
+            .with_source("second cause");
 
-    /// Default constructor for [`Error`] from [`fmt::Error`].
-    pub fn from_fmt_error(err: fmt::Error) -> Error {
-        Error::new("failed to perform format").with_source(err)
+        assert_eq!(err.to_string(), "operation failed: second cause");
     }
 }

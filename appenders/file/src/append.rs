@@ -164,13 +164,17 @@ impl Append for File {
         let mut bytes = self.layout.format(record, diags)?;
         bytes.push(b'\n');
         let mut writer = self.writer();
-        writer.write_all(&bytes).map_err(Error::from_io_error)?;
+        writer
+            .write_all(&bytes)
+            .map_err(|err| Error::new("failed to write log file").with_source(err))?;
         Ok(())
     }
 
     fn flush(&self) -> Result<(), Error> {
         let mut writer = self.writer();
-        writer.flush().map_err(Error::from_io_error)?;
+        writer
+            .flush()
+            .map_err(|err| Error::new("failed to flush log file").with_source(err))?;
         Ok(())
     }
 }
