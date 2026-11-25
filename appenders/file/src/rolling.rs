@@ -16,7 +16,6 @@ use std::fs;
 use std::fs::File;
 use std::fs::Metadata;
 use std::fs::OpenOptions;
-use std::io;
 use std::io::Write;
 use std::num::NonZeroUsize;
 use std::path::Path;
@@ -26,8 +25,6 @@ use std::str::FromStr;
 use jiff::ZonedDateTime;
 use jiff::civil::DateTime;
 use logforth_core::Error;
-use logforth_core::Trap;
-use logforth_core::trap::BestEffortTrap;
 
 use crate::clock::Clock;
 use crate::rotation::Rotation;
@@ -39,41 +36,48 @@ pub struct RollingFileWriter {
     writer: File,
 }
 
-impl Drop for RollingFileWriter {
-    fn drop(&mut self) {
-        if let Err(err) = self.writer.flush() {
-            let err = Error::new("failed to flush file writer on dropped").with_source(err);
-            self.state.trap.trap(&err);
-        }
-    }
-}
-
-impl Write for RollingFileWriter {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+impl RollingFileWriter {
+    pub(crate) fn write_all(&mut self, buf: &[u8]) -> Result<(), Error> {
         let now = self.state.clock.now();
         let writer = &mut self.writer;
+        let mut rollover_err = None;
 
         if self.state.should_rollover_on_date(&now) {
             self.state.current_filesize = 0;
             self.state.next_date_timestamp = self.state.rotation.next_date_timestamp(&now);
             let current = &self.state.this_date_timestamp;
-            self.state.refresh_writer(current, writer);
+            if let Err(err) = self.state.refresh_writer(current, writer) {
+                rollover_err = Some(err);
+            }
         }
 
         if self.state.should_rollover_on_size() {
             self.state.current_filesize = 0;
-            self.state.refresh_writer(&now, writer);
+            if let Err(err) = self.state.refresh_writer(&now, writer)
+                && rollover_err.is_none()
+            {
+                rollover_err = Some(err);
+            }
         }
 
         self.state.this_date_timestamp = now;
 
         writer
-            .write(buf)
-            .inspect(|&n| self.state.current_filesize += n)
+            .write_all(buf)
+            .map_err(|err| Error::new("failed to write log file").with_source(err))?;
+        self.state.current_filesize += buf.len();
+
+        if let Some(err) = rollover_err {
+            return Err(err);
+        }
+
+        Ok(())
     }
 
-    fn flush(&mut self) -> io::Result<()> {
-        self.writer.flush()
+    pub(crate) fn flush(&mut self) -> Result<(), Error> {
+        self.writer
+            .flush()
+            .map_err(|err| Error::new("failed to flush log file").with_source(err))
     }
 }
 
@@ -90,7 +94,6 @@ pub struct RollingFileWriterBuilder {
     max_size: Option<NonZeroUsize>,
     max_files: Option<NonZeroUsize>,
     clock: Clock,
-    trap: Box<dyn Trap>,
 }
 
 impl RollingFileWriterBuilder {
@@ -105,14 +108,7 @@ impl RollingFileWriterBuilder {
             max_size: None,
             max_files: None,
             clock: Clock::DefaultClock,
-            trap: Box::new(BestEffortTrap::default()),
         }
-    }
-
-    /// Set the trap for the rolling file writer.
-    pub fn trap(mut self, trap: impl Into<Box<dyn Trap>>) -> Self {
-        self.trap = trap.into();
-        self
     }
 
     /// Set the rotation policy.
@@ -164,7 +160,6 @@ impl RollingFileWriterBuilder {
             max_size,
             max_files,
             clock,
-            trap,
         } = self;
 
         if filename.is_empty() {
@@ -179,7 +174,6 @@ impl RollingFileWriterBuilder {
             max_size,
             max_files,
             clock,
-            trap,
         )?;
 
         Ok(RollingFileWriter { state, writer })
@@ -219,11 +213,9 @@ struct State {
     max_size: Option<NonZeroUsize>,
     max_files: Option<NonZeroUsize>,
     clock: Clock,
-    trap: Box<dyn Trap>,
 }
 
 impl State {
-    #[allow(clippy::too_many_arguments)]
     fn new(
         rotation: Rotation,
         dir: impl AsRef<Path>,
@@ -232,7 +224,6 @@ impl State {
         max_size: Option<NonZeroUsize>,
         max_files: Option<NonZeroUsize>,
         clock: Clock,
-        trap: Box<dyn Trap>,
     ) -> Result<(Self, File), Error> {
         let now = clock.now();
         let log_dir = dir.as_ref().to_path_buf();
@@ -251,7 +242,6 @@ impl State {
             max_size,
             max_files,
             clock,
-            trap,
         };
 
         let files = {
@@ -420,7 +410,7 @@ impl State {
         Ok(())
     }
 
-    fn rotate_log_writer(&self, now: &ZonedDateTime) -> Result<File, Error> {
+    fn rotate_log_writer(&self, now: &ZonedDateTime) -> Result<(File, Option<Error>), Error> {
         let mut renames = vec![];
         for i in 1..self.max_files.map_or(usize::MAX, |n| n.get()) {
             let filepath = self.join_date(now, i);
@@ -448,29 +438,32 @@ impl State {
             .with_source(err)
         })?;
 
-        if let Some(max_files) = self.max_files
-            && let Err(err) = self.delete_oldest_logs(max_files.get())
-        {
-            let err = Error::new("failed to delete oldest logs").with_source(err);
-            self.trap.trap(&err);
-        }
+        let cleanup_err = if let Some(max_files) = self.max_files {
+            self.delete_oldest_logs(max_files.get())
+                .err()
+                .map(|err| Error::new("failed to delete oldest logs").with_source(err))
+        } else {
+            None
+        };
 
-        self.create_log_writer()
+        let new_file = self.create_log_writer()?;
+        Ok((new_file, cleanup_err))
     }
 
-    fn refresh_writer(&self, now: &ZonedDateTime, file: &mut File) {
+    fn refresh_writer(&self, now: &ZonedDateTime, file: &mut File) -> Result<(), Error> {
         match self.rotate_log_writer(now) {
-            Ok(new_file) => {
-                if let Err(err) = file.flush() {
-                    let err = Error::new("failed to flush previous writer").with_source(err);
-                    self.trap.trap(&err);
-                }
+            Ok((new_file, cleanup_err)) => {
+                let flush_err = file
+                    .flush()
+                    .err()
+                    .map(|err| Error::new("failed to flush previous writer").with_source(err));
                 *file = new_file;
+                if let Some(err) = cleanup_err.or(flush_err) {
+                    return Err(err);
+                }
+                Ok(())
             }
-            Err(err) => {
-                let err = Error::new("failed to rotate log writer").with_source(err);
-                self.trap.trap(&err);
-            }
+            Err(err) => Err(Error::new("failed to rotate log writer").with_source(err)),
         }
     }
 
@@ -489,7 +482,6 @@ impl State {
 mod tests {
     use std::cmp::min;
     use std::fs;
-    use std::io::Write;
     use std::num::NonZeroUsize;
     use std::ops::Add;
     use std::str::FromStr;
@@ -533,7 +525,7 @@ mod tests {
             while expected_file_size < max_size.get() {
                 let rand_str = generate_random_string();
                 expected_file_size += rand_str.len();
-                assert_eq!(writer.write(rand_str.as_bytes()).unwrap(), rand_str.len());
+                writer.write_all(rand_str.as_bytes()).unwrap();
                 assert_eq!(writer.state.current_filesize, expected_file_size);
             }
 
@@ -592,7 +584,7 @@ mod tests {
                 let rand_str = generate_random_string();
                 expected_file_size += rand_str.len();
 
-                assert_eq!(writer.write(rand_str.as_bytes()).unwrap(), rand_str.len());
+                writer.write_all(rand_str.as_bytes()).unwrap();
                 assert_eq!(writer.state.current_filesize, expected_file_size);
 
                 cur_time = cur_time.add(write_interval);
@@ -660,7 +652,7 @@ mod tests {
                 let rand_str = generate_random_string();
                 expected_file_size += rand_str.len();
 
-                assert_eq!(writer.write(rand_str.as_bytes()).unwrap(), rand_str.len());
+                writer.write_all(rand_str.as_bytes()).unwrap();
                 assert_eq!(writer.state.current_filesize, expected_file_size);
 
                 cur_time += write_interval;
@@ -684,6 +676,30 @@ mod tests {
         }
         assert!(file_size_rotation_trigger);
         assert!(time_rotation_trigger);
+    }
+
+    #[test]
+    fn test_rollover_failure_preserves_record_and_returns_error() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref(), "test_file")
+            .filename_suffix("log")
+            .max_file_size(NonZeroUsize::new(5).unwrap())
+            .max_log_files(NonZeroUsize::new(2).unwrap())
+            .build()
+            .unwrap();
+
+        writer.write_all(b"first\n").unwrap();
+
+        // Block rotating regular file `test_file.1.log` -> directory `test_file.2.log`.
+        fs::write(temp_dir.path().join("test_file.1.log"), b"archive").unwrap();
+        fs::create_dir_all(temp_dir.path().join("test_file.2.log")).unwrap();
+
+        let err = writer.write_all(b"second\n").unwrap_err();
+        assert!(err.to_string().contains("failed to rotate log writer"));
+
+        writer.flush().unwrap();
+        let content = fs::read_to_string(temp_dir.path().join("test_file.log")).unwrap();
+        assert_eq!(content, "first\nsecond\n");
     }
 
     fn generate_random_string() -> String {

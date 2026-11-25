@@ -22,7 +22,7 @@ use logforth_append_async::AsyncBuilder;
 use logforth_core::Append;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
-use logforth_core::Trap;
+use logforth_core::ErrorSink;
 use logforth_core::record::Record;
 
 #[derive(Debug)]
@@ -56,17 +56,6 @@ impl Append for FailingFlush {
     }
 }
 
-#[derive(Debug)]
-struct CapturedTrap {
-    errors: mpsc::Sender<String>,
-}
-
-impl Trap for CapturedTrap {
-    fn trap(&self, err: &Error) {
-        self.errors.send(err.to_string()).unwrap();
-    }
-}
-
 #[test]
 fn flush_waits_for_worker_completion() {
     let started = Arc::new(AtomicBool::new(false));
@@ -96,17 +85,28 @@ fn flush_waits_for_worker_completion() {
         .expect("flush should succeed");
 }
 
+#[derive(Debug)]
+struct CapturedErrors {
+    errors: mpsc::Sender<String>,
+}
+
+impl ErrorSink for CapturedErrors {
+    fn sink(&self, err: &Error) {
+        self.errors.send(format!("{err:#}")).unwrap();
+    }
+}
+
 #[test]
 fn flush_handles_errors_in_worker_thread() {
     let (tx, rx) = mpsc::channel();
 
     let async_append = AsyncBuilder::new("async-flush-error")
-        .trap(CapturedTrap { errors: tx })
+        .error_sink(CapturedErrors { errors: tx })
         .append(FailingFlush)
         .build();
 
     async_append.flush().unwrap();
 
     let err = rx.recv().unwrap();
-    assert!(err.contains("flush failed"));
+    assert_eq!(err, "failed to flush appender: flush failed");
 }

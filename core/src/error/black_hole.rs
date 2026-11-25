@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io;
-use std::io::Write;
-
 use crate::Error;
-use crate::trap::Trap;
+use crate::ErrorSink;
 
-/// A best-effort trap that sends errors to standard error if possible.
-///
-/// If standard error is not available, it does nothing.
-#[derive(Debug, Default)]
+/// An [`ErrorSink`] that silently discards all internal errors.
+#[derive(Debug, Default, Clone, Copy)]
 #[non_exhaustive]
-pub struct BestEffortTrap {}
+pub struct BlackHoleErrorSink {}
 
-impl Trap for BestEffortTrap {
-    fn trap(&self, err: &Error) {
-        let _ = writeln!(io::stderr(), "{err}");
+impl BlackHoleErrorSink {
+    /// Create a new [`BlackHoleErrorSink`].
+    pub const fn new() -> Self {
+        Self {}
     }
+}
+
+impl ErrorSink for BlackHoleErrorSink {
+    fn sink(&self, _: &Error) {}
 }
