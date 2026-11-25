@@ -30,7 +30,7 @@ Every long-lived pipeline extension point is an object-safe trait (`fmt::Debug +
 ```rust
 pub trait Filter: fmt::Debug + Send + Sync + 'static {
     fn bounds(&self) -> FilterBounds { FilterBounds::ALL }
-    fn check(&self, record: &Record, diags: Diagnostics) -> FilterResult;
+    fn filter(&self, record: &Record, diags: Diagnostics) -> FilterResult;
 }
 
 pub trait Diagnostic: fmt::Debug + Send + Sync + 'static {
@@ -84,7 +84,7 @@ enum DiagnosticsState<'a> {
   - `Neutral` expresses no decision and passes control to the next filter; a `Dispatch` accepts the record if all filters finish `Neutral`.
 - `LevelMask(u32)` represents any subset of the 24 levels, including non-monotonic `LevelFilter` predicates, in a single machine register. Each `Filter` reports static `may_accept` and `may_neutral` masks through `Filter::bounds`, and `DispatchBuilder::build` computes the branch `LevelMask` by backwards induction `mask = may_accept | (may_neutral & next)`.
 - `Logger::enabled(level)` tests the union of its dispatches' `LevelMask` values in a single bitwise operation before a callsite constructs a `Record`, and `Logger::log` tests each branch's `LevelMask` before evaluating its `Filter` chain. Attaching a leading context-driven `Accept` filter widens that branch's `LevelMask` to `ALL`, trading static level pruning for per-event context inspection on that branch; runtime-mutable filters likewise report `ALL` so dynamic updates take effect immediately.
-- `RustLogFilter` checks `Record::module_path()` after passing the level mask, and exposes named-directive checks so custom filters can inspect explicit key-value fields before falling back to module paths.
+- `RustLogFilter` filters on `Record::module_path()` after passing the level mask, and exposes named-directive filtering so custom filters can inspect explicit key-value fields before falling back to module paths.
 
 ## Structured Key-Values and Diagnostics
 
