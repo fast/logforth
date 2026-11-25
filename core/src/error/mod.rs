@@ -12,9 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Error types and sinks for internal runtime errors produced by the logging pipeline.
+
 use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt;
+
+mod black_hole;
+mod sink;
+mod stderr;
+
+pub use self::black_hole::BlackHoleErrorSink;
+pub use self::sink::ErrorSink;
+pub use self::stderr::StderrErrorSink;
 
 /// An error returned or reported by Logforth components.
 pub struct Error {
@@ -56,8 +66,12 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.state.message)?;
 
-        if let Some(source) = &self.state.source {
-            write!(f, ": {source}")?;
+        if f.alternate() {
+            let mut curr = self.source();
+            while let Some(cause) = curr {
+                write!(f, ": {cause}")?;
+                curr = cause.source();
+            }
         }
 
         Ok(())
@@ -74,21 +88,15 @@ impl fmt::Debug for Error {
                 .finish();
         }
 
-        write!(f, "{}", self.state.message)?;
+        f.write_str(&self.state.message)?;
 
-        if let Some(source) = &self.state.source {
-            writeln!(f)?;
-            writeln!(f)?;
-            writeln!(f, "Caused by:")?;
-            let mut curr: Option<&(dyn StdError + 'static)> = Some(source.as_ref());
+        if let Some(first) = self.source() {
+            write!(f, "\n\nCaused by:")?;
+            let mut curr = Some(first);
             let mut index = 0usize;
-            while let Some(err) = curr {
-                if let Some(lf) = err.downcast_ref::<Error>() {
-                    writeln!(f, "   {index}: {}", lf.message())?;
-                } else {
-                    writeln!(f, "   {index}: {err}")?;
-                }
-                curr = err.source();
+            while let Some(cause) = curr {
+                write!(f, "\n    {index}: {cause}")?;
+                curr = cause.source();
                 index += 1;
             }
         }
@@ -150,16 +158,17 @@ mod tests {
         let outer = Error::new("failed to flush appender").with_source(middle);
 
         assert_eq!(outer.message(), "failed to flush appender");
+        assert_eq!(outer.to_string(), "failed to flush appender");
         assert_eq!(
-            outer.to_string(),
-            "failed to flush appender: failed to export batch: connection reset"
+            format!("{outer:#}"),
+            "failed to flush appender: failed to export batch: connection reset: broken pipe"
         );
 
-        let debug = format!("{outer:?}");
         assert_eq!(
-            debug,
-            "failed to flush appender\n\nCaused by:\n   0: failed to export batch\n   1: connection reset\n   2: broken pipe\n"
+            format!("{outer:?}"),
+            "failed to flush appender\n\nCaused by:\n    0: failed to export batch\n    1: connection reset\n    2: broken pipe"
         );
+        assert!(format!("{outer:#?}").starts_with("Error {"));
 
         let hop1 = outer.source().unwrap();
         let hop2 = hop1.source().unwrap();
@@ -173,6 +182,7 @@ mod tests {
             .with_source("first cause")
             .with_source("second cause");
 
-        assert_eq!(err.to_string(), "operation failed: second cause");
+        assert_eq!(err.to_string(), "operation failed");
+        assert_eq!(format!("{err:#}"), "operation failed: second cause");
     }
 }

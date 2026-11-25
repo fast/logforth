@@ -67,9 +67,10 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
 
-pub use logforth_core::Error;
 pub use logforth_core::append::Append;
 pub use logforth_core::diagnostic::Diagnostic;
+pub use logforth_core::error::Error;
+pub use logforth_core::error::ErrorSink;
 pub use logforth_core::filter::Filter;
 pub use logforth_core::kv;
 pub use logforth_core::layout::Layout;
@@ -132,6 +133,11 @@ pub mod diagnostic {
     pub use logforth_diagnostic_task_local::TaskLocalDiagnostic;
 }
 
+/// Error types and sinks for internal runtime errors.
+pub mod error {
+    pub use logforth_core::error::*;
+}
+
 /// Filters for log records.
 pub mod filter {
     pub use logforth_core::filter::*;
@@ -154,11 +160,6 @@ pub mod layout {
     pub use logforth_layout_text as text;
     #[cfg(feature = "layout-text")]
     pub use logforth_layout_text::TextLayout;
-}
-
-/// Traps for processing errors.
-pub mod trap {
-    pub use logforth_core::trap::*;
 }
 
 #[cfg(feature = "starter-log")]
