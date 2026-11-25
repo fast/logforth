@@ -15,8 +15,9 @@
 //! Filters for log records.
 
 use std::fmt;
+use std::sync::Arc;
 
-use crate::Diagnostic;
+use crate::Diagnostics;
 use crate::record::FilterCriteria;
 use crate::record::LevelFilter;
 use crate::record::Record;
@@ -35,10 +36,10 @@ pub enum FilterResult {
 /// A filter that can be applied to log records.
 pub trait Filter: fmt::Debug + Send + Sync + 'static {
     /// Whether the record is filtered by its given metadata.
-    fn enabled(&self, criteria: &FilterCriteria, diags: &[Box<dyn Diagnostic>]) -> FilterResult;
+    fn enabled(&self, criteria: &FilterCriteria, diags: Diagnostics) -> FilterResult;
 
     /// Whether the record is filtered.
-    fn matches(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> FilterResult {
+    fn matches(&self, record: &Record, diags: Diagnostics) -> FilterResult {
         let criteria = FilterCriteria::builder()
             .level(record.level())
             .target(record.target())
@@ -49,7 +50,7 @@ pub trait Filter: fmt::Debug + Send + Sync + 'static {
 }
 
 impl Filter for LevelFilter {
-    fn enabled(&self, criteria: &FilterCriteria, _: &[Box<dyn Diagnostic>]) -> FilterResult {
+    fn enabled(&self, criteria: &FilterCriteria, _: Diagnostics) -> FilterResult {
         if self.test(criteria.level()) {
             FilterResult::Neutral
         } else {
@@ -61,5 +62,25 @@ impl Filter for LevelFilter {
 impl<T: Filter> From<T> for Box<dyn Filter> {
     fn from(value: T) -> Self {
         Box::new(value)
+    }
+}
+
+impl<T: Filter + ?Sized> Filter for Arc<T> {
+    fn enabled(&self, criteria: &FilterCriteria, diags: Diagnostics) -> FilterResult {
+        (**self).enabled(criteria, diags)
+    }
+
+    fn matches(&self, record: &Record, diags: Diagnostics) -> FilterResult {
+        (**self).matches(record, diags)
+    }
+}
+
+impl<T: Filter + ?Sized> Filter for &'static T {
+    fn enabled(&self, criteria: &FilterCriteria, diags: Diagnostics) -> FilterResult {
+        (**self).enabled(criteria, diags)
+    }
+
+    fn matches(&self, record: &Record, diags: Diagnostics) -> FilterResult {
+        (**self).matches(record, diags)
     }
 }

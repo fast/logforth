@@ -76,7 +76,7 @@
 use std::borrow::Cow;
 use std::str::FromStr;
 
-use logforth_core::Diagnostic;
+use logforth_core::Diagnostics;
 use logforth_core::Error;
 use logforth_core::Filter;
 use logforth_core::filter::FilterResult;
@@ -115,7 +115,7 @@ impl RustLogFilter {
 }
 
 impl Filter for RustLogFilter {
-    fn enabled(&self, criteria: &FilterCriteria, _: &[Box<dyn Diagnostic>]) -> FilterResult {
+    fn enabled(&self, criteria: &FilterCriteria, _: Diagnostics) -> FilterResult {
         let level = criteria.level();
         let target = criteria.target();
 

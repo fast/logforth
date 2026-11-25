@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::Diagnostic;
+use crate::Diagnostics;
 use crate::Error;
 use crate::Layout;
 use crate::append::Append;
@@ -62,7 +62,7 @@ impl Testing {
 }
 
 impl Append for Testing {
-    fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+    fn append(&self, record: &Record, diags: Diagnostics) -> Result<(), Error> {
         let bytes = self.layout.format(record, diags)?;
         eprintln!("{}", String::from_utf8_lossy(&bytes));
         Ok(())

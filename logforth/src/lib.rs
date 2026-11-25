@@ -69,6 +69,7 @@
 
 pub use logforth_core::append::Append;
 pub use logforth_core::diagnostic::Diagnostic;
+pub use logforth_core::diagnostic::Diagnostics;
 pub use logforth_core::error::Error;
 pub use logforth_core::error::ErrorSink;
 pub use logforth_core::filter::Filter;

@@ -13,10 +13,9 @@
 // limitations under the License.
 
 //! Mapped Diagnostic Context (MDC).
-//!
-//! A light-weight technique for stamping log request.
 
 use std::fmt;
+use std::sync::Arc;
 
 use crate::Error;
 use crate::kv;
@@ -36,5 +35,90 @@ pub trait Diagnostic: fmt::Debug + Send + Sync + 'static {
 impl<T: Diagnostic> From<T> for Box<dyn Diagnostic> {
     fn from(value: T) -> Self {
         Box::new(value)
+    }
+}
+
+impl<T: Diagnostic + ?Sized> Diagnostic for Arc<T> {
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
+        (**self).visit(visitor)
+    }
+}
+
+impl<T: Diagnostic + ?Sized> Diagnostic for &'static T {
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
+        (**self).visit(visitor)
+    }
+}
+
+/// Borrowed view over zero or more [`Diagnostic`] sources passed to filters, layouts, and
+/// appenders.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Diagnostics<'a>(DiagnosticsState<'a>);
+
+#[derive(Debug, Default, Clone, Copy)]
+enum DiagnosticsState<'a> {
+    #[default]
+    Empty,
+    Boxed(&'a [Box<dyn Diagnostic>]),
+    Single(&'a dyn Diagnostic),
+    Slice(&'a [&'a dyn Diagnostic]),
+}
+
+impl<'a> Diagnostics<'a> {
+    /// Creates an empty [`Diagnostics`] view with no attached sources.
+    pub const fn empty() -> Self {
+        Self(DiagnosticsState::Empty)
+    }
+
+    /// Creates a [`Diagnostics`] view borrowing a slice of boxed [`Diagnostic`] trait objects.
+    pub const fn from_boxed(diags: &'a [Box<dyn Diagnostic>]) -> Self {
+        if diags.is_empty() {
+            Self::empty()
+        } else {
+            Self(DiagnosticsState::Boxed(diags))
+        }
+    }
+
+    /// Creates a [`Diagnostics`] view borrowing a single [`Diagnostic`] source.
+    pub const fn from_single(diag: &'a dyn Diagnostic) -> Self {
+        Self(DiagnosticsState::Single(diag))
+    }
+
+    /// Creates a [`Diagnostics`] view borrowing a slice of [`Diagnostic`] trait-object references.
+    pub const fn from_slice(diags: &'a [&'a dyn Diagnostic]) -> Self {
+        if diags.is_empty() {
+            Self::empty()
+        } else {
+            Self(DiagnosticsState::Slice(diags))
+        }
+    }
+
+    /// Returns `true` if no [`Diagnostic`] sources are attached to this view.
+    pub const fn is_empty(&self) -> bool {
+        matches!(self.0, DiagnosticsState::Empty)
+    }
+
+    /// Visits key-value pairs from each attached [`Diagnostic`] in order.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first [`Error`] produced by a [`Diagnostic`] or `visitor`, stopping traversal.
+    pub fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
+        match self.0 {
+            DiagnosticsState::Empty => Ok(()),
+            DiagnosticsState::Boxed(diags) => {
+                for diag in diags {
+                    diag.visit(visitor)?;
+                }
+                Ok(())
+            }
+            DiagnosticsState::Single(diag) => (*diag).visit(visitor),
+            DiagnosticsState::Slice(diags) => {
+                for &diag in diags {
+                    (*diag).visit(visitor)?;
+                }
+                Ok(())
+            }
+        }
     }
 }

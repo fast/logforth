@@ -20,7 +20,7 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
-use logforth_core::Diagnostic;
+use logforth_core::Diagnostics;
 use logforth_core::Error;
 use logforth_core::kv::KeyView;
 use logforth_core::kv::ValueView;
@@ -202,7 +202,7 @@ struct RecordLine<'a> {
 }
 
 impl Layout for GoogleCloudLoggingLayout {
-    fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
+    fn format(&self, record: &Record, diags: Diagnostics) -> Result<Vec<u8>, Error> {
         // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
         // very unlikely if the system clock is correct.
         let timestamp = jiff::Timestamp::try_from(record.time()).unwrap();
@@ -217,9 +217,7 @@ impl Layout for GoogleCloudLoggingLayout {
         };
 
         record.key_values().visit(&mut visitor)?;
-        for d in diags {
-            d.visit(&mut visitor)?;
-        }
+        diags.visit(&mut visitor)?;
 
         let record_line = RecordLine {
             extra_fields: visitor.payload_fields,

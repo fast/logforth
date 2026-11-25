@@ -27,6 +27,7 @@ pub mod record;
 
 pub use self::append::Append;
 pub use self::diagnostic::Diagnostic;
+pub use self::diagnostic::Diagnostics;
 pub use self::error::Error;
 pub use self::error::ErrorSink;
 pub use self::filter::Filter;

@@ -19,7 +19,7 @@ use std::sync::Mutex;
 use std::sync::MutexGuard;
 
 use jiff::tz::TimeZone;
-use logforth_core::Diagnostic;
+use logforth_core::Diagnostics;
 use logforth_core::Error;
 use logforth_core::Layout;
 use logforth_core::append::Append;
@@ -160,7 +160,7 @@ impl File {
 }
 
 impl Append for File {
-    fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+    fn append(&self, record: &Record, diags: Diagnostics) -> Result<(), Error> {
         let mut bytes = self.layout.format(record, diags)?;
         bytes.push(b'\n');
         let mut writer = self.writer();

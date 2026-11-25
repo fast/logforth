@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use insta::assert_snapshot;
+use logforth_core::Diagnostics;
 use logforth_core::Filter;
 use logforth_core::filter::FilterResult;
 use logforth_core::record::FilterCriteria;
@@ -32,7 +33,10 @@ impl RustLogFilter {
             .target(target)
             .build();
 
-        matches!(Filter::enabled(self, &criteria, &[]), FilterResult::Reject)
+        matches!(
+            Filter::enabled(self, &criteria, Diagnostics::empty()),
+            FilterResult::Reject
+        )
     }
 }
 

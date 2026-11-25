@@ -23,7 +23,7 @@ use std::borrow::Cow;
 
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
-use logforth_core::Diagnostic;
+use logforth_core::Diagnostics;
 use logforth_core::Error;
 use logforth_core::kv::Key;
 use logforth_core::kv::KeyView;
@@ -104,7 +104,7 @@ impl Visitor for KvFormatter {
 }
 
 impl Layout for LogfmtLayout {
-    fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
+    fn format(&self, record: &Record, diags: Diagnostics) -> Result<Vec<u8>, Error> {
         // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
         // very unlikely if the system clock is correct.
         let ts = Timestamp::try_from(record.time()).unwrap();
@@ -141,9 +141,7 @@ impl Layout for LogfmtLayout {
         )?;
 
         record.key_values().visit(&mut visitor)?;
-        for d in diags {
-            d.visit(&mut visitor)?;
-        }
+        diags.visit(&mut visitor)?;
 
         Ok(visitor.text.into_bytes())
     }

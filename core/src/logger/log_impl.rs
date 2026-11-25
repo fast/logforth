@@ -14,6 +14,7 @@
 
 use crate::Append;
 use crate::Diagnostic;
+use crate::Diagnostics;
 use crate::Error;
 use crate::ErrorSink;
 use crate::Filter;
@@ -98,7 +99,7 @@ impl Dispatch {
     }
 
     fn enabled(&self, criteria: &FilterCriteria) -> bool {
-        let diagnostics = &self.diagnostics;
+        let diagnostics = Diagnostics::from_boxed(&self.diagnostics);
 
         for filter in &self.filters {
             match filter.enabled(criteria, diagnostics) {
@@ -112,7 +113,7 @@ impl Dispatch {
     }
 
     fn log(&self, record: &Record, default_error_sink: &dyn ErrorSink) {
-        let diagnostics = &self.diagnostics;
+        let diagnostics = Diagnostics::from_boxed(&self.diagnostics);
 
         for filter in &self.filters {
             match filter.matches(record, diagnostics) {
@@ -155,7 +156,7 @@ mod tests {
     struct FailingAppender(&'static str);
 
     impl Append for FailingAppender {
-        fn append(&self, _: &Record, _: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+        fn append(&self, _: &Record, _: Diagnostics) -> Result<(), Error> {
             Err(Error::new(self.0))
         }
 
@@ -168,7 +169,7 @@ mod tests {
     struct RecordingAppender(Arc<Mutex<Vec<String>>>);
 
     impl Append for RecordingAppender {
-        fn append(&self, record: &Record, _: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+        fn append(&self, record: &Record, _: Diagnostics) -> Result<(), Error> {
             self.0.lock().unwrap().push(record.payload().to_string());
             Ok(())
         }

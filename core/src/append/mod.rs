@@ -15,8 +15,9 @@
 //! Dispatch log records to various targets.
 
 use std::fmt;
+use std::sync::Arc;
 
-use crate::Diagnostic;
+use crate::Diagnostics;
 use crate::Error;
 use crate::record::Record;
 
@@ -30,7 +31,7 @@ pub use self::testing::Testing;
 /// An appender that can process log records.
 pub trait Append: fmt::Debug + Send + Sync + 'static {
     /// Dispatch a log record to the append target.
-    fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error>;
+    fn append(&self, record: &Record, diags: Diagnostics) -> Result<(), Error>;
 
     /// Flush any buffered records.
     fn flush(&self) -> Result<(), Error>;
@@ -39,5 +40,25 @@ pub trait Append: fmt::Debug + Send + Sync + 'static {
 impl<T: Append> From<T> for Box<dyn Append> {
     fn from(value: T) -> Self {
         Box::new(value)
+    }
+}
+
+impl<T: Append + ?Sized> Append for Arc<T> {
+    fn append(&self, record: &Record, diags: Diagnostics) -> Result<(), Error> {
+        (**self).append(record, diags)
+    }
+
+    fn flush(&self) -> Result<(), Error> {
+        (**self).flush()
+    }
+}
+
+impl<T: Append + ?Sized> Append for &'static T {
+    fn append(&self, record: &Record, diags: Diagnostics) -> Result<(), Error> {
+        (**self).append(record, diags)
+    }
+
+    fn flush(&self) -> Result<(), Error> {
+        (**self).flush()
     }
 }

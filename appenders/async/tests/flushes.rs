@@ -20,7 +20,7 @@ use std::sync::mpsc;
 
 use logforth_append_async::AsyncBuilder;
 use logforth_core::Append;
-use logforth_core::Diagnostic;
+use logforth_core::Diagnostics;
 use logforth_core::Error;
 use logforth_core::ErrorSink;
 use logforth_core::record::Record;
@@ -32,7 +32,7 @@ struct BarrierAppend {
 }
 
 impl Append for BarrierAppend {
-    fn append(&self, _: &Record, _: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+    fn append(&self, _: &Record, _: Diagnostics) -> Result<(), Error> {
         Ok(())
     }
 
@@ -47,7 +47,7 @@ impl Append for BarrierAppend {
 struct FailingFlush;
 
 impl Append for FailingFlush {
-    fn append(&self, _: &Record, _: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+    fn append(&self, _: &Record, _: Diagnostics) -> Result<(), Error> {
         Ok(())
     }
 

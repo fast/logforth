@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use logforth::Diagnostic;
+use logforth::Diagnostics;
 use logforth::Error;
 use logforth::Filter;
 use logforth::Layout;
@@ -26,7 +26,7 @@ use logforth::record::Record;
 struct CustomFilter;
 
 impl Filter for CustomFilter {
-    fn enabled(&self, criteria: &FilterCriteria, _: &[Box<dyn Diagnostic>]) -> FilterResult {
+    fn enabled(&self, criteria: &FilterCriteria, _: Diagnostics) -> FilterResult {
         if criteria.level() < Level::Info {
             FilterResult::Accept
         } else {
@@ -39,7 +39,7 @@ impl Filter for CustomFilter {
 struct CustomLayout;
 
 impl Layout for CustomLayout {
-    fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
+    fn format(&self, record: &Record, diags: Diagnostics) -> Result<Vec<u8>, Error> {
         let _ = diags;
         Ok(format!("[Alert] {}", record.payload()).into_bytes())
     }
