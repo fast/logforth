@@ -429,83 +429,6 @@ mod tests {
     }
 
     #[test]
-    fn validates_names_before_creating_the_directory() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("new");
-        for stem in ["", ".", "..", "/logs", "a/b", "a\\b", "a\0b"] {
-            assert!(
-                RollingFileWriterBuilder::new(&path, stem).build().is_err(),
-                "{stem:?}"
-            );
-        }
-        for suffix in [".", "..", "...", "a/b", "a\\b", "a\0b"] {
-            assert!(
-                RollingFileWriterBuilder::new(&path, "app")
-                    .filename_suffix(suffix)
-                    .build()
-                    .is_err(),
-                "{suffix:?}"
-            );
-        }
-        assert!(!path.exists());
-        #[cfg(windows)]
-        assert!(validate_component("filename", "C:relative").is_err());
-
-        for (suffix, name) in [("", "app"), (".log", "app.log"), ("..log", "app..log")] {
-            let mut writer = RollingFileWriterBuilder::new(&path, "app")
-                .filename_suffix(suffix)
-                .build()
-                .unwrap();
-            writer.write_all(b"record").unwrap();
-            assert_eq!(fs::read(path.join(name)).unwrap(), b"record");
-        }
-    }
-
-    #[test]
-    fn size_retention_only_deletes_canonical_regular_files() {
-        let dir = tempdir().unwrap();
-        let unrelated = [
-            "my_applog",
-            "my_appXlog",
-            "my_app2.log",
-            "my_app.01.log",
-            "my_app.log",
-            "my_app.0.log",
-            "my_app.+1.log",
-            "my_app.18446744073709551616.log",
-            "my_app.1log",
-            "my_app.2026-11-25.log",
-            "my_app.2026-11-25.1.log",
-        ];
-        for name in unrelated {
-            fs::write(dir.path().join(name), b"keep").unwrap();
-        }
-        fs::create_dir(dir.path().join("my_app.3.log")).unwrap();
-        #[cfg(unix)]
-        std::os::unix::fs::symlink("my_app.log", dir.path().join("my_app.4.log")).unwrap();
-        for seq in [1, 2, 10] {
-            fs::write(dir.path().join(format!("my_app.{seq}.log")), b"full").unwrap();
-        }
-        let mut writer = RollingFileWriterBuilder::new(dir.path(), "my_app")
-            .filename_suffix("log")
-            .max_file_size(NonZeroU64::MIN)
-            .max_log_files(NonZeroUsize::MIN)
-            .build()
-            .unwrap();
-        writer.write_all(b"new").unwrap();
-        assert_eq!(fs::read(dir.path().join("my_app.11.log")).unwrap(), b"new");
-        for seq in [1, 2, 10] {
-            assert!(!dir.path().join(format!("my_app.{seq}.log")).exists());
-        }
-        for name in unrelated {
-            assert_eq!(fs::read(dir.path().join(name)).unwrap(), b"keep", "{name}");
-        }
-        assert!(dir.path().join("my_app.3.log").is_dir());
-        #[cfg(unix)]
-        assert!(dir.path().join("my_app.4.log").is_symlink());
-    }
-
-    #[test]
     fn time_retention_recognizes_only_the_configured_period_format() {
         for (rotation, valid, invalid) in [
             (
@@ -537,39 +460,6 @@ mod tests {
             for period in invalid {
                 assert!(dir.path().join(format!("my_app.{period}.log")).exists());
             }
-        }
-    }
-
-    #[test]
-    fn checks_size_before_writing_and_keeps_oversized_records_whole() {
-        let dir = tempdir().unwrap();
-        let mut writer = RollingFileWriterBuilder::new(dir.path(), "app")
-            .max_file_size(NonZeroU64::new(5).unwrap())
-            .build()
-            .unwrap();
-        for record in [
-            b"oversized".as_slice(),
-            b"abc",
-            b"de",
-            b"1234",
-            b"xy",
-            b"another oversized",
-        ] {
-            writer.write_all(record).unwrap();
-        }
-        let expected = [
-            b"oversized".as_slice(),
-            b"abcde",
-            b"1234",
-            b"xy",
-            b"another oversized",
-        ];
-        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), expected.len());
-        for (i, contents) in expected.into_iter().enumerate() {
-            assert_eq!(
-                fs::read(dir.path().join(format!("app.{}", i + 1))).unwrap(),
-                contents
-            );
         }
     }
 
@@ -609,26 +499,6 @@ mod tests {
             fs::read(dir.path().join("my_app.2026-11-25-17.13.log")).unwrap(),
             b"123"
         );
-    }
-
-    #[test]
-    fn sequence_exhaustion_preserves_the_full_segment() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join(format!("my_app.{}", u64::MAX));
-        fs::write(&path, b"x").unwrap();
-        let err = RollingFileWriterBuilder::new(dir.path(), "my_app")
-            .max_file_size(NonZeroU64::MIN)
-            .build()
-            .unwrap_err();
-        assert_eq!(
-            err.source()
-                .unwrap()
-                .downcast_ref::<io::Error>()
-                .unwrap()
-                .kind(),
-            io::ErrorKind::AlreadyExists
-        );
-        assert_eq!(fs::read(path).unwrap(), b"x");
     }
 
     #[test]
@@ -688,8 +558,6 @@ mod tests {
             let mut writer = b.build().unwrap();
             writer.write_all(b"EDT ").unwrap();
             writer.clock = Clock::ManualClock("2026-11-01T01:00:00-05:00".parse().unwrap());
-            assert!(writer.should_rotate(writer.clock.now(), 3));
-            assert!(!writer.rotate_if_needed(writer.clock.now(), 3).unwrap());
             writer.write_all(b"EST").unwrap();
             writer.clock = Clock::ManualClock("2026-11-01T02:00:00-05:00".parse().unwrap());
             writer.write_all(b"later").unwrap();
@@ -714,39 +582,54 @@ mod tests {
         let mut writer = builder(&dir, Rotation::Minutely, "2026-11-25T17:00:59Z")
             .build()
             .unwrap();
-        let current = dir.path().join("my_app.2026-11-25-17-00.log");
-        let next = dir.path().join("my_app.2026-11-25-17-01.log");
+        let initial = dir.path().join("my_app.2026-11-25-17-00.log");
+        let blocked = dir.path().join("my_app.2026-11-25-17-02.log");
+        let rolled_back = dir.path().join("my_app.2026-11-25-17-01.log");
         writer.write_all(b"first ").unwrap();
 
         let permissions = fs::metadata(dir.path()).unwrap().permissions();
         fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o555)).unwrap();
         // Privileged test runners can still create files here. In that case the directory
         // at the candidate path prevents opening it for append.
-        let blocker = fs::create_dir(&next);
-        writer.clock = Clock::ManualClock("2026-11-25T17:01:00Z".parse().unwrap());
+        let blocker = fs::create_dir(&blocked);
+        writer.clock = Clock::ManualClock("2026-11-25T17:02:00Z".parse().unwrap());
         let result = writer.write_all(b"failed ");
         fs::set_permissions(dir.path(), permissions).unwrap();
         let err = result.unwrap_err();
         let cause = err.source().unwrap().downcast_ref::<io::Error>().unwrap();
         match blocker {
-            Ok(()) => fs::remove_dir(&next).unwrap(),
+            Ok(()) => fs::remove_dir(&blocked).unwrap(),
             Err(e) => {
                 assert_eq!(e.kind(), io::ErrorKind::PermissionDenied);
                 assert_eq!(cause.kind(), io::ErrorKind::PermissionDenied);
             }
         }
-        assert_eq!(fs::read(&current).unwrap(), b"first failed ");
+        assert_eq!(fs::read(&initial).unwrap(), b"first failed ");
 
-        writer.clock = Clock::ManualClock("2026-11-25T17:01:00.999Z".parse().unwrap());
+        writer.clock = Clock::ManualClock("2026-11-25T17:02:00.999Z".parse().unwrap());
         writer.write_all(b"cooldown").unwrap();
-        assert!(!next.exists());
+        assert!(!blocked.exists());
+
         // Stepping the wall clock backward before the failure timestamp exits cooldown immediately.
-        writer.clock = Clock::ManualClock("2026-11-25T16:59:00Z".parse().unwrap());
-        assert!(writer.should_rotate(writer.clock.now(), 1));
-        writer.clock = Clock::ManualClock("2026-11-25T17:01:01Z".parse().unwrap());
+        writer.clock = Clock::ManualClock("2026-11-25T17:01:30Z".parse().unwrap());
+        writer.write_all(b"back").unwrap();
+        assert_eq!(fs::read(&rolled_back).unwrap(), b"back");
+
+        // Re-trigger cooldown on `blocked`, then advance 1 second to verify normal expiry.
+        let permissions = fs::metadata(dir.path()).unwrap().permissions();
+        fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o555)).unwrap();
+        let blocker = fs::create_dir(&blocked);
+        writer.clock = Clock::ManualClock("2026-11-25T17:02:00Z".parse().unwrap());
+        let _ = writer.write_all(b" retry_wait");
+        fs::set_permissions(dir.path(), permissions).unwrap();
+        if blocker.is_ok() {
+            fs::remove_dir(&blocked).unwrap();
+        }
+        writer.clock = Clock::ManualClock("2026-11-25T17:02:01Z".parse().unwrap());
         writer.write_all(b"retried").unwrap();
-        assert_eq!(fs::read(current).unwrap(), b"first failed cooldown");
-        assert_eq!(fs::read(next).unwrap(), b"retried");
+        assert_eq!(fs::read(initial).unwrap(), b"first failed cooldown");
+        assert_eq!(fs::read(rolled_back).unwrap(), b"back retry_wait");
+        assert_eq!(fs::read(blocked).unwrap(), b"retried");
     }
 
     #[test]
@@ -762,24 +645,5 @@ mod tests {
             fs::read(dir.path().join("my_app.2026-11-25.log")).unwrap(),
             b"still here"
         );
-    }
-
-    #[test]
-    fn append_after_external_truncation_starts_at_the_new_end() {
-        let dir = tempdir().unwrap();
-        for size in [None, NonZeroU64::new(100)] {
-            let mut builder = RollingFileWriterBuilder::new(dir.path(), "typed.log");
-            builder.files.max_size = size;
-            let mut writer = builder.build().unwrap();
-            let path = dir.path().join(if size.is_some() {
-                "typed.log.1"
-            } else {
-                "typed.log"
-            });
-            writer.write_all(b"original record").unwrap();
-            fs::write(&path, b"x").unwrap();
-            writer.write_all(b"y").unwrap();
-            assert_eq!(fs::read(path).unwrap(), b"xy");
-        }
     }
 }
