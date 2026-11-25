@@ -59,7 +59,6 @@ pub struct Diagnostics<'a>(DiagnosticsState<'a>);
 
 #[derive(Clone, Copy)]
 enum DiagnosticsState<'a> {
-    Empty,
     // Borrows a Dispatch's owned diagnostic list without copying or re-boxing.
     Boxed(&'a [Box<dyn Diagnostic>]),
     // Borrows a stack-resident diagnostic, such as materialized context in an async worker.
