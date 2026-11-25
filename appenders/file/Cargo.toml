@@ -37,7 +37,6 @@ logforth-core = { workspace = true }
 
 [dev-dependencies]
 logforth-layout-json = { workspace = true }
-rand = { workspace = true }
 tempfile = { workspace = true }
 
 [lints]

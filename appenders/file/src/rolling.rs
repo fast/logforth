@@ -14,703 +14,772 @@
 
 use std::fs;
 use std::fs::File;
-use std::fs::Metadata;
 use std::fs::OpenOptions;
+use std::io;
 use std::io::Write;
+use std::num::NonZeroU64;
 use std::num::NonZeroUsize;
+use std::ops::Range;
 use std::path::Path;
 use std::path::PathBuf;
-use std::str::FromStr;
 
-use jiff::ZonedDateTime;
+use jiff::SignedDuration;
+use jiff::Timestamp;
 use jiff::civil::DateTime;
+use jiff::tz::TimeZone;
 use logforth_core::Error;
 
 use crate::clock::Clock;
 use crate::rotation::Rotation;
 
-/// A writer for rolling files.
+const RETRY_COOLDOWN: SignedDuration = SignedDuration::from_secs(1);
+
 #[derive(Debug)]
-pub struct RollingFileWriter {
-    state: State,
-    writer: File,
+pub(crate) struct RollingFileWriter {
+    files: SegmentFiles,
+    max_files: Option<NonZeroUsize>,
+    timezone: TimeZone,
+    clock: Clock,
+    active: Segment,
+    period_bounds: Option<Range<Timestamp>>,
+    retry_cooldown: Option<Range<Timestamp>>,
 }
 
 impl RollingFileWriter {
     pub(crate) fn write_all(&mut self, buf: &[u8]) -> Result<(), Error> {
-        let now = self.state.clock.now();
-        let writer = &mut self.writer;
-        let mut rollover_err = None;
-
-        if self.state.should_rollover_on_date(&now) {
-            self.state.current_filesize = 0;
-            self.state.next_date_timestamp = self.state.rotation.next_date_timestamp(&now);
-            let current = &self.state.this_date_timestamp;
-            if let Err(err) = self.state.refresh_writer(current, writer) {
-                rollover_err = Some(err);
-            }
-        }
-
-        if self.state.should_rollover_on_size() {
-            self.state.current_filesize = 0;
-            if let Err(err) = self.state.refresh_writer(&now, writer)
-                && rollover_err.is_none()
-            {
-                rollover_err = Some(err);
-            }
-        }
-
-        self.state.this_date_timestamp = now;
-
-        writer
-            .write_all(buf)
-            .map_err(|err| Error::new("failed to write log file").with_source(err))?;
-        self.state.current_filesize += buf.len();
-
-        if let Some(err) = rollover_err {
+        let now = self.clock.now();
+        if let Err(err) = self.rotate_if_needed(now, buf.len()) {
+            self.retry_cooldown = Some(retry_window(now));
+            self.write_record(buf)?;
             return Err(err);
         }
+        self.write_record(buf)
+    }
 
+    fn size_exceeded(&self, buf_len: usize) -> bool {
+        self.files.max_size.is_some_and(|max| {
+            self.active.size > 0 && self.active.size.saturating_add(buf_len as u64) > max.get()
+        })
+    }
+
+    fn should_rotate(&self, now: Timestamp, buf_len: usize) -> bool {
+        if self
+            .retry_cooldown
+            .as_ref()
+            .is_some_and(|window| window.contains(&now))
+        {
+            return false;
+        }
+        self.period_bounds
+            .as_ref()
+            .is_some_and(|bounds| !bounds.contains(&now))
+            || self.size_exceeded(buf_len)
+    }
+
+    fn rotate_if_needed(&mut self, now: Timestamp, buf_len: usize) -> Result<bool, Error> {
+        if !self.should_rotate(now, buf_len) {
+            return Ok(false);
+        }
+        let period = self.files.rotation.period_at(now, &self.timezone)?;
+        let key = period.as_ref().map(|p| p.key);
+        let bounds = period.map(|p| p.bounds);
+        if key == self.active.name.period && !self.size_exceeded(buf_len) {
+            self.period_bounds = bounds;
+            self.retry_cooldown = None;
+            return Ok(false);
+        }
+        let segment = if self.files.max_size.is_some() {
+            let previous = if key == self.active.name.period {
+                self.active.name.seq
+            } else {
+                None
+            };
+            self.files.create_segment(key, previous)?
+        } else {
+            let name = SegmentName {
+                period: key,
+                seq: None,
+            };
+            Segment::open(self.files.path(name), name, 0)?
+        };
+        self.active = segment;
+        self.period_bounds = bounds;
+        self.retry_cooldown = None;
+        self.prune_if_needed()?;
+        Ok(true)
+    }
+
+    fn write_record(&mut self, buf: &[u8]) -> Result<(), Error> {
+        self.active.file.write_all(buf).map_err(|err| {
+            // A failed write_all may already have appended part of the record.
+            if let Ok(metadata) = self.active.file.metadata() {
+                self.active.size = metadata.len();
+            }
+            file_error("write log file", &self.active.path, err)
+        })?;
+        self.active.size = self.active.size.saturating_add(buf.len() as u64);
         Ok(())
     }
 
     pub(crate) fn flush(&mut self) -> Result<(), Error> {
-        self.writer
+        self.active
+            .file
             .flush()
-            .map_err(|err| Error::new("failed to flush log file").with_source(err))
+            .map_err(|err| file_error("flush log file", &self.active.path, err))
+    }
+
+    fn prune_if_needed(&self) -> Result<(), Error> {
+        let Some(max_files) = self.max_files else {
+            return Ok(());
+        };
+        let mut matching = self.files.list_matching_files()?;
+        let excess = matching.len().saturating_sub(max_files.get());
+        if excess == 0 {
+            return Ok(());
+        }
+        matching.sort_unstable_by_key(|(name, _)| *name);
+        for (_, path) in matching
+            .into_iter()
+            .filter(|(_, path)| *path != self.active.path)
+            .take(excess)
+        {
+            match fs::remove_file(&path) {
+                Ok(()) => {}
+                Err(err) if err.kind() == io::ErrorKind::NotFound => {}
+                Err(err) => return Err(file_error("remove old log file", &path, err)),
+            }
+        }
+        Ok(())
     }
 }
 
-/// A builder for configuring [`RollingFileWriter`].
 #[derive(Debug)]
-pub struct RollingFileWriterBuilder {
-    // required
-    basedir: PathBuf,
-    filename: String,
-
-    // has default
-    rotation: Rotation,
-    filename_suffix: Option<String>,
-    max_size: Option<NonZeroUsize>,
+pub(crate) struct RollingFileWriterBuilder {
+    files: SegmentFiles,
     max_files: Option<NonZeroUsize>,
+    timezone: TimeZone,
     clock: Clock,
 }
 
 impl RollingFileWriterBuilder {
-    /// Creates a new [`RollingFileWriterBuilder`].
-    #[must_use]
-    pub fn new(basedir: impl Into<PathBuf>, filename: impl Into<String>) -> Self {
+    pub(crate) fn new(basedir: impl Into<PathBuf>, filename: impl Into<String>) -> Self {
         Self {
-            basedir: basedir.into(),
-            filename: filename.into(),
-            rotation: Rotation::Never,
-            filename_suffix: None,
-            max_size: None,
+            files: SegmentFiles {
+                basedir: basedir.into(),
+                filename: filename.into(),
+                filename_suffix: None,
+                rotation: Rotation::Never,
+                max_size: None,
+            },
             max_files: None,
+            timezone: TimeZone::system(),
             clock: Clock::DefaultClock,
         }
     }
 
-    /// Set the rotation policy.
-    #[must_use]
-    pub fn rotation(mut self, rotation: Rotation) -> Self {
-        self.rotation = rotation;
+    pub(crate) fn rotation(mut self, rotation: Rotation) -> Self {
+        self.files.rotation = rotation;
         self
     }
 
-    /// Set the filename suffix.
-    #[must_use]
-    pub fn filename_suffix(mut self, suffix: impl Into<String>) -> Self {
+    pub(crate) fn timezone(mut self, tz: TimeZone) -> Self {
+        self.timezone = tz;
+        self
+    }
+
+    pub(crate) fn filename_suffix(mut self, suffix: impl Into<String>) -> Self {
         let suffix = suffix.into();
-        self.filename_suffix = if suffix.is_empty() {
+        self.files.filename_suffix = if suffix.is_empty() {
             None
         } else {
-            Some(suffix)
+            Some(suffix.strip_prefix('.').unwrap_or(&suffix).to_owned())
         };
         self
     }
 
-    /// Set the maximum number of log files to keep.
-    #[must_use]
-    pub fn max_log_files(mut self, n: NonZeroUsize) -> Self {
+    pub(crate) fn max_log_files(mut self, n: NonZeroUsize) -> Self {
         self.max_files = Some(n);
         self
     }
 
-    /// Set the maximum size of a log file in bytes.
-    #[must_use]
-    pub fn max_file_size(mut self, n: NonZeroUsize) -> Self {
-        self.max_size = Some(n);
+    pub(crate) fn max_file_size(mut self, n: NonZeroU64) -> Self {
+        self.files.max_size = Some(n);
         self
     }
 
-    #[cfg(test)]
-    fn clock(mut self, clock: Clock) -> Self {
-        self.clock = clock;
-        self
-    }
-
-    /// Builds the [`RollingFileWriter`].
-    pub fn build(self) -> Result<RollingFileWriter, Error> {
+    pub(crate) fn build(self) -> Result<RollingFileWriter, Error> {
         let Self {
-            basedir,
-            rotation,
-            filename,
-            filename_suffix,
-            max_size,
+            files,
             max_files,
+            timezone,
             clock,
         } = self;
-
-        if filename.is_empty() {
-            return Err(Error::new("filename must not be empty"));
+        validate_component("filename", &files.filename)?;
+        if let Some(suffix) = &files.filename_suffix {
+            validate_component("filename suffix", suffix)?;
         }
-
-        let (state, writer) = State::new(
-            rotation,
-            basedir,
-            filename,
-            filename_suffix,
-            max_size,
+        fs::create_dir_all(&files.basedir)
+            .map_err(|err| file_error("create log directory", &files.basedir, err))?;
+        let period = files.rotation.period_at(clock.now(), &timezone)?;
+        let active = files.open_initial(period.as_ref().map(|p| p.key))?;
+        let writer = RollingFileWriter {
+            files,
             max_files,
+            timezone,
             clock,
-        )?;
-
-        Ok(RollingFileWriter { state, writer })
-    }
-}
-
-#[derive(Debug)]
-struct LogFile {
-    filepath: PathBuf,
-    metadata: Metadata,
-    datetime: DateTime,
-    count: usize,
-}
-
-// oldest is the least
-fn compare_logfile(a: &LogFile, b: &LogFile) -> std::cmp::Ordering {
-    match a.datetime.cmp(&b.datetime) {
-        std::cmp::Ordering::Equal => {
-            let a_rev = usize::MAX - a.count;
-            let b_rev = usize::MAX - b.count;
-            a_rev.cmp(&b_rev)
+            active,
+            period_bounds: period.map(|p| p.bounds),
+            retry_cooldown: None,
+        };
+        if writer.files.rotation != Rotation::Never || writer.files.max_size.is_some() {
+            // Startup cleanup is best-effort so locked historical files never block initialization.
+            let _ = writer.prune_if_needed();
         }
-        ord => ord,
+        Ok(writer)
+    }
+}
+
+fn retry_window(now: Timestamp) -> Range<Timestamp> {
+    now..now.checked_add(RETRY_COOLDOWN).unwrap_or(Timestamp::MAX)
+}
+
+fn validate_component(label: &str, value: &str) -> Result<(), Error> {
+    if value.contains(['/', '\\', '\0']) || Path::new(value).file_name() != Some(value.as_ref()) {
+        return Err(Error::new(format!("invalid {label}: {value:?}")));
+    }
+    Ok(())
+}
+
+fn file_error(operation: &str, path: &Path, err: io::Error) -> Error {
+    Error::new(format!("failed to {operation}: {}", path.display())).with_source(err)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct SegmentName {
+    period: Option<DateTime>,
+    seq: Option<NonZeroU64>,
+}
+
+#[derive(Debug)]
+struct Segment {
+    name: SegmentName,
+    path: PathBuf,
+    file: File,
+    size: u64,
+}
+
+impl Segment {
+    fn open(path: PathBuf, name: SegmentName, size: u64) -> Result<Self, Error> {
+        let file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .map_err(|err| file_error("open log file", &path, err))?;
+        Ok(Self {
+            name,
+            path,
+            file,
+            size,
+        })
     }
 }
 
 #[derive(Debug)]
-struct State {
-    log_dir: PathBuf,
-    log_filename: String,
-    log_filename_suffix: Option<String>,
-    date_format: &'static str,
+struct SegmentFiles {
+    basedir: PathBuf,
+    filename: String,
+    filename_suffix: Option<String>,
     rotation: Rotation,
-    current_filesize: usize,
-    this_date_timestamp: ZonedDateTime,
-    next_date_timestamp: Option<usize>,
-    max_size: Option<NonZeroUsize>,
-    max_files: Option<NonZeroUsize>,
-    clock: Clock,
+    max_size: Option<NonZeroU64>,
 }
 
-impl State {
-    fn new(
-        rotation: Rotation,
-        dir: impl AsRef<Path>,
-        log_filename: String,
-        log_filename_suffix: Option<String>,
-        max_size: Option<NonZeroUsize>,
-        max_files: Option<NonZeroUsize>,
-        clock: Clock,
-    ) -> Result<(Self, File), Error> {
-        let now = clock.now();
-        let log_dir = dir.as_ref().to_path_buf();
-        fs::create_dir_all(&log_dir)
-            .map_err(|err| Error::new("failed to create log directory").with_source(err))?;
-
-        let mut state = State {
-            log_dir,
-            log_filename,
-            log_filename_suffix,
-            date_format: rotation.date_format(),
-            current_filesize: 0,
-            this_date_timestamp: clock.now(),
-            next_date_timestamp: rotation.next_date_timestamp(&now),
-            rotation,
-            max_size,
-            max_files,
-            clock,
-        };
-
-        let files = {
-            let mut files = state.list_logfiles()?;
-            files.sort_by(compare_logfile);
-            files
-        };
-
-        let file = match files.last() {
-            None => {
-                // brand-new directory
-                state.create_log_writer()?
-            }
-            Some(last) => {
-                let filename = state.current_filename();
-                if last.filepath != filename {
-                    // for some reason, the `filename.suffix` file does not exist; create a new one
-                    state.create_log_writer()?
-                } else {
-                    state.current_filesize = last.metadata.len() as usize;
-
-                    if let Ok(mtime) = last.metadata.modified()
-                        && let Ok(mtime) = ZonedDateTime::try_from(mtime)
-                    {
-                        state.next_date_timestamp = state.rotation.next_date_timestamp(&mtime);
-                        state.this_date_timestamp = mtime;
-                    }
-
-                    // continue to use the existing current log file
-                    OpenOptions::new()
-                        .append(true)
-                        .open(&filename)
-                        .map_err(|err| Error::new("failed to open current log").with_source(err))?
-                }
-            }
-        };
-
-        Ok((state, file))
-    }
-
-    fn current_filename(&self) -> PathBuf {
-        let filename = &self.log_filename;
-        match self.log_filename_suffix.as_ref() {
-            None => self.log_dir.join(filename),
-            Some(suffix) => self.log_dir.join(format!("{filename}.{suffix}")),
+impl SegmentFiles {
+    fn path(&self, name: SegmentName) -> PathBuf {
+        let mut filename = self.filename.clone();
+        if let Some(period) = name.period {
+            filename.push('.');
+            filename.push_str(&period.strftime(self.rotation.date_format()).to_string());
         }
+        if let Some(seq) = name.seq {
+            filename.push('.');
+            filename.push_str(&seq.to_string());
+        }
+        if let Some(suffix) = &self.filename_suffix {
+            filename.push('.');
+            filename.push_str(suffix);
+        }
+        self.basedir.join(filename)
     }
 
-    fn create_log_writer(&self) -> Result<File, Error> {
-        let filename = self.current_filename();
-        OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&filename)
-            .map_err(|err| Error::new("failed to create log file").with_source(err))
-    }
-
-    fn join_date(&self, date: &ZonedDateTime, cnt: usize) -> PathBuf {
-        let date = date.strftime(self.date_format);
-        let filename = match (
-            &self.rotation,
-            &self.log_filename,
-            &self.log_filename_suffix,
-        ) {
-            (&Rotation::Never, filename, None) => format!("{filename}.{cnt}"),
-            (&Rotation::Never, filename, Some(suffix)) => {
-                format!("{filename}.{cnt}.{suffix}")
-            }
-            (_, filename, Some(suffix)) => format!("{filename}.{date}.{cnt}.{suffix}"),
-            (_, filename, None) => format!("{filename}.{date}.{cnt}"),
+    fn open_initial(&self, period: Option<DateTime>) -> Result<Segment, Error> {
+        let Some(max) = self.max_size else {
+            let name = SegmentName { period, seq: None };
+            return Segment::open(self.path(name), name, 0);
         };
-        self.log_dir.join(filename)
+        let highest = self
+            .list_matching_files()?
+            .into_iter()
+            .filter(|(name, _)| name.period == period)
+            .max_by_key(|(name, _)| name.seq);
+        let mut previous = None;
+        if let Some((name, path)) = highest {
+            let size = fs::metadata(&path)
+                .map_err(|err| file_error("read log file metadata", &path, err))?
+                .len();
+            if size < max.get() {
+                return Segment::open(path, name, size);
+            }
+            previous = name.seq;
+        }
+        self.create_segment(period, previous)
     }
 
-    fn list_logfiles(&self) -> Result<Vec<LogFile>, Error> {
-        let read_dir = fs::read_dir(&self.log_dir).map_err(|err| {
-            Error::new(format!(
-                "failed to read log dir: {}",
-                self.log_dir.display()
-            ))
-            .with_source(err)
-        })?;
-
-        let files = read_dir
-            .filter_map(|entry| {
-                let entry = entry.ok()?;
-                let filepath = entry.path();
-
-                let metadata = entry.metadata().ok()?;
-                // the appender only creates files, not directories or symlinks,
-                if !metadata.is_file() {
-                    return None;
-                }
-
-                let filename = entry.file_name();
-                // if the filename is not a UTF-8 string, skip it.
-                let mut filename = filename.to_str()?;
-                if !filename.starts_with(&self.log_filename) {
-                    return None;
-                }
-                filename = &filename[self.log_filename.len()..];
-
-                if let Some(suffix) = &self.log_filename_suffix {
-                    if !filename.ends_with(suffix) {
-                        return None;
-                    }
-                    filename = &filename[..filename.len() - suffix.len() - 1];
-                }
-
-                if filename.is_empty() {
-                    // the current log file is the largest
-                    return Some(LogFile {
-                        filepath,
-                        metadata,
-                        datetime: DateTime::MAX,
-                        count: 0,
+    fn create_segment(
+        &self,
+        period: Option<DateTime>,
+        previous: Option<NonZeroU64>,
+    ) -> Result<Segment, Error> {
+        let mut seq = previous.map_or(NonZeroU64::MIN, |seq| seq.saturating_add(1));
+        loop {
+            let name = SegmentName {
+                period,
+                seq: Some(seq),
+            };
+            let path = self.path(name);
+            match OpenOptions::new().create_new(true).append(true).open(&path) {
+                Ok(file) => {
+                    return Ok(Segment {
+                        name,
+                        path,
+                        file,
+                        size: 0,
                     });
                 }
-
-                if filename.starts_with(".") {
-                    filename = &filename[1..];
-                } else {
-                    return None;
+                Err(err) if err.kind() == io::ErrorKind::AlreadyExists => {
+                    seq = seq
+                        .checked_add(1)
+                        .ok_or_else(|| file_error("allocate log file sequence", &path, err))?;
                 }
+                Err(err) => return Err(file_error("create log file", &path, err)),
+            }
+        }
+    }
 
-                let datetime = if self.rotation != Rotation::Never {
-                    // mandatory datetime part
-                    let pos = filename.find('.')?;
-                    let datetime = DateTime::strptime(self.date_format, &filename[..pos]).ok()?;
-                    filename = &filename[pos + 1..];
-                    datetime
-                } else {
-                    DateTime::MAX
-                };
-
-                let count = usize::from_str(&filename[..filename.len()]).ok()?;
-
-                Some(LogFile {
-                    filepath,
-                    metadata,
-                    datetime,
-                    count,
-                })
-            })
-            .collect::<Vec<_>>();
-
+    fn list_matching_files(&self) -> Result<Vec<(SegmentName, PathBuf)>, Error> {
+        let read_error = |err| file_error("read log directory", &self.basedir, err);
+        let mut files = Vec::new();
+        for entry in fs::read_dir(&self.basedir).map_err(read_error)? {
+            let entry = entry.map_err(read_error)?;
+            if let Some(name) = self.parse_segment_filename(&entry) {
+                files.push((name, entry.path()));
+            }
+        }
         Ok(files)
     }
 
-    fn delete_oldest_logs(&self, max_files: usize) -> Result<(), Error> {
-        let mut files = self.list_logfiles()?;
-        if files.len() < max_files {
-            return Ok(());
+    fn parse_segment_filename(&self, entry: &fs::DirEntry) -> Option<SegmentName> {
+        if !entry.file_type().ok()?.is_file() {
+            return None;
         }
-
-        // delete files, so that (n-1) files remain, because we will create another log file
-        files.sort_by(compare_logfile);
-        for file in files.iter().take(files.len() - (max_files - 1)) {
-            let filepath = &file.filepath;
-            fs::remove_file(filepath).map_err(|err| {
-                Error::new(format!("failed to remove old log: {}", filepath.display()))
-                    .with_source(err)
-            })?;
-        }
-
-        Ok(())
-    }
-
-    fn rotate_log_writer(&self, now: &ZonedDateTime) -> Result<(File, Option<Error>), Error> {
-        let mut renames = vec![];
-        for i in 1..self.max_files.map_or(usize::MAX, |n| n.get()) {
-            let filepath = self.join_date(now, i);
-            if fs::exists(&filepath).is_ok_and(|ok| ok) {
-                let next = self.join_date(now, i + 1);
-                renames.push((filepath, next));
-            } else {
-                break;
-            }
-        }
-
-        for (old, new) in renames.iter().rev() {
-            fs::rename(old, new).map_err(|err| {
-                Error::new(format!("failed to rotate log: {}", old.display())).with_source(err)
-            })?
-        }
-
-        let archive_filepath = self.join_date(now, 1);
-        let current_filepath = self.current_filename();
-        fs::rename(&current_filepath, &archive_filepath).map_err(|err| {
-            Error::new(format!(
-                "failed to archive log: {}",
-                current_filepath.display()
-            ))
-            .with_source(err)
-        })?;
-
-        let cleanup_err = if let Some(max_files) = self.max_files {
-            self.delete_oldest_logs(max_files.get())
-                .err()
-                .map(|err| Error::new("failed to delete oldest logs").with_source(err))
-        } else {
-            None
+        let file_name = entry.file_name();
+        let rest = file_name
+            .to_str()?
+            .strip_prefix(&self.filename)?
+            .strip_prefix('.')?;
+        let middle = match &self.filename_suffix {
+            Some(suffix) => rest.strip_suffix(suffix.as_str())?.strip_suffix('.')?,
+            None => rest,
         };
-
-        let new_file = self.create_log_writer()?;
-        Ok((new_file, cleanup_err))
-    }
-
-    fn refresh_writer(&self, now: &ZonedDateTime, file: &mut File) -> Result<(), Error> {
-        match self.rotate_log_writer(now) {
-            Ok((new_file, cleanup_err)) => {
-                let flush_err = file
-                    .flush()
-                    .err()
-                    .map(|err| Error::new("failed to flush previous writer").with_source(err));
-                *file = new_file;
-                if let Some(err) = cleanup_err.or(flush_err) {
-                    return Err(err);
-                }
-                Ok(())
+        let (period, seq) = match (self.rotation, self.max_size.is_some()) {
+            (Rotation::Never, false) => return None,
+            (Rotation::Never, true) => (None, Some(parse_seq(middle)?)),
+            (rotation, false) => (Some(rotation.parse_period(middle)?), None),
+            (rotation, true) => {
+                let (period, seq) = middle.split_once('.')?;
+                (Some(rotation.parse_period(period)?), Some(parse_seq(seq)?))
             }
-            Err(err) => Err(Error::new("failed to rotate log writer").with_source(err)),
-        }
+        };
+        Some(SegmentName { period, seq })
     }
+}
 
-    fn should_rollover_on_date(&self, date: &ZonedDateTime) -> bool {
-        self.next_date_timestamp
-            .is_some_and(|ts| date.timestamp().as_millisecond() as usize >= ts)
+fn parse_seq(s: &str) -> Option<NonZeroU64> {
+    if s.is_empty() || s.starts_with('0') || !s.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
     }
-
-    fn should_rollover_on_size(&self) -> bool {
-        self.max_size
-            .is_some_and(|n| self.current_filesize >= n.get())
-    }
+    s.parse().ok()
 }
 
 #[cfg(test)]
 mod tests {
-    use std::cmp::min;
-    use std::fs;
-    use std::num::NonZeroUsize;
-    use std::ops::Add;
-    use std::str::FromStr;
+    use std::error::Error as _;
 
-    use jiff::Span;
-    use jiff::ZonedDateTime;
-    use rand::RngExt;
-    use rand::distr::Alphanumeric;
     use tempfile::TempDir;
+    use tempfile::tempdir;
 
-    use crate::clock::Clock;
-    use crate::clock::ManualClock;
-    use crate::rolling::RollingFileWriterBuilder;
-    use crate::rotation::Rotation;
+    use super::*;
 
-    #[test]
-    fn test_file_rolling_via_file_size() {
-        test_file_rolling_for_specific_file_size(3, 1000);
-        test_file_rolling_for_specific_file_size(3, 10000);
-        test_file_rolling_for_specific_file_size(10, 8888);
-        test_file_rolling_for_specific_file_size(10, 10000);
-        test_file_rolling_for_specific_file_size(20, 6666);
-        test_file_rolling_for_specific_file_size(20, 10000);
-    }
-
-    fn test_file_rolling_for_specific_file_size(max_files: usize, max_size: usize) {
-        let max_files = NonZeroUsize::new(max_files).unwrap();
-        let max_size = NonZeroUsize::new(max_size).unwrap();
-        let temp_dir = TempDir::new().unwrap();
-
-        let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref(), "test_file")
-            .rotation(Rotation::Never)
-            .filename_suffix("log")
-            .max_log_files(max_files)
-            .max_file_size(max_size)
-            .build()
-            .unwrap();
-
-        for i in 1..=(max_files.get() * 2) {
-            let mut expected_file_size = 0;
-            while expected_file_size < max_size.get() {
-                let rand_str = generate_random_string();
-                expected_file_size += rand_str.len();
-                writer.write_all(rand_str.as_bytes()).unwrap();
-                assert_eq!(writer.state.current_filesize, expected_file_size);
-            }
-
-            writer.flush().unwrap();
-            assert_eq!(
-                fs::read_dir(&writer.state.log_dir).unwrap().count(),
-                min(i, max_files.get())
-            );
-        }
-    }
-
-    #[test]
-    fn test_file_rolling_via_time_rotation() {
-        test_file_rolling_for_specific_time_rotation(
-            Rotation::Minutely,
-            Span::new().minutes(1),
-            Span::new().seconds(1),
-        );
-        test_file_rolling_for_specific_time_rotation(
-            Rotation::Hourly,
-            Span::new().hours(1),
-            Span::new().minutes(1),
-        );
-        test_file_rolling_for_specific_time_rotation(
-            Rotation::Daily,
-            Span::new().days(1),
-            Span::new().hours(1),
-        );
-    }
-
-    fn test_file_rolling_for_specific_time_rotation(
-        rotation: Rotation,
-        rotation_duration: Span,
-        write_interval: Span,
-    ) {
-        let max_files = NonZeroUsize::new(10).unwrap();
-        let temp_dir = TempDir::new().unwrap();
-
-        let start_time = ZonedDateTime::from_str("2024-08-10T00:00:00[UTC]").unwrap();
-        let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref(), "test_file")
+    fn builder(dir: &TempDir, rotation: Rotation, now: &str) -> RollingFileWriterBuilder {
+        let mut builder = RollingFileWriterBuilder::new(dir.path(), "my_app")
             .rotation(rotation)
+            .timezone(TimeZone::UTC)
+            .filename_suffix(".log");
+        builder.clock = Clock::ManualClock(now.parse().unwrap());
+        builder
+    }
+
+    #[test]
+    fn validates_names_before_creating_the_directory() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("new");
+        for stem in ["", ".", "..", "/logs", "a/b", "a\\b", "a\0b"] {
+            assert!(
+                RollingFileWriterBuilder::new(&path, stem).build().is_err(),
+                "{stem:?}"
+            );
+        }
+        for suffix in [".", "..", "...", "a/b", "a\\b", "a\0b"] {
+            assert!(
+                RollingFileWriterBuilder::new(&path, "app")
+                    .filename_suffix(suffix)
+                    .build()
+                    .is_err(),
+                "{suffix:?}"
+            );
+        }
+        assert!(!path.exists());
+        #[cfg(windows)]
+        assert!(validate_component("filename", "C:relative").is_err());
+
+        for (suffix, name) in [("", "app"), (".log", "app.log"), ("..log", "app..log")] {
+            let mut writer = RollingFileWriterBuilder::new(&path, "app")
+                .filename_suffix(suffix)
+                .build()
+                .unwrap();
+            writer.write_all(b"record").unwrap();
+            assert_eq!(fs::read(path.join(name)).unwrap(), b"record");
+        }
+    }
+
+    #[test]
+    fn size_retention_only_deletes_canonical_regular_files() {
+        let dir = tempdir().unwrap();
+        let unrelated = [
+            "my_applog",
+            "my_appXlog",
+            "my_app2.log",
+            "my_app.01.log",
+            "my_app.log",
+            "my_app.0.log",
+            "my_app.+1.log",
+            "my_app.18446744073709551616.log",
+            "my_app.1log",
+            "my_app.2026-11-25.log",
+            "my_app.2026-11-25.1.log",
+        ];
+        for name in unrelated {
+            fs::write(dir.path().join(name), b"keep").unwrap();
+        }
+        fs::create_dir(dir.path().join("my_app.3.log")).unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink("my_app.log", dir.path().join("my_app.4.log")).unwrap();
+        for seq in [1, 2, 10] {
+            fs::write(dir.path().join(format!("my_app.{seq}.log")), b"full").unwrap();
+        }
+        let mut writer = RollingFileWriterBuilder::new(dir.path(), "my_app")
             .filename_suffix("log")
-            .max_log_files(max_files)
-            .clock(Clock::ManualClock(ManualClock::new(start_time.clone())))
+            .max_file_size(NonZeroU64::MIN)
+            .max_log_files(NonZeroUsize::MIN)
             .build()
             .unwrap();
+        writer.write_all(b"new").unwrap();
+        assert_eq!(fs::read(dir.path().join("my_app.11.log")).unwrap(), b"new");
+        for seq in [1, 2, 10] {
+            assert!(!dir.path().join(format!("my_app.{seq}.log")).exists());
+        }
+        for name in unrelated {
+            assert_eq!(fs::read(dir.path().join(name)).unwrap(), b"keep", "{name}");
+        }
+        assert!(dir.path().join("my_app.3.log").is_dir());
+        #[cfg(unix)]
+        assert!(dir.path().join("my_app.4.log").is_symlink());
+    }
 
-        let mut cur_time = start_time;
-
-        for i in 1..=(max_files.get() * 2) {
-            let mut expected_file_size = 0;
-            let end_time = &cur_time + rotation_duration;
-            while cur_time < end_time {
-                writer.state.clock.set_now(cur_time.clone());
-
-                let rand_str = generate_random_string();
-                expected_file_size += rand_str.len();
-
-                writer.write_all(rand_str.as_bytes()).unwrap();
-                assert_eq!(writer.state.current_filesize, expected_file_size);
-
-                cur_time = cur_time.add(write_interval);
+    #[test]
+    fn time_retention_recognizes_only_the_configured_period_format() {
+        for (rotation, valid, invalid) in [
+            (
+                Rotation::Daily,
+                "2024-02-29",
+                ["2023-02-29", "+024-02-29", "2024-02-29-03"],
+            ),
+            (
+                Rotation::Hourly,
+                "2024-02-29-23",
+                ["2024-02-29-24", "2024-02-29- 3", "2024-02-29"],
+            ),
+            (
+                Rotation::Minutely,
+                "2024-02-29-23-59",
+                ["2024-02-29-23-60", "2024-02-29-23- 9", "2024-02-29-23"],
+            ),
+        ] {
+            let dir = tempdir().unwrap();
+            for period in [valid, invalid[0], invalid[1], invalid[2]] {
+                fs::write(dir.path().join(format!("my_app.{period}.log")), b"old").unwrap();
             }
+            let mut writer = builder(&dir, rotation, "2026-11-25T01:02:03Z")
+                .max_log_files(NonZeroUsize::MIN)
+                .build()
+                .unwrap();
+            writer.write_all(b"new").unwrap();
+            assert!(!dir.path().join(format!("my_app.{valid}.log")).exists());
+            for period in invalid {
+                assert!(dir.path().join(format!("my_app.{period}.log")).exists());
+            }
+        }
+    }
 
-            writer.flush().unwrap();
+    #[test]
+    fn checks_size_before_writing_and_keeps_oversized_records_whole() {
+        let dir = tempdir().unwrap();
+        let mut writer = RollingFileWriterBuilder::new(dir.path(), "app")
+            .max_file_size(NonZeroU64::new(5).unwrap())
+            .build()
+            .unwrap();
+        for record in [
+            b"oversized".as_slice(),
+            b"abc",
+            b"de",
+            b"1234",
+            b"xy",
+            b"another oversized",
+        ] {
+            writer.write_all(record).unwrap();
+        }
+        let expected = [
+            b"oversized".as_slice(),
+            b"abcde",
+            b"1234",
+            b"xy",
+            b"another oversized",
+        ];
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), expected.len());
+        for (i, contents) in expected.into_iter().enumerate() {
             assert_eq!(
-                fs::read_dir(&writer.state.log_dir).unwrap().count(),
-                min(i, max_files.get())
+                fs::read(dir.path().join(format!("app.{}", i + 1))).unwrap(),
+                contents
             );
         }
     }
 
     #[test]
-    fn test_file_rolling_via_file_size_and_time_rotation() {
-        test_file_size_and_time_rotation_for_specific_time_rotation(
-            Rotation::Minutely,
-            Span::new().minutes(1),
-            Span::new().seconds(1),
+    fn restart_resumes_only_the_highest_segment_in_the_current_period() {
+        let dir = tempdir().unwrap();
+        let build = || {
+            builder(&dir, Rotation::Hourly, "2026-11-25T17:01:00Z")
+                .max_file_size(NonZeroU64::new(5).unwrap())
+                .build()
+                .unwrap()
+        };
+        let current = dir.path().join("my_app.2026-11-25-17.10.log");
+        let future = dir.path().join("my_app.2026-11-25-18.99.log");
+        fs::write(dir.path().join("my_app.2026-11-25-17.9.log"), b"old").unwrap();
+        fs::write(&current, b"ab").unwrap();
+        fs::write(&future, b"future").unwrap();
+
+        build().write_all(b"cde").unwrap();
+        assert_eq!(fs::read(&current).unwrap(), b"abcde");
+        let mut writer = build();
+        assert!(dir.path().join("my_app.2026-11-25-17.11.log").is_file());
+        writer.write_all(b"oversized").unwrap();
+        drop(writer);
+        build().write_all(b"new").unwrap();
+        assert_eq!(
+            fs::read(dir.path().join("my_app.2026-11-25-17.12.log")).unwrap(),
+            b"new"
         );
-        test_file_size_and_time_rotation_for_specific_time_rotation(
-            Rotation::Hourly,
-            Span::new().hours(1),
-            Span::new().minutes(1),
+        assert_eq!(fs::read(future).unwrap(), b"future");
+        build().write_all(b"123").unwrap();
+        assert_eq!(
+            fs::read(dir.path().join("my_app.2026-11-25-17.12.log")).unwrap(),
+            b"new"
         );
-        test_file_size_and_time_rotation_for_specific_time_rotation(
-            Rotation::Daily,
-            Span::new().days(1),
-            Span::new().hours(1),
+        assert_eq!(
+            fs::read(dir.path().join("my_app.2026-11-25-17.13.log")).unwrap(),
+            b"123"
         );
-    }
-
-    fn test_file_size_and_time_rotation_for_specific_time_rotation(
-        rotation: Rotation,
-        rotation_duration: Span,
-        write_interval: Span,
-    ) {
-        let max_files = NonZeroUsize::new(10).unwrap();
-        let file_size = NonZeroUsize::new(500).unwrap();
-        // Small file size and too many files to ensure both of file size and time rotation can be
-        // triggered.
-        let total_files = 100;
-        let temp_dir = TempDir::new().unwrap();
-
-        let start_time = ZonedDateTime::from_str("2024-08-10T00:00:00[UTC]").unwrap();
-        let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref(), "test_file")
-            .rotation(rotation)
-            .filename_suffix("log")
-            .max_log_files(max_files)
-            .max_file_size(file_size)
-            .clock(Clock::ManualClock(ManualClock::new(start_time.clone())))
-            .build()
-            .unwrap();
-
-        let mut cur_time = start_time;
-        let mut end_time = &cur_time + rotation_duration;
-        let mut time_rotation_trigger = false;
-        let mut file_size_rotation_trigger = false;
-
-        for i in 1..=total_files {
-            let mut expected_file_size = 0;
-            loop {
-                writer.state.clock.set_now(cur_time.clone());
-
-                let rand_str = generate_random_string();
-                expected_file_size += rand_str.len();
-
-                writer.write_all(rand_str.as_bytes()).unwrap();
-                assert_eq!(writer.state.current_filesize, expected_file_size);
-
-                cur_time += write_interval;
-
-                if cur_time >= end_time {
-                    end_time = end_time.add(rotation_duration);
-                    time_rotation_trigger = true;
-                    break;
-                }
-                if expected_file_size >= file_size.get() {
-                    file_size_rotation_trigger = true;
-                    break;
-                }
-            }
-
-            writer.flush().unwrap();
-            assert_eq!(
-                fs::read_dir(&writer.state.log_dir).unwrap().count(),
-                min(i, max_files.get())
-            );
-        }
-        assert!(file_size_rotation_trigger);
-        assert!(time_rotation_trigger);
     }
 
     #[test]
-    fn test_rollover_failure_preserves_record_and_returns_error() {
-        let temp_dir = TempDir::new().unwrap();
-        let mut writer = RollingFileWriterBuilder::new(temp_dir.as_ref(), "test_file")
-            .filename_suffix("log")
-            .max_file_size(NonZeroUsize::new(5).unwrap())
-            .max_log_files(NonZeroUsize::new(2).unwrap())
+    fn sequence_exhaustion_preserves_the_full_segment() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join(format!("my_app.{}", u64::MAX));
+        fs::write(&path, b"x").unwrap();
+        let err = RollingFileWriterBuilder::new(dir.path(), "my_app")
+            .max_file_size(NonZeroU64::MIN)
             .build()
-            .unwrap();
-
-        writer.write_all(b"first\n").unwrap();
-
-        // Block rotating regular file `test_file.1.log` -> directory `test_file.2.log`.
-        fs::write(temp_dir.path().join("test_file.1.log"), b"archive").unwrap();
-        fs::create_dir_all(temp_dir.path().join("test_file.2.log")).unwrap();
-
-        let err = writer.write_all(b"second\n").unwrap_err();
-        assert!(err.to_string().contains("failed to rotate log writer"));
-
-        writer.flush().unwrap();
-        let content = fs::read_to_string(temp_dir.path().join("test_file.log")).unwrap();
-        assert_eq!(content, "first\nsecond\n");
+            .unwrap_err();
+        assert_eq!(
+            err.source()
+                .unwrap()
+                .downcast_ref::<io::Error>()
+                .unwrap()
+                .kind(),
+            io::ErrorKind::AlreadyExists
+        );
+        assert_eq!(fs::read(path).unwrap(), b"x");
     }
 
-    fn generate_random_string() -> String {
-        let mut rng = rand::rng();
-        let len = rng.random_range(50..=100);
-        let random_string: String = std::iter::repeat(())
-            .map(|()| rng.sample(Alphanumeric))
-            .map(char::from)
-            .take(len)
-            .collect();
+    #[test]
+    fn collision_on_return_to_a_period_preserves_existing_segments() {
+        let dir = tempdir().unwrap();
+        let mut writer = builder(&dir, Rotation::Hourly, "1969-12-31T23:59:59Z")
+            .max_file_size(NonZeroU64::MIN)
+            .build()
+            .unwrap();
+        writer.write_all(b"a").unwrap();
+        writer.write_all(b"b").unwrap();
+        writer.clock = Clock::ManualClock("1970-01-01T00:00:00Z".parse().unwrap());
+        writer.write_all(b"c").unwrap();
+        writer.clock = Clock::ManualClock("1969-12-31T23:59:00Z".parse().unwrap());
+        writer.write_all(b"d").unwrap();
+        for (name, contents) in [
+            ("my_app.1969-12-31-23.1.log", b"a"),
+            ("my_app.1969-12-31-23.2.log", b"b"),
+            ("my_app.1970-01-01-00.1.log", b"c"),
+            ("my_app.1969-12-31-23.3.log", b"d"),
+        ] {
+            assert_eq!(fs::read(dir.path().join(name)).unwrap(), contents);
+        }
+    }
 
-        random_string
+    #[test]
+    fn pruning_keeps_the_active_file_when_the_clock_moves_back() {
+        let dir = tempdir().unwrap();
+        let future = dir.path().join("my_app.2026-11-27.log");
+        let today = dir.path().join("my_app.2026-11-26.log");
+        let past = dir.path().join("my_app.2026-11-25.log");
+        fs::write(&future, b"future").unwrap();
+        let mut writer = builder(&dir, Rotation::Daily, "2026-11-26T05:00:00Z")
+            .max_log_files(NonZeroUsize::MIN)
+            .build()
+            .unwrap();
+        writer.write_all(b"today").unwrap();
+        assert!(!future.exists());
+        assert_eq!(fs::read(&today).unwrap(), b"today");
+
+        fs::write(&past, b"existing ").unwrap();
+        writer.clock = Clock::ManualClock("2026-11-25T05:00:00Z".parse().unwrap());
+        writer.write_all(b"past").unwrap();
+        assert_eq!(fs::read(past).unwrap(), b"existing past");
+        assert!(!today.exists());
+    }
+
+    #[test]
+    fn fall_back_reuses_the_local_hour_then_rotates_at_its_second_end() {
+        for max_size in [None, NonZeroU64::new(100)] {
+            let dir = tempdir().unwrap();
+            let mut b = builder(&dir, Rotation::Hourly, "2026-11-01T01:00:00-04:00")
+                .timezone(TimeZone::get("America/New_York").unwrap());
+            if let Some(max) = max_size {
+                b = b.max_file_size(max);
+            }
+            let mut writer = b.build().unwrap();
+            writer.write_all(b"EDT ").unwrap();
+            writer.clock = Clock::ManualClock("2026-11-01T01:00:00-05:00".parse().unwrap());
+            assert!(writer.should_rotate(writer.clock.now(), 3));
+            assert!(!writer.rotate_if_needed(writer.clock.now(), 3).unwrap());
+            writer.write_all(b"EST").unwrap();
+            writer.clock = Clock::ManualClock("2026-11-01T02:00:00-05:00".parse().unwrap());
+            writer.write_all(b"later").unwrap();
+
+            let (first, second) = if max_size.is_some() {
+                ("my_app.2026-11-01-01.1.log", "my_app.2026-11-01-02.1.log")
+            } else {
+                ("my_app.2026-11-01-01.log", "my_app.2026-11-01-02.log")
+            };
+            assert_eq!(fs::read(dir.path().join(first)).unwrap(), b"EDT EST");
+            assert_eq!(fs::read(dir.path().join(second)).unwrap(), b"later");
+            assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 2);
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn failed_rollover_appends_the_record_and_waits_one_second_before_retrying() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempdir().unwrap();
+        let mut writer = builder(&dir, Rotation::Minutely, "2026-11-25T17:00:59Z")
+            .build()
+            .unwrap();
+        let current = dir.path().join("my_app.2026-11-25-17-00.log");
+        let next = dir.path().join("my_app.2026-11-25-17-01.log");
+        writer.write_all(b"first ").unwrap();
+
+        let permissions = fs::metadata(dir.path()).unwrap().permissions();
+        fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o555)).unwrap();
+        // Privileged test runners can still create files here. In that case the directory
+        // at the candidate path prevents opening it for append.
+        let blocker = fs::create_dir(&next);
+        writer.clock = Clock::ManualClock("2026-11-25T17:01:00Z".parse().unwrap());
+        let result = writer.write_all(b"failed ");
+        fs::set_permissions(dir.path(), permissions).unwrap();
+        let err = result.unwrap_err();
+        let cause = err.source().unwrap().downcast_ref::<io::Error>().unwrap();
+        match blocker {
+            Ok(()) => fs::remove_dir(&next).unwrap(),
+            Err(e) => {
+                assert_eq!(e.kind(), io::ErrorKind::PermissionDenied);
+                assert_eq!(cause.kind(), io::ErrorKind::PermissionDenied);
+            }
+        }
+        assert_eq!(fs::read(&current).unwrap(), b"first failed ");
+
+        writer.clock = Clock::ManualClock("2026-11-25T17:01:00.999Z".parse().unwrap());
+        writer.write_all(b"cooldown").unwrap();
+        assert!(!next.exists());
+        // Stepping the wall clock backward before the failure timestamp exits cooldown immediately.
+        writer.clock = Clock::ManualClock("2026-11-25T16:59:00Z".parse().unwrap());
+        assert!(writer.should_rotate(writer.clock.now(), 1));
+        writer.clock = Clock::ManualClock("2026-11-25T17:01:01Z".parse().unwrap());
+        writer.write_all(b"retried").unwrap();
+        assert_eq!(fs::read(current).unwrap(), b"first failed cooldown");
+        assert_eq!(fs::read(next).unwrap(), b"retried");
+    }
+
+    #[test]
+    fn timestamp_overflow_reports_the_calendar_error_after_writing() {
+        let dir = tempdir().unwrap();
+        let mut writer = builder(&dir, Rotation::Daily, "2026-11-25T00:00:00Z")
+            .build()
+            .unwrap();
+        writer.clock = Clock::ManualClock(Timestamp::MAX);
+        let error = writer.write_all(b"still here").unwrap_err();
+        assert!(error.source().unwrap().is::<jiff::Error>());
+        assert_eq!(
+            fs::read(dir.path().join("my_app.2026-11-25.log")).unwrap(),
+            b"still here"
+        );
+    }
+
+    #[test]
+    fn append_after_external_truncation_starts_at_the_new_end() {
+        let dir = tempdir().unwrap();
+        for size in [None, NonZeroU64::new(100)] {
+            let mut builder = RollingFileWriterBuilder::new(dir.path(), "typed.log");
+            builder.files.max_size = size;
+            let mut writer = builder.build().unwrap();
+            let path = dir.path().join(if size.is_some() {
+                "typed.log.1"
+            } else {
+                "typed.log"
+            });
+            writer.write_all(b"original record").unwrap();
+            fs::write(&path, b"x").unwrap();
+            writer.write_all(b"y").unwrap();
+            assert_eq!(fs::read(path).unwrap(), b"xy");
+        }
     }
 }

@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::num::NonZeroU64;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
 
+use jiff::tz::TimeZone;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::Layout;
@@ -28,7 +30,7 @@ use crate::rolling::RollingFileWriter;
 use crate::rolling::RollingFileWriterBuilder;
 use crate::rotation::Rotation;
 
-/// A builder to configure and create an [`File`] appender.
+/// Configures the directory, segment names, rotation, and retention of a [`File`] appender.
 ///
 /// See the [crate documentation](super) for usage examples.
 #[derive(Debug)]
@@ -38,7 +40,11 @@ pub struct FileBuilder {
 }
 
 impl FileBuilder {
-    /// Create a new file appender builder.
+    /// Append to `filename` in `basedir`, creating the directory as needed. Rotation is disabled by
+    /// default.
+    ///
+    /// The filename is used literally. Use `FileBuilder::new(dir, "my_app").filename_suffix("log")`
+    /// to place the period and sequence before the extension, as in `my_app.2026-11-25.1.log`.
     pub fn new(basedir: impl Into<PathBuf>, filename: impl Into<String>) -> Self {
         Self {
             builder: RollingFileWriterBuilder::new(basedir, filename),
@@ -50,10 +56,8 @@ impl FileBuilder {
     ///
     /// # Errors
     ///
-    /// Return an error if either:
-    ///
-    /// * The log directory cannot be created.
-    /// * The configured filename is empty.
+    /// Returns an error for an invalid filename or suffix, an unrepresentable rotation period, or
+    /// an I/O failure while preparing the directory or opening the initial file.
     pub fn build(self) -> Result<File, Error> {
         let FileBuilder { builder, layout } = self;
         let writer = builder.build()?;
@@ -90,36 +94,51 @@ impl FileBuilder {
         self
     }
 
-    /// Set the rotation strategy to roll over log files daily at 00:00 in the local time zone.
+    /// Roll over at the start of each day in the configured timezone.
     pub fn rollover_daily(mut self) -> Self {
         self.builder = self.builder.rotation(Rotation::Daily);
         self
     }
 
-    /// Set the rotation strategy to roll over log files if the current log file exceeds the given
-    /// size.
+    /// Set the timezone used for rotation boundaries and segment names. Defaults to the system
+    /// timezone.
+    pub fn timezone(mut self, tz: TimeZone) -> Self {
+        self.builder = self.builder.timezone(tz);
+        self
+    }
+
+    /// Roll over before a record would exceed the given size in bytes, including its trailing
+    /// newline.
     ///
-    /// If any time-based rotation strategy is set, the size-based rotation will be checked on the
-    /// current log file after the time-based rotation check.
-    pub fn rollover_size(mut self, n: NonZeroUsize) -> Self {
+    /// A single oversized record is written whole to an empty segment. Sequence numbers increase
+    /// while the period stays active. On entering another period, numbering starts at 1 and
+    /// skips existing names.
+    pub fn rollover_size(mut self, n: NonZeroU64) -> Self {
         self.builder = self.builder.max_file_size(n);
         self
     }
 
-    /// Set the filename suffix.
+    /// Add a suffix after all rotation fields. A single leading dot is stripped and an empty input
+    /// clears the suffix.
     pub fn filename_suffix(mut self, suffix: impl Into<String>) -> Self {
         self.builder = self.builder.filename_suffix(suffix);
         self
     }
 
-    /// Set the maximum number of log files to keep.
+    /// Keep at most `n` matching files across all periods, including the active file.
+    ///
+    /// With rotation enabled, the oldest inactive segments are pruned at startup and after
+    /// rollover. By default all segments are retained.
     pub fn max_log_files(mut self, n: NonZeroUsize) -> Self {
         self.builder = self.builder.max_log_files(n);
         self
     }
 }
 
-/// An appender that writes log records to rolling files.
+/// Appends each formatted record and a newline directly to the active file.
+///
+/// If opening the next segment fails, the appender writes the record to the current file and
+/// returns the rollover error if the write succeeds. It waits one second before retrying rotation.
 #[derive(Debug)]
 pub struct File {
     writer: Mutex<RollingFileWriter>,
@@ -148,12 +167,5 @@ impl Append for File {
     fn flush(&self) -> Result<(), Error> {
         let mut writer = self.writer();
         writer.flush()
-    }
-}
-
-impl Drop for File {
-    fn drop(&mut self) {
-        let writer = self.writer.get_mut().unwrap_or_else(|e| e.into_inner());
-        let _ = writer.flush();
     }
 }

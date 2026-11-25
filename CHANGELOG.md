@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 * Upgrade `jiff` to 1.0.
 * Redesign `logforth_core::Error` without `anyhow`, boxing its payload and removing `with_context`, `sources`, `from_io_error`, and `from_fmt_error`.
 * Replace `Trap` and `BestEffortTrap` with `ErrorSink` (`StderrErrorSink` and `BlackHoleErrorSink` under `error`), add `LoggerBuilder::error_sink` and `DispatchBuilder::error_sink` overrides, and remove `FileBuilder::trap`.
+* Redesign `logforth-append-file` to write directly to period- and ascending-sequence-named segments (`1, 2, ...` from oldest to newest, replacing reverse-shifted archives and the unnumbered active file when rotating), add `FileBuilder::timezone`, take `NonZeroU64` in `rollover_size`, and count the active segment toward `max_log_files`.
 
 ## [0.30.1] 2026-06-03
 

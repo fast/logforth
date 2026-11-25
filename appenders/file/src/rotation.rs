@@ -12,82 +12,166 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jiff::RoundMode;
-use jiff::ToSpan;
-use jiff::Unit;
-use jiff::ZonedDateTime;
-use jiff::ZonedDateTimeRound;
+use std::ops::Range;
 
-/// Rotation policies for rolling files.
+use jiff::SignedDuration;
+use jiff::Timestamp;
+use jiff::ToSpan;
+use jiff::civil::DateTime;
+use jiff::tz::TimeZone;
+use logforth_core::Error;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Rotation {
-    /// Rotate files every minute.
+pub(crate) enum Rotation {
     Minutely,
-    /// Rotate files every hour.
     Hourly,
-    /// Rotate files every day.
     Daily,
-    /// Never rotate files.
     Never,
 }
 
+#[derive(Debug)]
+pub(crate) struct Period {
+    pub(crate) key: DateTime,
+    pub(crate) bounds: Range<Timestamp>,
+}
+
 impl Rotation {
-    /// Get the next date timestamp based on the current date and rotation policy.
-    pub fn next_date_timestamp(&self, current_date: &ZonedDateTime) -> Option<usize> {
-        let round = ZonedDateTimeRound::new().mode(RoundMode::Trunc);
-        let next_date = match *self {
-            Rotation::Never => return None,
-            Rotation::Minutely => (current_date + 1.minute()).round(round.smallest(Unit::Minute)),
-            Rotation::Hourly => (current_date + 1.hour()).round(round.smallest(Unit::Hour)),
-            Rotation::Daily => (current_date + 1.day()).round(round.smallest(Unit::Day)),
+    pub(crate) fn period_at(self, now: Timestamp, tz: &TimeZone) -> Result<Option<Period>, Error> {
+        let local = tz.to_datetime(now);
+        let (key, span) = match self {
+            Self::Never => return Ok(None),
+            Self::Daily => (local.start_of_day(), 1.day()),
+            Self::Hourly => (local.date().at(local.hour(), 0, 0, 0), 1.hour()),
+            Self::Minutely => (
+                local.date().at(local.hour(), local.minute(), 0, 0),
+                1.minute(),
+            ),
         };
-        let next_date =
-            next_date.expect("invalid time; this is a bug in logforth rolling file appender");
-        Some(next_date.timestamp().as_millisecond() as usize)
+        if key.year() < 0 {
+            return Err(Error::new("log file periods require a four-digit year"));
+        }
+        let bounds = key
+            .checked_add(span)
+            .and_then(|end| self.bounds(now, tz, key, end))
+            .map_err(|err| {
+                Error::new("failed to determine log rotation period").with_source(err)
+            })?;
+        Ok(Some(Period { key, bounds }))
     }
 
-    /// Get the date format string for the rotation policy.
-    pub fn date_format(&self) -> &'static str {
-        match *self {
-            Rotation::Minutely => "%F-%H-%M",
-            Rotation::Hourly => "%F-%H",
-            Rotation::Daily => "%F",
-            Rotation::Never => "%F",
+    fn bounds(
+        self,
+        now: Timestamp,
+        tz: &TimeZone,
+        key: DateTime,
+        next: DateTime,
+    ) -> Result<Range<Timestamp>, jiff::Error> {
+        let offset = tz.to_offset(now);
+        let mut start = offset.to_timestamp(key)?;
+        let mut end = offset.to_timestamp(next)?;
+
+        // A repeated hour or minute has two occurrences. A day spans offset changes
+        // as long as the clock stays on the same date on both sides of the transition.
+        let tick = SignedDuration::from_nanos(1);
+        for transition in tz.preceding(now.checked_add(tick)?) {
+            let at = transition.timestamp();
+            if at < start {
+                break;
+            }
+            let before = at.checked_sub(tick)?;
+            if self != Self::Daily || tz.to_datetime(before).date() != key.date() {
+                start = at;
+                break;
+            }
+            start = tz.to_offset(before).to_timestamp(key)?;
         }
+        for transition in tz.following(now) {
+            let at = transition.timestamp();
+            if at > end {
+                break;
+            }
+            let after = transition.offset();
+            if self != Self::Daily || after.to_datetime(at).date() != key.date() {
+                end = at;
+                break;
+            }
+            end = after.to_timestamp(next)?;
+        }
+        Ok(start..end)
+    }
+
+    pub(crate) fn date_format(self) -> &'static str {
+        match self {
+            Self::Minutely => "%F-%H-%M",
+            Self::Hourly => "%F-%H",
+            Self::Daily | Self::Never => "%F",
+        }
+    }
+
+    pub(crate) fn parse_period(self, text: &str) -> Option<DateTime> {
+        let len = match self {
+            Self::Never => return None,
+            Self::Daily => 10,
+            Self::Hourly => 13,
+            Self::Minutely => 16,
+        };
+        if text.len() != len
+            || !text.bytes().enumerate().all(|(i, b)| match i {
+                4 | 7 | 10 | 13 => b == b'-',
+                _ => b.is_ascii_digit(),
+            })
+        {
+            return None;
+        }
+        DateTime::strptime(self.date_format(), text).ok()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
-    use jiff::Timestamp;
-    use jiff::ZonedDateTime;
-
-    use super::Rotation;
+    use super::*;
 
     #[test]
-    fn test_next_date_timestamp() {
-        let current_date = ZonedDateTime::from_str("2024-08-10T17:12:52+08[+08]").unwrap();
+    fn a_calendar_day_spans_the_offset_change() {
+        let tz = TimeZone::get("America/New_York").unwrap();
+        for (before, after, start, end) in [
+            (
+                "2026-03-08T01:59:59-05",
+                "2026-03-08T03:00:00-04",
+                "2026-03-08T00:00:00-05",
+                "2026-03-09T00:00:00-04",
+            ),
+            (
+                "2026-11-01T01:59:59-04",
+                "2026-11-01T01:00:00-05",
+                "2026-11-01T00:00:00-04",
+                "2026-11-02T00:00:00-05",
+            ),
+        ] {
+            let expected = start.parse().unwrap()..end.parse().unwrap();
+            for now in [before, after] {
+                let period = Rotation::Daily
+                    .period_at(now.parse().unwrap(), &tz)
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(period.bounds, expected);
+            }
+        }
+    }
 
-        assert_eq!(Rotation::Never.next_date_timestamp(&current_date), None);
-
-        let expected_date = "2024-08-10T17:13:00+08".parse::<Timestamp>().unwrap();
+    #[test]
+    fn repeated_hour_can_start_at_half_past() {
+        let tz = TimeZone::get("Australia/Lord_Howe").unwrap();
+        let now = "2026-04-05T01:45:00+10:30".parse().unwrap();
+        let period = Rotation::Hourly.period_at(now, &tz).unwrap().unwrap();
         assert_eq!(
-            Rotation::Minutely.next_date_timestamp(&current_date),
-            Some(expected_date.as_millisecond() as usize)
+            period.bounds,
+            "2026-04-05T01:30:00+10:30".parse().unwrap()
+                .."2026-04-05T02:00:00+10:30".parse().unwrap()
         );
-
-        let expected_date = "2024-08-10T18:00:00+08".parse::<Timestamp>().unwrap();
         assert_eq!(
-            Rotation::Hourly.next_date_timestamp(&current_date),
-            Some(expected_date.as_millisecond() as usize)
-        );
-
-        let expected_date = "2024-08-11T00:00:00+08".parse::<Timestamp>().unwrap();
-        assert_eq!(
-            Rotation::Daily.next_date_timestamp(&current_date),
-            Some(expected_date.as_millisecond() as usize)
+            period.key,
+            "2026-04-05T01:00:00".parse::<DateTime>().unwrap()
         );
     }
 }

@@ -12,68 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jiff::ZonedDateTime;
+use jiff::Timestamp;
 
 #[derive(Debug)]
-pub enum Clock {
+pub(crate) enum Clock {
     DefaultClock,
     #[cfg(test)]
-    ManualClock(ManualClock),
+    ManualClock(Timestamp),
 }
 
 impl Clock {
-    pub fn now(&self) -> ZonedDateTime {
+    pub(crate) fn now(&self) -> Timestamp {
         match self {
-            Clock::DefaultClock => ZonedDateTime::now(),
+            Clock::DefaultClock => Timestamp::now(),
             #[cfg(test)]
-            Clock::ManualClock(clock) => clock.now(),
+            Clock::ManualClock(now) => *now,
         }
-    }
-
-    #[cfg(test)]
-    pub fn set_now(&mut self, now: ZonedDateTime) {
-        if let Clock::ManualClock(clock) = self {
-            clock.set_now(now);
-        }
-    }
-}
-
-/// The time could be reset.
-#[derive(Debug)]
-#[cfg(test)]
-pub struct ManualClock {
-    now: ZonedDateTime,
-}
-
-#[cfg(test)]
-impl ManualClock {
-    pub fn new(now: ZonedDateTime) -> ManualClock {
-        ManualClock { now }
-    }
-
-    fn now(&self) -> ZonedDateTime {
-        self.now.clone()
-    }
-
-    pub fn set_now(&mut self, now: ZonedDateTime) {
-        self.now = now;
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::str::FromStr;
-
-    use super::*;
-
-    #[test]
-    fn test_manual_clock_adjusting() {
-        let now = ZonedDateTime::from_str("2024-08-10T17:12:52+08[+08]").unwrap();
-        let mut clock = ManualClock { now: now.clone() };
-        assert_eq!(clock.now(), now);
-
-        let now = ZonedDateTime::from_str("2024-01-01T12:00:00+08[+08]").unwrap();
-        clock.set_now(now.clone());
-        assert_eq!(clock.now(), now);
     }
 }
