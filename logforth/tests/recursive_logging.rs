@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::num::NonZeroU64;
 use std::num::NonZeroUsize;
 
 use logforth::Diagnostic;
@@ -38,7 +39,7 @@ fn test_meta_logging_in_format_works() {
     let rolling = FileBuilder::new("logs", "example")
         .layout(CustomLayout("file"))
         .rollover_minutely()
-        .rollover_size(NonZeroUsize::new(1024 * 1024).unwrap())
+        .rollover_size(NonZeroU64::new(1024 * 1024).unwrap())
         .filename_suffix("log")
         .max_log_files(NonZeroUsize::new(10).unwrap())
         .build()
