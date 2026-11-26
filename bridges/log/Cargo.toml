@@ -33,14 +33,11 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []
-serde = ["dep:serde", "log/kv_serde", "logforth-core/serde"]
+serde = ["log/kv_serde", "logforth-core/serde"]
 
 [dependencies]
 log = { workspace = true, features = ["kv", "std"] }
 logforth-core = { workspace = true }
-
-# Optional dependencies
-serde = { workspace = true, optional = true }
 
 [lints]
 workspace = true

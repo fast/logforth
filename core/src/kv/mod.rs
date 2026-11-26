@@ -27,6 +27,9 @@ use std::slice;
 use crate::Error;
 use crate::str::RefStr;
 
+#[cfg(feature = "serde")]
+mod value_serde;
+
 /// A visitor to walk through key-value pairs.
 pub trait Visitor {
     /// Visit a key-value pair.
