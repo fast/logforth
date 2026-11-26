@@ -113,7 +113,7 @@ impl Layout for LogfmtLayout {
         let time = ts.display_with_offset(offset);
 
         let level = record.level();
-        let target = record.target();
+        let module = record.module_path().unwrap_or_default();
         let file = record.filename();
         let line = record.line().unwrap_or_default();
         let message = if let Some(msg) = record.payload_static() {
@@ -130,7 +130,7 @@ impl Layout for LogfmtLayout {
             Key::new("level").view(),
             Value::static_str(level.name()).view(),
         )?;
-        visitor.visit(Key::new("module").view(), Value::str(target).view())?;
+        visitor.visit(Key::new("module").view(), Value::str(module).view())?;
         visitor.visit(
             Key::new("position").view(),
             Value::display(&format_args!("{file}:{line}")).view(),

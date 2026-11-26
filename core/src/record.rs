@@ -32,7 +32,6 @@ pub struct Record<'a> {
 
     // the metadata
     level: Level,
-    target: RefStr<'a>,
     module_path: Option<RefStr<'a>>,
     file: Option<RefStr<'a>>,
     line: Option<u32>,
@@ -56,20 +55,6 @@ impl<'a> Record<'a> {
     /// See [`Level`] for details.
     pub fn level(&self) -> Level {
         self.level
-    }
-
-    /// The name of the target of the directive.
-    ///
-    /// This is typically the same as the module path, but can be set explicitly.
-    pub fn target(&self) -> &'a str {
-        self.target.get()
-    }
-
-    /// The name of the target of the directive, if it is a `'static` str.
-    ///
-    /// This is typically the same as the module path, but can be set explicitly.
-    pub fn target_static(&self) -> Option<&'static str> {
-        self.target.get_static()
     }
 
     /// The module path of the message.
@@ -139,7 +124,6 @@ impl<'a> Record<'a> {
             record: Record {
                 now: self.now,
                 level: self.level,
-                target: self.target,
                 module_path: self.module_path,
                 file: self.file,
                 line: self.line,
@@ -155,7 +139,6 @@ impl<'a> Record<'a> {
         RecordOwned {
             now: self.now,
             level: self.level,
-            target: self.target.into_cow_static(),
             module_path: self.module_path.map(|m| m.into_cow_static()),
             file: self.file.map(|f| f.into_cow_static()),
             line: self.line,
@@ -191,7 +174,6 @@ impl Default for RecordBuilder<'_> {
             record: Record {
                 now: SystemTime::now(),
                 level: Level::Info,
-                target: RefStr::Static(""),
                 module_path: None,
                 file: None,
                 line: None,
@@ -213,18 +195,6 @@ impl<'a> RecordBuilder<'a> {
     /// Set [`level`](Record::level).
     pub fn level(mut self, level: Level) -> Self {
         self.record.level = level;
-        self
-    }
-
-    /// Set [`target`](Record::target).
-    pub fn target(mut self, target: &'a str) -> Self {
-        self.record.target = RefStr::Borrowed(target);
-        self
-    }
-
-    /// Set [`target`](Record::target) to a `'static` string.
-    pub fn target_static(mut self, target: &'static str) -> Self {
-        self.record.target = RefStr::Static(target);
         self
     }
 
@@ -284,7 +254,6 @@ pub struct RecordOwned {
 
     // the metadata
     level: Level,
-    target: Cow<'static, str>,
     module_path: Option<Cow<'static, str>>,
     file: Option<Cow<'static, str>>,
     line: Option<u32>,
@@ -303,10 +272,6 @@ impl RecordOwned {
         f(Record {
             now: self.now,
             level: self.level,
-            target: match &self.target {
-                Cow::Borrowed(s) => RefStr::Static(s),
-                Cow::Owned(s) => RefStr::Borrowed(s.as_ref()),
-            },
             module_path: match &self.module_path {
                 Some(Cow::Borrowed(s)) => Some(RefStr::Static(s)),
                 Some(Cow::Owned(s)) => Some(RefStr::Borrowed(s)),
