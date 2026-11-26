@@ -23,9 +23,11 @@ fn main() {
         .build()
         .unwrap();
 
-    logforth::starter_log::builder()
+    use logforth::starter_log::LogStarterExt;
+
+    logforth::builder()
         .dispatch(|d| d.filter(LevelFilter::All).append(file))
-        .apply();
+        .install();
 
     let repeat = 1;
 

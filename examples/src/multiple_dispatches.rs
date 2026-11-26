@@ -15,9 +15,10 @@
 use logforth::append;
 use logforth::record::Level;
 use logforth::record::LevelFilter;
+use logforth::starter_log::LogStarterExt;
 
 fn main() {
-    logforth::starter_log::builder()
+    logforth::builder()
         .dispatch(|d| {
             d.filter(LevelFilter::MoreSevereEqual(Level::Error))
                 .append(append::Stderr::default())
@@ -26,7 +27,7 @@ fn main() {
             d.filter(LevelFilter::MoreSevereEqual(Level::Info))
                 .append(append::Stdout::default())
         })
-        .apply();
+        .install();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

@@ -18,9 +18,10 @@ use fastrace::collector::ConsoleReporter;
 use fastrace::collector::SpanContext;
 use logforth::diagnostic;
 use logforth::record::LevelFilter;
+use logforth::starter_log::LogStarterExt;
 
 fn main() {
-    logforth::starter_log::builder()
+    logforth::builder()
         .dispatch(|d| {
             d.filter(LevelFilter::All)
                 .append(logforth::append::FastraceEvent::default())
@@ -29,7 +30,7 @@ fn main() {
             d.diagnostic(diagnostic::FastraceDiagnostic::default())
                 .append(logforth::append::Stderr::default())
         })
-        .apply();
+        .install();
 
     fastrace::set_reporter(ConsoleReporter, Config::default());
 

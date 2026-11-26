@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use logforth::append;
 use logforth::layout::JsonLayout;
+use logforth::record::Level;
+use logforth::record::LevelFilter;
 
 fn main() {
-    logforth::starter_log::builder()
-        .dispatch(|d| d.append(append::Stdout::default().with_layout(JsonLayout::default())))
-        .apply();
+    logforth::starter_log::stdout()
+        .layout(JsonLayout::default())
+        .filter(LevelFilter::MoreSevereEqual(Level::Info))
+        .install();
 
     log::info!("This is an info message.");
     log::debug!("This debug message will not be printed by default.");

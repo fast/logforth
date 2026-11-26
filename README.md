@@ -33,7 +33,7 @@ Set up a basic logger that outputs to stdout:
 
 ```rust
 fn main() {
-    logforth::starter_log::stdout().apply();
+    logforth::starter_log::stdout().install();
 
     log::error!("This is an error message.");
     log::info!("This is an info message.");
@@ -48,15 +48,20 @@ By default, all logging except the `error` level is disabled. You can enable log
 Configure multiple dispatches with different filters and appenders:
 
 ```rust
+use logforth::append;
+use logforth::record::Level;
+use logforth::record::LevelFilter;
+use logforth::starter_log::LogStarterExt;
+
 fn main() {
-    logforth::starter_log::builder()
+    logforth::builder()
         .dispatch(|d| d
             .filter(LevelFilter::MoreSevereEqual(Level::Error))
             .append(append::Stderr::default()))
         .dispatch(|d| d
             .filter(LevelFilter::MoreSevereEqual(Level::Info))
             .append(append::Stdout::default()))
-        .apply();
+        .install();
 
     log::error!("This error will be logged to stderr.");
     log::info!("This info will be logged to stdout.");
@@ -67,6 +72,8 @@ fn main() {
 Configure OpenTelemetry appender to export logs to an OpenTelemetry backend ([full example](https://github.com/scopedb/percas/blob/d01db13b/crates/server/src/telemetry.rs#L131-L227)):
 
 ```rust
+use logforth::starter_log::LogStarterExt;
+
 fn main() {
     let static_diagnostic = {
         let mut static_diagnostic = StaticDiagnostic::default();
@@ -90,14 +97,14 @@ fn main() {
             .build()
     });
 
-    logforth::starter_log::builder()
+    logforth::builder()
         .dispatch(|b| {
             b.filter(filter)
                 .diagnostic(FastraceDiagnostic::default())
                 .diagnostic(static_diagnostic)
                 .append(appender)
         })
-        .apply();
+        .install();
 }
 ```
 
@@ -163,7 +170,7 @@ The following appenders do *not* use layouts:
 
 Logforth supports filtering log records at the dispatch level. Log records that do not pass the filters will not be sent to the appenders. Logforth provides several built-in filters:
 
-* [`RustLogFilter`] allows you to configure logging levels and targets via the famous `RUST_LOG` directive pattern.
+* [`RustLogFilter`] allows you to configure logging levels by prefix via the famous `RUST_LOG` directive pattern.
 
 [`RustLogFilter`]: https://docs.rs/logforth-filter-rustlog/*/logforth_filter_rustlog/struct.RustLogFilter.html
 

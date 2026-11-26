@@ -21,6 +21,7 @@ use fastrace::prelude::TraceId;
 use logforth::append;
 use logforth::diagnostic;
 use logforth::layout::GoogleCloudLoggingLayout;
+use logforth::starter_log::LogStarterExt;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -42,7 +43,7 @@ struct MyEmptyStructuredValue {
 }
 
 fn main() {
-    logforth::starter_log::builder()
+    logforth::builder()
         .dispatch(|d| {
             d.diagnostic(diagnostic::FastraceDiagnostic::default())
                 .append(
@@ -53,7 +54,7 @@ fn main() {
                     ),
                 )
         })
-        .apply();
+        .install();
 
     fastrace::set_reporter(ConsoleReporter, Config::default());
 

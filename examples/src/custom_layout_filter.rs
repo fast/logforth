@@ -20,6 +20,7 @@ use logforth::append;
 use logforth::filter::FilterResult;
 use logforth::record::Level;
 use logforth::record::Record;
+use logforth::starter_log::LogStarterExt;
 
 #[derive(Debug)]
 struct CustomFilter;
@@ -49,12 +50,12 @@ impl Layout for CustomLayout {
 }
 
 fn main() {
-    logforth::starter_log::builder()
+    logforth::builder()
         .dispatch(|d| {
             d.filter(CustomFilter)
                 .append(append::Stdout::default().with_layout(CustomLayout))
         })
-        .apply();
+        .install();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

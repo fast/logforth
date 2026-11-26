@@ -14,9 +14,9 @@
 
 use logforth::append::asynchronous::AsyncBuilder;
 use logforth::append::file::FileBuilder;
-use logforth::bridge::log::LogBridge;
 use logforth::layout::JsonLayout;
 use logforth::record::LevelFilter;
+use logforth::starter_log::LogStarterExt;
 
 fn main() {
     let file = FileBuilder::new("logs", "my_app_async")
@@ -27,12 +27,9 @@ fn main() {
 
     let asynchronous = AsyncBuilder::new("logforth-async").append(file).build();
 
-    let logger = logforth::core::builder()
+    logforth::builder()
         .dispatch(|d| d.filter(LevelFilter::All).append(asynchronous))
-        .build();
-
-    log::set_boxed_logger(Box::new(LogBridge::new(logger))).unwrap();
-    log::set_max_level(log::LevelFilter::Trace);
+        .install();
 
     log::error!("Hello single error!");
     log::warn!("Hello single warn!");

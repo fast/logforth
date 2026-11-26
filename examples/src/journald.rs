@@ -14,10 +14,10 @@
 
 #[cfg(unix)]
 fn main() {
+    use logforth::starter_log::LogStarterExt;
+
     let append = logforth::append::Journald::new().unwrap();
-    logforth::starter_log::builder()
-        .dispatch(|d| d.append(append))
-        .apply();
+    logforth::builder().dispatch(|d| d.append(append)).install();
 
     log::error!("Hello, journald at ERROR!");
     log::warn!("Hello, journald at WARN!");

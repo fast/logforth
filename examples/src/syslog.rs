@@ -14,12 +14,13 @@
 
 use logforth::append::syslog::SyslogBuilder;
 use logforth::record::LevelFilter;
+use logforth::starter_log::LogStarterExt;
 
 fn main() {
     let append = SyslogBuilder::tcp_well_known().unwrap().build();
-    logforth::starter_log::builder()
+    logforth::builder()
         .dispatch(|d| d.filter(LevelFilter::All).append(append))
-        .apply();
+        .install();
 
     let repeat = 1;
 

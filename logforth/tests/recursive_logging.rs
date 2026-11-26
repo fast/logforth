@@ -21,6 +21,7 @@ use logforth::Layout;
 use logforth::append;
 use logforth::append::file::FileBuilder;
 use logforth::record::Record;
+use logforth::starter_log::LogStarterExt;
 
 #[derive(Debug)]
 struct CustomLayout(&'static str);
@@ -45,11 +46,11 @@ fn test_meta_logging_in_format_works() {
         .build()
         .unwrap();
 
-    logforth::starter_log::builder()
+    logforth::builder()
         .dispatch(|d| d.append(stdout))
         .dispatch(|d| d.append(stderr))
         .dispatch(|d| d.append(rolling))
-        .apply();
+        .install();
 
     struct Thing<'a>(&'a str);
 
