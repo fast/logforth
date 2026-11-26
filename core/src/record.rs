@@ -105,7 +105,7 @@ impl<'a> Record<'a> {
 
     /// The line number in the source file.
     ///
-    /// This is typically set by the logging macro. If set, returns `Some(column)`; otherwise,
+    /// This is typically set by the logging macro. If set, returns `Some(line)`; otherwise,
     /// returns `None`.
     pub fn line(&self) -> Option<u32> {
         self.line
@@ -325,76 +325,6 @@ impl RecordOwned {
     }
 }
 
-/// A minimal set of criteria for pre-filtering purposes.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct FilterCriteria<'a> {
-    level: Level,
-    target: &'a str,
-}
-
-impl<'a> FilterCriteria<'a> {
-    /// Get the [`level`](Record::level).
-    pub fn level(&self) -> Level {
-        self.level
-    }
-
-    /// Get the [`target`](Record::target).
-    pub fn target(&self) -> &'a str {
-        self.target
-    }
-
-    /// Create a builder initialized with the current criteria's values.
-    pub fn to_builder(&self) -> FilterCriteriaBuilder<'a> {
-        FilterCriteriaBuilder {
-            metadata: FilterCriteria {
-                level: self.level,
-                target: self.target,
-            },
-        }
-    }
-
-    /// Return a brand-new builder.
-    pub fn builder() -> FilterCriteriaBuilder<'a> {
-        FilterCriteriaBuilder::default()
-    }
-}
-
-/// Builder for [`FilterCriteria`].
-#[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct FilterCriteriaBuilder<'a> {
-    metadata: FilterCriteria<'a>,
-}
-
-impl Default for FilterCriteriaBuilder<'_> {
-    fn default() -> Self {
-        FilterCriteriaBuilder {
-            metadata: FilterCriteria {
-                level: Level::Info,
-                target: "",
-            },
-        }
-    }
-}
-
-impl<'a> FilterCriteriaBuilder<'a> {
-    /// Setter for [`level`](FilterCriteria::level).
-    pub fn level(mut self, arg: Level) -> Self {
-        self.metadata.level = arg;
-        self
-    }
-
-    /// Setter for [`target`](FilterCriteria::target).
-    pub fn target(mut self, target: &'a str) -> Self {
-        self.metadata.target = target;
-        self
-    }
-
-    /// Invoke the builder and return a `Metadata`
-    pub fn build(self) -> FilterCriteria<'a> {
-        self.metadata
-    }
-}
-
 /// A Level is the importance or severity of a log event.
 ///
 /// The higher the level, the more important or severe the event.
@@ -490,6 +420,35 @@ pub enum Level {
 }
 
 impl Level {
+    /// All 24 severity levels in ascending severity order from [`Level::Trace`] to
+    /// [`Level::Fatal4`].
+    pub const ALL: [Level; 24] = [
+        Level::Trace,
+        Level::Trace2,
+        Level::Trace3,
+        Level::Trace4,
+        Level::Debug,
+        Level::Debug2,
+        Level::Debug3,
+        Level::Debug4,
+        Level::Info,
+        Level::Info2,
+        Level::Info3,
+        Level::Info4,
+        Level::Warn,
+        Level::Warn2,
+        Level::Warn3,
+        Level::Warn4,
+        Level::Error,
+        Level::Error2,
+        Level::Error3,
+        Level::Error4,
+        Level::Fatal,
+        Level::Fatal2,
+        Level::Fatal3,
+        Level::Fatal4,
+    ];
+
     /// Return the string representation the short name for the `Level`.
     ///
     /// This returns the same string as the `fmt::Display` implementation.

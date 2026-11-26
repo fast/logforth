@@ -18,44 +18,49 @@ use std::fmt;
 use std::sync::Arc;
 
 use crate::Diagnostic;
-use crate::record::FilterCriteria;
+use crate::record::Level;
 use crate::record::LevelFilter;
 use crate::record::Record;
 
-/// The result of a filter check.
+/// The result of evaluating a [`Filter`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FilterResult {
-    /// The record will be processed without further filtering.
+    /// Accept the record immediately and bypass remaining filters in the current dispatch.
     Accept,
-    /// The record should not be processed.
+    /// Drop the record immediately from the current dispatch.
     Reject,
-    /// No decision could be made, further filtering should occur.
+    /// Express no final decision and pass control to the next filter in the dispatch.
     Neutral,
 }
 
-/// A filter that can be applied to log records.
+/// A filter applied to log records within a dispatch branch.
 pub trait Filter: fmt::Debug + Send + Sync + 'static {
-    /// Whether the record is filtered by its given metadata.
-    fn enabled(&self, criteria: &FilterCriteria, diags: &dyn Diagnostic) -> FilterResult;
+    /// Returns the most permissive result (`Accept > Neutral > Reject`) that [`Self::filter`] may
+    /// return for any record at `level`.
+    ///
+    /// Evaluated once per severity level when building a [`Logger`](crate::Logger) to precompute
+    /// fast-path level pruning. Narrowing filters that never promote records return
+    /// [`FilterResult::Neutral`] (or [`FilterResult::Reject`] for disabled levels); filters that
+    /// may dynamically promote records ahead of downstream thresholds return
+    /// [`FilterResult::Accept`] for levels they may promote.
+    fn filter_level(&self, level: Level) -> FilterResult;
 
-    /// Whether the record is filtered.
-    fn matches(&self, record: &Record, diags: &dyn Diagnostic) -> FilterResult {
-        let criteria = FilterCriteria::builder()
-            .level(record.level())
-            .target(record.target())
-            .build();
-
-        self.enabled(&criteria, diags)
-    }
+    /// Evaluates whether `record` should be accepted, rejected, or passed to subsequent filters
+    /// in the dispatch.
+    fn filter(&self, record: &Record, diags: &dyn Diagnostic) -> FilterResult;
 }
 
 impl Filter for LevelFilter {
-    fn enabled(&self, criteria: &FilterCriteria, _: &dyn Diagnostic) -> FilterResult {
-        if self.test(criteria.level()) {
+    fn filter_level(&self, level: Level) -> FilterResult {
+        if self.test(level) {
             FilterResult::Neutral
         } else {
             FilterResult::Reject
         }
+    }
+
+    fn filter(&self, record: &Record, _: &dyn Diagnostic) -> FilterResult {
+        self.filter_level(record.level())
     }
 }
 
@@ -66,21 +71,21 @@ impl<T: Filter> From<T> for Box<dyn Filter> {
 }
 
 impl<T: Filter + ?Sized> Filter for Arc<T> {
-    fn enabled(&self, criteria: &FilterCriteria, diags: &dyn Diagnostic) -> FilterResult {
-        (**self).enabled(criteria, diags)
+    fn filter_level(&self, level: Level) -> FilterResult {
+        (**self).filter_level(level)
     }
 
-    fn matches(&self, record: &Record, diags: &dyn Diagnostic) -> FilterResult {
-        (**self).matches(record, diags)
+    fn filter(&self, record: &Record, diags: &dyn Diagnostic) -> FilterResult {
+        (**self).filter(record, diags)
     }
 }
 
 impl<T: Filter + ?Sized> Filter for &'static T {
-    fn enabled(&self, criteria: &FilterCriteria, diags: &dyn Diagnostic) -> FilterResult {
-        (**self).enabled(criteria, diags)
+    fn filter_level(&self, level: Level) -> FilterResult {
+        (**self).filter_level(level)
     }
 
-    fn matches(&self, record: &Record, diags: &dyn Diagnostic) -> FilterResult {
-        (**self).matches(record, diags)
+    fn filter(&self, record: &Record, diags: &dyn Diagnostic) -> FilterResult {
+        (**self).filter(record, diags)
     }
 }

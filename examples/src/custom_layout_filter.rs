@@ -18,7 +18,6 @@ use logforth::Filter;
 use logforth::Layout;
 use logforth::append;
 use logforth::filter::FilterResult;
-use logforth::record::FilterCriteria;
 use logforth::record::Level;
 use logforth::record::Record;
 
@@ -26,12 +25,16 @@ use logforth::record::Record;
 struct CustomFilter;
 
 impl Filter for CustomFilter {
-    fn enabled(&self, criteria: &FilterCriteria, _: &dyn Diagnostic) -> FilterResult {
-        if criteria.level() < Level::Info {
+    fn filter_level(&self, level: Level) -> FilterResult {
+        if level < Level::Info {
             FilterResult::Accept
         } else {
             FilterResult::Reject
         }
+    }
+
+    fn filter(&self, record: &Record, _: &dyn Diagnostic) -> FilterResult {
+        self.filter_level(record.level())
     }
 }
 
