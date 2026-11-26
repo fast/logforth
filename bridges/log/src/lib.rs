@@ -22,7 +22,10 @@ use std::ops::Deref;
 use log::Metadata;
 use log::Record;
 use logforth_core::Logger;
-use logforth_core::record::FilterCriteria;
+use logforth_core::record::Level;
+
+// Keep synchronized with "Appendix: Key-Value Naming Conventions" in DESIGN.md.
+const KEY_LOGFORTH_TARGET: &str = "logforth.target";
 
 /// Adapter to use a [`Logger`] instance as a `log` crate logger.
 #[derive(Debug, Clone)]
@@ -34,6 +37,103 @@ impl LogBridge {
     /// Creates a new [`LogBridge`] wrapping `logger`.
     pub const fn new(logger: Logger) -> Self {
         Self { logger }
+    }
+
+    /// Returns the maximum [`log::LevelFilter`] enabled by the underlying [`Logger`].
+    pub fn max_level(&self) -> log::LevelFilter {
+        if self.logger.enabled(Level::Trace) {
+            log::LevelFilter::Trace
+        } else if self.logger.enabled(Level::Debug) {
+            log::LevelFilter::Debug
+        } else if self.logger.enabled(Level::Info) {
+            log::LevelFilter::Info
+        } else if self.logger.enabled(Level::Warn) {
+            log::LevelFilter::Warn
+        } else if self.logger.enabled(Level::Error) {
+            log::LevelFilter::Error
+        } else {
+            log::LevelFilter::Off
+        }
+    }
+
+    fn forward_enabled(&self, metadata: &Metadata) -> bool {
+        self.logger.enabled(level_to_level(metadata.level()))
+    }
+
+    fn forward_log(&self, record: &Record) {
+        let level = level_to_level(record.level());
+        if !self.logger.enabled(level) {
+            return;
+        }
+
+        let custom_target =
+            (record.target() != record.module_path().unwrap_or("")).then_some(record.target());
+
+        // basic fields
+        let mut builder = logforth_core::record::Record::builder()
+            .level(level)
+            .line(record.line());
+
+        // optional static fields
+        builder = if let Some(module_path) = record.module_path_static() {
+            builder.module_path_static(module_path)
+        } else {
+            builder.module_path(record.module_path())
+        };
+        builder = if let Some(file) = record.file_static() {
+            builder.file_static(file)
+        } else {
+            builder.file(record.file())
+        };
+
+        // payload
+        builder = builder.payload(*record.args());
+
+        // key-values
+        #[cfg(not(feature = "serde"))]
+        {
+            let kvs = kv::key_values_stage_one(record.key_values());
+            if kvs.is_empty() {
+                match custom_target {
+                    None => Logger::log(&self.logger, &builder.build()),
+                    Some(target) => {
+                        let target_kv = [(
+                            logforth_core::kv::Key::new(KEY_LOGFORTH_TARGET),
+                            logforth_core::kv::Value::str(target),
+                        )];
+                        builder = builder
+                            .key_values(logforth_core::kv::KeyValues::from(target_kv.as_slice()));
+                        Logger::log(&self.logger, &builder.build());
+                    }
+                }
+            } else {
+                let new_kvs = kv::key_value_stage_two(&kvs, custom_target);
+                builder = builder.key_values(new_kvs.to_key_values());
+                Logger::log(&self.logger, &builder.build());
+            }
+        }
+
+        #[cfg(feature = "serde")]
+        {
+            let kvs = kv::key_values(record.key_values(), custom_target);
+            if kvs.is_empty() {
+                match custom_target {
+                    None => Logger::log(&self.logger, &builder.build()),
+                    Some(target) => {
+                        let target_kv = [(
+                            logforth_core::kv::Key::new(KEY_LOGFORTH_TARGET),
+                            logforth_core::kv::Value::str(target),
+                        )];
+                        builder = builder
+                            .key_values(logforth_core::kv::KeyValues::from(target_kv.as_slice()));
+                        Logger::log(&self.logger, &builder.build());
+                    }
+                }
+            } else {
+                builder = builder.key_values(kvs.to_key_values());
+                Logger::log(&self.logger, &builder.build());
+            }
+        }
     }
 }
 
@@ -47,11 +147,11 @@ impl Deref for LogBridge {
 
 impl log::Log for LogBridge {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        forward_enabled(&self.logger, metadata)
+        self.forward_enabled(metadata)
     }
 
     fn log(&self, record: &Record) {
-        forward_log(&self.logger, record);
+        self.forward_log(record);
     }
 
     fn flush(&self) {
@@ -59,72 +159,28 @@ impl log::Log for LogBridge {
     }
 }
 
-fn forward_enabled(logger: &Logger, metadata: &Metadata) -> bool {
-    let criteria = FilterCriteria::builder()
-        .target(metadata.target())
-        .level(level_to_level(metadata.level()))
-        .build();
-
-    Logger::enabled(logger, &criteria)
-}
-
-fn forward_log(logger: &Logger, record: &Record) {
-    if !forward_enabled(logger, record.metadata()) {
-        return;
-    }
-
-    // basic fields
-    let mut builder = logforth_core::record::Record::builder()
-        .level(level_to_level(record.level()))
-        .target(record.target())
-        .line(record.line());
-
-    // optional static fields
-    builder = if let Some(module_path) = record.module_path_static() {
-        builder.module_path_static(module_path)
-    } else {
-        builder.module_path(record.module_path())
-    };
-    builder = if let Some(file) = record.file_static() {
-        builder.file_static(file)
-    } else {
-        builder.file(record.file())
-    };
-
-    // payload
-    builder = builder.payload(*record.args());
-
-    // key-values
-    #[cfg(not(feature = "serde"))]
-    {
-        let kvs = kv::key_values_stage_one(record.key_values());
-        let new_kvs = kv::key_value_stage_two(&kvs);
-        builder = builder.key_values(new_kvs.to_key_values());
-        Logger::log(logger, &builder.build());
-    }
-
-    #[cfg(feature = "serde")]
-    {
-        let kvs = kv::key_values(record.key_values());
-        builder = builder.key_values(kvs.to_key_values());
-        Logger::log(logger, &builder.build());
-    }
-}
-
-fn level_to_level(level: log::Level) -> logforth_core::record::Level {
+fn level_to_level(level: log::Level) -> Level {
     match level {
-        log::Level::Error => logforth_core::record::Level::Error,
-        log::Level::Warn => logforth_core::record::Level::Warn,
-        log::Level::Info => logforth_core::record::Level::Info,
-        log::Level::Debug => logforth_core::record::Level::Debug,
-        log::Level::Trace => logforth_core::record::Level::Trace,
+        log::Level::Error => Level::Error,
+        log::Level::Warn => Level::Warn,
+        log::Level::Info => Level::Info,
+        log::Level::Debug => Level::Debug,
+        log::Level::Trace => Level::Trace,
     }
 }
 
 #[cfg(not(feature = "serde"))]
 mod kv {
+    use super::KEY_LOGFORTH_TARGET;
+
     pub(super) struct KeyValuesStageOne<'a> {
         kvs: Vec<(KeyStageOne<'a>, ValueStageOne<'a>)>,
+    }
+
+    impl KeyValuesStageOne<'_> {
+        pub(super) fn is_empty(&self) -> bool {
+            self.kvs.is_empty()
+        }
     }
 
     struct KeyStageOne<'a>(log::kv::Key<'a>);
@@ -242,8 +298,17 @@ mod kv {
 
     type ValueStageTwo<'a> = logforth_core::kv::Value<'a>;
 
-    pub(super) fn key_value_stage_two<'a>(kvs: &'a KeyValuesStageOne<'a>) -> KeyValuesStageTwo<'a> {
-        let mut new_kvs = Vec::with_capacity(kvs.kvs.len());
+    pub(super) fn key_value_stage_two<'a>(
+        kvs: &'a KeyValuesStageOne<'a>,
+        custom_target: Option<&'a str>,
+    ) -> KeyValuesStageTwo<'a> {
+        let mut new_kvs = Vec::with_capacity(kvs.kvs.len() + usize::from(custom_target.is_some()));
+        if let Some(target) = custom_target {
+            new_kvs.push((
+                logforth_core::kv::Key::new(KEY_LOGFORTH_TARGET),
+                logforth_core::kv::Value::str(target),
+            ));
+        }
         for (k, v) in &kvs.kvs {
             let k = if let Some(k) = k.0.to_static_str() {
                 logforth_core::kv::Key::new(k)
@@ -262,47 +327,68 @@ mod kv {
 
 #[cfg(feature = "serde")]
 mod kv {
-    use std::marker::PhantomData;
-
     use logforth_core::kv::KeyOwned;
     use logforth_core::kv::ValueOwned;
 
-    pub(super) struct KeyValues<'a> {
+    use super::KEY_LOGFORTH_TARGET;
+
+    pub(super) struct KeyValues {
         kvs: Vec<(KeyOwned, ValueOwned)>,
-        p: PhantomData<&'a ()>,
     }
 
-    impl<'a> KeyValues<'a> {
+    impl KeyValues {
+        pub(super) fn is_empty(&self) -> bool {
+            self.kvs.is_empty()
+        }
+
         pub(super) fn to_key_values(&self) -> logforth_core::kv::KeyValues<'_> {
             logforth_core::kv::KeyValues::from(self.kvs.as_slice())
         }
     }
 
-    pub(super) fn key_values<'a>(source: &'a dyn log::kv::Source) -> KeyValues<'a> {
-        struct KeyValueVisitor(Vec<(KeyOwned, ValueOwned)>);
+    pub(super) fn key_values(
+        source: &dyn log::kv::Source,
+        custom_target: Option<&str>,
+    ) -> KeyValues {
+        struct KeyValueVisitor<'a> {
+            kvs: Vec<(KeyOwned, ValueOwned)>,
+            custom_target: Option<&'a str>,
+            count_hint: usize,
+        }
 
-        impl<'a> log::kv::VisitSource<'a> for KeyValueVisitor {
+        impl<'kvs> log::kv::VisitSource<'kvs> for KeyValueVisitor<'_> {
             fn visit_pair(
                 &mut self,
-                key: log::kv::Key<'a>,
-                value: log::kv::Value<'a>,
+                key: log::kv::Key<'kvs>,
+                value: log::kv::Value<'kvs>,
             ) -> Result<(), log::kv::Error> {
+                if self.kvs.is_empty() {
+                    let extra = usize::from(self.custom_target.is_some());
+                    self.kvs.reserve(self.count_hint.max(1) + extra);
+                    if let Some(target) = self.custom_target {
+                        self.kvs.push((
+                            KeyOwned::new(KEY_LOGFORTH_TARGET),
+                            ValueOwned::from(target.to_owned()),
+                        ));
+                    }
+                }
                 let key = if let Some(key) = key.to_static_str() {
                     KeyOwned::new(key)
                 } else {
                     KeyOwned::new(key.to_string())
                 };
-                self.0.push((key, ValueOwned::from_serde(&value)));
+                self.kvs.push((key, ValueOwned::from_serde(&value)));
                 Ok(())
             }
         }
 
-        let mut visitor = KeyValueVisitor(Vec::with_capacity(log::kv::Source::count(source)));
+        let mut visitor = KeyValueVisitor {
+            kvs: Vec::new(),
+            custom_target,
+            count_hint: log::kv::Source::count(source),
+        };
         log::kv::Source::visit(source, &mut visitor).unwrap();
 
-        KeyValues {
-            kvs: visitor.0,
-            p: PhantomData,
-        }
+        KeyValues { kvs: visitor.kvs }
     }
 }
