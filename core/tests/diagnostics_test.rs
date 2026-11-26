@@ -122,25 +122,20 @@ fn composite_diagnostics_preserve_order_and_handle_empty_sources() {
         value: "us-east",
     };
 
-    let third = ConstDiag {
-        key: "az",
-        value: "use1-az1",
-    };
-
     assert_eq!(
         collect_diags(&Some(&first)).unwrap(),
         vec![("env".to_owned(), "prod".to_owned())]
     );
+
+    let array_refs: [&dyn Diagnostic; 2] = [&first, &second];
     assert_eq!(
-        collect_diags(&(&first, &second, &third)).unwrap(),
+        collect_diags(&array_refs).unwrap(),
         vec![
             ("env".to_owned(), "prod".to_owned()),
             ("region".to_owned(), "us-east".to_owned()),
-            ("az".to_owned(), "use1-az1".to_owned()),
         ]
     );
 
-    let array_refs: [&dyn Diagnostic; 2] = [&first, &second];
     let slice_refs: &[&dyn Diagnostic] = &array_refs;
     assert_eq!(
         collect_diags(&slice_refs).unwrap(),
@@ -217,7 +212,8 @@ impl<A: Append> Append for ScopedDecorator<A> {
             key: &key,
             value: &value,
         };
-        self.inner.append(record, &(diags, extra))
+        let chained: [&dyn Diagnostic; 2] = [diags, &extra];
+        self.inner.append(record, &chained)
     }
 
     fn flush(&self) -> Result<(), Error> {

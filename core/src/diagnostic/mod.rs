@@ -15,6 +15,7 @@
 //! Mapped Diagnostic Context (MDC).
 
 use std::fmt;
+use std::sync::Arc;
 
 use crate::Error;
 use crate::kv;
@@ -38,4 +39,22 @@ pub trait Diagnostic: fmt::Debug + Send + Sync {
     /// Returns an [`Error`] if reading diagnostic context fails or `visitor` returns an error,
     /// stopping traversal.
     fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error>;
+}
+
+impl<T: Diagnostic + 'static> From<T> for Box<dyn Diagnostic> {
+    fn from(value: T) -> Self {
+        Box::new(value)
+    }
+}
+
+impl<T: Diagnostic + ?Sized> Diagnostic for Arc<T> {
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
+        (**self).visit(visitor)
+    }
+}
+
+impl<T: Diagnostic + ?Sized> Diagnostic for &T {
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
+        (**self).visit(visitor)
+    }
 }

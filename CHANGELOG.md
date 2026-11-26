@@ -21,7 +21,7 @@ All significant changes to this project will be documented in this file.
 
 * Add `Error::message` in `logforth-core` to borrow the error's own message string.
 * Add `LoggerBuilder::error_sink`, `DispatchBuilder::error_sink`, and `starter_log::{LogStarterBuilder, LogStarterTestingBuilder, LogStarterStdStreamBuilder}::error_sink` to configure runtime error handling.
-* Implement `Append`, `ErrorSink`, `Filter`, and `Layout` in `logforth-core`, and `MakeBody` in `logforth-append-opentelemetry`, for `Arc<T>` and `&'static T` where `T: ?Sized`, and implement `Diagnostic` for `&T`, `Arc<T>`, slices, arrays, `Vec`, `Option<T>`, `()`, and tuples up to 12 elements.
+* Implement `Append`, `ErrorSink`, `Filter`, and `Layout` in `logforth-core`, and `MakeBody` in `logforth-append-opentelemetry`, for `Arc<T>` and `&'static T` where `T: ?Sized`, and implement `Diagnostic` for `&T`, `Arc<T>`, `()`, `Option<T>`, slices, arrays, and `Vec`.
 * Add `FileBuilder::timezone` in `logforth-append-file` (and re-export `jiff`) to configure the timezone used for rotation boundaries and segment filenames, defaulting to the system timezone.
 
 ### Improvements
