@@ -97,19 +97,9 @@ impl Dispatch {
         }
     }
 
-    fn diagnostics(&self) -> &dyn Diagnostic {
-        match self.diagnostics.as_slice() {
-            [] => &(),
-            [single] => single.as_ref(),
-            _ => &self.diagnostics,
-        }
-    }
-
     fn enabled(&self, criteria: &FilterCriteria) -> bool {
-        let diagnostics = self.diagnostics();
-
         for filter in &self.filters {
-            match filter.enabled(criteria, diagnostics) {
+            match filter.enabled(criteria, &self.diagnostics) {
                 FilterResult::Reject => return false,
                 FilterResult::Accept => return true,
                 FilterResult::Neutral => {}
@@ -120,10 +110,8 @@ impl Dispatch {
     }
 
     fn log(&self, record: &Record, default_error_sink: &dyn ErrorSink) {
-        let diagnostics = self.diagnostics();
-
         for filter in &self.filters {
-            match filter.matches(record, diagnostics) {
+            match filter.matches(record, &self.diagnostics) {
                 FilterResult::Reject => return,
                 FilterResult::Accept => break,
                 FilterResult::Neutral => {}
@@ -132,7 +120,7 @@ impl Dispatch {
 
         let error_sink = self.error_sink.as_deref().unwrap_or(default_error_sink);
         for append in &self.appends {
-            if let Err(err) = append.append(record, diagnostics) {
+            if let Err(err) = append.append(record, &self.diagnostics) {
                 let err = Error::new("failed to append record").with_source(err);
                 error_sink.sink(&err);
             }
