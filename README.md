@@ -189,6 +189,10 @@ Users can also provide their own MDC by implementing the [`Diagnostic`] trait.
 
 [`Diagnostic`]: https://docs.rs/logforth-core/*/logforth_core/diagnostic/trait.Diagnostic.html
 
+### Key-Value Conventions
+
+Keys prefixed with `logforth.` are reserved by Logforth (for example, `"logforth.target"` carries explicit target overrides into `RustLogFilter`), and well-known keys such as `"trace_id"`, `"span_id"`, and `"sampled"` coordinate context across diagnostics and layouts. Avoid using `logforth.*` for application-defined fields; see [DESIGN.md](DESIGN.md#appendix-key-value-naming-conventions) for the full specification.
+
 ### Bridges
 
 So far, Logforth provides out-of-the-box integration with the `log` crate. You can use Logforth as the backend for any crate that uses the `log` facade.

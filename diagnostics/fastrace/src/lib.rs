@@ -24,6 +24,11 @@ use logforth_core::kv::Key;
 use logforth_core::kv::Value;
 use logforth_core::kv::Visitor;
 
+// Keep synchronized with "Appendix: Key-Value Naming Conventions" in DESIGN.md.
+const KEY_TRACE_ID: &str = "trace_id";
+const KEY_SPAN_ID: &str = "span_id";
+const KEY_SAMPLED: &str = "sampled";
+
 /// A diagnostic that enriches log records with trace context provided by the Fastrace library.
 ///
 /// ## Example
@@ -44,9 +49,12 @@ impl Diagnostic for FastraceDiagnostic {
             let trace_id = span.trace_id.to_string();
             let span_id = span.span_id.to_string();
 
-            visitor.visit(Key::new("trace_id").view(), Value::str(&trace_id).view())?;
-            visitor.visit(Key::new("span_id").view(), Value::str(&span_id).view())?;
-            visitor.visit(Key::new("sampled").view(), Value::bool(span.sampled).view())?;
+            visitor.visit(Key::new(KEY_TRACE_ID).view(), Value::str(&trace_id).view())?;
+            visitor.visit(Key::new(KEY_SPAN_ID).view(), Value::str(&span_id).view())?;
+            visitor.visit(
+                Key::new(KEY_SAMPLED).view(),
+                Value::bool(span.sampled).view(),
+            )?;
         }
 
         Ok(())

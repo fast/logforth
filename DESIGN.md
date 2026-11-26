@@ -29,7 +29,7 @@ Every long-lived pipeline extension point (`Filter`, `Layout`, `Append`, and `Er
 
 ```rust
 pub trait Filter: fmt::Debug + Send + Sync + 'static {
-    fn bounds(&self) -> FilterBounds { FilterBounds::ALL }
+    fn filter_level(&self, level: Level) -> FilterResult;
     fn filter(&self, record: &Record, diags: &dyn Diagnostic) -> FilterResult;
 }
 
@@ -64,9 +64,9 @@ pub trait ErrorSink: fmt::Debug + Send + Sync + 'static {
   - `Reject` drops the record immediately from the current `Dispatch`.
   - `Accept` short-circuits remaining filters in the current `Dispatch` and accepts the record immediately, supporting context-driven dynamic promotion ahead of baseline level thresholds.
   - `Neutral` expresses no decision and passes control to the next filter; a `Dispatch` accepts the record if all filters finish `Neutral`.
-- `LevelMask(u32)` represents any subset of the 24 levels, including non-monotonic `LevelFilter` predicates, in a single machine register. Each `Filter` reports static `may_accept` and `may_neutral` masks through `Filter::bounds`, and `DispatchBuilder::build` computes the branch `LevelMask` by backwards induction `mask = may_accept | (may_neutral & next)`.
-- `Logger::enabled(level)` tests the union of its dispatches' `LevelMask` values in a single bitwise operation before a callsite constructs a `Record`, and `Logger::log` tests each branch's `LevelMask` before evaluating its `Filter` chain. Attaching a leading context-driven `Accept` filter widens that branch's `LevelMask` to `ALL`, trading static level pruning for per-event context inspection on that branch; runtime-mutable filters likewise report `ALL` so dynamic updates take effect immediately.
-- `RustLogFilter` matches an explicit `"target"` key-value entry when present (preserving `RUST_LOG` target directives such as `sqlx::query=warn` for bridged `log` records) before falling back to `Record::module_path()`, and exposes named-directive filtering so custom filters can inspect arbitrary key-value fields.
+- Each `Filter` reports the most permissive outcome (`Accept > Neutral > Reject`) that `Filter::filter` may produce at each `Level` through `Filter::filter_level(level)`. When a `Logger` is built, each `Dispatch` evaluates its `Filter` chain across all 24 levels once and caches the accepted subset (including non-monotonic `LevelFilter` predicates) in a single-register internal bitmask.
+- `Logger::enabled(level)` tests the union of its dispatches' level masks in a single bitwise operation before a callsite constructs a `Record`, and `Logger::log` tests each branch's level mask before evaluating its `Filter` chain. Attaching a leading context-driven `Accept` filter enables the promoted levels on that branch, trading static level pruning for per-event context inspection while retaining downstream `LevelFilter` items to reject non-promoted records; runtime-mutable narrowing filters report `Neutral` from `Filter::filter_level` so dynamic updates take effect immediately.
+- `RustLogFilter` matches an explicit `"logforth.target"` key-value entry when present (preserving `RUST_LOG` target directives such as `my_app::db=warn` for bridged `log` records without colliding with user `"target"` fields) before falling back to `Record::module_path()`, and fails fast with `Err(Error)` on malformed directive specifications or non-UTF-8 environment variables.
 
 ## Structured Key-Values and Diagnostics
 
@@ -100,7 +100,33 @@ logforth::info!(logger, ["jobs.completed" = count, "error" = Value::debug(&err)]
 
 `logforth-bridge-log` adapts the `log` crate into a `Logger` so applications can adopt native `Logger` pipelines while continuing to collect logs from ecosystem dependencies:
 
-- `LogBridge` implements `log::Log`, forwarding structured key-values and updating `log::set_max_level` from `Logger`'s `LevelMask` on global installation.
-- `LogBridge` populates `Record::module_path` from the event's module path and emits a `"target"` key-value entry only when the upstream caller explicitly overrode `target` to differ from `module_path`.
-- `LogBridge::enabled` checks an optional bridge-level metadata filter (used by `starter_log` so `log::log_enabled!` respects `(level, target)` directives without reintroducing `target` into `logforth-core`) intersected with `Logger::enabled` on the mapped severity level.
+- `LogBridge` implements `log::Log`, forwarding structured key-values and updating `log::set_max_level` from `Logger::enabled` on global installation.
+- `LogBridge` populates `Record::module_path` from the event's module path and emits a `"logforth.target"` key-value entry only when the upstream caller explicitly overrode `target` to differ from `module_path`.
+- `LogBridge::enabled` delegates to `Logger::enabled` on the mapped severity level as a conservative, false-negative-free pre-check for `log::log_enabled!`; per-prefix filtering executes inside each `Dispatch` when `Log::log` forwards the record.
 - Libraries seeking ambient global logging emit via `log` directly, whereas libraries adopting `logforth` natively accept an injected `Logger` defaulting to `Logger::noop()`.
+
+## Appendix: Key-Value Naming Conventions
+
+### Reserved Prefix (`logforth.*`)
+
+- Keys prefixed with `logforth.` are reserved by Logforth. Adding new `logforth.*` keys in minor releases is SemVer-compatible; application code must not emit `logforth.*` keys for domain fields unless intentionally invoking a documented behavior.
+
+| Key                 | Value Type | Producers                                  | Consumers and Semantics                                                 |
+| :------------------ | :--------- | :----------------------------------------- | :---------------------------------------------------------------------- |
+| `"logforth.target"` | `str`      | `LogBridge` (when `target != module_path`) | Matched by `RustLogFilter` before falling back to `Record::module_path` |
+
+### Well-Known Shared Keys
+
+- Unprefixed well-known keys preserve standard field names in external log outputs while coordinating typed context between diagnostics, layouts, and appenders:
+
+| Key               | Value Type  | Producers            | Consumers and Semantics                                                             |
+| :---------------- | :---------- | :------------------- | :---------------------------------------------------------------------------------- |
+| `"trace_id"`      | `str` (hex) | `FastraceDiagnostic` | Extracted by `GoogleCloudLoggingLayout` into `logging.googleapis.com/trace`         |
+| `"span_id"`       | `str` (hex) | `FastraceDiagnostic` | Extracted by `GoogleCloudLoggingLayout` into `logging.googleapis.com/spanId`        |
+| `"sampled"`       | `bool`      | `FastraceDiagnostic` | Extracted by `GoogleCloudLoggingLayout` into `logging.googleapis.com/trace_sampled` |
+| `"trace_sampled"` | `bool`      | User diagnostics     | Accepted by `GoogleCloudLoggingLayout` alongside `"sampled"`                        |
+
+### Precedence and Flat-Format Envelope Fields
+
+- When `Record::key_values()` and `Diagnostic` emit the same key, map-based outputs give precedence to explicit `Record` key-values over `Diagnostic` entries.
+- Nested layouts such as `JsonLayout` isolate structured entries under `kvs` and `diags`, whereas flat layouts and protocol sinks (`LogfmtLayout`, `GoogleCloudLoggingLayout`, `OpentelemetryLog`, `FastraceEvent`, and `Journald`) emit record metadata and key-values in a single flat namespace; avoid reusing envelope field names such as `timestamp`, `level`, `severity`, `message`, `module`, or `module_path` when targeting flat sinks.

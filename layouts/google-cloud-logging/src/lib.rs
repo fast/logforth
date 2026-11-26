@@ -29,6 +29,12 @@ use logforth_core::layout::Layout;
 use logforth_core::record::Record;
 use serde::Serialize;
 
+// Keep synchronized with "Appendix: Key-Value Naming Conventions" in DESIGN.md.
+const KEY_TRACE_ID: &str = "trace_id";
+const KEY_SPAN_ID: &str = "span_id";
+const KEY_SAMPLED: &str = "sampled";
+const KEY_TRACE_SAMPLED: &str = "trace_sampled";
+
 /// A layout for Google Cloud Structured Logging.
 ///
 /// See the [Google documentation](https://cloud.google.com/logging/docs/structured-logging) for more
@@ -43,7 +49,7 @@ use serde::Serialize;
 /// If the trace project ID is set, a few keys are treated specially:
 /// - `trace_id`: Combined with trace project ID, set as the `logging.googleapis.com/trace` field.
 /// - `span_id`: Set as the `logging.googleapis.com/spanId` field.
-/// - `trace_sampled`: Set as the `logging.googleapis.com/trace_sampled` field.
+/// - `sampled` or `trace_sampled`: Set as the `logging.googleapis.com/trace_sampled` field.
 ///
 /// Information may be stored either in the payload, or as labels. The payload allows a structured
 /// value to be stored, but is not indexed by default. Labels are indexed by default, but can only
@@ -56,32 +62,10 @@ use serde::Serialize;
 ///
 /// let layout = GoogleCloudLoggingLayout::default();
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct GoogleCloudLoggingLayout {
     trace_project_id: Option<String>,
     label_keys: BTreeSet<String>,
-
-    // Heuristic keys to extract trace, spanId and traceSampled info from diagnostics.
-    // These are currently hardcoded but may be customizable in the future.
-    trace_keys: BTreeSet<String>,
-    span_id_keys: BTreeSet<String>,
-    trace_sampled_keys: BTreeSet<String>,
-}
-
-impl Default for GoogleCloudLoggingLayout {
-    fn default() -> Self {
-        Self {
-            trace_project_id: None,
-            label_keys: BTreeSet::new(),
-
-            trace_keys: BTreeSet::from(["trace_id".to_string()]),
-            span_id_keys: BTreeSet::from(["span_id".to_string()]),
-            trace_sampled_keys: BTreeSet::from([
-                "sampled".to_string(),
-                "trace_sampled".to_string(),
-            ]),
-        }
-    }
 }
 
 impl GoogleCloudLoggingLayout {
@@ -136,17 +120,17 @@ impl Visitor for KvCollector<'_> {
         let key = key.as_str();
 
         if let Some(trace_project_id) = self.layout.trace_project_id.as_ref() {
-            if self.trace.is_none() && self.layout.trace_keys.contains(key) {
+            if self.trace.is_none() && key == KEY_TRACE_ID {
                 self.trace = Some(format!("projects/{trace_project_id}/traces/{value}"));
                 return Ok(());
             }
 
-            if self.span_id.is_none() && self.layout.span_id_keys.contains(key) {
+            if self.span_id.is_none() && key == KEY_SPAN_ID {
                 self.span_id = Some(value.to_string());
                 return Ok(());
             }
 
-            if self.trace_sampled.is_none() && self.layout.trace_sampled_keys.contains(key) {
+            if self.trace_sampled.is_none() && matches!(key, KEY_SAMPLED | KEY_TRACE_SAMPLED) {
                 self.trace_sampled = value.to_bool();
                 return Ok(());
             }
