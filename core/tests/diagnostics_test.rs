@@ -122,15 +122,21 @@ fn composite_diagnostics_preserve_order_and_handle_empty_sources() {
         value: "us-east",
     };
 
+    let third = ConstDiag {
+        key: "az",
+        value: "use1-az1",
+    };
+
     assert_eq!(
         collect_diags(&Some(&first)).unwrap(),
         vec![("env".to_owned(), "prod".to_owned())]
     );
     assert_eq!(
-        collect_diags(&(&first, &second)).unwrap(),
+        collect_diags(&(&first, &second, &third)).unwrap(),
         vec![
             ("env".to_owned(), "prod".to_owned()),
             ("region".to_owned(), "us-east".to_owned()),
+            ("az".to_owned(), "use1-az1".to_owned()),
         ]
     );
 
@@ -162,19 +168,18 @@ fn composite_diagnostics_preserve_order_and_handle_empty_sources() {
         ]
     );
 
-    let arc_boxed_slice: Box<[Arc<dyn Diagnostic>]> = vec![
+    let arc_vec: Vec<Arc<dyn Diagnostic>> = vec![
         Arc::new(ConstDiag {
             key: "cluster",
             value: "c1",
-        }) as Arc<dyn Diagnostic>,
+        }),
         Arc::new(ConstDiag {
             key: "zone",
             value: "z2",
         }),
-    ]
-    .into_boxed_slice();
+    ];
     assert_eq!(
-        collect_diags(&arc_boxed_slice).unwrap(),
+        collect_diags(&arc_vec).unwrap(),
         vec![
             ("cluster".to_owned(), "c1".to_owned()),
             ("zone".to_owned(), "z2".to_owned()),

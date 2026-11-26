@@ -51,7 +51,7 @@ pub trait ErrorSink: fmt::Debug + Send + Sync + 'static {
 }
 ```
 
-`Diagnostic` is composable: `()` represents an empty context, and `&T`, `Arc<T>`, `Option<T>`, `(A, B)`, `[T; N]`, `[T]`, `Box<[T]>`, `Vec<T>`, `[Box<dyn Diagnostic>]`, `Box<[Box<dyn Diagnostic>]>`, and `Vec<Box<dyn Diagnostic>>` all implement `Diagnostic`. Callers pass `&dyn Diagnostic` directly without wrapper enums or intermediate allocations, and decorating appenders or layouts can chain borrowed per-call context onto incoming `diags` as `&(diags, extra)` or `&[diags, &extra]`.
+`Diagnostic` is composable: `&T` and `Arc<T>` forward references and shared ownership, `[T]`, `[T; N]`, `Vec<T>`, `[Box<dyn Diagnostic>]`, `[Box<dyn Diagnostic>; N]`, and `Vec<Box<dyn Diagnostic>>` compose homogeneous sequences, and `Option<T>`, `()` (empty context), and tuples up to 12 elements compose conditional and heterogeneous sources. Callers pass `&dyn Diagnostic` directly without wrapper enums or intermediate allocations, and decorating appenders or layouts can chain borrowed per-call context onto incoming `diags` as `&(diags, extra)`.
 
 `Append` consumes structured `&Record` and `&dyn Diagnostic` directly so protocol-native sinks can encode typed fields without intermediate text serialization, whereas byte-stream sinks compose a `Layout` internally.
 
