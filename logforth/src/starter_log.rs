@@ -151,13 +151,10 @@ impl LogStarterBuilder {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::Arc;
-    ///
     /// use logforth::bridge::log::LogBridge;
     ///
     /// let logger = logforth::starter_log::builder().build();
-    /// let logger = Arc::new(LogBridge::new(logger));
-    /// log::set_boxed_logger(Box::new(logger.clone())).unwrap();
+    /// log::set_boxed_logger(Box::new(LogBridge::new(logger.clone()))).unwrap();
     /// log::set_max_level(log::LevelFilter::Trace);
     ///
     /// logger.flush();
@@ -291,13 +288,10 @@ impl LogStarterTestingBuilder {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::Arc;
-    ///
     /// use logforth::bridge::log::LogBridge;
     ///
     /// let logger = logforth::starter_log::testing().build();
-    /// let logger = Arc::new(LogBridge::new(logger));
-    /// log::set_boxed_logger(Box::new(logger.clone())).unwrap();
+    /// log::set_boxed_logger(Box::new(LogBridge::new(logger.clone()))).unwrap();
     /// log::set_max_level(log::LevelFilter::Trace);
     ///
     /// logger.flush();
@@ -468,13 +462,10 @@ impl LogStarterStdStreamBuilder {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::Arc;
-    ///
     /// use logforth::bridge::log::LogBridge;
     ///
     /// let logger = logforth::starter_log::stdout().build();
-    /// let logger = Arc::new(LogBridge::new(logger));
-    /// log::set_boxed_logger(Box::new(logger.clone())).unwrap();
+    /// log::set_boxed_logger(Box::new(LogBridge::new(logger.clone()))).unwrap();
     /// log::set_max_level(log::LevelFilter::Trace);
     ///
     /// logger.flush();

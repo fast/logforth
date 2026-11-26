@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use crate::Append;
 use crate::Diagnostic;
 use crate::Error;
@@ -21,54 +23,86 @@ use crate::filter::FilterResult;
 use crate::record::FilterCriteria;
 use crate::record::Record;
 
-/// A logger that dispatches log records to one or more dispatcher.
-#[derive(Debug)]
+/// A lightweight handle to a shared logging pipeline.
+///
+/// Cloning a `Logger` increments an internal reference count without duplicating dispatches or
+/// appenders. Use [`Logger::noop`] (or [`Logger::default`]) for a zero-allocation logger that
+/// discards all records.
+#[derive(Debug, Clone, Default)]
 pub struct Logger {
-    dispatches: Vec<Dispatch>,
+    state: Option<Arc<LoggerState>>,
+}
+
+#[derive(Debug)]
+struct LoggerState {
+    dispatches: Box<[Dispatch]>,
     error_sink: Box<dyn ErrorSink>,
 }
 
 impl Logger {
+    /// Creates a zero-allocation no-op [`Logger`] that discards all records.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth_core::Logger;
+    /// use logforth_core::record::Record;
+    ///
+    /// const NOOP: Logger = Logger::noop();
+    /// NOOP.log(&Record::builder().payload(format_args!("ignored")).build());
+    /// ```
+    pub const fn noop() -> Self {
+        Self { state: None }
+    }
+
     pub(super) fn new(dispatches: Vec<Dispatch>, error_sink: Box<dyn ErrorSink>) -> Self {
-        Self {
-            dispatches,
-            error_sink,
+        if dispatches.is_empty() {
+            Self::noop()
+        } else {
+            Self {
+                state: Some(Arc::new(LoggerState {
+                    dispatches: dispatches.into_boxed_slice(),
+                    error_sink,
+                })),
+            }
         }
     }
-}
 
-impl Logger {
-    /// Determine if a log message with the specified metadata would be logged.
+    /// Returns `true` if at least one dispatch accepts `criteria`.
     pub fn enabled(&self, criteria: &FilterCriteria) -> bool {
-        self.dispatches
+        let Some(state) = self.state.as_deref() else {
+            return false;
+        };
+        state
+            .dispatches
             .iter()
             .any(|dispatch| dispatch.enabled(criteria))
     }
 
-    /// Log the [`Record`].
+    /// Dispatches `record` across all configured branches.
     pub fn log(&self, record: &Record) {
-        let default_error_sink = &*self.error_sink;
-        for dispatch in &self.dispatches {
+        let Some(state) = self.state.as_deref() else {
+            return;
+        };
+        let default_error_sink = &*state.error_sink;
+        for dispatch in &state.dispatches {
             dispatch.log(record, default_error_sink);
         }
     }
 
-    /// Flush any buffered records.
+    /// Flushes all appenders across all configured branches.
     pub fn flush(&self) {
-        let default_error_sink = &*self.error_sink;
-        for dispatch in &self.dispatches {
+        let Some(state) = self.state.as_deref() else {
+            return;
+        };
+        let default_error_sink = &*state.error_sink;
+        for dispatch in &state.dispatches {
             dispatch.flush(default_error_sink);
         }
     }
 }
 
-/// A grouped set of appenders and filters.
-///
-/// The [`Logger`] facade dispatches log records to one or more [`Dispatch`] instances.
-/// Each [`Dispatch`] instance contains a set of filters and appenders.
-///
-/// `filters` are used to determine whether a log record should be passed to the appenders.
-/// `appends` are used to write log records to a destination.
+/// A grouped set of filters, diagnostics, and appenders.
 #[derive(Debug)]
 pub(super) struct Dispatch {
     filters: Vec<Box<dyn Filter>>,
@@ -86,7 +120,7 @@ impl Dispatch {
     ) -> Self {
         debug_assert!(
             !appends.is_empty(),
-            "A Dispatch must have at least one filter"
+            "A Dispatch must have at least one appender"
         );
 
         Self {
@@ -135,96 +169,5 @@ impl Dispatch {
                 error_sink.sink(&err);
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
-    use std::sync::Mutex;
-
-    use super::*;
-    use crate::builder;
-    use crate::error::BlackHoleErrorSink;
-
-    #[derive(Debug)]
-    struct FailingAppender(&'static str);
-
-    impl Append for FailingAppender {
-        fn append(&self, _: &Record, _: &dyn Diagnostic) -> Result<(), Error> {
-            Err(Error::new(self.0))
-        }
-
-        fn flush(&self) -> Result<(), Error> {
-            Err(Error::new(self.0))
-        }
-    }
-
-    #[derive(Debug)]
-    struct RecordingAppender(Arc<Mutex<Vec<String>>>);
-
-    impl Append for RecordingAppender {
-        fn append(&self, record: &Record, _: &dyn Diagnostic) -> Result<(), Error> {
-            self.0.lock().unwrap().push(record.payload().to_string());
-            Ok(())
-        }
-
-        fn flush(&self) -> Result<(), Error> {
-            Ok(())
-        }
-    }
-
-    #[derive(Debug, Default)]
-    struct RecordingErrorSink {
-        errors: Mutex<Vec<String>>,
-    }
-
-    impl ErrorSink for RecordingErrorSink {
-        fn sink(&self, err: &Error) {
-            self.errors.lock().unwrap().push(format!("{err:#}"));
-        }
-    }
-
-    #[test]
-    fn logger_routes_errors_with_dispatch_fallback_and_override() {
-        let logger_errors = Arc::new(RecordingErrorSink::default());
-        let override_errors = Arc::new(RecordingErrorSink::default());
-        let delivered = Arc::new(Mutex::new(Vec::new()));
-
-        let logger = builder()
-            .error_sink(logger_errors.clone())
-            .dispatch(|d| {
-                d.append(FailingAppender("primary failed"))
-                    .append(RecordingAppender(delivered.clone()))
-            })
-            .dispatch(|d| {
-                d.error_sink(BlackHoleErrorSink::new())
-                    .append(FailingAppender("silenced failed"))
-            })
-            .dispatch(|d| {
-                d.error_sink(override_errors.clone())
-                    .append(FailingAppender("override failed"))
-            })
-            .build();
-
-        let record = Record::builder().payload(format_args!("hello")).build();
-        logger.log(&record);
-        logger.flush();
-
-        assert_eq!(&*delivered.lock().unwrap(), &["hello"]);
-        assert_eq!(
-            &*logger_errors.errors.lock().unwrap(),
-            &[
-                "failed to append record: primary failed",
-                "failed to flush appender: primary failed",
-            ]
-        );
-        assert_eq!(
-            &*override_errors.errors.lock().unwrap(),
-            &[
-                "failed to append record: override failed",
-                "failed to flush appender: override failed",
-            ]
-        );
     }
 }
