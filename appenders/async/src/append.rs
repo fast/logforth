@@ -56,13 +56,11 @@ pub struct Async {
 }
 
 impl Append for Async {
-    fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+    fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
         let mut diagnostics = vec![];
 
         let mut collector = DiagnosticCollector(&mut diagnostics);
-        for d in diags {
-            d.visit(&mut collector)?;
-        }
+        diags.visit(&mut collector)?;
 
         let task = Task::Log {
             record: Box::new(record.to_owned()),

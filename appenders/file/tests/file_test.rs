@@ -31,7 +31,7 @@ use tempfile::tempdir;
 struct PayloadLayout;
 
 impl Layout for PayloadLayout {
-    fn format(&self, record: &Record, _: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
+    fn format(&self, record: &Record, _: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
         Ok(record.payload().to_string().into_bytes())
     }
 }
@@ -39,7 +39,7 @@ impl Layout for PayloadLayout {
 fn append_str(appender: &impl Append, text: &str) -> Result<(), Error> {
     appender.append(
         &Record::builder().payload(format_args!("{text}")).build(),
-        &[],
+        &(),
     )
 }
 

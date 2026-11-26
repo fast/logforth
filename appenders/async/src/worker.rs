@@ -51,15 +51,11 @@ impl Worker {
         while let Ok(task) = receiver.recv() {
             match task {
                 Task::Log { record, diags } => {
-                    let diags: &[Box<dyn Diagnostic>] = if diags.is_empty() {
-                        &[]
-                    } else {
-                        &[Box::new(AsyncDiagnostic(diags))]
-                    };
+                    let diag = AsyncDiagnostic(diags);
 
                     record.with(|record| {
                         for append in appends.iter() {
-                            if let Err(err) = append.append(&record, diags) {
+                            if let Err(err) = append.append(&record, &diag) {
                                 let err = Error::new("failed to append record").with_source(err);
                                 error_sink.sink(&err);
                             }

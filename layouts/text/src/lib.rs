@@ -202,7 +202,7 @@ fn default_timestamp_format(ts: Timestamp, tz: &TimeZone) -> String {
 }
 
 impl Layout for TextLayout {
-    fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
+    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
         // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
         // very unlikely if the system clock is correct.
         let ts = Timestamp::try_from(record.time()).unwrap();
@@ -225,9 +225,7 @@ impl Layout for TextLayout {
         )
         .unwrap();
         record.key_values().visit(&mut visitor)?;
-        for d in diags {
-            d.visit(&mut visitor)?;
-        }
+        diags.visit(&mut visitor)?;
 
         Ok(visitor.text.into_bytes())
     }

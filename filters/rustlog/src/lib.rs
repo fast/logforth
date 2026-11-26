@@ -115,7 +115,7 @@ impl RustLogFilter {
 }
 
 impl Filter for RustLogFilter {
-    fn enabled(&self, criteria: &FilterCriteria, _: &[Box<dyn Diagnostic>]) -> FilterResult {
+    fn enabled(&self, criteria: &FilterCriteria, _: &dyn Diagnostic) -> FilterResult {
         let level = criteria.level();
         let target = criteria.target();
 

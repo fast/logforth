@@ -62,7 +62,7 @@ impl Testing {
 }
 
 impl Append for Testing {
-    fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+    fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
         let bytes = self.layout.format(record, diags)?;
         eprintln!("{}", String::from_utf8_lossy(&bytes));
         Ok(())

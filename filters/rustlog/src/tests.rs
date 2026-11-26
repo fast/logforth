@@ -32,7 +32,7 @@ impl RustLogFilter {
             .target(target)
             .build();
 
-        matches!(Filter::enabled(self, &criteria, &[]), FilterResult::Reject)
+        matches!(Filter::enabled(self, &criteria, &()), FilterResult::Reject)
     }
 }
 

@@ -32,7 +32,7 @@ struct BarrierAppend {
 }
 
 impl Append for BarrierAppend {
-    fn append(&self, _: &Record, _: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+    fn append(&self, _: &Record, _: &dyn Diagnostic) -> Result<(), Error> {
         Ok(())
     }
 
@@ -47,7 +47,7 @@ impl Append for BarrierAppend {
 struct FailingFlush;
 
 impl Append for FailingFlush {
-    fn append(&self, _: &Record, _: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+    fn append(&self, _: &Record, _: &dyn Diagnostic) -> Result<(), Error> {
         Ok(())
     }
 

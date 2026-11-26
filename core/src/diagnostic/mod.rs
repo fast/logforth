@@ -13,14 +13,14 @@
 // limitations under the License.
 
 //! Mapped Diagnostic Context (MDC).
-//!
-//! A light-weight technique for stamping log request.
 
 use std::fmt;
+use std::sync::Arc;
 
 use crate::Error;
 use crate::kv;
 
+mod impls;
 mod static_global;
 mod thread_local;
 
@@ -28,13 +28,33 @@ pub use self::static_global::StaticDiagnostic;
 pub use self::thread_local::ThreadLocalDiagnostic;
 
 /// A Mapped Diagnostic Context (MDC) that provides diagnostic key-values.
-pub trait Diagnostic: fmt::Debug + Send + Sync + 'static {
-    /// Visit the MDC key-values with the provided visitor.
+pub trait Diagnostic: fmt::Debug + Send + Sync {
+    /// Visits diagnostic key-value pairs with `visitor`.
+    ///
+    /// This method may be called multiple times for a single log record and should remain
+    /// side-effect-free.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Error`] if reading diagnostic context fails or `visitor` returns an error,
+    /// stopping traversal.
     fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error>;
 }
 
-impl<T: Diagnostic> From<T> for Box<dyn Diagnostic> {
+impl<T: Diagnostic + 'static> From<T> for Box<dyn Diagnostic> {
     fn from(value: T) -> Self {
         Box::new(value)
+    }
+}
+
+impl<T: Diagnostic + ?Sized> Diagnostic for Arc<T> {
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
+        (**self).visit(visitor)
+    }
+}
+
+impl<T: Diagnostic + ?Sized> Diagnostic for &T {
+    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
+        (**self).visit(visitor)
     }
 }

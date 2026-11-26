@@ -248,7 +248,7 @@ impl Visitor for WriteKeyValues<'_> {
 impl Append for Journald {
     /// Extract all fields (standard and custom) from `record`, append all `extra_fields` given
     /// to this appender, and send the result to journald.
-    fn append(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<(), Error> {
+    fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
         use field::*;
 
         let mut buffer = vec![];
@@ -319,9 +319,7 @@ impl Append for Journald {
         // Put all structured values of the record
         let mut visitor = WriteKeyValues(&mut buffer);
         record.key_values().visit(&mut visitor)?;
-        for d in diags {
-            d.visit(&mut visitor)?;
-        }
+        diags.visit(&mut visitor)?;
         // Put all extra fields of the appender
         buffer.extend_from_slice(&self.extra_fields);
         self.send_payload(&buffer)?;

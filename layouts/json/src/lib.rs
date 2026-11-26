@@ -141,7 +141,7 @@ struct RecordLine<'a> {
 }
 
 impl Layout for JsonLayout {
-    fn format(&self, record: &Record, diags: &[Box<dyn Diagnostic>]) -> Result<Vec<u8>, Error> {
+    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
         let diagnostics = diags;
 
         // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
@@ -159,9 +159,7 @@ impl Layout for JsonLayout {
 
         let mut diags = Map::new();
         let mut diags_visitor = KvCollector { kvs: &mut diags };
-        for d in diagnostics {
-            d.visit(&mut diags_visitor)?;
-        }
+        diagnostics.visit(&mut diags_visitor)?;
 
         let record_line = RecordLine {
             timestamp,
