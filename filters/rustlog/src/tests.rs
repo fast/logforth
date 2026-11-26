@@ -15,321 +15,175 @@
 use insta::assert_snapshot;
 use logforth_core::Filter;
 use logforth_core::filter::FilterResult;
-use logforth_core::record::FilterCriteria;
+use logforth_core::kv::Key;
+use logforth_core::kv::KeyValues;
+use logforth_core::kv::Value;
 use logforth_core::record::Level;
 use logforth_core::record::LevelFilter;
+use logforth_core::record::Record;
 
 use crate::Directive;
-use crate::ParseResult;
 use crate::RustLogFilter;
 use crate::RustLogFilterBuilder;
 use crate::parse_spec;
 
 impl RustLogFilter {
-    fn rejected(&self, level: Level, target: &str) -> bool {
-        let criteria = FilterCriteria::builder()
+    fn rejected(&self, level: Level, name: &str) -> bool {
+        let record = Record::builder()
             .level(level)
-            .target(target)
+            .module_path(Some(name))
             .build();
-
-        matches!(Filter::enabled(self, &criteria, &()), FilterResult::Reject)
+        matches!(Filter::filter(self, &record, &()), FilterResult::Reject)
     }
 }
 
 #[test]
 fn parse_spec_valid() {
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec("crate1::mod1=error,crate1::mod2,crate2=debug");
+    let dirs = parse_spec("crate1::mod1=error,crate1::mod2,crate2=debug").unwrap();
 
     assert_eq!(dirs.len(), 3);
-    assert_eq!(dirs[0].name, Some("crate1::mod1".to_owned()));
+    assert_eq!(dirs[0].prefix, Some("crate1::mod1".to_owned()));
     assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Error));
 
-    assert_eq!(dirs[1].name, Some("crate1::mod2".to_owned()));
+    assert_eq!(dirs[1].prefix, Some("crate1::mod2".to_owned()));
     assert_eq!(dirs[1].level, LevelFilter::All);
 
-    assert_eq!(dirs[2].name, Some("crate2".to_owned()));
+    assert_eq!(dirs[2].prefix, Some("crate2".to_owned()));
     assert_eq!(dirs[2].level, LevelFilter::MoreSevereEqual(Level::Debug));
-
-    assert!(errors.is_empty());
 }
 
 #[test]
 fn parse_spec_invalid_crate() {
     // test parse_spec with multiple = in specification
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec("crate1::mod1=warn=info,crate2=debug");
-
-    assert_eq!(dirs.len(), 1);
-    assert_eq!(dirs[0].name, Some("crate2".to_owned()));
-    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Debug));
-
-    assert_eq!(errors.len(), 1);
+    let err = parse_spec("crate1::mod1=warn=info,crate2=debug").unwrap_err();
     assert_snapshot!(
-        &errors[0],
+        err.to_string(),
         @"malformed logging spec 'crate1::mod1=warn=info'"
     );
 }
 
 #[test]
+fn parse_spec_empty_target_before_equals() {
+    let err = parse_spec("=debug").unwrap_err();
+    assert_snapshot!(err.to_string(), @"malformed logging spec '=debug'");
+}
+
+#[test]
 fn parse_spec_invalid_level() {
     // test parse_spec with 'noNumber' as log level
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec("crate1::mod1=noNumber,crate2=debug");
-
-    assert_eq!(dirs.len(), 1);
-    assert_eq!(dirs[0].name, Some("crate2".to_owned()));
-    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Debug));
-
-    assert_eq!(errors.len(), 1);
-    assert_snapshot!(&errors[0], @"malformed logging spec 'noNumber'");
+    let err = parse_spec("crate1::mod1=noNumber,crate2=debug").unwrap_err();
+    assert_snapshot!(err.to_string(), @"malformed logging spec 'noNumber'");
 }
 
 #[test]
 fn parse_spec_string_level() {
-    // test parse_spec with 'warn' as log level
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec("crate1::mod1=wrong,crate2=warn");
-
-    assert_eq!(dirs.len(), 1);
-    assert_eq!(dirs[0].name, Some("crate2".to_owned()));
-    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Warn));
-
-    assert_eq!(errors.len(), 1);
-    assert_snapshot!(&errors[0], @"malformed logging spec 'wrong'");
+    // test parse_spec with 'wrong' as log level
+    let err = parse_spec("crate1::mod1=wrong,crate2=warn").unwrap_err();
+    assert_snapshot!(err.to_string(), @"malformed logging spec 'wrong'");
 }
 
 #[test]
 fn parse_spec_empty_level() {
-    // test parse_spec with '' as log level
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec("crate1::mod1=wrong,crate2=");
-
+    // test parse_spec with '' as log level (valid) vs invalid level
+    let dirs = parse_spec("crate2=").unwrap();
     assert_eq!(dirs.len(), 1);
-    assert_eq!(dirs[0].name, Some("crate2".to_owned()));
+    assert_eq!(dirs[0].prefix, Some("crate2".to_owned()));
     assert_eq!(dirs[0].level, LevelFilter::All);
 
-    assert_eq!(errors.len(), 1);
-    assert_snapshot!(&errors[0], @"malformed logging spec 'wrong'");
+    let err = parse_spec("crate1::mod1=wrong,crate2=").unwrap_err();
+    assert_snapshot!(err.to_string(), @"malformed logging spec 'wrong'");
 }
 
 #[test]
 fn parse_spec_empty_level_isolated() {
     // test parse_spec with "" as log level (and the entire spec str)
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec(""); // should be ignored
+    let dirs = parse_spec("").unwrap(); // should be ignored
     assert_eq!(dirs.len(), 0);
-    assert!(errors.is_empty());
 }
 
 #[test]
 fn parse_spec_blank_level_isolated() {
     // test parse_spec with a white-space-only string specified as the log
     // level (and the entire spec str)
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec("     "); // should be ignored
+    let dirs = parse_spec("     ").unwrap(); // should be ignored
     assert_eq!(dirs.len(), 0);
-    assert!(errors.is_empty());
 }
 
 #[test]
 fn parse_spec_blank_level_isolated_comma_only() {
     // The spec should contain zero or more comma-separated string slices,
     // so a comma-only string should be interpreted as two empty strings
-    // (which should both be treated as invalid, so ignored).
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec(","); // should be ignored
+    // (which should both be ignored).
+    let dirs = parse_spec(",").unwrap();
     assert_eq!(dirs.len(), 0);
-    assert!(errors.is_empty());
 }
 
 #[test]
 fn parse_spec_blank_level_isolated_comma_blank() {
-    // The spec should contain zero or more comma-separated string slices,
-    // so this bogus spec should be interpreted as containing one empty
-    // string and one blank string. Both should both be treated as
-    // invalid, so ignored.
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec(",     "); // should be ignored
+    let dirs = parse_spec(",     ").unwrap();
     assert_eq!(dirs.len(), 0);
-
-    assert!(errors.is_empty());
 }
 
 #[test]
 fn parse_spec_blank_level_isolated_blank_comma() {
-    // The spec should contain zero or more comma-separated string slices,
-    // so this bogus spec should be interpreted as containing one blank
-    // string and one empty string. Both should both be treated as
-    // invalid, so ignored.
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec("     ,"); // should be ignored
+    let dirs = parse_spec("     ,").unwrap();
     assert_eq!(dirs.len(), 0);
-
-    assert!(errors.is_empty());
 }
 
 #[test]
 fn parse_spec_global() {
     // test parse_spec with no crate
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec("warn,crate2=debug");
+    let dirs = parse_spec("warn,crate2=debug").unwrap();
     assert_eq!(dirs.len(), 2);
-    assert_eq!(dirs[0].name, None);
+    assert_eq!(dirs[0].prefix, None);
     assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Warn));
-    assert_eq!(dirs[1].name, Some("crate2".to_owned()));
+    assert_eq!(dirs[1].prefix, Some("crate2".to_owned()));
     assert_eq!(dirs[1].level, LevelFilter::MoreSevereEqual(Level::Debug));
-
-    assert!(errors.is_empty());
 }
 
 #[test]
 fn parse_spec_global_bare_warn_lc() {
     // test parse_spec with no crate, in isolation, all lowercase
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec("warn");
+    let dirs = parse_spec("warn").unwrap();
     assert_eq!(dirs.len(), 1);
-    assert_eq!(dirs[0].name, None);
+    assert_eq!(dirs[0].prefix, None);
     assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Warn));
-
-    assert!(errors.is_empty());
 }
 
 #[test]
 fn parse_spec_global_bare_warn_uc() {
     // test parse_spec with no crate, in isolation, all uppercase
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec("WARN");
+    let dirs = parse_spec("WARN").unwrap();
     assert_eq!(dirs.len(), 1);
-    assert_eq!(dirs[0].name, None);
+    assert_eq!(dirs[0].prefix, None);
     assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Warn));
-
-    assert!(errors.is_empty());
 }
 
 #[test]
 fn parse_spec_global_bare_warn_mixed() {
     // test parse_spec with no crate, in isolation, mixed case
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec("wArN");
+    let dirs = parse_spec("wArN").unwrap();
     assert_eq!(dirs.len(), 1);
-    assert_eq!(dirs[0].name, None);
+    assert_eq!(dirs[0].prefix, None);
     assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Warn));
-
-    assert!(errors.is_empty());
 }
 
 #[test]
-fn parse_spec_multiple_invalid_crates() {
-    // test parse_spec with multiple = in specification
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec("crate1::mod1=warn=info,crate2=debug,crate3=error=error");
-
-    assert_eq!(dirs.len(), 1);
-    assert_eq!(dirs[0].name, Some("crate2".to_owned()));
-    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Debug));
-
-    assert_eq!(errors.len(), 2);
+fn parse_spec_fails_fast_on_first_error() {
+    let err = parse_spec("crate2=debug,crate1::mod1=warn=info,crate3=invalid").unwrap_err();
     assert_snapshot!(
-        &errors[0],
+        err.to_string(),
         @"malformed logging spec 'crate1::mod1=warn=info'"
     );
-    assert_snapshot!(
-        &errors[1],
-        @"malformed logging spec 'crate3=error=error'"
-    );
-}
 
-#[test]
-fn parse_spec_multiple_invalid_levels() {
-    // test parse_spec with 'noNumber' as log level
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec("crate1::mod1=noNumber,crate2=debug,crate3=invalid");
-
-    assert_eq!(dirs.len(), 1);
-    assert_eq!(dirs[0].name, Some("crate2".to_owned()));
-    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Debug));
-
-    assert_eq!(errors.len(), 2);
-    assert_snapshot!(&errors[0], @"malformed logging spec 'noNumber'");
-    assert_snapshot!(&errors[1], @"malformed logging spec 'invalid'");
-}
-
-#[test]
-fn parse_spec_invalid_crate_and_level() {
-    // test parse_spec with 'noNumber' as log level
-    let ParseResult {
-        directives: dirs,
-        errors,
-    } = parse_spec("crate1::mod1=debug=info,crate2=debug,crate3=invalid");
-
-    assert_eq!(dirs.len(), 1);
-    assert_eq!(dirs[0].name, Some("crate2".to_owned()));
-    assert_eq!(dirs[0].level, LevelFilter::MoreSevereEqual(Level::Debug));
-
-    assert_eq!(errors.len(), 2);
-    assert_snapshot!(
-        &errors[0],
-        @"malformed logging spec 'crate1::mod1=debug=info'"
-    );
-    assert_snapshot!(&errors[1], @"malformed logging spec 'invalid'");
-}
-
-#[test]
-fn parse_error_message_single_error() {
-    let ParseResult { errors, .. } = parse_spec("crate1::mod1=debug=info,crate2=debug");
-    assert_snapshot!(
-        &errors[0],
-        @"malformed logging spec 'crate1::mod1=debug=info'"
-    );
-}
-
-#[test]
-fn parse_error_message_multiple_errors() {
-    let ParseResult { errors, .. } =
-        parse_spec("crate1::mod1=debug=info,crate2=debug,crate3=invalid");
-    assert_snapshot!(
-        &errors[0],
-        @"malformed logging spec 'crate1::mod1=debug=info'"
-    );
+    let err = parse_spec("crate2=debug,crate1::mod1=noNumber,crate3=invalid").unwrap_err();
+    assert_snapshot!(err.to_string(), @"malformed logging spec 'noNumber'");
 }
 
 #[test]
 fn filter_info() {
     let logger = RustLogFilterBuilder::default()
-        .filter_level(LevelFilter::MoreSevereEqual(Level::Info))
+        .fallback(LevelFilter::MoreSevereEqual(Level::Info))
         .build();
     assert!(!logger.rejected(Level::Info, "crate1"));
     assert!(logger.rejected(Level::Debug, "crate1"));
@@ -338,26 +192,18 @@ fn filter_info() {
 #[test]
 fn filter_beginning_longest_match() {
     let logger = RustLogFilterBuilder::default()
-        .filter_module("crate2", LevelFilter::MoreSevereEqual(Level::Info))
-        .filter_module("crate2::mod", LevelFilter::MoreSevereEqual(Level::Debug))
-        .filter_module("crate1::mod1", LevelFilter::MoreSevereEqual(Level::Warn))
+        .prefix("crate2", LevelFilter::MoreSevereEqual(Level::Info))
+        .prefix("crate2::mod", LevelFilter::MoreSevereEqual(Level::Debug))
+        .prefix("crate1::mod1", LevelFilter::MoreSevereEqual(Level::Warn))
         .build();
     assert!(!logger.rejected(Level::Debug, "crate2::mod1"));
     assert!(logger.rejected(Level::Debug, "crate2"));
 }
 
 // Some of our tests are only correct or complete when they cover the full
-// universe of variants for log::Level. In the unlikely event that a new
+// universe of variants for Level. In the unlikely event that a new
 // variant is added in the future, this test will detect the scenario and
-// alert us to the need to review and update the tests. In such a
-// situation, this test will fail to compile, and the error message will
-// look something like this:
-//
-//     error[E0004]: non-exhaustive patterns: `NewVariant` not covered
-//        --> src/filter/mod.rs:413:15
-//         |
-//     413 |         match level_universe {
-//         |               ^^^^^^^^^^^^^^ pattern `NewVariant` not covered
+// alert us to the need to review and update the tests.
 #[test]
 fn ensure_tests_cover_level_universe() {
     let level_universe: Level = Level::Trace; // use of trace variant is arbitrary
@@ -391,14 +237,17 @@ fn ensure_tests_cover_level_universe() {
 
 #[test]
 fn parse_default() {
-    let logger = RustLogFilterBuilder::from_spec("info,crate1::mod1=warn").build();
+    let builder = RustLogFilterBuilder::from_spec("info,crate1::mod1=warn").unwrap();
+    let logger = builder.build();
     assert!(!logger.rejected(Level::Warn, "crate1::mod1"));
+    assert!(logger.rejected(Level::Info, "crate1::mod1"));
     assert!(!logger.rejected(Level::Info, "crate2::mod2"));
 }
 
 #[test]
 fn parse_default_bare_level_off_lc() {
-    let logger = RustLogFilterBuilder::from_spec("off").build();
+    let builder = RustLogFilterBuilder::from_spec("off").unwrap();
+    let logger = builder.build();
     assert!(logger.rejected(Level::Error, ""));
     assert!(logger.rejected(Level::Warn, ""));
     assert!(logger.rejected(Level::Info, ""));
@@ -408,7 +257,8 @@ fn parse_default_bare_level_off_lc() {
 
 #[test]
 fn parse_default_bare_level_off_uc() {
-    let logger = RustLogFilterBuilder::from_spec("OFF").build();
+    let builder = RustLogFilterBuilder::from_spec("OFF").unwrap();
+    let logger = builder.build();
     assert!(logger.rejected(Level::Error, ""));
     assert!(logger.rejected(Level::Warn, ""));
     assert!(logger.rejected(Level::Info, ""));
@@ -418,7 +268,8 @@ fn parse_default_bare_level_off_uc() {
 
 #[test]
 fn parse_default_bare_level_error_lc() {
-    let logger = RustLogFilterBuilder::from_spec("error").build();
+    let builder = RustLogFilterBuilder::from_spec("error").unwrap();
+    let logger = builder.build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(logger.rejected(Level::Warn, ""));
     assert!(logger.rejected(Level::Info, ""));
@@ -428,7 +279,8 @@ fn parse_default_bare_level_error_lc() {
 
 #[test]
 fn parse_default_bare_level_error_uc() {
-    let logger = RustLogFilterBuilder::from_spec("ERROR").build();
+    let builder = RustLogFilterBuilder::from_spec("ERROR").unwrap();
+    let logger = builder.build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(logger.rejected(Level::Warn, ""));
     assert!(logger.rejected(Level::Info, ""));
@@ -438,7 +290,8 @@ fn parse_default_bare_level_error_uc() {
 
 #[test]
 fn parse_default_bare_level_warn_lc() {
-    let logger = RustLogFilterBuilder::from_spec("warn").build();
+    let builder = RustLogFilterBuilder::from_spec("warn").unwrap();
+    let logger = builder.build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(!logger.rejected(Level::Warn, ""));
     assert!(logger.rejected(Level::Info, ""));
@@ -448,7 +301,8 @@ fn parse_default_bare_level_warn_lc() {
 
 #[test]
 fn parse_default_bare_level_warn_uc() {
-    let logger = RustLogFilterBuilder::from_spec("WARN").build();
+    let builder = RustLogFilterBuilder::from_spec("WARN").unwrap();
+    let logger = builder.build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(!logger.rejected(Level::Warn, ""));
     assert!(logger.rejected(Level::Info, ""));
@@ -458,7 +312,8 @@ fn parse_default_bare_level_warn_uc() {
 
 #[test]
 fn parse_default_bare_level_info_lc() {
-    let logger = RustLogFilterBuilder::from_spec("info").build();
+    let builder = RustLogFilterBuilder::from_spec("info").unwrap();
+    let logger = builder.build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(!logger.rejected(Level::Warn, ""));
     assert!(!logger.rejected(Level::Info, ""));
@@ -468,7 +323,8 @@ fn parse_default_bare_level_info_lc() {
 
 #[test]
 fn parse_default_bare_level_info_uc() {
-    let logger = RustLogFilterBuilder::from_spec("INFO").build();
+    let builder = RustLogFilterBuilder::from_spec("INFO").unwrap();
+    let logger = builder.build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(!logger.rejected(Level::Warn, ""));
     assert!(!logger.rejected(Level::Info, ""));
@@ -478,7 +334,8 @@ fn parse_default_bare_level_info_uc() {
 
 #[test]
 fn parse_default_bare_level_debug_lc() {
-    let logger = RustLogFilterBuilder::from_spec("debug").build();
+    let builder = RustLogFilterBuilder::from_spec("debug").unwrap();
+    let logger = builder.build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(!logger.rejected(Level::Warn, ""));
     assert!(!logger.rejected(Level::Info, ""));
@@ -488,7 +345,8 @@ fn parse_default_bare_level_debug_lc() {
 
 #[test]
 fn parse_default_bare_level_debug_uc() {
-    let logger = RustLogFilterBuilder::from_spec("DEBUG").build();
+    let builder = RustLogFilterBuilder::from_spec("DEBUG").unwrap();
+    let logger = builder.build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(!logger.rejected(Level::Warn, ""));
     assert!(!logger.rejected(Level::Info, ""));
@@ -498,7 +356,8 @@ fn parse_default_bare_level_debug_uc() {
 
 #[test]
 fn parse_default_bare_level_trace_lc() {
-    let logger = RustLogFilterBuilder::from_spec("trace").build();
+    let builder = RustLogFilterBuilder::from_spec("trace").unwrap();
+    let logger = builder.build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(!logger.rejected(Level::Warn, ""));
     assert!(!logger.rejected(Level::Info, ""));
@@ -508,7 +367,8 @@ fn parse_default_bare_level_trace_lc() {
 
 #[test]
 fn parse_default_bare_level_trace_uc() {
-    let logger = RustLogFilterBuilder::from_spec("TRACE").build();
+    let builder = RustLogFilterBuilder::from_spec("TRACE").unwrap();
+    let logger = builder.build();
     assert!(!logger.rejected(Level::Error, ""));
     assert!(!logger.rejected(Level::Warn, ""));
     assert!(!logger.rejected(Level::Info, ""));
@@ -516,38 +376,11 @@ fn parse_default_bare_level_trace_uc() {
     assert!(!logger.rejected(Level::Trace, ""));
 }
 
-// In practice, the desired log level is typically specified by a token
-// that is either all lowercase (e.g., 'trace') or all uppercase (.e.g,
-// 'TRACE'), but this tests serves as a reminder that
-// log::Level::from_str() ignores all case variants.
 #[test]
 fn parse_default_bare_level_debug_mixed() {
-    {
-        let logger = RustLogFilterBuilder::from_spec("Debug").build();
-        assert!(!logger.rejected(Level::Error, ""));
-        assert!(!logger.rejected(Level::Warn, ""));
-        assert!(!logger.rejected(Level::Info, ""));
-        assert!(!logger.rejected(Level::Debug, ""));
-        assert!(logger.rejected(Level::Trace, ""));
-    }
-    {
-        let logger = RustLogFilterBuilder::from_spec("debuG").build();
-        assert!(!logger.rejected(Level::Error, ""));
-        assert!(!logger.rejected(Level::Warn, ""));
-        assert!(!logger.rejected(Level::Info, ""));
-        assert!(!logger.rejected(Level::Debug, ""));
-        assert!(logger.rejected(Level::Trace, ""));
-    }
-    {
-        let logger = RustLogFilterBuilder::from_spec("deBug").build();
-        assert!(!logger.rejected(Level::Error, ""));
-        assert!(!logger.rejected(Level::Warn, ""));
-        assert!(!logger.rejected(Level::Info, ""));
-        assert!(!logger.rejected(Level::Debug, ""));
-        assert!(logger.rejected(Level::Trace, ""));
-    }
-    {
-        let logger = RustLogFilterBuilder::from_spec("DeBuG").build(); // LaTeX flavor!
+    for spec in ["Debug", "debuG", "deBug", "DeBuG"] {
+        let builder = RustLogFilterBuilder::from_spec(spec).unwrap();
+        let logger = builder.build();
         assert!(!logger.rejected(Level::Error, ""));
         assert!(!logger.rejected(Level::Warn, ""));
         assert!(!logger.rejected(Level::Info, ""));
@@ -557,29 +390,83 @@ fn parse_default_bare_level_debug_mixed() {
 }
 
 #[test]
-fn try_parse_valid_filter() {
-    let logger = RustLogFilterBuilder::try_from_spec("info,crate1::mod1=warn")
-        .expect("valid filter returned error")
-        .build();
-    assert!(!logger.rejected(Level::Warn, "crate1::mod1"));
-    assert!(!logger.rejected(Level::Info, "crate2::mod2"));
-}
-
-#[test]
-fn try_parse_invalid_filter() {
-    let error = RustLogFilterBuilder::try_from_spec("info,crate1=invalid").unwrap_err();
+fn from_spec_and_try_from_error_propagation() {
+    let error = RustLogFilterBuilder::from_spec("info,crate1=invalid").unwrap_err();
     assert_snapshot!(error.to_string(), @"malformed logging spec 'invalid'");
+
+    let filter = RustLogFilter::try_from("info,crate1::mod1=warn").unwrap();
+    assert!(!filter.rejected(Level::Warn, "crate1::mod1"));
+    assert!(filter.rejected(Level::Info, "crate1::mod1"));
+    assert!(!filter.rejected(Level::Info, "crate2::mod2"));
+
+    let err = RustLogFilter::try_from("info,crate1=invalid").unwrap_err();
+    assert_snapshot!(err.to_string(), @"malformed logging spec 'invalid'");
+}
+
+#[test]
+fn enabled_and_dual_mask_fast_paths() {
+    // Global info, crate1::mod1 narrowed to warn, crate2::sub widened to debug.
+    let builder =
+        RustLogFilterBuilder::from_spec("info,crate1::mod1=warn,crate2::sub=debug").unwrap();
+    let filter = builder.build();
+
+    // Trace is disabled everywhere -> filter_level(Trace) is Reject.
+    assert_eq!(filter.filter_level(Level::Trace), FilterResult::Reject);
+    // Debug is enabled only for crate2::sub -> filter_level(Debug) is Neutral (not always_neutral).
+    assert_eq!(filter.filter_level(Level::Debug), FilterResult::Neutral);
+    // Info is disabled for crate1::mod1 -> filter_level(Info) is Neutral (not always_neutral).
+    assert_eq!(filter.filter_level(Level::Info), FilterResult::Neutral);
+    // Warn and Error are enabled everywhere -> always_neutral fast path returns Neutral even with
+    // no module_path.
+    assert_eq!(filter.filter_level(Level::Warn), FilterResult::Neutral);
+    assert_eq!(filter.filter_level(Level::Error), FilterResult::Neutral);
+
+    let no_module_warn = Record::builder().level(Level::Warn).build();
+    let no_module_debug = Record::builder().level(Level::Debug).build();
+    assert_eq!(filter.filter(&no_module_warn, &()), FilterResult::Neutral);
+    assert_eq!(filter.filter(&no_module_debug, &()), FilterResult::Reject);
+}
+
+#[test]
+fn logforth_target_kv_overrides_module_path_without_colliding_with_user_target_kv() {
+    let builder = RustLogFilterBuilder::from_spec("info,my_app::query=warn").unwrap();
+    let filter = builder.build();
+
+    // Reserved `logforth.target` overrides `module_path`.
+    let bridged_kvs = [(Key::new("logforth.target"), Value::str("my_app::query"))];
+    let bridged_info = Record::builder()
+        .level(Level::Info)
+        .module_path_static("my_app::db::driver")
+        .key_values(KeyValues::from(bridged_kvs.as_slice()))
+        .build();
+    assert_eq!(filter.filter(&bridged_info, &()), FilterResult::Reject);
+
+    let bridged_warn = Record::builder()
+        .level(Level::Warn)
+        .module_path_static("my_app::db::driver")
+        .key_values(KeyValues::from(bridged_kvs.as_slice()))
+        .build();
+    assert_eq!(filter.filter(&bridged_warn, &()), FilterResult::Neutral);
+
+    // Application `target` KV does NOT collide with reserved `logforth.target`.
+    let user_kvs = [(Key::new("target"), Value::str("my_app::query"))];
+    let app_info = Record::builder()
+        .level(Level::Info)
+        .module_path_static("my_app::deploy")
+        .key_values(KeyValues::from(user_kvs.as_slice()))
+        .build();
+    assert_eq!(filter.filter(&app_info, &()), FilterResult::Neutral);
 }
 
 #[test]
 fn match_full_path() {
     let logger = RustLogFilter::from_directives(vec![
         Directive {
-            name: Some("crate2".to_owned()),
+            prefix: Some("crate2".to_owned()),
             level: LevelFilter::MoreSevereEqual(Level::Info),
         },
         Directive {
-            name: Some("crate1::mod1".to_owned()),
+            prefix: Some("crate1::mod1".to_owned()),
             level: LevelFilter::MoreSevereEqual(Level::Warn),
         },
     ]);
@@ -593,11 +480,11 @@ fn match_full_path() {
 fn no_match() {
     let logger = RustLogFilter::from_directives(vec![
         Directive {
-            name: Some("crate2".to_owned()),
+            prefix: Some("crate2".to_owned()),
             level: LevelFilter::MoreSevereEqual(Level::Info),
         },
         Directive {
-            name: Some("crate1::mod1".to_owned()),
+            prefix: Some("crate1::mod1".to_owned()),
             level: LevelFilter::MoreSevereEqual(Level::Warn),
         },
     ]);
@@ -608,11 +495,11 @@ fn no_match() {
 fn match_beginning() {
     let logger = RustLogFilter::from_directives(vec![
         Directive {
-            name: Some("crate2".to_owned()),
+            prefix: Some("crate2".to_owned()),
             level: LevelFilter::MoreSevereEqual(Level::Info),
         },
         Directive {
-            name: Some("crate1::mod1".to_owned()),
+            prefix: Some("crate1::mod1".to_owned()),
             level: LevelFilter::MoreSevereEqual(Level::Warn),
         },
     ]);
@@ -623,15 +510,15 @@ fn match_beginning() {
 fn match_beginning_longest_match() {
     let logger = RustLogFilter::from_directives(vec![
         Directive {
-            name: Some("crate2".to_owned()),
+            prefix: Some("crate2".to_owned()),
             level: LevelFilter::MoreSevereEqual(Level::Info),
         },
         Directive {
-            name: Some("crate2::mod".to_owned()),
+            prefix: Some("crate2::mod".to_owned()),
             level: LevelFilter::MoreSevereEqual(Level::Debug),
         },
         Directive {
-            name: Some("crate1::mod1".to_owned()),
+            prefix: Some("crate1::mod1".to_owned()),
             level: LevelFilter::MoreSevereEqual(Level::Warn),
         },
     ]);
@@ -643,11 +530,11 @@ fn match_beginning_longest_match() {
 fn match_default() {
     let logger = RustLogFilter::from_directives(vec![
         Directive {
-            name: None,
+            prefix: None,
             level: LevelFilter::MoreSevereEqual(Level::Info),
         },
         Directive {
-            name: Some("crate1::mod1".to_owned()),
+            prefix: Some("crate1::mod1".to_owned()),
             level: LevelFilter::MoreSevereEqual(Level::Warn),
         },
     ]);
@@ -659,11 +546,11 @@ fn match_default() {
 fn zero_level() {
     let logger = RustLogFilter::from_directives(vec![
         Directive {
-            name: None,
+            prefix: None,
             level: LevelFilter::MoreSevereEqual(Level::Info),
         },
         Directive {
-            name: Some("crate1::mod1".to_owned()),
+            prefix: Some("crate1::mod1".to_owned()),
             level: LevelFilter::Off,
         },
     ]);
