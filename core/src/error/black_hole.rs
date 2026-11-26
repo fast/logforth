@@ -16,16 +16,9 @@ use crate::Error;
 use crate::ErrorSink;
 
 /// An [`ErrorSink`] that silently discards all internal errors.
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone)]
 #[non_exhaustive]
 pub struct BlackHoleErrorSink {}
-
-impl BlackHoleErrorSink {
-    /// Create a new [`BlackHoleErrorSink`].
-    pub const fn new() -> Self {
-        Self {}
-    }
-}
 
 impl ErrorSink for BlackHoleErrorSink {
     fn sink(&self, _: &Error) {}

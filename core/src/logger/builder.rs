@@ -71,9 +71,11 @@ impl LoggerBuilder {
     /// ```
     pub fn dispatch<F>(mut self, f: F) -> Self
     where
-        F: FnOnce(DispatchBuilder<false>) -> DispatchBuilder<true>,
+        F: FnOnce(DispatchBuilder) -> DispatchBuilder,
     {
-        self.dispatches.push(f(DispatchBuilder::new()).build());
+        if let Some(dispatch) = f(DispatchBuilder::new()).build() {
+            self.dispatches.push(dispatch);
+        }
         self
     }
 
@@ -89,7 +91,7 @@ impl LoggerBuilder {
     /// use logforth_core::error::BlackHoleErrorSink;
     ///
     /// let logger = logforth_core::builder()
-    ///     .error_sink(BlackHoleErrorSink::new())
+    ///     .error_sink(BlackHoleErrorSink::default())
     ///     .dispatch(|d| d.append(append::Stdout::default()))
     ///     .build();
     /// ```
@@ -116,7 +118,11 @@ impl LoggerBuilder {
     }
 }
 
-/// A builder for configuring a log dispatch, including filters and appenders.
+/// A builder for configuring a log dispatch branch, including filters, diagnostics, and appenders.
+///
+/// Configured filters, diagnostics, and any [`error_sink`](Self::error_sink) override apply to the
+/// entire dispatch branch across all of its appenders regardless of method call order. A branch
+/// configured with no appenders is skipped when registered on [`LoggerBuilder`].
 ///
 /// # Examples
 ///
@@ -133,14 +139,14 @@ impl LoggerBuilder {
 ///     .build();
 /// ```
 #[derive(Debug)]
-pub struct DispatchBuilder<const APPEND: bool> {
+pub struct DispatchBuilder {
     filters: Vec<Box<dyn Filter>>,
     diagnostics: Vec<Box<dyn Diagnostic>>,
     appends: Vec<Box<dyn Append>>,
     error_sink: Option<Box<dyn ErrorSink>>,
 }
 
-impl DispatchBuilder<false> {
+impl DispatchBuilder {
     fn new() -> Self {
         DispatchBuilder {
             filters: vec![],
@@ -206,7 +212,7 @@ impl DispatchBuilder<false> {
     ///
     /// let logger = logforth_core::builder()
     ///     .dispatch(|d| {
-    ///         d.error_sink(BlackHoleErrorSink::new())
+    ///         d.error_sink(BlackHoleErrorSink::default())
     ///             .append(append::Stdout::default())
     ///     })
     ///     .build();
@@ -215,20 +221,7 @@ impl DispatchBuilder<false> {
         self.error_sink = Some(error_sink.into());
         self
     }
-}
 
-impl DispatchBuilder<true> {
-    fn build(self) -> Dispatch {
-        Dispatch::new(
-            self.filters,
-            self.diagnostics,
-            self.appends,
-            self.error_sink,
-        )
-    }
-}
-
-impl<const APPEND: bool> DispatchBuilder<APPEND> {
     /// Add an appender to this dispatch.
     ///
     /// # Examples
@@ -240,13 +233,21 @@ impl<const APPEND: bool> DispatchBuilder<APPEND> {
     ///     .dispatch(|d| d.append(append::Stdout::default()))
     ///     .build();
     /// ```
-    pub fn append(mut self, append: impl Into<Box<dyn Append>>) -> DispatchBuilder<true> {
+    pub fn append(mut self, append: impl Into<Box<dyn Append>>) -> Self {
         self.appends.push(append.into());
-        DispatchBuilder {
-            filters: self.filters,
-            diagnostics: self.diagnostics,
-            appends: self.appends,
-            error_sink: self.error_sink,
+        self
+    }
+
+    fn build(self) -> Option<Dispatch> {
+        if self.appends.is_empty() {
+            None
+        } else {
+            Some(Dispatch::new(
+                self.filters,
+                self.diagnostics,
+                self.appends,
+                self.error_sink,
+            ))
         }
     }
 }

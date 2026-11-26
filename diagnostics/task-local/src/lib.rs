@@ -49,7 +49,7 @@ thread_local! {
 /// A diagnostic that stores key-value pairs in a task-local context.
 ///
 /// See the [crate documentation](self) for usage examples.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone)]
 #[non_exhaustive]
 pub struct TaskLocalDiagnostic {}
 
