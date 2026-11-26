@@ -5,7 +5,7 @@ This document defines the architectural model, public contracts, and target `1.0
 ## Scope and Crate Versioning
 
 - `logforth-core` carries zero mandatory third-party dependencies. Stabilizing `logforth-core 1.0` establishes a stable contract for `Logger`, `Record`, `kv`, and the five core extension traits without coupling SemVer stability to external SDKs.
-- The `logforth` umbrella facade and peripheral appenders, layouts, filters, diagnostics, and ecosystem bridges evolve on independent `0.x` tracks so external dependencies such as `opentelemetry`, `jiff`, `fastrace`, `log`, and `tracing` can upgrade at their own pace.
+- The `logforth` umbrella facade and peripheral appenders, layouts, filters, diagnostics, and ecosystem bridges evolve on independent `0.x` tracks so external dependencies such as `opentelemetry`, `jiff`, `fastrace`, and `log` can upgrade at their own pace.
 
 ## Pipeline Topology and Assembly
 
@@ -19,7 +19,7 @@ Logforth separates three concerns into distinct primitives:
 
 - `Logger` is a lightweight `Clone` handle over a shared immutable pipeline, with no global singleton in `logforth-core`. Applications expose process-wide channels through their own initialized statics or dependency injection, while libraries accepting an optional logger can default to a zero-allocation `const fn Logger::noop()`.
 - All five component traits (`Append`, `Layout`, `Filter`, `Diagnostic`, and `ErrorSink`) implement forwarding for `Arc<T>` and `&'static T` across all trait methods (with `Diagnostic` forwarding `&T` across any lifetime), allowing multiple dispatches or independent `Logger` instances to share stateful components directly as a directed acyclic graph; an `Append` or `ErrorSink` must never route back into its owning `Logger`.
-- Configuration placement follows each component's role in the pipeline. `LoggerBuilder::error_sink` sets the logger-wide failure fallback, and `DispatchBuilder::error_sink` optionally overrides it for a specific branch. Out-of-band executors such as `Async` manage an independent worker lifecycle and configure their own `ErrorSink`. `Filter` and `Diagnostic` are configured on `DispatchBuilder` because branches within a `Logger` exist to select distinct event subsets and context; branches that share a filter or diagnostic share it explicitly via `Arc`.
+- Configuration placement follows each component's role in the pipeline. `LoggerBuilder::error_sink` sets the logger-wide failure fallback, and `DispatchBuilder::error_sink` optionally overrides it for a specific branch. Out-of-band executors such as `Async` manage an independent worker lifecycle and configure their own `ErrorSink`. `Filter` and `Diagnostic` are configured on `DispatchBuilder` because branches within a `Logger` exist to select distinct event subsets and context; branches that share a filter or diagnostic share it explicitly via `Arc`. A `DispatchBuilder` configures a single branch as a unit regardless of method call order, and branches configured with no appenders are skipped during `Logger` construction.
 
 For example, an application can isolate `audit` events on a dedicated `Logger` while its main diagnostic `Logger` fans out `Warn` records to standard error and `Debug` records to a shared `Arc<File>`.
 
@@ -66,7 +66,7 @@ pub trait ErrorSink: fmt::Debug + Send + Sync + 'static {
   - `Neutral` expresses no decision and passes control to the next filter; a `Dispatch` accepts the record if all filters finish `Neutral`.
 - `LevelMask(u32)` represents any subset of the 24 levels, including non-monotonic `LevelFilter` predicates, in a single machine register. Each `Filter` reports static `may_accept` and `may_neutral` masks through `Filter::bounds`, and `DispatchBuilder::build` computes the branch `LevelMask` by backwards induction `mask = may_accept | (may_neutral & next)`.
 - `Logger::enabled(level)` tests the union of its dispatches' `LevelMask` values in a single bitwise operation before a callsite constructs a `Record`, and `Logger::log` tests each branch's `LevelMask` before evaluating its `Filter` chain. Attaching a leading context-driven `Accept` filter widens that branch's `LevelMask` to `ALL`, trading static level pruning for per-event context inspection on that branch; runtime-mutable filters likewise report `ALL` so dynamic updates take effect immediately.
-- `RustLogFilter` filters on `Record::module_path()` after passing the level mask, and exposes named-directive filtering so custom filters can inspect explicit key-value fields before falling back to module paths.
+- `RustLogFilter` matches an explicit `"target"` key-value entry when present (preserving `RUST_LOG` target directives such as `sqlx::query=warn` for bridged `log` records) before falling back to `Record::module_path()`, and exposes named-directive filtering so custom filters can inspect arbitrary key-value fields.
 
 ## Structured Key-Values and Diagnostics
 
@@ -98,14 +98,9 @@ logforth::info!(logger, ["jobs.completed" = count, "error" = Value::debug(&err)]
 
 ## Ecosystem Interop and Bridges
 
-Logforth provides bidirectional adapters for `log` and `tracing` so applications and libraries can adopt native `Logger` pipelines incrementally:
+`logforth-bridge-log` adapts the `log` crate into a `Logger` so applications can adopt native `Logger` pipelines while continuing to collect logs from ecosystem dependencies:
 
-| Direction                                | Crate                     | Role                                                                                                                                             |
-| :--------------------------------------- | :------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Inbound (`log` -> `logforth`)            | `logforth-bridge-log`     | Implements `log::Log`, forwarding structured key-values and updating `log::set_max_level` from `Logger`'s `LevelMask` on global installation    |
-| Inbound (`tracing` -> `logforth`)        | `logforth-bridge-tracing` | Implements `tracing_subscriber::Layer`, translating `tracing::Event` fields and flattening active `event_scope()` span attributes into `Record` |
-| Outbound (`logforth` -> `log`/`tracing`) | `logforth-append-log`     | Implements `Append` by forwarding `Record` and `&dyn Diagnostic` to `log::logger()`, supporting both `log` hosts and `tracing-log` hosts        |
-
-- Inbound `log` and `tracing` bridges populate `Record::module_path` from the event's module path and emit a `"target"` key-value entry only when the upstream caller explicitly overrode `target` to differ from `module_path`. `LogBridge::enabled` delegates directly to `Logger::enabled` on the mapped severity level.
-- Libraries adopting `logforth` natively can accept an injected `Logger` whose default routes to `logforth-append-log` or `Logger::noop()`, remaining observable inside host applications that use another subscriber.
-- If an inbound `log` or `tracing` bridge feeds a `Logger` whose dispatch also attaches `logforth-append-log`, a panic-safe thread-local guard in `logforth-core` set by `logforth-append-log` and checked at inbound bridge entry breaks the cycle, drops the reentrant record, and reports the misconfiguration once via `ErrorSink`.
+- `LogBridge` implements `log::Log`, forwarding structured key-values and updating `log::set_max_level` from `Logger`'s `LevelMask` on global installation.
+- `LogBridge` populates `Record::module_path` from the event's module path and emits a `"target"` key-value entry only when the upstream caller explicitly overrode `target` to differ from `module_path`.
+- `LogBridge::enabled` checks an optional bridge-level metadata filter (used by `starter_log` so `log::log_enabled!` respects `(level, target)` directives without reintroducing `target` into `logforth-core`) intersected with `Logger::enabled` on the mapped severity level.
+- Libraries seeking ambient global logging emit via `log` directly, whereas libraries adopting `logforth` natively accept an injected `Logger` defaulting to `Logger::noop()`.

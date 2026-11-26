@@ -22,16 +22,9 @@ use crate::ErrorSink;
 ///
 /// If writing to standard error fails (for example, when standard error is closed or broken), the
 /// failure is silently ignored.
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone)]
 #[non_exhaustive]
 pub struct StderrErrorSink {}
-
-impl StderrErrorSink {
-    /// Create a new [`StderrErrorSink`].
-    pub const fn new() -> Self {
-        Self {}
-    }
-}
 
 impl ErrorSink for StderrErrorSink {
     fn sink(&self, err: &Error) {

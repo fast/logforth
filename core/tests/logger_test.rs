@@ -26,6 +26,7 @@ use logforth_core::builder;
 use logforth_core::error::BlackHoleErrorSink;
 use logforth_core::record::FilterCriteria;
 use logforth_core::record::Level;
+use logforth_core::record::LevelFilter;
 use logforth_core::record::Record;
 
 const NOOP_LOGGER: Logger = Logger::noop();
@@ -137,7 +138,7 @@ fn logger_routes_errors_with_dispatch_fallback_and_override() {
                 .append(delivered.clone())
         })
         .dispatch(|d| {
-            d.error_sink(BlackHoleErrorSink::new())
+            d.error_sink(BlackHoleErrorSink::default())
                 .append(FailingAppender("silenced failed"))
         })
         .dispatch(|d| {
@@ -165,4 +166,37 @@ fn logger_routes_errors_with_dispatch_fallback_and_override() {
             "failed to flush appender: override failed",
         ]
     );
+}
+
+#[test]
+fn dispatch_builder_supports_dynamic_appenders_and_skips_empty_branches() {
+    let first = Arc::new(RecordingAppender::default());
+    let second = Arc::new(RecordingAppender::default());
+
+    let logger = builder()
+        .dispatch(|d| d.filter(LevelFilter::All))
+        .dispatch(|mut d| {
+            d = d.filter(LevelFilter::MoreSevereEqual(Level::Error));
+            for sink in [&first, &second] {
+                d = d.append(sink.clone());
+            }
+            d
+        })
+        .build();
+
+    assert!(!logger.enabled(&FilterCriteria::builder().level(Level::Info).build()));
+    assert!(logger.enabled(&FilterCriteria::builder().level(Level::Error).build()));
+
+    logger.log(
+        &Record::builder()
+            .level(Level::Error)
+            .payload(format_args!("boom"))
+            .build(),
+    );
+
+    assert_eq!(&*first.records.lock().unwrap(), &["boom"]);
+    assert_eq!(&*second.records.lock().unwrap(), &["boom"]);
+
+    let all_empty = builder().dispatch(|d| d.filter(LevelFilter::All)).build();
+    assert!(!all_empty.enabled(&FilterCriteria::builder().level(Level::Fatal4).build()));
 }

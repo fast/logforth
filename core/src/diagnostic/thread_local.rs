@@ -34,7 +34,7 @@ thread_local! {
 ///
 /// ThreadLocalDiagnostic::insert("key", "value");
 /// ```
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone)]
 #[non_exhaustive]
 pub struct ThreadLocalDiagnostic {}
 

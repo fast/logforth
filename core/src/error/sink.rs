@@ -85,7 +85,7 @@ mod tests {
         assert_eq!(size_of::<StderrErrorSink>(), 0);
         assert_eq!(size_of::<BlackHoleErrorSink>(), 0);
 
-        let black_hole: Box<dyn ErrorSink> = BlackHoleErrorSink::new().into();
+        let black_hole: Box<dyn ErrorSink> = BlackHoleErrorSink::default().into();
         black_hole.sink(&Error::new("ignored"));
 
         let shared = Arc::new(CountingSink::new());

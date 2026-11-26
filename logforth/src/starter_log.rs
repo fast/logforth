@@ -63,7 +63,7 @@ impl LogStarterBuilder {
     /// ```
     pub fn dispatch<F>(mut self, f: F) -> Self
     where
-        F: FnOnce(DispatchBuilder<false>) -> DispatchBuilder<true>,
+        F: FnOnce(DispatchBuilder) -> DispatchBuilder,
     {
         self.builder = self.builder.dispatch(f);
         self
@@ -80,7 +80,7 @@ impl LogStarterBuilder {
     /// use logforth::error::BlackHoleErrorSink;
     ///
     /// logforth::starter_log::builder()
-    ///     .error_sink(BlackHoleErrorSink::new())
+    ///     .error_sink(BlackHoleErrorSink::default())
     ///     .dispatch(|d| d.append(append::Stderr::default()))
     ///     .apply();
     /// ```
