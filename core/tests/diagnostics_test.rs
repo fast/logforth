@@ -105,11 +105,13 @@ fn collect_diags(diags: &dyn Diagnostic) -> Result<Vec<(String, String)>, Error>
 #[test]
 fn composite_diagnostics_preserve_order_and_handle_empty_sources() {
     let none_diag: Option<ConstDiag> = None;
+    let none_boxed: Option<Box<dyn Diagnostic>> = None;
     let empty_slice: &[&dyn Diagnostic] = &[];
     let empty_boxed: Vec<Box<dyn Diagnostic>> = Vec::new();
 
     assert!(collect_diags(&()).unwrap().is_empty());
     assert!(collect_diags(&none_diag).unwrap().is_empty());
+    assert!(collect_diags(&none_boxed).unwrap().is_empty());
     assert!(collect_diags(&empty_slice).unwrap().is_empty());
     assert!(collect_diags(&empty_boxed).unwrap().is_empty());
 
@@ -145,7 +147,16 @@ fn composite_diagnostics_preserve_order_and_handle_empty_sources() {
         ]
     );
 
-    let boxed_vec: Vec<Box<dyn Diagnostic>> = vec![
+    let some_boxed: Option<Box<dyn Diagnostic>> = Some(Box::new(ConstDiag {
+        key: "host",
+        value: "n1",
+    }));
+    assert_eq!(
+        collect_diags(&some_boxed).unwrap(),
+        vec![("host".to_owned(), "n1".to_owned())]
+    );
+
+    let boxed_array: [Box<dyn Diagnostic>; 2] = [
         Box::new(ConstDiag {
             key: "service",
             value: "api",
@@ -155,6 +166,15 @@ fn composite_diagnostics_preserve_order_and_handle_empty_sources() {
             value: "1",
         }),
     ];
+    assert_eq!(
+        collect_diags(&boxed_array).unwrap(),
+        vec![
+            ("service".to_owned(), "api".to_owned()),
+            ("version".to_owned(), "1".to_owned()),
+        ]
+    );
+
+    let boxed_vec = Vec::from(boxed_array);
     assert_eq!(
         collect_diags(&boxed_vec).unwrap(),
         vec![
