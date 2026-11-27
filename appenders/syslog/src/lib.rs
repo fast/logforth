@@ -31,7 +31,9 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
 
+use std::fmt;
 use std::io;
+use std::io::Write;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
 
@@ -349,55 +351,44 @@ fn log_level_to_syslog_severity(level: Level) -> fasyslog::Severity {
 }
 
 impl SyslogFormatter {
-    fn format_message(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
-        let severity = log_level_to_syslog_severity(record.level());
-
-        let message = match self.format {
-            SyslogFormat::RFC3164 => match self.layout {
-                None => format!(
-                    "{}",
-                    self.context
-                        .format_rfc3164(severity, Some(record.payload()))
-                ),
-                Some(ref layout) => {
-                    let mut message = Vec::new();
-                    layout.format(record, diags, &mut message)?;
-                    let message = String::from_utf8_lossy(&message);
-                    format!("{}", self.context.format_rfc3164(severity, Some(message)))
-                }
-            },
+    fn write_formatted(
+        &self,
+        severity: fasyslog::Severity,
+        body: impl fmt::Display,
+    ) -> Result<Vec<u8>, Error> {
+        let mut buf = Vec::new();
+        match self.format {
+            SyslogFormat::RFC3164 => {
+                write!(buf, "{}", self.context.format_rfc3164(severity, Some(body)))
+            }
             SyslogFormat::RFC5424 => {
                 const EMPTY_MSGID: Option<&str> = None;
                 const EMPTY_STRUCTURED_DATA: Vec<SDElement> = Vec::new();
-
-                match self.layout {
-                    None => format!(
-                        "{}",
-                        self.context.format_rfc5424(
-                            severity,
-                            EMPTY_MSGID,
-                            EMPTY_STRUCTURED_DATA,
-                            Some(record.payload())
-                        )
-                    ),
-                    Some(ref layout) => {
-                        let mut message = Vec::new();
-                        layout.format(record, diags, &mut message)?;
-                        let message = String::from_utf8_lossy(&message);
-                        format!(
-                            "{}",
-                            self.context.format_rfc5424(
-                                severity,
-                                EMPTY_MSGID,
-                                EMPTY_STRUCTURED_DATA,
-                                Some(message)
-                            )
-                        )
-                    }
-                }
+                write!(
+                    buf,
+                    "{}",
+                    self.context.format_rfc5424(
+                        severity,
+                        EMPTY_MSGID,
+                        EMPTY_STRUCTURED_DATA,
+                        Some(body),
+                    )
+                )
             }
-        };
+        }
+        .map_err(|err| Error::new("failed to format syslog message").with_source(err))?;
+        Ok(buf)
+    }
 
-        Ok(message.into_bytes())
+    fn format_message(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
+        let severity = log_level_to_syslog_severity(record.level());
+        match self.layout {
+            None => self.write_formatted(severity, record.payload()),
+            Some(ref layout) => {
+                let mut message = Vec::new();
+                layout.format(record, diags, &mut message)?;
+                self.write_formatted(severity, String::from_utf8_lossy(&message))
+            }
+        }
     }
 }
