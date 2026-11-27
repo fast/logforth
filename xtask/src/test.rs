@@ -16,7 +16,7 @@ use std::process;
 
 use clap::Parser;
 
-use crate::find_command;
+use crate::cargo;
 use crate::run_command;
 
 #[derive(Parser)]
@@ -32,8 +32,8 @@ impl CommandTest {
 }
 
 fn make_test_cmd(no_capture: bool) -> process::Command {
-    let mut cmd = find_command("cargo");
-    cmd.args(["test", "--workspace", "--all-features"]);
+    let mut cmd = cargo();
+    cmd.args(["test", "--workspace", "--exclude", "x", "--all-features"]);
     if no_capture {
         cmd.args(["--", "--nocapture"]);
     }

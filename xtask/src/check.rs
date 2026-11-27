@@ -12,50 +12,87 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
 use std::process;
 
+use cargo_metadata::MetadataCommand;
 use clap::Parser;
 
-use crate::find_command;
+use crate::cargo;
 use crate::run_command;
-
-const CHECK_CONFIGS: &[&[&str]] = &[
-    &["--package", "logforth-core", "--no-default-features"],
-    &["--package", "logforth-core", "--all-features"],
-    &["--package", "logforth-bridge-log", "--no-default-features"],
-    &["--package", "logforth-bridge-log", "--all-features"],
-    &[
-        "--package",
-        "logforth-append-syslog",
-        "--no-default-features",
-    ],
-    &["--package", "logforth-append-syslog", "--all-features"],
-    &["--package", "logforth", "--no-default-features"],
-    &[
-        "--package",
-        "logforth",
-        "--no-default-features",
-        "--features",
-        "starter-log",
-    ],
-    &["--workspace", "--all-features"],
-];
 
 #[derive(Parser)]
 pub struct CommandCheck;
 
 impl CommandCheck {
     pub fn run(self) {
-        for args in CHECK_CONFIGS {
-            run_command(make_check_cmd(args));
+        for (package, features) in packages_with_features() {
+            run_command(make_package_check_cmd(&package, &[]));
+            for feature in features.chunks(1) {
+                run_command(make_package_check_cmd(&package, feature));
+            }
+            if features.len() > 1 {
+                run_command(make_package_check_cmd(&package, &features));
+            }
         }
+        run_command(make_workspace_check_cmd());
     }
 }
 
-fn make_check_cmd(extra_args: &[&str]) -> process::Command {
-    let mut cmd = find_command("cargo");
-    cmd.env("RUSTFLAGS", "-D warnings");
-    cmd.args(["+nightly", "check", "--all-targets"]);
-    cmd.args(extra_args);
+fn packages_with_features() -> Vec<(String, Vec<String>)> {
+    let manifest = Path::new(env!("CARGO_WORKSPACE_DIR")).join("Cargo.toml");
+    let metadata = MetadataCommand::new()
+        .manifest_path(manifest)
+        .no_deps()
+        .exec()
+        .expect("failed to get cargo metadata");
+
+    let mut packages = Vec::new();
+    for package in metadata.workspace_packages() {
+        let mut features = package
+            .features
+            .keys()
+            .filter(|feature| feature.as_str() != "default")
+            .cloned()
+            .collect::<Vec<_>>();
+        if features.is_empty() {
+            continue;
+        }
+        features.sort();
+        packages.push((package.name.to_string(), features));
+    }
+    packages.sort_by(|(lhs, _), (rhs, _)| lhs.cmp(rhs));
+    packages
+}
+
+fn make_package_check_cmd(package: &str, features: &[String]) -> process::Command {
+    let mut cmd = cargo();
+    cmd.env("RUSTFLAGS", "-Dwarnings");
+    cmd.args([
+        "+nightly",
+        "check",
+        "--package",
+        package,
+        "--all-targets",
+        "--no-default-features",
+    ]);
+    for feature in features {
+        cmd.args(["--features", feature]);
+    }
+    cmd
+}
+
+fn make_workspace_check_cmd() -> process::Command {
+    let mut cmd = cargo();
+    cmd.env("RUSTFLAGS", "-Dwarnings");
+    cmd.args([
+        "+nightly",
+        "check",
+        "--workspace",
+        "--exclude",
+        "x",
+        "--all-targets",
+        "--all-features",
+    ]);
     cmd
 }

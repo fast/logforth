@@ -13,11 +13,16 @@
 # limitations under the License.
 
 name: CI
+
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
   push:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 # Concurrency strategy:
 #   github.workflow: distinguish this workflow from others
@@ -33,23 +38,44 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
 
 jobs:
   check:
     name: Check
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      RUSTUP_TOOLCHAIN: nightly
     steps:
-      - uses: actions/checkout@v7
-      - name: Install toolchain
-        run: rustup toolchain install --component rustfmt,clippy nightly
-      - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          tool: typos-cli,taplo-cli,hawkeye
+          persist-credentials: false
+      - name: Install nightly toolchain
+        run: >-
+          rustup toolchain install nightly
+          --profile minimal
+          --component rustfmt
+          --component clippy
+          --allow-downgrade
+          --no-self-update
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Install tools
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          command -v cargo-binstall >/dev/null || \
+            curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+          cargo binstall --no-confirm --locked typos-cli hawkeye
+          cargo binstall --no-confirm --locked \
+            --pkg-url "https://github.com/tamasfe/taplo/releases/download/{ version }/taplo-linux-x86_64.gz" \
+            --pkg-fmt bin \
+            taplo-cli
       - name: Check lockfile
         run: cargo update -w --locked --verbose
-      - name: Check linters
+      - name: Run linters
         run: cargo x lint
       - name: Check feature matrix
         run: cargo x check
@@ -57,51 +83,56 @@ jobs:
   msrv:
     name: Resolve MSRV
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     outputs:
       rust-versions: ${{ steps.metadata.outputs.rust-versions }}
     steps:
-      - uses: actions/checkout@v7
-      - id: metadata
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Read supported Rust versions
+        id: metadata
         run: |
-          msrv=$(yq '.workspace.package.rust-version' Cargo.toml)
-          echo "MSRV: $msrv"
-          echo "rust-versions=[\"${msrv}\", \"stable\"]" >> "$GITHUB_OUTPUT"
+          msrv=$(yq -er '.workspace.package.rust-version' Cargo.toml)
+          versions=$(jq -cn --arg msrv "$msrv" '[$msrv, "stable"]')
+          echo "rust-versions=$versions" >> "$GITHUB_OUTPUT"
 
   test:
     name: Run tests
     needs: msrv
     strategy:
+      fail-fast: false
       matrix:
-        os: [ ubuntu-24.04, macos-15, windows-2022 ]
-        rust-version: ${{ fromJson(needs.msrv.outputs.rust-versions) }}
+        os: [ubuntu-24.04, macos-15, windows-2022]
+        rust-version: ${{ fromJSON(needs.msrv.outputs.rust-versions) }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.rust-version }}
     steps:
-      - uses: actions/checkout@v7
-      - name: Install toolchain
-        run: |
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Rust ${{ matrix.rust-version }}
+        run: >-
           rustup toolchain install ${{ matrix.rust-version }}
-          rustup default ${{ matrix.rust-version }}
-      - uses: Swatinem/rust-cache@v2
+          --profile minimal
+          --no-self-update
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           cache-bin: "false"
-      - name: Run test suite
+      - name: Run tests
+        run: cargo x test --no-capture
         shell: bash
-        run: cargo x test
 
   required:
     name: Required
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     if: ${{ always() }}
-    needs:
-      - check
-      - test
+    needs: [check, msrv, test]
     steps:
-      - name: Guardian
-        run: |
-          if [[ ! ( \
-                 "${{ needs.check.result }}" == "success" \
-              && "${{ needs.test.result }}" == "success" \
-              ) ]]; then
-            echo "Required jobs haven't been completed successfully."
-            exit 1
-          fi
+      - name: Check job results
+        env:
+          JOBS: ${{ toJSON(needs) }}
+        run: jq -e 'all(.[]; .result == "success")' <<< "$JOBS"

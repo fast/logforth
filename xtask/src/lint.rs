@@ -16,6 +16,7 @@ use std::process;
 
 use clap::Parser;
 
+use crate::cargo;
 use crate::ensure_installed;
 use crate::find_command;
 use crate::run_command;
@@ -33,23 +34,21 @@ impl CommandLint {
         run_command(make_taplo_cmd(self.fix));
         run_command(make_typos_cmd());
         run_command(make_hawkeye_cmd(self.fix));
-        if !self.fix {
-            run_command(make_doc_cmd());
-        }
+        run_command(make_doc_cmd());
     }
 }
 
 fn make_format_cmd(fix: bool) -> process::Command {
-    let mut cmd = find_command("cargo");
+    let mut cmd = cargo();
     cmd.args(["+nightly", "fmt", "--all"]);
     if !fix {
-        cmd.args(["--", "--check"]);
+        cmd.arg("--check");
     }
     cmd
 }
 
 fn make_clippy_cmd(fix: bool) -> process::Command {
-    let mut cmd = find_command("cargo");
+    let mut cmd = cargo();
     cmd.args([
         "+nightly",
         "clippy",
@@ -66,12 +65,14 @@ fn make_clippy_cmd(fix: bool) -> process::Command {
 }
 
 fn make_doc_cmd() -> process::Command {
-    let mut cmd = find_command("cargo");
+    let mut cmd = cargo();
     cmd.env("RUSTDOCFLAGS", "-D warnings --cfg docsrs");
     cmd.args([
         "+nightly",
         "doc",
         "--workspace",
+        "--exclude",
+        "x",
         "--all-features",
         "--no-deps",
     ]);

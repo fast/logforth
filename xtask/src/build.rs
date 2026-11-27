@@ -16,7 +16,7 @@ use std::process;
 
 use clap::Parser;
 
-use crate::find_command;
+use crate::cargo;
 use crate::run_command;
 
 #[derive(Parser)]
@@ -32,7 +32,7 @@ impl CommandBuild {
 }
 
 fn make_build_cmd(locked: bool) -> process::Command {
-    let mut cmd = find_command("cargo");
+    let mut cmd = cargo();
     cmd.args([
         "build",
         "--workspace",
