@@ -170,11 +170,10 @@ impl RustLogFilter {
     }
 
     fn level_filter_for(&self, name: Option<&str>) -> LevelFilter {
-        if let Some(name) = name {
-            for directive in &self.prefixes {
-                if name.starts_with(&*directive.prefix) {
-                    return directive.level;
-                }
+        let name = name.unwrap_or("");
+        for directive in &self.prefixes {
+            if name.starts_with(&*directive.prefix) {
+                return directive.level;
             }
         }
         self.fallback

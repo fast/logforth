@@ -126,9 +126,9 @@ impl Logger {
 #[derive(Debug)]
 pub(super) struct Dispatch {
     level_mask: u32,
-    filters: Vec<Box<dyn Filter>>,
-    diagnostics: Vec<Box<dyn Diagnostic>>,
-    appends: Vec<Box<dyn Append>>,
+    filters: Box<[Box<dyn Filter>]>,
+    diagnostics: Box<[Box<dyn Diagnostic>]>,
+    appends: Box<[Box<dyn Append>]>,
     error_sink: Option<Box<dyn ErrorSink>>,
 }
 
@@ -153,9 +153,9 @@ impl Dispatch {
 
         Self {
             level_mask,
-            filters,
-            diagnostics,
-            appends,
+            filters: filters.into_boxed_slice(),
+            diagnostics: diagnostics.into_boxed_slice(),
+            appends: appends.into_boxed_slice(),
             error_sink,
         }
     }
@@ -165,8 +165,9 @@ impl Dispatch {
             return;
         }
 
+        let diagnostics = &*self.diagnostics;
         for filter in &self.filters {
-            match filter.filter(record, &self.diagnostics) {
+            match filter.filter(record, &diagnostics) {
                 FilterResult::Reject => return,
                 FilterResult::Accept => break,
                 FilterResult::Neutral => {}
@@ -175,7 +176,7 @@ impl Dispatch {
 
         let error_sink = self.error_sink.as_deref().unwrap_or(default_error_sink);
         for append in &self.appends {
-            if let Err(err) = append.append(record, &self.diagnostics) {
+            if let Err(err) = append.append(record, &diagnostics) {
                 let err = Error::new("failed to append record").with_source(err);
                 error_sink.sink(&err);
             }

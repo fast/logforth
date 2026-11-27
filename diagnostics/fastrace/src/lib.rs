@@ -28,6 +28,16 @@ use logforth_core::kv::Visitor;
 const KEY_TRACE_ID: &str = "trace_id";
 const KEY_SPAN_ID: &str = "span_id";
 const KEY_SAMPLED: &str = "sampled";
+const HEX_LOWER: &[u8; 16] = b"0123456789abcdef";
+
+fn encode_hex<const BYTES: usize, const HEX_LEN: usize>(bytes: [u8; BYTES]) -> [u8; HEX_LEN] {
+    let mut out = [0u8; HEX_LEN];
+    for (i, byte) in bytes.into_iter().enumerate() {
+        out[i * 2] = HEX_LOWER[usize::from(byte >> 4)];
+        out[i * 2 + 1] = HEX_LOWER[usize::from(byte & 0x0f)];
+    }
+    out
+}
 
 /// A diagnostic that enriches log records with trace context provided by the Fastrace library.
 ///
@@ -45,12 +55,14 @@ pub struct FastraceDiagnostic {}
 impl Diagnostic for FastraceDiagnostic {
     fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
         if let Some(span) = SpanContext::current_local_parent() {
-            // NOTE: TraceId and SpanId should be represented as hex strings.
-            let trace_id = span.trace_id.to_string();
-            let span_id = span.span_id.to_string();
+            // NOTE: TraceId and SpanId are formatted as lowercase hex without heap allocation.
+            let trace_id = encode_hex::<16, 32>(span.trace_id.0.to_be_bytes());
+            let span_id = encode_hex::<8, 16>(span.span_id.0.to_be_bytes());
+            let trace_id = std::str::from_utf8(&trace_id).unwrap();
+            let span_id = std::str::from_utf8(&span_id).unwrap();
 
-            visitor.visit(Key::new(KEY_TRACE_ID).view(), Value::str(&trace_id).view())?;
-            visitor.visit(Key::new(KEY_SPAN_ID).view(), Value::str(&span_id).view())?;
+            visitor.visit(Key::new(KEY_TRACE_ID).view(), Value::str(trace_id).view())?;
+            visitor.visit(Key::new(KEY_SPAN_ID).view(), Value::str(span_id).view())?;
             visitor.visit(
                 Key::new(KEY_SAMPLED).view(),
                 Value::bool(span.sampled).view(),

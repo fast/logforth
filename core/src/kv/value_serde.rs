@@ -18,7 +18,7 @@ use std::fmt;
 use crate::Error;
 use crate::kv::KeyOwned;
 use crate::kv::ValueOwned;
-use crate::kv::ValueView;
+use crate::kv::ValueOwnedState;
 
 impl ValueOwned {
     /// Serializes a [`serde::Serialize`] value into an owned structured [`ValueOwned`].
@@ -161,13 +161,6 @@ impl serde::Serializer for ValueSerializer {
         Ok(ValueOwned::str(v.to_owned()))
     }
 
-    fn collect_str<T: ?Sized + fmt::Display>(self, value: &T) -> Result<Self::Ok, Self::Error> {
-        let mut buf = String::new();
-        fmt::write(&mut buf, format_args!("{value}"))
-            .map_err(|_| ValueError(Error::new("failed to format Display value")))?;
-        Ok(ValueOwned::str(buf))
-    }
-
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok, Self::Error> {
         Ok(ValueOwned::bytes(v))
     }
@@ -284,6 +277,13 @@ impl serde::Serializer for ValueSerializer {
             entries: HashMap::with_capacity(len),
         })
     }
+
+    fn collect_str<T: ?Sized + fmt::Display>(self, value: &T) -> Result<Self::Ok, Self::Error> {
+        let mut buf = String::new();
+        fmt::write(&mut buf, format_args!("{value}"))
+            .map_err(|_| ValueError(Error::new("failed to format Display value")))?;
+        Ok(ValueOwned::str(buf))
+    }
 }
 
 impl serde::ser::SerializeSeq for ValueSerializeSeq {
@@ -364,12 +364,11 @@ impl serde::ser::SerializeMap for ValueSerializeMap {
     type Error = ValueError;
 
     fn serialize_key<T: serde::Serialize + ?Sized>(&mut self, key: &T) -> Result<(), Self::Error> {
-        let key = match key.serialize(ValueSerializer)?.view() {
-            ValueView::StaticStr(s) => KeyOwned::new(s),
-            ValueView::BorrowedStr(s) => KeyOwned::new(s.to_owned()),
-            value => {
+        let key = match key.serialize(ValueSerializer)?.0 {
+            ValueOwnedState::Str(s) => KeyOwned(s),
+            other => {
                 let mut buf = String::new();
-                let _ = fmt::write(&mut buf, format_args!("{value}"));
+                let _ = fmt::write(&mut buf, format_args!("{}", ValueOwned(other).view()));
                 KeyOwned::new(buf)
             }
         };
@@ -440,6 +439,8 @@ impl serde::ser::SerializeStructVariant for ValueSerializeStructVariant {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use serde::Serialize;
 
     use super::*;
@@ -450,6 +451,8 @@ mod tests {
         big_signed: i128,
         big_unsigned: u128,
         tags: Vec<&'static str>,
+        dynamic_keys: BTreeMap<String, i32>,
+        numeric_keys: BTreeMap<u32, &'static str>,
     }
 
     struct AlwaysFails;
@@ -467,6 +470,8 @@ mod tests {
             big_signed: i128::MIN,
             big_unsigned: u128::MAX,
             tags: vec!["a", "b"],
+            dynamic_keys: BTreeMap::from([(String::from("k1"), 10)]),
+            numeric_keys: BTreeMap::from([(7, "seven")]),
         })
         .unwrap();
 
@@ -489,6 +494,13 @@ mod tests {
             .map(|v| v.to_str().unwrap().to_owned())
             .collect();
         assert_eq!(tags, vec!["a", "b"]);
+        let dynamic_keys = map.get("dynamic_keys").unwrap().to_map().unwrap();
+        assert_eq!(dynamic_keys.get("k1").and_then(|v| v.to_i64()), Some(10));
+        let numeric_keys = map.get("numeric_keys").unwrap().to_map().unwrap();
+        assert_eq!(
+            numeric_keys.get("7").and_then(|v| v.to_str()),
+            Some("seven")
+        );
     }
 
     #[test]

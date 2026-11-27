@@ -38,7 +38,7 @@ All significant changes to this project will be documented in this file.
 ### Improvements
 
 * Implement `Copy` for `kv::{Key, KeyView, Value, ValueView}`, `From<&'static str>` and `From<String>` for `kv::KeyOwned`, `From` scalar and string conversions for `kv::ValueOwned`, and `kv::Visitor` for `FnMut(KeyView, ValueView) -> Result<(), Error>` closures in `logforth-core`.
-* Make `LevelFilter::test` a `const fn` in `logforth-core`, and eliminate per-record `BTreeSet` lookups in `GoogleCloudLoggingLayout`.
+* Make `LevelFilter::test` a `const fn` in `logforth-core`, eliminate per-record `BTreeSet` lookups in `GoogleCloudLoggingLayout`, and format trace and span IDs on the stack without heap allocation in `FastraceDiagnostic`.
 * Implement `Clone` for `RustLogFilter` in `logforth-filter-rustlog`, and precompute dual level masks so levels rejected or unconditionally passed across all directives short-circuit before prefix lookup.
 
 ### Bug fixes

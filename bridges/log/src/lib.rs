@@ -90,49 +90,34 @@ impl LogBridge {
         builder = builder.payload(*record.args());
 
         // key-values
+        let kv_source = record.key_values();
+        let kv_count = kv_source.count();
+        if kv_count == 0 {
+            let Some(target) = custom_target else {
+                return Logger::log(&self.logger, &builder.build());
+            };
+
+            let target_kv = [(
+                logforth_core::kv::Key::new(KEY_LOGFORTH_TARGET),
+                logforth_core::kv::Value::str(target),
+            )];
+            builder = builder.key_values(logforth_core::kv::KeyValues::from(target_kv.as_slice()));
+            return Logger::log(&self.logger, &builder.build());
+        }
+
         #[cfg(not(feature = "serde"))]
         {
-            let kvs = kv::key_values_stage_one(record.key_values());
-            if kvs.is_empty() {
-                match custom_target {
-                    None => Logger::log(&self.logger, &builder.build()),
-                    Some(target) => {
-                        let target_kv = [(
-                            logforth_core::kv::Key::new(KEY_LOGFORTH_TARGET),
-                            logforth_core::kv::Value::str(target),
-                        )];
-                        builder = builder
-                            .key_values(logforth_core::kv::KeyValues::from(target_kv.as_slice()));
-                        Logger::log(&self.logger, &builder.build());
-                    }
-                }
-            } else {
-                let new_kvs = kv::key_value_stage_two(&kvs, custom_target);
-                builder = builder.key_values(new_kvs.to_key_values());
-                Logger::log(&self.logger, &builder.build());
-            }
+            let kvs = kv::key_values_stage_one(kv_source, kv_count);
+            let new_kvs = kv::key_value_stage_two(&kvs, custom_target);
+            builder = builder.key_values(new_kvs.to_key_values());
+            Logger::log(&self.logger, &builder.build());
         }
 
         #[cfg(feature = "serde")]
         {
-            let kvs = kv::key_values(record.key_values(), custom_target);
-            if kvs.is_empty() {
-                match custom_target {
-                    None => Logger::log(&self.logger, &builder.build()),
-                    Some(target) => {
-                        let target_kv = [(
-                            logforth_core::kv::Key::new(KEY_LOGFORTH_TARGET),
-                            logforth_core::kv::Value::str(target),
-                        )];
-                        builder = builder
-                            .key_values(logforth_core::kv::KeyValues::from(target_kv.as_slice()));
-                        Logger::log(&self.logger, &builder.build());
-                    }
-                }
-            } else {
-                builder = builder.key_values(kvs.to_key_values());
-                Logger::log(&self.logger, &builder.build());
-            }
+            let kvs = kv::key_values(kv_source, kv_count, custom_target);
+            builder = builder.key_values(kvs.to_key_values());
+            Logger::log(&self.logger, &builder.build());
         }
     }
 }
@@ -171,16 +156,12 @@ fn level_to_level(level: log::Level) -> Level {
 
 #[cfg(not(feature = "serde"))]
 mod kv {
+    use std::fmt;
+
     use super::KEY_LOGFORTH_TARGET;
 
     pub(super) struct KeyValuesStageOne<'a> {
         kvs: Vec<(KeyStageOne<'a>, ValueStageOne<'a>)>,
-    }
-
-    impl KeyValuesStageOne<'_> {
-        pub(super) fn is_empty(&self) -> bool {
-            self.kvs.is_empty()
-        }
     }
 
     struct KeyStageOne<'a>(log::kv::Key<'a>);
@@ -194,8 +175,9 @@ mod kv {
 
     pub(super) fn key_values_stage_one<'a>(
         source: &'a dyn log::kv::Source,
+        count: usize,
     ) -> KeyValuesStageOne<'a> {
-        let mut kvs = Vec::with_capacity(log::kv::Source::count(source));
+        let mut kvs = Vec::with_capacity(count);
 
         struct KeyValueVisitor<'a, 'b> {
             kvs: &'b mut Vec<(KeyStageOne<'a>, ValueStageOne<'a>)>,
@@ -224,7 +206,11 @@ mod kv {
 
         impl<'a> log::kv::VisitValue<'a> for ValueVisitor<'a> {
             fn visit_any(&mut self, value: log::kv::Value) -> Result<(), log::kv::Error> {
-                self.0 = MaybeOwnedValue::Owned(value.to_string());
+                let mut buf = String::new();
+                if fmt::write(&mut buf, format_args!("{value}")).is_err() {
+                    buf = String::from("<fmt error>");
+                }
+                self.0 = MaybeOwnedValue::Owned(buf);
                 Ok(())
             }
 
@@ -264,7 +250,7 @@ mod kv {
             }
 
             fn visit_str(&mut self, value: &str) -> Result<(), log::kv::Error> {
-                self.0 = MaybeOwnedValue::Owned(value.to_string());
+                self.0 = MaybeOwnedValue::Owned(value.to_owned());
                 Ok(())
             }
 
@@ -337,10 +323,6 @@ mod kv {
     }
 
     impl KeyValues {
-        pub(super) fn is_empty(&self) -> bool {
-            self.kvs.is_empty()
-        }
-
         pub(super) fn to_key_values(&self) -> logforth_core::kv::KeyValues<'_> {
             logforth_core::kv::KeyValues::from(self.kvs.as_slice())
         }
@@ -348,45 +330,38 @@ mod kv {
 
     pub(super) fn key_values(
         source: &dyn log::kv::Source,
+        count: usize,
         custom_target: Option<&str>,
     ) -> KeyValues {
-        struct KeyValueVisitor<'a> {
+        struct KeyValueVisitor {
             kvs: Vec<(KeyOwned, ValueOwned)>,
-            custom_target: Option<&'a str>,
-            count_hint: usize,
         }
 
-        impl<'kvs> log::kv::VisitSource<'kvs> for KeyValueVisitor<'_> {
+        impl<'kvs> log::kv::VisitSource<'kvs> for KeyValueVisitor {
             fn visit_pair(
                 &mut self,
                 key: log::kv::Key<'kvs>,
                 value: log::kv::Value<'kvs>,
             ) -> Result<(), log::kv::Error> {
-                if self.kvs.is_empty() {
-                    let extra = usize::from(self.custom_target.is_some());
-                    self.kvs.reserve(self.count_hint.max(1) + extra);
-                    if let Some(target) = self.custom_target {
-                        self.kvs.push((
-                            KeyOwned::new(KEY_LOGFORTH_TARGET),
-                            ValueOwned::from(target.to_owned()),
-                        ));
-                    }
-                }
                 let key = if let Some(key) = key.to_static_str() {
                     KeyOwned::new(key)
                 } else {
-                    KeyOwned::new(key.to_string())
+                    KeyOwned::from(key.as_str().to_owned())
                 };
                 self.kvs.push((key, ValueOwned::from_serde(&value)));
                 Ok(())
             }
         }
 
-        let mut visitor = KeyValueVisitor {
-            kvs: Vec::new(),
-            custom_target,
-            count_hint: log::kv::Source::count(source),
-        };
+        let mut kvs = Vec::with_capacity(count + usize::from(custom_target.is_some()));
+        if let Some(target) = custom_target {
+            kvs.push((
+                KeyOwned::new(KEY_LOGFORTH_TARGET),
+                ValueOwned::from(target.to_owned()),
+            ));
+        }
+
+        let mut visitor = KeyValueVisitor { kvs };
         log::kv::Source::visit(source, &mut visitor).unwrap();
 
         KeyValues { kvs: visitor.kvs }
