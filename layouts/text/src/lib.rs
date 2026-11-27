@@ -31,7 +31,6 @@ use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::kv::KeyView;
 use logforth_core::kv::ValueView;
-use logforth_core::kv::Visitor;
 use logforth_core::layout::Layout;
 use logforth_core::record::Level;
 use logforth_core::record::Record;
@@ -182,17 +181,6 @@ impl TextLayout {
     }
 }
 
-struct KvWriter<'a> {
-    buf: &'a mut Vec<u8>,
-}
-
-impl Visitor for KvWriter<'_> {
-    fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
-        write!(self.buf, " {key}={value}")
-            .map_err(|err| Error::new("failed to format key-value pair").with_source(err))
-    }
-}
-
 impl Layout for TextLayout {
     fn format(
         &self,
@@ -219,9 +207,12 @@ impl Layout for TextLayout {
         write!(buf, " {level:>6} {module_path}: {file}:{line} {message}")
             .map_err(|err| Error::new("failed to format log record").with_source(err))?;
 
-        let mut visitor = KvWriter { buf };
-        record.key_values().visit(&mut visitor)?;
-        diags.visit(&mut visitor)
+        let mut visit = |key: KeyView, value: ValueView| {
+            write!(buf, " {key}={value}")
+                .map_err(|err| Error::new("failed to format key-value pair").with_source(err))
+        };
+        record.key_values().visit(&mut visit)?;
+        diags.visit(&mut visit)
     }
 }
 

@@ -25,7 +25,6 @@ use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::kv::KeyView;
 use logforth_core::kv::ValueView;
-use logforth_core::kv::Visitor;
 use logforth_core::layout::Layout;
 use logforth_core::record::Record;
 use serde::Serialize;
@@ -106,19 +105,15 @@ impl JsonLayout {
     }
 }
 
-struct KvCollector<'a> {
-    kvs: &'a mut Map<String, serde_json::Value>,
-}
-
-impl Visitor for KvCollector<'_> {
-    fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
-        let key = key.to_string();
-        match serde_json::to_value(value) {
-            Ok(value) => self.kvs.insert(key, value),
-            Err(_) => self.kvs.insert(key, value.to_string().into()),
-        };
-        Ok(())
-    }
+fn collect_kv(
+    kvs: &mut Map<String, serde_json::Value>,
+    key: KeyView,
+    value: ValueView,
+) -> Result<(), Error> {
+    let key = key.to_string();
+    let value = serde_json::to_value(value).unwrap_or_else(|_| value.to_string().into());
+    kvs.insert(key, value);
+    Ok(())
 }
 
 fn default_timestamp_format(ts: Timestamp, tz: &TimeZone) -> String {
@@ -156,14 +151,12 @@ impl Layout for JsonLayout {
         };
 
         let mut kvs = Map::new();
-        let mut kvs_visitor = KvCollector { kvs: &mut kvs };
-        record.key_values().visit(&mut kvs_visitor)?;
+        record
+            .key_values()
+            .visit(&mut |key, value| collect_kv(&mut kvs, key, value))?;
 
         let mut diags_map = Map::new();
-        let mut diags_visitor = KvCollector {
-            kvs: &mut diags_map,
-        };
-        diags.visit(&mut diags_visitor)?;
+        diags.visit(&mut |key, value| collect_kv(&mut diags_map, key, value))?;
 
         let record_line = RecordLine {
             timestamp,

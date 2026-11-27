@@ -18,7 +18,6 @@ use logforth_core::Error;
 use logforth_core::ErrorSink;
 use logforth_core::error::StderrErrorSink;
 use logforth_core::kv;
-use logforth_core::kv::Visitor;
 use logforth_core::record::Record;
 
 use crate::Overflow;
@@ -58,9 +57,10 @@ pub struct Async {
 impl Append for Async {
     fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
         let mut diagnostics = vec![];
-
-        let mut collector = DiagnosticCollector(&mut diagnostics);
-        diags.visit(&mut collector)?;
+        diags.visit(&mut |key: kv::KeyView, value: kv::ValueView| {
+            diagnostics.push((key.to_owned(), value.to_owned()));
+            Ok(())
+        })?;
 
         let task = Task::Log {
             record: Box::new(record.to_owned()),
@@ -154,14 +154,5 @@ impl AsyncBuilder {
 
         let state = AsyncState::new(overflow, sender, thread_handle);
         Async { state }
-    }
-}
-
-struct DiagnosticCollector<'a>(&'a mut Vec<(kv::KeyOwned, kv::ValueOwned)>);
-
-impl<'a> Visitor for DiagnosticCollector<'a> {
-    fn visit(&mut self, key: kv::KeyView, value: kv::ValueView) -> Result<(), Error> {
-        self.0.push((key.to_owned(), value.to_owned()));
-        Ok(())
     }
 }

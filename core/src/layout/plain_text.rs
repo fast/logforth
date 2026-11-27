@@ -20,7 +20,6 @@ use crate::Error;
 use crate::Layout;
 use crate::kv::KeyView;
 use crate::kv::ValueView;
-use crate::kv::Visitor;
 use crate::record::Record;
 
 /// A layout that formats log record as plain text.
@@ -47,17 +46,6 @@ use crate::record::Record;
 #[non_exhaustive]
 pub struct PlainTextLayout {}
 
-struct KvWriter<'a> {
-    buf: &'a mut Vec<u8>,
-}
-
-impl Visitor for KvWriter<'_> {
-    fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
-        write!(self.buf, " {key}={value}")
-            .map_err(|err| Error::new("failed to format key-value pair").with_source(err))
-    }
-}
-
 impl Layout for PlainTextLayout {
     fn format(
         &self,
@@ -79,8 +67,11 @@ impl Layout for PlainTextLayout {
         write!(buf, " {level:>6} {module_path}: {file}:{line} {message}")
             .map_err(|err| Error::new("failed to format log record").with_source(err))?;
 
-        let mut visitor = KvWriter { buf };
-        record.key_values().visit(&mut visitor)?;
-        diags.visit(&mut visitor)
+        let mut visit = |key: KeyView, value: ValueView| {
+            write!(buf, " {key}={value}")
+                .map_err(|err| Error::new("failed to format key-value pair").with_source(err))
+        };
+        record.key_values().visit(&mut visit)?;
+        diags.visit(&mut visit)
     }
 }
