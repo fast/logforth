@@ -26,7 +26,7 @@ use logforth_layout_json::JsonLayout;
 
 #[test]
 fn json_layout_omits_empty_maps_and_matches_custom_timestamp_format() {
-    let ts = SystemTime::UNIX_EPOCH + Duration::new(1_700_000_000, 123_456_789);
+    let ts = SystemTime::UNIX_EPOCH + Duration::new(1_700_000_000, 123_456_700);
     let ms = 250;
     let build_and_format = |layout: &JsonLayout| {
         let mut buf = Vec::new();

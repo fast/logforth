@@ -25,7 +25,7 @@ use logforth_layout_google_cloud_logging::GoogleCloudLoggingLayout;
 
 #[test]
 fn gcl_layout_extracts_trace_routes_labels_and_prefers_record_over_diagnostic() {
-    let ts = SystemTime::UNIX_EPOCH + Duration::new(1_700_000_000, 123_456_789);
+    let ts = SystemTime::UNIX_EPOCH + Duration::new(1_700_000_000, 123_456_700);
     let diags = StaticDiagnostic::new([
         ("trace_id", "0123456789abcdef0123456789abcdef"),
         ("span_id", "0011223344556677"),
@@ -65,7 +65,7 @@ fn gcl_layout_extracts_trace_routes_labels_and_prefers_record_over_diagnostic() 
         parsed,
         serde_json::json!({
             "severity": "ERROR",
-            "timestamp": "2023-11-14T22:13:20.123456789Z",
+            "timestamp": "2023-11-14T22:13:20.1234567Z",
             "message": "job failed",
             "count": 5,
             "shared": "from-record",

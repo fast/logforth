@@ -26,7 +26,7 @@ use logforth_layout_logfmt::LogfmtLayout;
 
 #[test]
 fn logfmt_layout_quotes_special_values_and_escapes_control_chars() {
-    let ts = SystemTime::UNIX_EPOCH + Duration::new(1_700_000_000, 123_456_789);
+    let ts = SystemTime::UNIX_EPOCH + Duration::new(1_700_000_000, 123_456_700);
     let kvs = [
         (Key::new("plain"), Value::static_str("ok")),
         (Key::new("eq"), Value::static_str("a=b")),

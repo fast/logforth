@@ -26,7 +26,7 @@ use logforth_layout_text::TextLayout;
 
 #[test]
 fn text_layout_formats_utc_and_custom_timestamp_deterministically() {
-    let ts = SystemTime::UNIX_EPOCH + Duration::new(1_700_000_000, 123_456_789);
+    let ts = SystemTime::UNIX_EPOCH + Duration::new(1_700_000_000, 123_456_700);
     let kvs = [(Key::new("port"), Value::u64(8080))];
     let diags = StaticDiagnostic::new([("env", "prod")]);
     let record = Record::builder()

@@ -25,7 +25,7 @@ use logforth_core::record::Record;
 
 #[test]
 fn plain_text_layout_formats_record_and_preserves_existing_buffer() {
-    let ts = SystemTime::UNIX_EPOCH + Duration::new(1_700_000_000, 123_456_789);
+    let ts = SystemTime::UNIX_EPOCH + Duration::new(1_700_000_000, 123_456_700);
     let kvs = [
         (Key::new("port"), Value::u64(8080)),
         (Key::new("raw"), Value::bytes(b"\x00\nA")),
@@ -57,14 +57,14 @@ fn plain_text_layout_formats_record_and_preserves_existing_buffer() {
             .build(),
     );
 
-    let expected = "prefix|1700000000123456789   INFO app::http: http.rs:42 listening on 0.0.0.0 port=8080 raw=b\"\\0\\nA\" env=prod";
+    let expected = "prefix|1700000000123456700   INFO app::http: http.rs:42 listening on 0.0.0.0 port=8080 raw=b\"\\0\\nA\" env=prod";
     assert_eq!(std::str::from_utf8(&buf).unwrap(), expected);
     assert_eq!(buf, owned_buf);
 }
 
 #[test]
 fn plain_text_layout_formats_pre_epoch_timestamp() {
-    let ts = SystemTime::UNIX_EPOCH - Duration::from_nanos(42);
+    let ts = SystemTime::UNIX_EPOCH - Duration::from_micros(42);
     let record = Record::builder()
         .time(ts)
         .level(Level::Error)
@@ -77,6 +77,6 @@ fn plain_text_layout_formats_pre_epoch_timestamp() {
         .unwrap();
     assert_eq!(
         std::str::from_utf8(&buf).unwrap(),
-        "-42  ERROR : :0 clock skew"
+        "-42000  ERROR : :0 clock skew"
     );
 }
