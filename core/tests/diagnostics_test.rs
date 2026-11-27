@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::Write as _;
 use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::Mutex;
@@ -353,8 +354,6 @@ impl Layout for PrefixLayout {
         diags: &dyn Diagnostic,
         buf: &mut Vec<u8>,
     ) -> Result<(), Error> {
-        use std::io::Write;
-
         write!(buf, "{}:{}", self.prefix, record.payload()).unwrap();
         diags.visit(&mut |key: KeyView, value: ValueView| {
             write!(buf, " {key}={value}").unwrap();

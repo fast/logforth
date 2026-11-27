@@ -22,10 +22,10 @@ use crate::Error;
 use crate::record::Record;
 
 mod stdio;
-mod testing;
-
 pub use self::stdio::Stderr;
 pub use self::stdio::Stdout;
+
+mod testing;
 pub use self::testing::Testing;
 
 /// An appender that can process log records.

@@ -22,7 +22,7 @@ use jiff::tz::TimeZone;
 use logforth_core::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Rotation {
+pub enum Rotation {
     Minutely,
     Hourly,
     Daily,
@@ -30,13 +30,13 @@ pub(crate) enum Rotation {
 }
 
 #[derive(Debug)]
-pub(crate) struct Period {
-    pub(crate) key: DateTime,
-    pub(crate) bounds: Range<Timestamp>,
+pub struct Period {
+    pub key: DateTime,
+    pub bounds: Range<Timestamp>,
 }
 
 impl Rotation {
-    pub(crate) fn period_at(self, now: Timestamp, tz: &TimeZone) -> Result<Option<Period>, Error> {
+    pub fn period_at(self, now: Timestamp, tz: &TimeZone) -> Result<Option<Period>, Error> {
         let local = tz.to_datetime(now);
         let (key, span) = match self {
             Self::Never => return Ok(None),
@@ -100,7 +100,7 @@ impl Rotation {
         Ok(start..end)
     }
 
-    pub(crate) fn date_format(self) -> &'static str {
+    pub fn date_format(self) -> &'static str {
         match self {
             Self::Minutely => "%F-%H-%M",
             Self::Hourly => "%F-%H",
@@ -108,7 +108,7 @@ impl Rotation {
         }
     }
 
-    pub(crate) fn parse_period(self, text: &str) -> Option<DateTime> {
+    pub fn parse_period(self, text: &str) -> Option<DateTime> {
         let len = match self {
             Self::Never => return None,
             Self::Daily => 10,

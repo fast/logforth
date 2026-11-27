@@ -32,9 +32,10 @@ mod foo {
     unsafe fn set_log_filter() {
         use logforth::record::Level;
 
+        use crate::FILTER;
         use crate::Filter;
 
-        super::FILTER
+        FILTER
             .get_or_init(|| Filter::new(Level::Info))
             .set_module_level(module_path!(), Level::Debug);
     }

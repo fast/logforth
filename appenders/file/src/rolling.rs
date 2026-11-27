@@ -35,7 +35,7 @@ use crate::rotation::Rotation;
 const RETRY_COOLDOWN: SignedDuration = SignedDuration::from_secs(1);
 
 #[derive(Debug)]
-pub(crate) struct RollingFileWriter {
+pub struct RollingFileWriter {
     files: SegmentFiles,
     max_files: Option<NonZeroUsize>,
     timezone: TimeZone,
@@ -46,7 +46,7 @@ pub(crate) struct RollingFileWriter {
 }
 
 impl RollingFileWriter {
-    pub(crate) fn write_all(&mut self, buf: &[u8]) -> Result<(), Error> {
+    pub fn write_all(&mut self, buf: &[u8]) -> Result<(), Error> {
         let now = self.clock.now();
         if let Err(err) = self.rotate_if_needed(now, buf.len()) {
             self.retry_cooldown = Some(retry_window(now));
@@ -121,7 +121,7 @@ impl RollingFileWriter {
         Ok(())
     }
 
-    pub(crate) fn flush(&mut self) -> Result<(), Error> {
+    pub fn flush(&mut self) -> Result<(), Error> {
         self.active
             .file
             .flush()
@@ -154,7 +154,7 @@ impl RollingFileWriter {
 }
 
 #[derive(Debug)]
-pub(crate) struct RollingFileWriterBuilder {
+pub struct RollingFileWriterBuilder {
     files: SegmentFiles,
     max_files: Option<NonZeroUsize>,
     timezone: TimeZone,
@@ -162,7 +162,7 @@ pub(crate) struct RollingFileWriterBuilder {
 }
 
 impl RollingFileWriterBuilder {
-    pub(crate) fn new(basedir: impl Into<PathBuf>, filename: impl Into<String>) -> Self {
+    pub fn new(basedir: impl Into<PathBuf>, filename: impl Into<String>) -> Self {
         Self {
             files: SegmentFiles {
                 basedir: basedir.into(),
@@ -177,17 +177,17 @@ impl RollingFileWriterBuilder {
         }
     }
 
-    pub(crate) fn rotation(mut self, rotation: Rotation) -> Self {
+    pub fn rotation(mut self, rotation: Rotation) -> Self {
         self.files.rotation = rotation;
         self
     }
 
-    pub(crate) fn timezone(mut self, tz: TimeZone) -> Self {
+    pub fn timezone(mut self, tz: TimeZone) -> Self {
         self.timezone = tz;
         self
     }
 
-    pub(crate) fn filename_suffix(mut self, suffix: impl Into<String>) -> Self {
+    pub fn filename_suffix(mut self, suffix: impl Into<String>) -> Self {
         let suffix = suffix.into();
         self.files.filename_suffix = if suffix.is_empty() {
             None
@@ -197,17 +197,17 @@ impl RollingFileWriterBuilder {
         self
     }
 
-    pub(crate) fn max_log_files(mut self, n: NonZeroUsize) -> Self {
+    pub fn max_log_files(mut self, n: NonZeroUsize) -> Self {
         self.max_files = Some(n);
         self
     }
 
-    pub(crate) fn max_file_size(mut self, n: NonZeroU64) -> Self {
+    pub fn max_file_size(mut self, n: NonZeroU64) -> Self {
         self.files.max_size = Some(n);
         self
     }
 
-    pub(crate) fn build(self) -> Result<RollingFileWriter, Error> {
+    pub fn build(self) -> Result<RollingFileWriter, Error> {
         let Self {
             files,
             max_files,
@@ -576,7 +576,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn failed_rollover_appends_the_record_and_waits_one_second_before_retrying() {
-        use std::os::unix::fs::PermissionsExt;
+        use std::os::unix::fs::PermissionsExt as _;
 
         let dir = tempdir().unwrap();
         let mut writer = builder(&dir, Rotation::Minutely, "2026-11-25T17:00:59Z")

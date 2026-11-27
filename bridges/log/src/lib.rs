@@ -156,9 +156,9 @@ fn level_to_level(level: log::Level) -> Level {
 
 #[cfg(not(feature = "serde"))]
 mod kv {
-    use super::KEY_LOGFORTH_TARGET;
+    use crate::KEY_LOGFORTH_TARGET;
 
-    pub(super) struct KeyValuesStageOne<'a> {
+    pub struct KeyValuesStageOne<'a> {
         kvs: Vec<(KeyStageOne<'a>, ValueStageOne<'a>)>,
     }
 
@@ -171,7 +171,7 @@ mod kv {
         Owned(String),
     }
 
-    pub(super) fn key_values_stage_one<'a>(
+    pub fn key_values_stage_one<'a>(
         source: &'a dyn log::kv::Source,
         count: usize,
     ) -> KeyValuesStageOne<'a> {
@@ -264,12 +264,12 @@ mod kv {
         visitor.0
     }
 
-    pub(super) struct KeyValuesStageTwo<'a> {
+    pub struct KeyValuesStageTwo<'a> {
         kvs: Vec<(KeyStageTwo<'a>, ValueStageTwo<'a>)>,
     }
 
     impl<'a> KeyValuesStageTwo<'a> {
-        pub(super) fn to_key_values(&self) -> logforth_core::kv::KeyValues<'_> {
+        pub fn to_key_values(&self) -> logforth_core::kv::KeyValues<'_> {
             logforth_core::kv::KeyValues::from(self.kvs.as_slice())
         }
     }
@@ -278,7 +278,7 @@ mod kv {
 
     type ValueStageTwo<'a> = logforth_core::kv::Value<'a>;
 
-    pub(super) fn key_value_stage_two<'a>(
+    pub fn key_value_stage_two<'a>(
         kvs: &'a KeyValuesStageOne<'a>,
         custom_target: Option<&'a str>,
     ) -> KeyValuesStageTwo<'a> {
@@ -310,19 +310,19 @@ mod kv {
     use logforth_core::kv::KeyOwned;
     use logforth_core::kv::ValueOwned;
 
-    use super::KEY_LOGFORTH_TARGET;
+    use crate::KEY_LOGFORTH_TARGET;
 
-    pub(super) struct KeyValues {
+    pub struct KeyValues {
         kvs: Vec<(KeyOwned, ValueOwned)>,
     }
 
     impl KeyValues {
-        pub(super) fn to_key_values(&self) -> logforth_core::kv::KeyValues<'_> {
+        pub fn to_key_values(&self) -> logforth_core::kv::KeyValues<'_> {
             logforth_core::kv::KeyValues::from(self.kvs.as_slice())
         }
     }
 
-    pub(super) fn key_values(
+    pub fn key_values(
         source: &dyn log::kv::Source,
         count: usize,
         custom_target: Option<&str>,

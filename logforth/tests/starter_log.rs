@@ -24,6 +24,7 @@ use logforth::bridge::log::LogBridge;
 use logforth::filter::rustlog::RustLogFilterBuilder;
 use logforth::record::LevelFilter;
 use logforth::record::Record;
+use logforth::starter_log::LogStarterExt;
 
 #[derive(Debug, Default)]
 struct RecordingSink(Mutex<Vec<String>>);
@@ -63,7 +64,6 @@ fn child_valid_rust_log_sets_max_level_and_conservative_log_enabled() {
     assert!(!log::log_enabled!(target: "my_app::http", log::Level::Debug));
 
     // Second global installation via `LogStarterExt` on `LoggerBuilder` / `Logger` returns `Err`.
-    use logforth::starter_log::LogStarterExt;
     assert!(logforth::builder().try_install().is_err());
     assert!(logforth::Logger::noop().try_install().is_err());
 }

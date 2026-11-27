@@ -14,7 +14,7 @@
 
 #[cfg(unix)]
 fn main() {
-    use logforth::starter_log::LogStarterExt;
+    use logforth::starter_log::LogStarterExt as _;
 
     let append = logforth::append::Journald::new().unwrap();
     logforth::builder().dispatch(|d| d.append(append)).install();

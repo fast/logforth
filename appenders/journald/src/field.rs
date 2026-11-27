@@ -16,11 +16,11 @@
 
 //! Write well-formatted journal fields to buffers.
 
-use std::io::Write;
+use std::io::Write as _;
 
 use logforth_core::kv::ValueView;
 
-pub(super) enum FieldName<'a> {
+pub enum FieldName<'a> {
     WellFormed(&'a str),
     WriteEscaped(&'a str),
 }
@@ -35,7 +35,7 @@ fn is_valid_key_char(c: char) -> bool {
 
 /// Write an escaped `key` for use in a systemd journal field.
 ///
-/// See [`super::Journald`] for the rules.
+/// See [`crate::Journald`] for the rules.
 fn write_escaped_key(key: &str, buffer: &mut Vec<u8>) {
     // Key length is limited to 64 bytes
     let mut remaining = 64;
@@ -66,7 +66,7 @@ fn put_field_name(buffer: &mut Vec<u8>, name: FieldName<'_>) {
     }
 }
 
-pub(super) trait PutAsFieldValue {
+pub trait PutAsFieldValue {
     fn put_field_value(self, buffer: &mut Vec<u8>);
 }
 
@@ -98,7 +98,7 @@ impl PutAsFieldValue for ValueView<'_> {
     }
 }
 
-pub(super) fn put_field_length_encoded<V: PutAsFieldValue>(
+pub fn put_field_length_encoded<V: PutAsFieldValue>(
     buffer: &mut Vec<u8>,
     name: FieldName<'_>,
     value: V,
@@ -116,7 +116,7 @@ pub(super) fn put_field_length_encoded<V: PutAsFieldValue>(
     buffer.push(b'\n');
 }
 
-pub(super) fn put_field_bytes(buffer: &mut Vec<u8>, name: FieldName<'_>, value: &[u8]) {
+pub fn put_field_bytes(buffer: &mut Vec<u8>, name: FieldName<'_>, value: &[u8]) {
     if value.contains(&b'\n') {
         // Write as length encoded field
         put_field_length_encoded(buffer, name, value);

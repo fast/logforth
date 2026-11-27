@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::process::Command as StdCommand;
+use std::process;
 
 use clap::Parser;
 use clap::Subcommand;
@@ -84,10 +84,10 @@ impl CommandLint {
     }
 }
 
-fn find_command(cmd: &str) -> StdCommand {
+fn find_command(cmd: &str) -> process::Command {
     match which::which(cmd) {
         Ok(exe) => {
-            let mut cmd = StdCommand::new(exe);
+            let mut cmd = process::Command::new(exe);
             cmd.current_dir(env!("CARGO_WORKSPACE_DIR"));
             cmd
         }
@@ -105,13 +105,13 @@ fn ensure_installed(bin: &str, crate_name: &str) {
     }
 }
 
-fn run_command(mut cmd: StdCommand) {
+fn run_command(mut cmd: process::Command) {
     println!("{cmd:?}");
     let status = cmd.status().expect("failed to execute process");
     assert!(status.success(), "command failed: {status}");
 }
 
-fn make_build_cmd(locked: bool) -> StdCommand {
+fn make_build_cmd(locked: bool) -> process::Command {
     let mut cmd = find_command("cargo");
     cmd.args([
         "build",
@@ -128,7 +128,7 @@ fn make_build_cmd(locked: bool) -> StdCommand {
     cmd
 }
 
-fn make_test_cmd(no_capture: bool) -> StdCommand {
+fn make_test_cmd(no_capture: bool) -> process::Command {
     let mut cmd = find_command("cargo");
     cmd.args(["test", "--workspace", "--all-features"]);
     if no_capture {
@@ -137,7 +137,7 @@ fn make_test_cmd(no_capture: bool) -> StdCommand {
     cmd
 }
 
-fn make_format_cmd(fix: bool) -> StdCommand {
+fn make_format_cmd(fix: bool) -> process::Command {
     let mut cmd = find_command("cargo");
     cmd.args(["+nightly", "fmt", "--all"]);
     if !fix {
@@ -146,7 +146,7 @@ fn make_format_cmd(fix: bool) -> StdCommand {
     cmd
 }
 
-fn make_clippy_cmd(fix: bool) -> StdCommand {
+fn make_clippy_cmd(fix: bool) -> process::Command {
     let mut cmd = find_command("cargo");
     cmd.args([
         "+nightly",
@@ -164,7 +164,7 @@ fn make_clippy_cmd(fix: bool) -> StdCommand {
     cmd
 }
 
-fn make_hawkeye_cmd(fix: bool) -> StdCommand {
+fn make_hawkeye_cmd(fix: bool) -> process::Command {
     ensure_installed("hawkeye", "hawkeye");
     let mut cmd = find_command("hawkeye");
     if fix {
@@ -175,12 +175,12 @@ fn make_hawkeye_cmd(fix: bool) -> StdCommand {
     cmd
 }
 
-fn make_typos_cmd() -> StdCommand {
+fn make_typos_cmd() -> process::Command {
     ensure_installed("typos", "typos-cli");
     find_command("typos")
 }
 
-fn make_taplo_cmd(fix: bool) -> StdCommand {
+fn make_taplo_cmd(fix: bool) -> process::Command {
     ensure_installed("taplo", "taplo-cli");
     let mut cmd = find_command("taplo");
     if fix {
