@@ -13,120 +13,95 @@
 # limitations under the License.
 
 name: CI
-
 on:
   pull_request:
-    branches: [main]
+    branches: [ main ]
   push:
-    branches: [main]
-  workflow_dispatch:
+    branches: [ main ]
 
-permissions:
-  contents: read
-
+# Concurrency strategy:
+#   github.workflow: distinguish this workflow from others
+#   github.event_name: distinguish `push` event from `pull_request` event
+#   github.event.number: set to the number of the pull request if `pull_request` event
+#   github.run_id: otherwise, it's a `push` event, only cancel if we rerun the workflow
+#
+# Reference:
+#   https://docs.github.com/en/actions/using-jobs/using-concurrency
+#   https://docs.github.com/en/actions/learn-github-actions/contexts#github-context
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.number || github.run_id }}
   cancel-in-progress: true
 
 env:
-  CARGO_INCREMENTAL: "0"
-  CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: "1"
+  RUST_BACKTRACE: 1
 
 jobs:
-  lint:
-    name: Lint
+  check:
+    name: Check
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    env:
-      RUSTUP_TOOLCHAIN: stable
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+      - name: Install toolchain
+        run: rustup toolchain install --component rustfmt,clippy nightly
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
         with:
-          persist-credentials: false
-
-      - name: Install Rust
-        run: rustup toolchain install stable --profile minimal --no-self-update
-
-      - name: Install nightly lint toolchain
-        run: >-
-          rustup toolchain install nightly
-          --profile minimal
-          --component clippy
-          --component rustfmt
-          --allow-downgrade
-          --no-self-update
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install repository tools
-        uses: taiki-e/install-action@v2
-        with:
-          tool: hawkeye,taplo-cli,typos-cli
-
-      - name: Lint workspace
+          tool: typos-cli,taplo-cli,hawkeye
+      - name: Check lockfile
+        run: cargo update -w --locked --verbose
+      - name: Check linters
         run: cargo x lint
-
-      - name: Check feature configurations
+      - name: Check feature matrix
         run: cargo x check
 
   msrv:
     name: Resolve MSRV
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
     outputs:
-      versions: ${{ steps.rust.outputs.versions }}
+      rust-versions: ${{ steps.metadata.outputs.rust-versions }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-
-      - name: Read supported Rust versions
-        id: rust
+      - uses: actions/checkout@v7
+      - id: metadata
         run: |
-          msrv=$(yq -er '.workspace.package.rust-version' Cargo.toml)
-          versions=$(jq -cn --arg msrv "$msrv" '[$msrv, "stable"]')
-          echo "versions=$versions" >> "$GITHUB_OUTPUT"
+          msrv=$(yq '.workspace.package.rust-version' Cargo.toml)
+          echo "MSRV: $msrv"
+          echo "rust-versions=[\"${msrv}\", \"stable\"]" >> "$GITHUB_OUTPUT"
 
   test:
-    name: Test (${{ matrix.os }}, ${{ matrix.rust }})
+    name: Run tests
     needs: msrv
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
     strategy:
-      fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-15, windows-2022]
-        rust: ${{ fromJSON(needs.msrv.outputs.versions) }}
-    env:
-      RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
+        os: [ ubuntu-24.04, macos-15, windows-2022 ]
+        rust-version: ${{ fromJson(needs.msrv.outputs.rust-versions) }}
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+      - name: Install toolchain
+        run: |
+          rustup toolchain install ${{ matrix.rust-version }}
+          rustup default ${{ matrix.rust-version }}
+      - uses: Swatinem/rust-cache@v2
         with:
-          persist-credentials: false
-
-      - name: Install Rust
-        run: rustup toolchain install "${{ matrix.rust }}" --profile minimal --no-self-update
-
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@v2
-
-      - name: Run tests
+          cache-bin: "false"
+      - name: Run test suite
         shell: bash
-        run: cargo x test --no-capture
+        run: cargo x test
 
   required:
     name: Required
-    if: ${{ always() }}
-    needs: [lint, msrv, test]
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    if: ${{ always() }}
+    needs:
+      - check
+      - test
     steps:
-      - name: Check job results
-        env:
-          JOBS: ${{ toJSON(needs) }}
-        run: jq -e 'all(.[]; .result == "success")' <<< "$JOBS"
+      - name: Guardian
+        run: |
+          if [[ ! ( \
+                 "${{ needs.check.result }}" == "success" \
+              && "${{ needs.test.result }}" == "success" \
+              ) ]]; then
+            echo "Required jobs haven't been completed successfully."
+            exit 1
+          fi
