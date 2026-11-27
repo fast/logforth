@@ -12,14 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
 use std::process;
 
 use clap::Parser;
 use clap::Subcommand;
 
+use crate::build::CommandBuild;
+use crate::check::CommandCheck;
+use crate::lint::CommandLint;
+use crate::test::CommandTest;
+
+mod build;
+mod check;
+mod lint;
+mod test;
+
+fn main() {
+    Command::parse().run();
+}
+
 #[derive(Parser)]
 struct Command {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     sub: SubCommand,
 }
 
@@ -27,6 +42,7 @@ impl Command {
     fn run(self) {
         match self.sub {
             SubCommand::Build(cmd) => cmd.run(),
+            SubCommand::Check(cmd) => cmd.run(),
             SubCommand::Lint(cmd) => cmd.run(),
             SubCommand::Test(cmd) => cmd.run(),
         }
@@ -35,70 +51,29 @@ impl Command {
 
 #[derive(Subcommand)]
 enum SubCommand {
-    #[clap(about = "Compile workspace packages.")]
+    #[command(about = "Compile workspace packages.")]
     Build(CommandBuild),
-    #[clap(about = "Run format and clippy checks.")]
+    #[command(about = "Check workspace packages across feature configurations.")]
+    Check(CommandCheck),
+    #[command(about = "Run workspace quality checks.")]
     Lint(CommandLint),
-    #[clap(about = "Run unit tests.")]
+    #[command(about = "Run workspace tests.")]
     Test(CommandTest),
 }
 
-#[derive(Parser)]
-struct CommandBuild {
-    #[arg(long, help = "Assert that `Cargo.lock` will remain unchanged.")]
-    locked: bool,
-}
-
-impl CommandBuild {
-    fn run(self) {
-        run_command(make_build_cmd(self.locked));
-    }
-}
-
-#[derive(Parser)]
-struct CommandTest {
-    #[arg(long, help = "Run tests serially and do not capture output.")]
-    no_capture: bool,
-}
-
-impl CommandTest {
-    fn run(self) {
-        run_command(make_test_cmd(self.no_capture));
-    }
-}
-
-#[derive(Parser)]
-#[clap(name = "lint")]
-struct CommandLint {
-    #[arg(long, help = "Automatically apply lint suggestions.")]
-    fix: bool,
-}
-
-impl CommandLint {
-    fn run(self) {
-        run_command(make_clippy_cmd(self.fix));
-        run_command(make_format_cmd(self.fix));
-        run_command(make_taplo_cmd(self.fix));
-        run_command(make_typos_cmd());
-        run_command(make_hawkeye_cmd(self.fix));
-    }
-}
-
-fn find_command(cmd: &str) -> process::Command {
-    match which::which(cmd) {
-        Ok(exe) => {
-            let mut cmd = process::Command::new(exe);
-            cmd.current_dir(env!("CARGO_WORKSPACE_DIR"));
+fn find_command(command: &str) -> process::Command {
+    match which::which(command) {
+        Ok(executable) => {
+            let mut cmd = process::Command::new(executable);
+            cmd.current_dir(Path::new(env!("CARGO_WORKSPACE_DIR")));
             cmd
         }
-        Err(err) => {
-            panic!("{cmd} not found: {err}");
-        }
+        Err(err) => panic!("{command} not found: {err}"),
     }
 }
 
-fn ensure_installed(bin: &str, crate_name: &str) {
-    if which::which(bin).is_err() {
+fn ensure_installed(binary: &str, crate_name: &str) {
+    if which::which(binary).is_err() {
         let mut cmd = find_command("cargo");
         cmd.args(["install", crate_name]);
         run_command(cmd);
@@ -109,89 +84,4 @@ fn run_command(mut cmd: process::Command) {
     println!("{cmd:?}");
     let status = cmd.status().expect("failed to execute process");
     assert!(status.success(), "command failed: {status}");
-}
-
-fn make_build_cmd(locked: bool) -> process::Command {
-    let mut cmd = find_command("cargo");
-    cmd.args([
-        "build",
-        "--workspace",
-        "--all-features",
-        "--tests",
-        "--examples",
-        "--benches",
-        "--bins",
-    ]);
-    if locked {
-        cmd.arg("--locked");
-    }
-    cmd
-}
-
-fn make_test_cmd(no_capture: bool) -> process::Command {
-    let mut cmd = find_command("cargo");
-    cmd.args(["test", "--workspace", "--all-features"]);
-    if no_capture {
-        cmd.args(["--", "--nocapture"]);
-    }
-    cmd
-}
-
-fn make_format_cmd(fix: bool) -> process::Command {
-    let mut cmd = find_command("cargo");
-    cmd.args(["+nightly", "fmt", "--all"]);
-    if !fix {
-        cmd.arg("--check");
-    }
-    cmd
-}
-
-fn make_clippy_cmd(fix: bool) -> process::Command {
-    let mut cmd = find_command("cargo");
-    cmd.args([
-        "+nightly",
-        "clippy",
-        "--tests",
-        "--all-features",
-        "--all-targets",
-        "--workspace",
-    ]);
-    if fix {
-        cmd.args(["--allow-staged", "--allow-dirty", "--fix"]);
-    } else {
-        cmd.args(["--", "-D", "warnings"]);
-    }
-    cmd
-}
-
-fn make_hawkeye_cmd(fix: bool) -> process::Command {
-    ensure_installed("hawkeye", "hawkeye");
-    let mut cmd = find_command("hawkeye");
-    if fix {
-        cmd.args(["format"]);
-    } else {
-        cmd.args(["check"]);
-    }
-    cmd
-}
-
-fn make_typos_cmd() -> process::Command {
-    ensure_installed("typos", "typos-cli");
-    find_command("typos")
-}
-
-fn make_taplo_cmd(fix: bool) -> process::Command {
-    ensure_installed("taplo", "taplo-cli");
-    let mut cmd = find_command("taplo");
-    if fix {
-        cmd.args(["format"]);
-    } else {
-        cmd.args(["format", "--check"]);
-    }
-    cmd
-}
-
-fn main() {
-    let cmd = Command::parse();
-    cmd.run()
 }

@@ -86,9 +86,6 @@ use logforth_core::record::Level;
 use logforth_core::record::LevelFilter;
 use logforth_core::record::Record;
 
-#[cfg(test)]
-mod tests;
-
 /// The default environment variable for filtering logs.
 pub const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
 

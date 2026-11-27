@@ -12,21 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(unix)]
-fn main() {
-    use logforth::starter_log::LogStarterExt as _;
+use std::process;
 
-    let append = logforth::append::Journald::new().unwrap();
-    logforth::builder().dispatch(|d| d.append(append)).install();
+use clap::Parser;
 
-    log::error!("Hello, journald at ERROR!");
-    log::warn!("Hello, journald at WARN!");
-    log::info!("Hello, journald at INFO!");
-    log::debug!("Hello, journald at DEBUG!");
-    log::trace!("Hello, journald at TRACE!");
+use crate::find_command;
+use crate::run_command;
+
+#[derive(Parser)]
+pub struct CommandTest {
+    #[arg(long, help = "Do not capture test output.")]
+    no_capture: bool,
 }
 
-#[cfg(not(unix))]
-fn main() {
-    println!("This example is only for Unix-like systems.");
+impl CommandTest {
+    pub fn run(self) {
+        run_command(make_test_cmd(self.no_capture));
+    }
+}
+
+fn make_test_cmd(no_capture: bool) -> process::Command {
+    let mut cmd = find_command("cargo");
+    cmd.args(["test", "--workspace", "--all-features"]);
+    if no_capture {
+        cmd.args(["--", "--nocapture"]);
+    }
+    cmd
 }

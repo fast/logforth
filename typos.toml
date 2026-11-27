@@ -16,4 +16,4 @@
 "controllen" = "controllen" # libc's control_len
 
 [files]
-extend-exclude = []
+extend-exclude = ["/target"]

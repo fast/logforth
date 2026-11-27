@@ -14,22 +14,21 @@
 
 [workspace]
 members = [
-  "core",
-  "examples",
-  "logforth",
   "appenders/*",
   "bridges/*",
+  "core",
   "diagnostics/*",
   "filters/*",
   "layouts/*",
+  "logforth",
+  "tests-integration",
   "xtask",
 ]
-resolver = "2"
+resolver = "3"
 
 [workspace.package]
 categories = ["development-tools::debugging"]
 edition = "2024"
-homepage = "https://github.com/fast/logforth"
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/fast/logforth"
@@ -57,10 +56,8 @@ logforth-layout-text = { version = "0.4.0", path = "layouts/text" }
 # Crates.io dependencies
 clap = { version = "4.5.49", features = ["derive"] }
 colored = { version = "3.0" }
-ctor = { version = "1.0.6" }
 fastrace = { version = "0.7" }
 fasyslog = { version = "1.0.0" }
-insta = { version = "1.43.2" }
 jiff = { version = "1.0" }
 libc = { version = "0.2.162" }
 log = { version = "0.4.31", default-features = false }
@@ -68,15 +65,14 @@ opentelemetry = { version = "0.33.1", default-features = false }
 opentelemetry-otlp = { version = "0.33.1", default-features = false }
 opentelemetry_sdk = { version = "0.33.1", default-features = false }
 pin-project = { version = "1.1.10" }
-pollster = { version = "0.4.0" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 tempfile = { version = "3.16" }
-tokio = { version = "1.47.1" }
 which = { version = "8.0.0" }
 
 [workspace.lints.rust]
 unknown_lints = "deny"
+unsafe_op_in_unsafe_fn = "deny"
 unused_must_use = "deny"
 
 [workspace.lints.clippy]

@@ -31,23 +31,28 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.number || github.run_id }}
   cancel-in-progress: true
+
+env:
+  RUST_BACKTRACE: 1
+
 jobs:
   check:
     name: Check
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
-      - name: Delete rust-toolchain.toml
-        run: rm rust-toolchain.toml
+      - uses: actions/checkout@v7
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: rustfmt,clippy
+        run: rustup toolchain install --component rustfmt,clippy nightly
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@v2
         with:
           tool: typos-cli,taplo-cli,hawkeye
-      - run: cargo x lint
+      - name: Check lockfile
+        run: cargo update -w --locked --verbose
+      - name: Check linters
+        run: cargo x lint
+      - name: Check feature matrix
+        run: cargo x check
 
   msrv:
     name: Resolve MSRV
@@ -55,7 +60,7 @@ jobs:
     outputs:
       rust-versions: ${{ steps.metadata.outputs.rust-versions }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - id: metadata
         run: |
           msrv=$(yq '.workspace.package.rust-version' Cargo.toml)
@@ -71,41 +76,17 @@ jobs:
         rust-version: ${{ fromJson(needs.msrv.outputs.rust-versions) }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: Swatinem/rust-cache@v2
-      - name: Delete rust-toolchain.toml
-        run: rm rust-toolchain.toml
+      - uses: actions/checkout@v7
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust-version }}
-      - name: Build
-        run: cargo build --workspace --all-features --bins --tests --examples --benches --lib
-      - name: Run unit tests
-        shell: bash
-        run: cargo x test --no-capture
-      - name: Run examples
-        shell: bash
         run: |
-          set -x
-
-          cargo run --example native
-          cargo run --features="bridge-log" --example log_with_logger
-
-          cargo run --features="starter-log" --example simple_stdout
-          cargo run --features="starter-log" --example multiple_dispatches
-          cargo run --features="starter-log" --example custom_layout_filter
-          cargo run --features="starter-log" --example json_stdout
-          cargo run --features="starter-log" --example rolling_file
-          cargo run --features="starter-log" --example single_file
-          cargo run --features="starter-log,diagnostic-task-local" --example task_local
-          cargo run --features="starter-log,append-async" --example asynchronous
-          cargo run --features="starter-log,bridge-log-serde,diagnostic-fastrace,layout-google-cloud-logging" --example google_cloud_logging
-          cargo run --features="starter-log,append-fastrace,diagnostic-fastrace" --example fastrace
-
-          cargo test --features="starter-log" --example testing -- --show-output
-          cargo test --features="starter-log" --example testing -- --nocapture
-          cargo test --features="starter-log" --example testing
+          rustup toolchain install ${{ matrix.rust-version }}
+          rustup default ${{ matrix.rust-version }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-bin: "false"
+      - name: Run test suite
+        shell: bash
+        run: cargo x test
 
   required:
     name: Required
@@ -122,5 +103,5 @@ jobs:
               && "${{ needs.test.result }}" == "success" \
               ) ]]; then
             echo "Required jobs haven't been completed successfully."
-            exit -1
+            exit 1
           fi

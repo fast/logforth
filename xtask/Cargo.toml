@@ -17,7 +17,11 @@ name = "x"
 publish = false
 
 edition.workspace = true
+license.workspace = true
 rust-version.workspace = true
+
+[package.metadata.release]
+release = false
 
 [dependencies]
 clap = { workspace = true }

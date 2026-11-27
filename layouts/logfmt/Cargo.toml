@@ -21,7 +21,6 @@ keywords = ["logging", "log", "logfmt"]
 
 categories.workspace = true
 edition.workspace = true
-homepage.workspace = true
 license.workspace = true
 readme.workspace = true
 repository.workspace = true

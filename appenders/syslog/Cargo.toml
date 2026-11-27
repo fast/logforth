@@ -21,11 +21,14 @@ keywords = ["logging", "log", "syslog"]
 
 categories.workspace = true
 edition.workspace = true
-homepage.workspace = true
 license.workspace = true
 readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []
