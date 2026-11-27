@@ -108,7 +108,7 @@ const fn level_bit(level: Level) -> u32 {
 /// Read more from the [crate documentation](self) about the directive syntax and use cases.
 #[derive(Clone, Debug)]
 pub struct RustLogFilter {
-    prefixes: Box<[PrefixDirective]>,
+    prefixes: Vec<PrefixDirective>,
     fallback: LevelFilter,
     may_neutral: u32,
     always_neutral: u32,
@@ -116,7 +116,7 @@ pub struct RustLogFilter {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct PrefixDirective {
-    prefix: Box<str>,
+    prefix: String,
     level: LevelFilter,
 }
 
@@ -129,11 +129,11 @@ impl RustLogFilter {
             match directive.prefix {
                 None => fallback = directive.level,
                 Some(prefix) => {
-                    if let Some(existing) = prefixes.iter_mut().find(|d| *d.prefix == prefix) {
+                    if let Some(existing) = prefixes.iter_mut().find(|d| d.prefix == prefix) {
                         existing.level = directive.level;
                     } else {
                         prefixes.push(PrefixDirective {
-                            prefix: prefix.into_boxed_str(),
+                            prefix,
                             level: directive.level,
                         });
                     }
@@ -162,7 +162,7 @@ impl RustLogFilter {
         }
 
         Self {
-            prefixes: prefixes.into_boxed_slice(),
+            prefixes,
             fallback,
             may_neutral,
             always_neutral,
@@ -172,7 +172,7 @@ impl RustLogFilter {
     fn level_filter_for(&self, name: Option<&str>) -> LevelFilter {
         let name = name.unwrap_or("");
         for directive in &self.prefixes {
-            if name.starts_with(&*directive.prefix) {
+            if name.starts_with(&directive.prefix) {
                 return directive.level;
             }
         }

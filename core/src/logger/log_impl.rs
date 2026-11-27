@@ -51,7 +51,7 @@ pub struct Logger {
 #[derive(Debug)]
 struct LoggerState {
     level_mask: u32,
-    dispatches: Box<[Dispatch]>,
+    dispatches: Vec<Dispatch>,
     error_sink: Box<dyn ErrorSink>,
 }
 
@@ -82,7 +82,7 @@ impl Logger {
             Self {
                 state: Some(Arc::new(LoggerState {
                     level_mask,
-                    dispatches: dispatches.into_boxed_slice(),
+                    dispatches,
                     error_sink,
                 })),
             }
@@ -126,9 +126,9 @@ impl Logger {
 #[derive(Debug)]
 pub(super) struct Dispatch {
     level_mask: u32,
-    filters: Box<[Box<dyn Filter>]>,
-    diagnostics: Box<[Box<dyn Diagnostic>]>,
-    appends: Box<[Box<dyn Append>]>,
+    filters: Vec<Box<dyn Filter>>,
+    diagnostics: Vec<Box<dyn Diagnostic>>,
+    appends: Vec<Box<dyn Append>>,
     error_sink: Option<Box<dyn ErrorSink>>,
 }
 
@@ -153,9 +153,9 @@ impl Dispatch {
 
         Self {
             level_mask,
-            filters: filters.into_boxed_slice(),
-            diagnostics: diagnostics.into_boxed_slice(),
-            appends: appends.into_boxed_slice(),
+            filters,
+            diagnostics,
+            appends,
             error_sink,
         }
     }
@@ -165,9 +165,9 @@ impl Dispatch {
             return;
         }
 
-        let diagnostics = &*self.diagnostics;
+        let diagnostics = &self.diagnostics;
         for filter in &self.filters {
-            match filter.filter(record, &diagnostics) {
+            match filter.filter(record, diagnostics) {
                 FilterResult::Reject => return,
                 FilterResult::Accept => break,
                 FilterResult::Neutral => {}
@@ -176,7 +176,7 @@ impl Dispatch {
 
         let error_sink = self.error_sink.as_deref().unwrap_or(default_error_sink);
         for append in &self.appends {
-            if let Err(err) = append.append(record, &diagnostics) {
+            if let Err(err) = append.append(record, diagnostics) {
                 let err = Error::new("failed to append record").with_source(err);
                 error_sink.sink(&err);
             }
