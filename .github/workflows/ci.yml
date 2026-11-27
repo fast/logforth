@@ -115,9 +115,6 @@ jobs:
       - name: Restore Rust cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Build workspace
-        run: cargo x build
-
       - name: Run tests
         shell: bash
         run: cargo x test --no-capture

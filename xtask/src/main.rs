@@ -155,7 +155,14 @@ fn run_command(mut cmd: process::Command) {
 
 fn make_build_cmd(locked: bool) -> process::Command {
     let mut cmd = cargo();
-    cmd.args(["build", "--workspace", "--all-targets", "--all-features"]);
+    cmd.args([
+        "build",
+        "--workspace",
+        "--exclude",
+        "x",
+        "--all-targets",
+        "--all-features",
+    ]);
     if locked {
         cmd.arg("--locked");
     }
