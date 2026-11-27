@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::cell::RefCell;
-use std::collections::BTreeMap;
 use std::marker::PhantomData;
 
 use crate::Diagnostic;
@@ -22,16 +21,21 @@ use crate::kv::KeyOwned;
 use crate::kv::ValueOwned;
 use crate::kv::Visitor;
 
+struct ScopeFrame {
+    id: u64,
+    entries: Box<[(KeyOwned, ValueOwned)]>,
+}
+
 struct ThreadLocalState {
     next_id: u64,
-    map: BTreeMap<KeyOwned, Vec<(u64, ValueOwned)>>,
+    frames: Vec<ScopeFrame>,
 }
 
 impl ThreadLocalState {
     const fn new() -> Self {
         Self {
             next_id: 1,
-            map: BTreeMap::new(),
+            frames: Vec::new(),
         }
     }
 }
@@ -48,30 +52,26 @@ thread_local! {
 #[derive(Debug)]
 pub struct ThreadLocalDiagnosticGuard {
     id: u64,
-    keys: Box<[KeyOwned]>,
     not_send: PhantomData<*const ()>,
 }
 
 impl Drop for ThreadLocalDiagnosticGuard {
     fn drop(&mut self) {
+        if self.id == 0 {
+            return;
+        }
         let _ = THREAD_LOCAL_STATE.try_with(|state| {
             let mut state = state.borrow_mut();
-            for key in &self.keys {
-                if let Some(stack) = state.map.get_mut(key) {
-                    stack.retain(|(id, _)| *id != self.id);
-                    if stack.is_empty() {
-                        state.map.remove(key);
-                    }
-                }
+            if state.frames.last().is_some_and(|frame| frame.id == self.id) {
+                state.frames.pop();
+            } else {
+                state.frames.retain(|frame| frame.id != self.id);
             }
         });
     }
 }
 
-/// A diagnostic that stores key-value pairs in a thread-local map.
-///
-/// Prefer [`ThreadLocalDiagnostic::scope`] for scoped context that automatically restores shadowed
-/// values when the returned [`ThreadLocalDiagnosticGuard`] is dropped.
+/// A diagnostic that provides scoped key-value pairs stored in thread-local storage.
 ///
 /// ## Example
 ///
@@ -85,10 +85,10 @@ impl Drop for ThreadLocalDiagnosticGuard {
 pub struct ThreadLocalDiagnostic {}
 
 impl ThreadLocalDiagnostic {
-    /// Pushes scoped key-value pairs onto the current thread's diagnostic context and returns an
-    /// RAII guard that removes this scope's entries when dropped.
+    /// Pushes scoped key-value pairs onto the current thread's diagnostic stack and returns an
+    /// RAII guard that removes this scope when dropped.
     ///
-    /// Nested scopes shadow earlier values for the same key and restore them on drop, even if
+    /// Nested scopes shadow outer values for the same key and restore them on drop, even if
     /// guards are dropped out of order.
     pub fn scope<K, V, I>(kvs: I) -> ThreadLocalDiagnosticGuard
     where
@@ -96,67 +96,29 @@ impl ThreadLocalDiagnostic {
         V: Into<ValueOwned>,
         I: IntoIterator<Item = (K, V)>,
     {
-        let (id, keys) = THREAD_LOCAL_STATE
+        let entries: Box<[(KeyOwned, ValueOwned)]> =
+            kvs.into_iter().map(|(k, v)| (k.into(), v.into())).collect();
+        if entries.is_empty() {
+            return ThreadLocalDiagnosticGuard {
+                id: 0,
+                not_send: PhantomData,
+            };
+        }
+
+        let id = THREAD_LOCAL_STATE
             .try_with(|state| {
                 let mut state = state.borrow_mut();
                 let id = state.next_id;
                 state.next_id += 1;
-                let mut keys = Vec::new();
-                for (key, value) in kvs {
-                    let key = key.into();
-                    state
-                        .map
-                        .entry(key.clone())
-                        .or_default()
-                        .push((id, value.into()));
-                    keys.push(key);
-                }
-                (id, keys.into_boxed_slice())
+                state.frames.push(ScopeFrame { id, entries });
+                id
             })
-            .unwrap_or_else(|_| (0, Box::new([])));
+            .unwrap_or(0);
 
         ThreadLocalDiagnosticGuard {
             id,
-            keys,
             not_send: PhantomData,
         }
-    }
-
-    /// Inserts or replaces an unscoped key-value pair in the current thread's diagnostic map.
-    ///
-    /// Active [`ThreadLocalDiagnostic::scope`] guards for the same key continue to shadow the
-    /// unscoped entry until those guards are dropped.
-    pub fn insert<K, V>(key: K, value: V)
-    where
-        K: Into<KeyOwned>,
-        V: Into<ValueOwned>,
-    {
-        let key = key.into();
-        let value = value.into();
-        let _ = THREAD_LOCAL_STATE.try_with(|state| {
-            let mut state = state.borrow_mut();
-            let stack = state.map.entry(key).or_default();
-            if stack.first().is_some_and(|(id, _)| *id == 0) {
-                stack[0].1 = value;
-            } else {
-                stack.insert(0, (0, value));
-            }
-        });
-    }
-
-    /// Removes the unscoped entry for `key` from the current thread's diagnostic map.
-    pub fn remove(key: &str) {
-        let _ = THREAD_LOCAL_STATE.try_with(|state| {
-            let mut state = state.borrow_mut();
-            if let Some(stack) = state.map.get_mut(key) {
-                if stack.first().is_some_and(|(id, _)| *id == 0) {
-                    stack.remove(0);
-                }
-                if stack.is_empty() {
-                    state.map.remove(key);
-                }
-            }
-        });
     }
 }
 
@@ -165,13 +127,28 @@ impl Diagnostic for ThreadLocalDiagnostic {
         THREAD_LOCAL_STATE
             .try_with(|state| {
                 let state = state.borrow();
-                for (key, stack) in &state.map {
-                    if let Some((_, value)) = stack.last() {
-                        visitor.visit(key.view(), value.view())?;
+                for (frame_idx, frame) in state.frames.iter().enumerate() {
+                    let inner_frames = &state.frames[frame_idx + 1..];
+                    for (entry_idx, (key, value)) in frame.entries.iter().enumerate() {
+                        let rest_in_frame = &frame.entries[entry_idx + 1..];
+                        if !is_shadowed(key, rest_in_frame, inner_frames) {
+                            visitor.visit(key.view(), value.view())?;
+                        }
                     }
                 }
                 Ok(())
             })
             .unwrap_or(Ok(()))
     }
+}
+
+fn is_shadowed(
+    key: &KeyOwned,
+    rest_in_frame: &[(KeyOwned, ValueOwned)],
+    inner_frames: &[ScopeFrame],
+) -> bool {
+    rest_in_frame.iter().any(|(k, _)| k == key)
+        || inner_frames
+            .iter()
+            .any(|frame| frame.entries.iter().any(|(k, _)| k == key))
 }

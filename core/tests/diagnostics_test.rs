@@ -103,32 +103,46 @@ fn collect_diags(diags: &dyn Diagnostic) -> Result<Vec<(String, String)>, Error>
 }
 
 #[test]
-fn thread_local_scopes_shadow_unscoped_updates_and_allow_out_of_order_drop() {
+fn thread_local_scopes_shadow_and_restore_including_out_of_order_drop() {
     let diag = ThreadLocalDiagnostic::default();
-    let assert_visible = |value: &str| {
-        assert_eq!(
-            collect_diags(&diag).unwrap(),
-            [("request".to_owned(), value.to_owned())]
-        );
-    };
 
-    let outer = ThreadLocalDiagnostic::scope([("request", "outer")]);
-    ThreadLocalDiagnostic::insert("request", "base");
-    assert_visible("outer");
-    let inner = ThreadLocalDiagnostic::scope([("request", "inner")]);
-    ThreadLocalDiagnostic::insert("request", "updated");
-    assert_visible("inner");
+    let outer = ThreadLocalDiagnostic::scope([("tenant", "acme"), ("request", "outer")]);
+    assert_eq!(
+        collect_diags(&diag).unwrap(),
+        [
+            ("tenant".to_owned(), "acme".to_owned()),
+            ("request".to_owned(), "outer".to_owned()),
+        ]
+    );
+
+    let inner = ThreadLocalDiagnostic::scope([("request", "inner"), ("step", "auth")]);
+    assert_eq!(
+        collect_diags(&diag).unwrap(),
+        [
+            ("tenant".to_owned(), "acme".to_owned()),
+            ("request".to_owned(), "inner".to_owned()),
+            ("step".to_owned(), "auth".to_owned()),
+        ]
+    );
+
     drop(inner);
-    assert_visible("outer");
+    assert_eq!(
+        collect_diags(&diag).unwrap(),
+        [
+            ("tenant".to_owned(), "acme".to_owned()),
+            ("request".to_owned(), "outer".to_owned()),
+        ]
+    );
     drop(outer);
-    assert_visible("updated");
+    assert!(collect_diags(&diag).unwrap().is_empty());
 
-    let outer = ThreadLocalDiagnostic::scope([("request", "outer")]);
+    let outer = ThreadLocalDiagnostic::scope([("tenant", "acme"), ("request", "outer")]);
     let inner = ThreadLocalDiagnostic::scope([("request", "inner")]);
-    ThreadLocalDiagnostic::remove("request");
-    assert_visible("inner");
     drop(outer);
-    assert_visible("inner");
+    assert_eq!(
+        collect_diags(&diag).unwrap(),
+        [("request".to_owned(), "inner".to_owned())]
+    );
     drop(inner);
     assert!(collect_diags(&diag).unwrap().is_empty());
 }
