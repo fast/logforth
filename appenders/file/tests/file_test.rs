@@ -31,8 +31,11 @@ use tempfile::tempdir;
 struct PayloadLayout;
 
 impl Layout for PayloadLayout {
-    fn format(&self, record: &Record, _: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
-        Ok(record.payload().to_string().into_bytes())
+    fn format(&self, record: &Record, _: &dyn Diagnostic, buf: &mut Vec<u8>) -> Result<(), Error> {
+        use std::io::Write;
+
+        write!(buf, "{}", record.payload()).unwrap();
+        Ok(())
     }
 }
 

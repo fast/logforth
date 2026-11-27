@@ -43,9 +43,17 @@ impl Filter for CustomFilter {
 struct CustomLayout;
 
 impl Layout for CustomLayout {
-    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
+    fn format(
+        &self,
+        record: &Record,
+        diags: &dyn Diagnostic,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), Error> {
+        use std::io::Write;
+
         let _ = diags;
-        Ok(format!("[Alert] {}", record.payload()).into_bytes())
+        write!(buf, "[Alert] {}", record.payload())
+            .map_err(|err| Error::new("failed to format custom record").with_source(err))
     }
 }
 

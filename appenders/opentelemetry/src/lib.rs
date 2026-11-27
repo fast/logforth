@@ -358,7 +358,8 @@ impl MakeBodyLayout {
 
 impl MakeBody for MakeBodyLayout {
     fn create(&self, record: &Record, diags: &dyn Diagnostic) -> Result<AnyValue, Error> {
-        let body = self.layout.format(record, diags)?;
+        let mut body = Vec::new();
+        self.layout.format(record, diags, &mut body)?;
         Ok(AnyValue::Bytes(Box::new(body)))
     }
 }
