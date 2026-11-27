@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt::Write;
+use std::io::Write;
 use std::time::SystemTime;
 
 use crate::Diagnostic;
@@ -47,49 +47,40 @@ use crate::record::Record;
 #[non_exhaustive]
 pub struct PlainTextLayout {}
 
-struct KvWriter {
-    text: String,
+struct KvWriter<'a> {
+    buf: &'a mut Vec<u8>,
 }
 
-impl Visitor for KvWriter {
+impl Visitor for KvWriter<'_> {
     fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
-        // SAFETY: write to a string always succeeds
-        write!(&mut self.text, " {key}={value}").unwrap();
-        Ok(())
+        write!(self.buf, " {key}={value}")
+            .map_err(|err| Error::new("failed to format key-value pair").with_source(err))
     }
 }
 
 impl Layout for PlainTextLayout {
-    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
-        let mut text = String::new();
-
-        let time = record.time();
-        match time.duration_since(SystemTime::UNIX_EPOCH) {
-            Ok(dur) => {
-                let time = dur.as_nanos();
-                write!(&mut text, "{time}").unwrap();
-            }
-            Err(err) => {
-                let time = err.duration().as_nanos();
-                write!(&mut text, "-{time}").unwrap();
-            }
+    fn format(
+        &self,
+        record: &Record,
+        diags: &dyn Diagnostic,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), Error> {
+        match record.time().duration_since(SystemTime::UNIX_EPOCH) {
+            Ok(dur) => write!(buf, "{}", dur.as_nanos()),
+            Err(err) => write!(buf, "-{}", err.duration().as_nanos()),
         }
+        .map_err(|err| Error::new("failed to format record timestamp").with_source(err))?;
 
         let level = record.level().name();
         let module_path = record.module_path().unwrap_or_default();
         let file = record.filename();
         let line = record.line().unwrap_or_default();
         let message = record.payload();
-        write!(
-            &mut text,
-            " {level:>6} {module_path}: {file}:{line} {message}"
-        )
-        .unwrap();
+        write!(buf, " {level:>6} {module_path}: {file}:{line} {message}")
+            .map_err(|err| Error::new("failed to format log record").with_source(err))?;
 
-        let mut visitor = KvWriter { text };
+        let mut visitor = KvWriter { buf };
         record.key_values().visit(&mut visitor)?;
-        diags.visit(&mut visitor)?;
-
-        Ok(visitor.text.into_bytes())
+        diags.visit(&mut visitor)
     }
 }

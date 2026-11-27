@@ -64,7 +64,8 @@ impl Stdout {
 
 impl Append for Stdout {
     fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
-        let mut bytes = self.layout.format(record, diags)?;
+        let mut bytes = Vec::new();
+        self.layout.format(record, diags, &mut bytes)?;
         bytes.push(b'\n');
         std::io::stdout()
             .write_all(&bytes)
@@ -123,7 +124,8 @@ impl Stderr {
 
 impl Append for Stderr {
     fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
-        let mut bytes = self.layout.format(record, diags)?;
+        let mut bytes = Vec::new();
+        self.layout.format(record, diags, &mut bytes)?;
         bytes.push(b'\n');
         std::io::stderr()
             .write_all(&bytes)

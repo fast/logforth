@@ -25,10 +25,25 @@ mod plain_text;
 
 pub use self::plain_text::PlainTextLayout;
 
-/// A layout for formatting log records.
+/// A layout for formatting log records into a byte buffer.
+///
+/// Implementations append formatted bytes to `buf` without modifying or removing bytes before its
+/// starting length, and omit record framing such as a trailing newline (which belongs to the
+/// owning [`Append`](crate::Append)).
 pub trait Layout: fmt::Debug + Send + Sync + 'static {
-    /// Format a log record with optional diagnostics.
-    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error>;
+    /// Appends the formatted representation of `record` and `diags` to `buf`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Error`] if formatting fails. On `Err`, `buf` may contain partial output past
+    /// its starting length; callers reusing `buf` must discard it (for example, with
+    /// `buf.truncate(start)`).
+    fn format(
+        &self,
+        record: &Record,
+        diags: &dyn Diagnostic,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), Error>;
 }
 
 impl<T: Layout> From<T> for Box<dyn Layout> {
@@ -38,13 +53,23 @@ impl<T: Layout> From<T> for Box<dyn Layout> {
 }
 
 impl<T: Layout + ?Sized> Layout for Arc<T> {
-    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
-        (**self).format(record, diags)
+    fn format(
+        &self,
+        record: &Record,
+        diags: &dyn Diagnostic,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), Error> {
+        (**self).format(record, diags, buf)
     }
 }
 
 impl<T: Layout + ?Sized> Layout for &'static T {
-    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
-        (**self).format(record, diags)
+    fn format(
+        &self,
+        record: &Record,
+        diags: &dyn Diagnostic,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), Error> {
+        (**self).format(record, diags, buf)
     }
 }

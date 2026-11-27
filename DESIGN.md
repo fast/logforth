@@ -55,7 +55,7 @@ pub trait ErrorSink: fmt::Debug + Send + Sync + 'static {
 
 `Append` consumes structured `&Record` and `&dyn Diagnostic` directly so protocol-native sinks can encode typed fields without intermediate text serialization, whereas byte-stream sinks compose a `Layout` internally.
 
-`Layout::format` appends formatted bytes into a caller-supplied `&mut Vec<u8>` rather than allocating a new buffer per record. Implementations must only append to `buf` without clearing or reading prior bytes, callers must truncate `buf` back to its starting length on `Err`, and record framing such as a trailing newline belongs to the owning `Append` rather than `Layout`. Synchronous appenders may pool thread-local `Vec<u8>` buffers outside I/O locks via `try_borrow_mut`, falling back to a fresh `Vec<u8>` if user `Display::fmt` logs reentrantly.
+`Layout::format` appends formatted bytes into a caller-supplied `&mut Vec<u8>` rather than allocating a new buffer per record. Implementations must only append to `buf` without modifying or removing prior bytes, callers reusing `buf` must discard partial output on `Err`, and record framing such as a trailing newline belongs to the owning `Append` rather than `Layout`.
 
 ## Filtering and Fast-Path Pruning
 
