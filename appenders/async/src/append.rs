@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::mpsc;
+use std::thread::JoinHandle;
+
 use logforth_core::Append;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
@@ -23,8 +26,8 @@ use logforth_core::record::Record;
 
 use crate::Overflow;
 use crate::Task;
+use crate::channel::Sender;
 use crate::channel::channel;
-use crate::state::AsyncState;
 use crate::worker::Worker;
 
 /// A composable appender, logging and flushing asynchronously.
@@ -52,7 +55,43 @@ use crate::worker::Worker;
 /// at the end of the program.
 #[derive(Debug)]
 pub struct Async {
-    state: AsyncState,
+    overflow: Overflow,
+    sender: Option<Sender<Task>>,
+    handle: Option<JoinHandle<()>>,
+}
+
+impl Async {
+    fn new(overflow: Overflow, sender: Sender<Task>, handle: JoinHandle<()>) -> Self {
+        Self {
+            overflow,
+            sender: Some(sender),
+            handle: Some(handle),
+        }
+    }
+
+    fn send_task(&self, task: Task) -> Result<(), Error> {
+        let sender = self
+            .sender
+            .as_ref()
+            .expect("sender is always present before drop");
+
+        match self.overflow {
+            Overflow::Block => sender.send(task).map_err(|err| {
+                Error::new(match err.0 {
+                    Task::Log { .. } => "failed to send log task to async appender",
+                    Task::Flush { .. } => "failed to send flush task to async appender",
+                })
+            }),
+            Overflow::DropIncoming => match sender.try_send(task) {
+                Ok(()) => Ok(()),
+                Err(mpsc::TrySendError::Full(_)) => Ok(()),
+                Err(mpsc::TrySendError::Disconnected(task)) => Err(Error::new(match task {
+                    Task::Log { .. } => "failed to send log task to async appender",
+                    Task::Flush { .. } => "failed to send flush task to async appender",
+                })),
+            },
+        }
+    }
 }
 
 impl Append for Async {
@@ -66,18 +105,31 @@ impl Append for Async {
             record: Box::new(record.to_owned()),
             diags: diagnostics,
         };
-        self.state.send_task(task)
+        self.send_task(task)
     }
 
     fn flush(&self) -> Result<(), Error> {
         let (done_tx, done_rx) = oneshot::channel();
 
         let task = Task::Flush { done: done_tx };
-        self.state.send_task(task)?;
+        self.send_task(task)?;
 
         done_rx
             .recv()
             .map_err(|err| Error::new("worker exited before completing flush").with_source(err))
+    }
+}
+
+impl Drop for Async {
+    fn drop(&mut self) {
+        // Drop our sender first so the worker drains pending tasks and exits its receive loop.
+        drop(self.sender.take());
+
+        if let Some(handle) = self.handle.take()
+            && handle.thread().id() != std::thread::current().id()
+        {
+            let _ = handle.join();
+        }
     }
 }
 
@@ -152,8 +204,7 @@ impl AsyncBuilder {
             .spawn(move || worker.run())
             .expect("failed to spawn async appender thread");
 
-        let state = AsyncState::new(overflow, sender, thread_handle);
-        Async { state }
+        Async::new(overflow, sender, thread_handle)
     }
 }
 

@@ -26,14 +26,14 @@ use logforth_core::kv::Visitor;
 use crate::Task;
 use crate::channel::Receiver;
 
-pub(crate) struct Worker {
+pub struct Worker {
     appends: Vec<Box<dyn Append>>,
     receiver: Receiver<Task>,
     error_sink: Box<dyn ErrorSink>,
 }
 
 impl Worker {
-    pub(crate) fn new(
+    pub fn new(
         appends: Vec<Box<dyn Append>>,
         receiver: Receiver<Task>,
         error_sink: Box<dyn ErrorSink>,
@@ -45,7 +45,7 @@ impl Worker {
         }
     }
 
-    pub(crate) fn run(self) {
+    pub fn run(self) {
         let Self {
             appends,
             receiver,

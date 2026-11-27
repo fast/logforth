@@ -22,7 +22,6 @@ use logforth_core::record::RecordOwned;
 
 mod append;
 mod channel;
-mod state;
 mod worker;
 
 pub use self::append::Async;

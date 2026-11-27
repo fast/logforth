@@ -14,7 +14,7 @@
 
 use std::sync::mpsc;
 
-pub(crate) fn channel<T>(bound: Option<usize>) -> (Sender<T>, Receiver<T>) {
+pub fn channel<T>(bound: Option<usize>) -> (Sender<T>, Receiver<T>) {
     match bound {
         Some(bound) => {
             let (tx, rx) = mpsc::sync_channel(bound);
@@ -27,10 +27,10 @@ pub(crate) fn channel<T>(bound: Option<usize>) -> (Sender<T>, Receiver<T>) {
     }
 }
 
-pub(crate) type Receiver<T> = mpsc::Receiver<T>;
+pub type Receiver<T> = mpsc::Receiver<T>;
 
 #[derive(Clone)]
-pub(crate) enum Sender<T> {
+pub enum Sender<T> {
     Unbounded(mpsc::Sender<T>),
     Bounded(mpsc::SyncSender<T>),
 }
@@ -45,14 +45,14 @@ impl<T> std::fmt::Debug for Sender<T> {
 }
 
 impl<T> Sender<T> {
-    pub(crate) fn send(&self, value: T) -> Result<(), mpsc::SendError<T>> {
+    pub fn send(&self, value: T) -> Result<(), mpsc::SendError<T>> {
         match self {
             Sender::Unbounded(s) => s.send(value),
             Sender::Bounded(s) => s.send(value),
         }
     }
 
-    pub(crate) fn try_send(&self, value: T) -> Result<(), mpsc::TrySendError<T>> {
+    pub fn try_send(&self, value: T) -> Result<(), mpsc::TrySendError<T>> {
         match self {
             Sender::Unbounded(s) => s
                 .send(value)
