@@ -16,7 +16,7 @@
 builtin = "Apache-2.0"
 
 [files]
-includes = ['**/*.proto', '**/*.rs', '**/*.yml', '**/*.yaml', '**/*.toml']
+includes = ["**/*.proto", "**/*.rs", "**/*.toml", "**/*.yaml", "**/*.yml"]
 
 [props]
 copyright_owner = "FastLabs Developers"

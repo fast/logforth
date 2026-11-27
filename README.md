@@ -142,8 +142,6 @@ fn main() {
 }
 ```
 
-Read more demos under the [examples](examples) directory.
-
 ## Features
 
 ### Dispatches

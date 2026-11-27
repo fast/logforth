@@ -12,16 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use logforth::record::LevelFilter;
-
-fn main() {
-    logforth::starter_log::stdout()
-        .filter(LevelFilter::All)
-        .install();
-
-    log::error!("Hello error!");
-    log::warn!("Hello warn!");
-    log::info!("Hello info!");
-    log::debug!("Hello debug!");
-    log::trace!("Hello trace!");
-}
+//! Shared integration test utilities for Logforth.

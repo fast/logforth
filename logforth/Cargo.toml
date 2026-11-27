@@ -21,7 +21,6 @@ keywords = ["logging", "log", "opentelemetry", "fastrace"]
 
 categories.workspace = true
 edition.workspace = true
-homepage.workspace = true
 license.workspace = true
 readme.workspace = true
 repository.workspace = true
@@ -93,19 +92,5 @@ logforth-layout-json = { workspace = true, optional = true }
 logforth-layout-logfmt = { workspace = true, optional = true }
 logforth-layout-text = { workspace = true, optional = true }
 
-[dev-dependencies]
-log = { workspace = true }
-logforth-append-file = { workspace = true }
-
 [lints]
 workspace = true
-
-[[test]]
-name = "recursive_logging"
-path = "tests/recursive_logging.rs"
-required-features = ["starter-log"]
-
-[[test]]
-name = "starter_log"
-path = "tests/starter_log.rs"
-required-features = ["starter-log"]

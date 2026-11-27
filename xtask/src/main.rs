@@ -12,14 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
 use std::process;
 
 use clap::Parser;
 use clap::Subcommand;
 
+const CHECK_CONFIGS: &[&[&str]] = &[
+    &["--package", "logforth-core", "--no-default-features"],
+    &["--package", "logforth-core", "--all-features"],
+    &["--package", "logforth-bridge-log", "--no-default-features"],
+    &["--package", "logforth-bridge-log", "--all-features"],
+    &[
+        "--package",
+        "logforth-append-syslog",
+        "--no-default-features",
+    ],
+    &["--package", "logforth-append-syslog", "--all-features"],
+    &["--package", "logforth", "--no-default-features"],
+    &[
+        "--package",
+        "logforth",
+        "--no-default-features",
+        "--features",
+        "starter-log",
+    ],
+    &["--workspace", "--all-features"],
+];
+
 #[derive(Parser)]
 struct Command {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     sub: SubCommand,
 }
 
@@ -27,6 +50,7 @@ impl Command {
     fn run(self) {
         match self.sub {
             SubCommand::Build(cmd) => cmd.run(),
+            SubCommand::Check(cmd) => cmd.run(),
             SubCommand::Lint(cmd) => cmd.run(),
             SubCommand::Test(cmd) => cmd.run(),
         }
@@ -35,11 +59,13 @@ impl Command {
 
 #[derive(Subcommand)]
 enum SubCommand {
-    #[clap(about = "Compile workspace packages.")]
+    #[command(about = "Compile workspace packages.")]
     Build(CommandBuild),
-    #[clap(about = "Run format and clippy checks.")]
+    #[command(about = "Check workspace packages across feature configurations.")]
+    Check(CommandCheck),
+    #[command(about = "Run workspace quality checks.")]
     Lint(CommandLint),
-    #[clap(about = "Run unit tests.")]
+    #[command(about = "Run workspace tests.")]
     Test(CommandTest),
 }
 
@@ -56,8 +82,19 @@ impl CommandBuild {
 }
 
 #[derive(Parser)]
+struct CommandCheck;
+
+impl CommandCheck {
+    fn run(self) {
+        for args in CHECK_CONFIGS {
+            run_command(make_check_cmd(args));
+        }
+    }
+}
+
+#[derive(Parser)]
 struct CommandTest {
-    #[arg(long, help = "Run tests serially and do not capture output.")]
+    #[arg(long, help = "Do not capture test output.")]
     no_capture: bool,
 }
 
@@ -68,9 +105,9 @@ impl CommandTest {
 }
 
 #[derive(Parser)]
-#[clap(name = "lint")]
+#[command(name = "lint")]
 struct CommandLint {
-    #[arg(long, help = "Automatically apply lint suggestions.")]
+    #[arg(long, help = "Automatically apply lint and formatting suggestions.")]
     fix: bool,
 }
 
@@ -81,28 +118,33 @@ impl CommandLint {
         run_command(make_taplo_cmd(self.fix));
         run_command(make_typos_cmd());
         run_command(make_hawkeye_cmd(self.fix));
+        if !self.fix {
+            run_command(make_doc_cmd());
+        }
     }
 }
 
-fn find_command(cmd: &str) -> process::Command {
-    match which::which(cmd) {
-        Ok(exe) => {
-            let mut cmd = process::Command::new(exe);
-            cmd.current_dir(env!("CARGO_WORKSPACE_DIR"));
+fn find_command(command: &str) -> process::Command {
+    match which::which(command) {
+        Ok(executable) => {
+            let mut cmd = process::Command::new(executable);
+            cmd.current_dir(Path::new(env!("CARGO_WORKSPACE_DIR")));
             cmd
         }
-        Err(err) => {
-            panic!("{cmd} not found: {err}");
-        }
+        Err(err) => panic!("{command} not found: {err}"),
     }
 }
 
-fn ensure_installed(bin: &str, crate_name: &str) {
-    if which::which(bin).is_err() {
-        let mut cmd = find_command("cargo");
+fn ensure_installed(binary: &str, crate_name: &str) {
+    if which::which(binary).is_err() {
+        let mut cmd = cargo();
         cmd.args(["install", crate_name]);
         run_command(cmd);
     }
+}
+
+fn cargo() -> process::Command {
+    find_command("cargo")
 }
 
 fn run_command(mut cmd: process::Command) {
@@ -112,24 +154,24 @@ fn run_command(mut cmd: process::Command) {
 }
 
 fn make_build_cmd(locked: bool) -> process::Command {
-    let mut cmd = find_command("cargo");
-    cmd.args([
-        "build",
-        "--workspace",
-        "--all-features",
-        "--tests",
-        "--examples",
-        "--benches",
-        "--bins",
-    ]);
+    let mut cmd = cargo();
+    cmd.args(["build", "--workspace", "--all-targets", "--all-features"]);
     if locked {
         cmd.arg("--locked");
     }
     cmd
 }
 
+fn make_check_cmd(extra_args: &[&str]) -> process::Command {
+    let mut cmd = cargo();
+    cmd.env("RUSTFLAGS", "-D warnings");
+    cmd.args(["check", "--all-targets"]);
+    cmd.args(extra_args);
+    cmd
+}
+
 fn make_test_cmd(no_capture: bool) -> process::Command {
-    let mut cmd = find_command("cargo");
+    let mut cmd = cargo();
     cmd.args(["test", "--workspace", "--all-features"]);
     if no_capture {
         cmd.args(["--", "--nocapture"]);
@@ -138,23 +180,22 @@ fn make_test_cmd(no_capture: bool) -> process::Command {
 }
 
 fn make_format_cmd(fix: bool) -> process::Command {
-    let mut cmd = find_command("cargo");
+    let mut cmd = cargo();
     cmd.args(["+nightly", "fmt", "--all"]);
     if !fix {
-        cmd.arg("--check");
+        cmd.args(["--", "--check"]);
     }
     cmd
 }
 
 fn make_clippy_cmd(fix: bool) -> process::Command {
-    let mut cmd = find_command("cargo");
+    let mut cmd = cargo();
     cmd.args([
         "+nightly",
         "clippy",
-        "--tests",
-        "--all-features",
-        "--all-targets",
         "--workspace",
+        "--all-targets",
+        "--all-features",
     ]);
     if fix {
         cmd.args(["--allow-staged", "--allow-dirty", "--fix"]);
@@ -164,13 +205,26 @@ fn make_clippy_cmd(fix: bool) -> process::Command {
     cmd
 }
 
+fn make_doc_cmd() -> process::Command {
+    let mut cmd = cargo();
+    cmd.env("RUSTDOCFLAGS", "-D warnings --cfg docsrs");
+    cmd.args([
+        "+nightly",
+        "doc",
+        "--workspace",
+        "--all-features",
+        "--no-deps",
+    ]);
+    cmd
+}
+
 fn make_hawkeye_cmd(fix: bool) -> process::Command {
     ensure_installed("hawkeye", "hawkeye");
     let mut cmd = find_command("hawkeye");
     if fix {
-        cmd.args(["format"]);
+        cmd.arg("format");
     } else {
-        cmd.args(["check"]);
+        cmd.arg("check");
     }
     cmd
 }
@@ -184,7 +238,7 @@ fn make_taplo_cmd(fix: bool) -> process::Command {
     ensure_installed("taplo", "taplo-cli");
     let mut cmd = find_command("taplo");
     if fix {
-        cmd.args(["format"]);
+        cmd.arg("format");
     } else {
         cmd.args(["format", "--check"]);
     }
@@ -192,6 +246,5 @@ fn make_taplo_cmd(fix: bool) -> process::Command {
 }
 
 fn main() {
-    let cmd = Command::parse();
-    cmd.run()
+    Command::parse().run();
 }

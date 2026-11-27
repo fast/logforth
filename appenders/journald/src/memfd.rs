@@ -153,13 +153,3 @@ fn send_one_fd_to<P: AsRef<Path>>(socket: &UnixDatagram, fd: RawFd, path: P) -> 
         Ok(result as usize)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cmsg_buffer_size_for_one_fd() {
-        assert_cmsg_bufsize()
-    }
-}

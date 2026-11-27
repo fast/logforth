@@ -1239,31 +1239,3 @@ impl<'a> Iterator for KeyValuesIter<'a> {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::record::Record;
-
-    #[test]
-    fn duplicate_key_lookups_survive_ownership() {
-        fn assert_traits<T: Copy + Send + Sync>() {}
-        assert_traits::<Value<'_>>();
-        let first = 1_i32.log_value();
-        assert_eq!(first.view().to_i64(), Some(1));
-        assert!(matches!(None::<i32>.log_value().view(), ValueView::None));
-        let second = ValueOwned::i64(2);
-        let key = Key::new("k");
-        let inner = [(key, first), (key, second.log_value())];
-        let map_opt = Some(Value::map(&inner));
-        let outer = [(key, first), (key, map_opt.log_value())];
-        let record = Record::builder().key_values(outer.as_slice()).build();
-        let check = |r: Record<'_>| {
-            let map = r.key_values().get("k").unwrap().to_map().unwrap();
-            assert_eq!(map.get("k").unwrap().to_i64(), Some(2));
-        };
-        let owned = record.to_owned();
-        check(record);
-        owned.with(check);
-    }
-}

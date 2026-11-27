@@ -17,16 +17,12 @@ use jiff::Timestamp;
 #[derive(Debug)]
 pub enum Clock {
     DefaultClock,
-    #[cfg(test)]
-    ManualClock(Timestamp),
 }
 
 impl Clock {
     pub fn now(&self) -> Timestamp {
         match self {
             Clock::DefaultClock => Timestamp::now(),
-            #[cfg(test)]
-            Clock::ManualClock(now) => *now,
         }
     }
 }

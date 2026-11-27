@@ -16,12 +16,11 @@
 name = "logforth-filter-rustlog"
 version = "0.4.0"
 
-description = "RUST_LOG directive pattern filter for Logforth."
-keywords = ["logging", "log", "fastrace"]
+description = "Filter matching the RUST_LOG directive syntax for Logforth."
+keywords = ["logging", "log", "env-filter"]
 
 categories.workspace = true
 edition.workspace = true
-homepage.workspace = true
 license.workspace = true
 readme.workspace = true
 repository.workspace = true
@@ -33,9 +32,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 logforth-core = { workspace = true }
-
-[dev-dependencies]
-insta = { workspace = true }
 
 [lints]
 workspace = true

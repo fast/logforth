@@ -1,22 +1,22 @@
 # Repository Guidelines
 
-This document is the single source of truth for workspace structure, development commands, Rust style, documentation contracts, testing, changelog rules, and pull request conventions for both human contributors and coding agents. Keep documented workflows synchronized with structural changes, and run `cargo x build`, `cargo x test`, and `cargo x lint` before submitting or handing work back.
+This document is the single source of truth for workspace structure, development commands, Rust style, documentation contracts, testing, changelog rules, and pull request conventions for both human contributors and coding agents. Keep documented workflows synchronized with structural changes, and run `cargo x check`, `cargo x test`, and `cargo x lint` before submitting or handing work back.
 
 For architectural direction, pipeline semantics, and the target `1.0` design, see [DESIGN.md](DESIGN.md).
 
 ## Workspace Layout
 
-| Crate           | Purpose                                                                                                                           |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `core`          | Zero-mandatory-dependency core library (`logforth-core`): `Logger`, `Record`, `kv`, native macros, and the five extension traits. |
-| `logforth`      | Umbrella facade crate re-exporting `logforth-core`, optional peripheral crates behind feature flags, and `starter_log`.           |
-| `appenders/*`   | Built-in appender crates (`async`, `fastrace`, `file`, `journald`, `opentelemetry`, `syslog`).                                    |
-| `layouts/*`     | Built-in layout crates (`google-cloud-logging`, `json`, `logfmt`, `text`).                                                        |
-| `filters/*`     | Built-in filter crates (`rustlog`).                                                                                               |
-| `diagnostics/*` | Built-in diagnostic context crates (`fastrace`, `task-local`).                                                                    |
-| `bridges/*`     | Ecosystem bridge crates (`log`).                                                                                                  |
-| `examples`      | Standalone runnable end-to-end scenarios (`cargo run --example ...`).                                                             |
-| `xtask` (`x`)   | Workspace automation entrypoint exposed via the `cargo x` alias defined in `.cargo/config.toml`.                                  |
+| Crate               | Purpose                                                                                                                           |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `core`              | Zero-mandatory-dependency core library (`logforth-core`): `Logger`, `Record`, `kv`, native macros, and the five extension traits. |
+| `logforth`          | Umbrella facade crate re-exporting `logforth-core`, optional peripheral crates behind feature flags, and `starter_log`.           |
+| `appenders/*`       | Built-in appender crates (`async`, `fastrace`, `file`, `journald`, `opentelemetry`, `syslog`).                                    |
+| `layouts/*`         | Built-in layout crates (`google-cloud-logging`, `json`, `logfmt`, `text`).                                                        |
+| `filters/*`         | Built-in filter crates (`rustlog`).                                                                                               |
+| `diagnostics/*`     | Built-in diagnostic context crates (`fastrace`, `task-local`).                                                                    |
+| `bridges/*`         | Ecosystem bridge crates (`log`).                                                                                                  |
+| `tests-integration` | End-to-end and cross-crate integration tests (`logforth` and `logforth-core` across feature flags).                               |
+| `xtask` (`x`)       | Workspace automation entrypoint exposed via the `cargo x` alias defined in `.cargo/config.toml`.                                  |
 
 ## Workflows
 
@@ -24,12 +24,13 @@ Use `cargo x` as the single entrypoint for repository checks and automation (rea
 
 ```shell
 cargo x build              # Compile all workspace packages and targets with all features
+cargo x check              # Check workspace packages across feature configurations
 cargo x test               # Run workspace tests with all features enabled (--no-capture supported)
-cargo x lint               # Run nightly clippy, rustfmt, taplo, typos, and hawkeye checks
+cargo x lint               # Run nightly clippy, rustfmt, taplo, typos, hawkeye, and docsrs rustdoc checks
 cargo x lint --fix         # Automatically apply clippy, rustfmt, taplo, and hawkeye fixes
 ```
 
-`cargo x lint` requires a `nightly` toolchain with `rustfmt` and `clippy`. CI also verifies both `stable` and the workspace MSRV (`rust-version` in `Cargo.toml`) across Linux, macOS, and Windows alongside runnable examples in `examples/`.
+`cargo x lint` requires a `nightly` toolchain with `rustfmt` and `clippy`. CI also verifies both `stable` and the workspace MSRV (`rust-version` in `Cargo.toml`) across Linux, macOS, and Windows.
 
 ## Rust Style
 
@@ -47,7 +48,7 @@ cargo x lint --fix         # Automatically apply clippy, rustfmt, taplo, and haw
 
 ## Testing
 
-- Exercise observable contracts through public APIs in crate `tests/` targets, and keep `#[cfg(test)]` unit tests next to the implementation strictly for private invariants that black-box tests cannot reach.
+- Exercise observable contracts through public APIs in `tests-integration`, and keep `#[cfg(test)]` unit tests next to the implementation strictly for private invariants that black-box tests cannot reach cleanly.
 - Every test must guard a realistic regression without mirroring literals, trivial control flow, static type guarantees, or non-contract `Debug` wording.
 - Avoid test-only production hooks, and coordinate concurrent tests deterministically instead of sleeping.
 
