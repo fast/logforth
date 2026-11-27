@@ -35,4 +35,10 @@ pub use self::layout::Layout;
 mod logger;
 pub use self::logger::*;
 
+mod macros;
+#[doc(hidden)]
+pub use self::macros::__private;
+#[doc(hidden)]
+pub use self::macros::__private::log as __private_log;
+
 mod str;

@@ -34,12 +34,12 @@ async fn main() {
             log::warn!("Hello warn!");
             log::info!("Hello info!");
         }
-        .with_task_local_context([("k3".to_string(), "v3".to_string())])
+        .with_task_local_context([("k3", "v3")])
         .await;
         log::debug!("Hello debug!");
         log::trace!("Hello trace!");
     }
-    .with_task_local_context([("k1".to_string(), "v1".to_string())])
-    .with_task_local_context([("k2".to_string(), "v2".to_string())])
+    .with_task_local_context([("k1", "v1")])
+    .with_task_local_context([("k2", "v2")])
     .await;
 }
