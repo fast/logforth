@@ -58,42 +58,34 @@ impl Worker {
                     let diag = AsyncDiagnostic(diags);
 
                     record.with(|record| {
-                        for append in appends.iter() {
-                            match catch_unwind(AssertUnwindSafe(|| append.append(&record, &diag))) {
-                                Ok(Ok(())) => {}
-                                Ok(Err(err)) => {
-                                    let err =
-                                        Error::new("failed to append record").with_source(err);
-                                    error_sink.sink(&err);
-                                }
-                                Err(payload) => {
-                                    let err = Error::new("failed to append record")
-                                        .with_source(panic_error(payload));
-                                    error_sink.sink(&err);
-                                }
-                            }
+                        for append in &appends {
+                            run_guarded(&*error_sink, "failed to append record", || {
+                                append.append(&record, &diag)
+                            });
                         }
                     });
                 }
                 Task::Flush { done } => {
-                    for append in appends.iter() {
-                        match catch_unwind(AssertUnwindSafe(|| append.flush())) {
-                            Ok(Ok(())) => {}
-                            Ok(Err(err)) => {
-                                let err = Error::new("failed to flush appender").with_source(err);
-                                error_sink.sink(&err);
-                            }
-                            Err(payload) => {
-                                let err = Error::new("failed to flush appender")
-                                    .with_source(panic_error(payload));
-                                error_sink.sink(&err);
-                            }
-                        }
+                    for append in &appends {
+                        run_guarded(&*error_sink, "failed to flush appender", || append.flush());
                     }
                     let _ = done.send(());
                 }
             }
         }
+    }
+}
+
+fn run_guarded(
+    error_sink: &dyn ErrorSink,
+    context: &'static str,
+    f: impl FnOnce() -> Result<(), Error>,
+) {
+    let result =
+        catch_unwind(AssertUnwindSafe(f)).unwrap_or_else(|payload| Err(panic_error(payload)));
+    if let Err(err) = result {
+        let err = Error::new(context).with_source(err);
+        error_sink.sink(&err);
     }
 }
 
