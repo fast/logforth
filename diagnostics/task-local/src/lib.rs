@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! A diagnostic that stores key-value pairs in a task-local map.
+//! A diagnostic that stores key-value pairs in a task-local context stack.
 //!
 //! # Examples
 //!
@@ -48,6 +48,9 @@ thread_local! {
 
 /// A diagnostic that stores key-value pairs in a task-local context.
 ///
+/// Nested [`FutureExt::with_task_local_context`] scopes shadow outer values for the same key and
+/// restore them when the inner future completes.
+///
 /// See the [crate documentation](self) for usage examples.
 #[derive(Default, Debug, Clone)]
 #[non_exhaustive]
@@ -55,16 +58,33 @@ pub struct TaskLocalDiagnostic {}
 
 impl Diagnostic for TaskLocalDiagnostic {
     fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
-        TASK_LOCAL_MAP.with(|map| {
-            let map = map.borrow();
-            for context in map.iter() {
-                for (key, value) in context.iter() {
-                    visitor.visit(key.view(), value.view())?;
+        TASK_LOCAL_MAP
+            .try_with(|map| {
+                let frames = map.borrow();
+                for (frame_idx, frame) in frames.iter().enumerate() {
+                    let inner_frames = &frames[frame_idx + 1..];
+                    for (entry_idx, (key, value)) in frame.iter().enumerate() {
+                        let rest_in_frame = &frame[entry_idx + 1..];
+                        if !is_shadowed(key, rest_in_frame, inner_frames) {
+                            visitor.visit(key.view(), value.view())?;
+                        }
+                    }
                 }
-            }
-            Ok(())
-        })
+                Ok(())
+            })
+            .unwrap_or(Ok(()))
     }
+}
+
+fn is_shadowed(
+    key: &KeyOwned,
+    rest_in_frame: &[(KeyOwned, ValueOwned)],
+    inner_frames: &[TaskLocalContext],
+) -> bool {
+    rest_in_frame.iter().any(|(k, _)| k == key)
+        || inner_frames
+            .iter()
+            .any(|frame| frame.iter().any(|(k, _)| k == key))
 }
 
 /// An extension trait for futures to run them with a task-local context.
@@ -98,26 +118,24 @@ impl<F: Future> Future for TaskLocalFuture<F> {
     type Output = F::Output;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = self.project();
-
-        let future = this.future;
-
-        struct Guard(());
+        struct Guard;
 
         impl Drop for Guard {
             fn drop(&mut self) {
-                TASK_LOCAL_MAP.with(|map| map.borrow_mut().pop());
+                let _ = TASK_LOCAL_MAP.try_with(|map| {
+                    map.borrow_mut().pop();
+                });
             }
         }
 
-        TASK_LOCAL_MAP.with(|map| map.borrow_mut().push(this.context.clone()));
-
-        let guard = Guard(());
-
-        let result = future.poll(cx);
-
-        drop(guard);
-        result
+        let this = self.project();
+        let _guard = TASK_LOCAL_MAP
+            .try_with(|map| {
+                map.borrow_mut().push(this.context.clone());
+                Guard
+            })
+            .ok();
+        this.future.poll(cx)
     }
 }
 
@@ -129,18 +147,48 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_task_local_diagnostic() {
+    fn test_task_local_diagnostic_shadowing_and_restore() {
         let diag = TaskLocalDiagnostic {};
-        let fut = async {
-            let mut n = 0;
+        let collect = || {
+            let mut entries = Vec::new();
             diag.visit(&mut |key: KeyView<'_>, value: ValueView<'_>| {
-                n += 1;
-                assert_eq!(key.as_str(), format!("k{n}"));
-                assert_eq!(value.to_str().unwrap(), format!("v{n}"));
+                entries.push((key.as_str().to_owned(), value.to_string()));
                 Ok(())
             })
             .unwrap();
+            entries
         };
-        pollster::block_on(fut.with_task_local_context([("k1", "v1"), ("k2", "v2")]));
+
+        let fut = async {
+            assert_eq!(
+                collect(),
+                [
+                    ("tenant".to_owned(), "acme".to_owned()),
+                    ("key".to_owned(), "v1".to_owned()),
+                ]
+            );
+            async {
+                assert_eq!(
+                    collect(),
+                    [
+                        ("tenant".to_owned(), "acme".to_owned()),
+                        ("key".to_owned(), "v2".to_owned()),
+                        ("step".to_owned(), "inner".to_owned()),
+                    ]
+                );
+            }
+            .with_task_local_context([("key", "v2"), ("step", "inner")])
+            .await;
+            assert_eq!(
+                collect(),
+                [
+                    ("tenant".to_owned(), "acme".to_owned()),
+                    ("key".to_owned(), "v1".to_owned()),
+                ]
+            );
+        }
+        .with_task_local_context([("tenant", "acme"), ("key", "v1")]);
+
+        pollster::block_on(fut);
     }
 }

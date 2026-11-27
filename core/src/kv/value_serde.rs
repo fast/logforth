@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
 use std::fmt;
 
 use crate::Error;
@@ -55,13 +54,7 @@ impl std::error::Error for ValueError {}
 
 impl serde::ser::Error for ValueError {
     fn custom<T: fmt::Display>(msg: T) -> Self {
-        let mut buf = String::new();
-        let message = if fmt::write(&mut buf, format_args!("{msg}")).is_ok() {
-            buf
-        } else {
-            String::from("serialization failed")
-        };
-        Self(Error::new(message))
+        Self(Error::new(msg.to_string()))
     }
 }
 
@@ -78,16 +71,16 @@ struct ValueSerializeTupleVariant {
 
 struct ValueSerializeMap {
     key: Option<KeyOwned>,
-    entries: HashMap<KeyOwned, ValueOwned>,
+    entries: Vec<(KeyOwned, ValueOwned)>,
 }
 
 struct ValueSerializeStruct {
-    entries: HashMap<KeyOwned, ValueOwned>,
+    entries: Vec<(KeyOwned, ValueOwned)>,
 }
 
 struct ValueSerializeStructVariant {
     variant: &'static str,
-    entries: HashMap<KeyOwned, ValueOwned>,
+    entries: Vec<(KeyOwned, ValueOwned)>,
 }
 
 impl serde::Serializer for ValueSerializer {
@@ -208,9 +201,10 @@ impl serde::Serializer for ValueSerializer {
         variant: &'static str,
         value: &T,
     ) -> Result<Self::Ok, Self::Error> {
-        let mut entries = HashMap::with_capacity(1);
-        entries.insert(KeyOwned::new(variant), value.serialize(ValueSerializer)?);
-        Ok(ValueOwned::from_hash_map(entries))
+        Ok(ValueOwned::map([(
+            KeyOwned::new(variant),
+            value.serialize(ValueSerializer)?,
+        )]))
     }
 
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
@@ -251,7 +245,7 @@ impl serde::Serializer for ValueSerializer {
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
         Ok(ValueSerializeMap {
             key: None,
-            entries: HashMap::with_capacity(len.unwrap_or(0)),
+            entries: Vec::with_capacity(len.unwrap_or(0)),
         })
     }
 
@@ -261,7 +255,7 @@ impl serde::Serializer for ValueSerializer {
         len: usize,
     ) -> Result<Self::SerializeStruct, Self::Error> {
         Ok(ValueSerializeStruct {
-            entries: HashMap::with_capacity(len),
+            entries: Vec::with_capacity(len),
         })
     }
 
@@ -274,15 +268,12 @@ impl serde::Serializer for ValueSerializer {
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
         Ok(ValueSerializeStructVariant {
             variant,
-            entries: HashMap::with_capacity(len),
+            entries: Vec::with_capacity(len),
         })
     }
 
     fn collect_str<T: ?Sized + fmt::Display>(self, value: &T) -> Result<Self::Ok, Self::Error> {
-        let mut buf = String::new();
-        fmt::write(&mut buf, format_args!("{value}"))
-            .map_err(|_| ValueError(Error::new("failed to format Display value")))?;
-        Ok(ValueOwned::str(buf))
+        Ok(ValueOwned::str(value.to_string()))
     }
 }
 
@@ -299,7 +290,7 @@ impl serde::ser::SerializeSeq for ValueSerializeSeq {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueOwned::from_vec(self.values))
+        Ok(ValueOwned::list(self.values))
     }
 }
 
@@ -316,7 +307,7 @@ impl serde::ser::SerializeTuple for ValueSerializeSeq {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueOwned::from_vec(self.values))
+        Ok(ValueOwned::list(self.values))
     }
 }
 
@@ -333,7 +324,7 @@ impl serde::ser::SerializeTupleStruct for ValueSerializeSeq {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueOwned::from_vec(self.values))
+        Ok(ValueOwned::list(self.values))
     }
 }
 
@@ -350,12 +341,10 @@ impl serde::ser::SerializeTupleVariant for ValueSerializeTupleVariant {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        let mut outer = HashMap::with_capacity(1);
-        outer.insert(
+        Ok(ValueOwned::map([(
             KeyOwned::new(self.variant),
-            ValueOwned::from_vec(self.values),
-        );
-        Ok(ValueOwned::from_hash_map(outer))
+            ValueOwned::list(self.values),
+        )]))
     }
 }
 
@@ -366,11 +355,7 @@ impl serde::ser::SerializeMap for ValueSerializeMap {
     fn serialize_key<T: serde::Serialize + ?Sized>(&mut self, key: &T) -> Result<(), Self::Error> {
         let key = match key.serialize(ValueSerializer)?.0 {
             ValueOwnedState::Str(s) => KeyOwned(s),
-            other => {
-                let mut buf = String::new();
-                let _ = fmt::write(&mut buf, format_args!("{}", ValueOwned(other).view()));
-                KeyOwned::new(buf)
-            }
+            other => KeyOwned::new(ValueOwned(other).view().to_string()),
         };
         self.key = Some(key);
         Ok(())
@@ -384,13 +369,12 @@ impl serde::ser::SerializeMap for ValueSerializeMap {
             .key
             .take()
             .ok_or_else(|| serde::ser::Error::custom("missing map key"))?;
-        let value = value.serialize(ValueSerializer)?;
-        self.entries.insert(key, value);
+        self.entries.push((key, value.serialize(ValueSerializer)?));
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueOwned::from_hash_map(self.entries))
+        Ok(ValueOwned::map(self.entries))
     }
 }
 
@@ -404,12 +388,12 @@ impl serde::ser::SerializeStruct for ValueSerializeStruct {
         value: &T,
     ) -> Result<(), Self::Error> {
         self.entries
-            .insert(KeyOwned::new(key), value.serialize(ValueSerializer)?);
+            .push((KeyOwned::new(key), value.serialize(ValueSerializer)?));
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(ValueOwned::from_hash_map(self.entries))
+        Ok(ValueOwned::map(self.entries))
     }
 }
 
@@ -423,17 +407,15 @@ impl serde::ser::SerializeStructVariant for ValueSerializeStructVariant {
         value: &T,
     ) -> Result<(), Self::Error> {
         self.entries
-            .insert(KeyOwned::new(key), value.serialize(ValueSerializer)?);
+            .push((KeyOwned::new(key), value.serialize(ValueSerializer)?));
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        let mut outer = HashMap::with_capacity(1);
-        outer.insert(
+        Ok(ValueOwned::map([(
             KeyOwned::new(self.variant),
-            ValueOwned::from_hash_map(self.entries),
-        );
-        Ok(ValueOwned::from_hash_map(outer))
+            ValueOwned::map(self.entries),
+        )]))
     }
 }
 
@@ -476,6 +458,17 @@ mod tests {
         .unwrap();
 
         let map = owned.view().to_map().unwrap();
+        assert_eq!(
+            map.iter().map(|(k, _)| k.as_str()).collect::<Vec<_>>(),
+            [
+                "ok",
+                "big_signed",
+                "big_unsigned",
+                "tags",
+                "dynamic_keys",
+                "numeric_keys"
+            ]
+        );
         assert_eq!(map.get("ok").and_then(|v| v.to_bool()), Some(true));
         assert_eq!(
             map.get("big_signed").and_then(|v| v.to_i128()),

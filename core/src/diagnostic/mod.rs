@@ -26,6 +26,7 @@ mod thread_local;
 
 pub use self::static_global::StaticDiagnostic;
 pub use self::thread_local::ThreadLocalDiagnostic;
+pub use self::thread_local::ThreadLocalDiagnosticGuard;
 
 /// A Mapped Diagnostic Context (MDC) that provides diagnostic key-values.
 pub trait Diagnostic: fmt::Debug + Send + Sync {

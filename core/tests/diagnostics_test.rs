@@ -24,6 +24,7 @@ use logforth_core::Error;
 use logforth_core::Filter;
 use logforth_core::Layout;
 use logforth_core::diagnostic::StaticDiagnostic;
+use logforth_core::diagnostic::ThreadLocalDiagnostic;
 use logforth_core::filter::FilterResult;
 use logforth_core::kv::Key;
 use logforth_core::kv::KeyView;
@@ -99,6 +100,51 @@ fn collect_diags(diags: &dyn Diagnostic) -> Result<Vec<(String, String)>, Error>
         Ok(())
     })?;
     Ok(entries)
+}
+
+#[test]
+fn thread_local_scopes_shadow_and_restore_including_out_of_order_drop() {
+    let diag = ThreadLocalDiagnostic::default();
+
+    let outer = ThreadLocalDiagnostic::scope([("tenant", "acme"), ("request", "outer")]);
+    assert_eq!(
+        collect_diags(&diag).unwrap(),
+        [
+            ("tenant".to_owned(), "acme".to_owned()),
+            ("request".to_owned(), "outer".to_owned()),
+        ]
+    );
+
+    let inner = ThreadLocalDiagnostic::scope([("request", "inner"), ("step", "auth")]);
+    assert_eq!(
+        collect_diags(&diag).unwrap(),
+        [
+            ("tenant".to_owned(), "acme".to_owned()),
+            ("request".to_owned(), "inner".to_owned()),
+            ("step".to_owned(), "auth".to_owned()),
+        ]
+    );
+
+    drop(inner);
+    assert_eq!(
+        collect_diags(&diag).unwrap(),
+        [
+            ("tenant".to_owned(), "acme".to_owned()),
+            ("request".to_owned(), "outer".to_owned()),
+        ]
+    );
+    drop(outer);
+    assert!(collect_diags(&diag).unwrap().is_empty());
+
+    let outer = ThreadLocalDiagnostic::scope([("tenant", "acme"), ("request", "outer")]);
+    let inner = ThreadLocalDiagnostic::scope([("request", "inner")]);
+    drop(outer);
+    assert_eq!(
+        collect_diags(&diag).unwrap(),
+        [("request".to_owned(), "inner".to_owned())]
+    );
+    drop(inner);
+    assert!(collect_diags(&diag).unwrap().is_empty());
 }
 
 #[test]
