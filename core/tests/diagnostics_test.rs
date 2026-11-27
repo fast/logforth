@@ -24,6 +24,7 @@ use logforth_core::Error;
 use logforth_core::Filter;
 use logforth_core::Layout;
 use logforth_core::diagnostic::StaticDiagnostic;
+use logforth_core::diagnostic::ThreadLocalDiagnostic;
 use logforth_core::filter::FilterResult;
 use logforth_core::kv::Key;
 use logforth_core::kv::KeyView;
@@ -99,6 +100,37 @@ fn collect_diags(diags: &dyn Diagnostic) -> Result<Vec<(String, String)>, Error>
         Ok(())
     })?;
     Ok(entries)
+}
+
+#[test]
+fn thread_local_scopes_shadow_unscoped_updates_and_allow_out_of_order_drop() {
+    let diag = ThreadLocalDiagnostic::default();
+    let assert_visible = |value: &str| {
+        assert_eq!(
+            collect_diags(&diag).unwrap(),
+            [("request".to_owned(), value.to_owned())]
+        );
+    };
+
+    let outer = ThreadLocalDiagnostic::scope([("request", "outer")]);
+    ThreadLocalDiagnostic::insert("request", "base");
+    assert_visible("outer");
+    let inner = ThreadLocalDiagnostic::scope([("request", "inner")]);
+    ThreadLocalDiagnostic::insert("request", "updated");
+    assert_visible("inner");
+    drop(inner);
+    assert_visible("outer");
+    drop(outer);
+    assert_visible("updated");
+
+    let outer = ThreadLocalDiagnostic::scope([("request", "outer")]);
+    let inner = ThreadLocalDiagnostic::scope([("request", "inner")]);
+    ThreadLocalDiagnostic::remove("request");
+    assert_visible("inner");
+    drop(outer);
+    assert_visible("inner");
+    drop(inner);
+    assert!(collect_diags(&diag).unwrap().is_empty());
 }
 
 #[test]

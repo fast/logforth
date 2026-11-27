@@ -55,15 +55,17 @@ pub struct TaskLocalDiagnostic {}
 
 impl Diagnostic for TaskLocalDiagnostic {
     fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
-        TASK_LOCAL_MAP.with(|map| {
-            let map = map.borrow();
-            for context in map.iter() {
-                for (key, value) in context.iter() {
-                    visitor.visit(key.view(), value.view())?;
+        TASK_LOCAL_MAP
+            .try_with(|map| {
+                let map = map.borrow();
+                for context in map.iter() {
+                    for (key, value) in context.iter() {
+                        visitor.visit(key.view(), value.view())?;
+                    }
                 }
-            }
-            Ok(())
-        })
+                Ok(())
+            })
+            .unwrap_or(Ok(()))
     }
 }
 
@@ -98,26 +100,24 @@ impl<F: Future> Future for TaskLocalFuture<F> {
     type Output = F::Output;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = self.project();
-
-        let future = this.future;
-
-        struct Guard(());
+        struct Guard;
 
         impl Drop for Guard {
             fn drop(&mut self) {
-                TASK_LOCAL_MAP.with(|map| map.borrow_mut().pop());
+                let _ = TASK_LOCAL_MAP.try_with(|map| {
+                    map.borrow_mut().pop();
+                });
             }
         }
 
-        TASK_LOCAL_MAP.with(|map| map.borrow_mut().push(this.context.clone()));
-
-        let guard = Guard(());
-
-        let result = future.poll(cx);
-
-        drop(guard);
-        result
+        let this = self.project();
+        let _guard = TASK_LOCAL_MAP
+            .try_with(|map| {
+                map.borrow_mut().push(this.context.clone());
+                Guard
+            })
+            .ok();
+        this.future.poll(cx)
     }
 }
 
@@ -135,12 +135,16 @@ mod tests {
             let mut n = 0;
             diag.visit(&mut |key: KeyView<'_>, value: ValueView<'_>| {
                 n += 1;
-                assert_eq!(key.as_str(), format!("k{n}"));
+                assert_eq!(key.as_str(), "key");
                 assert_eq!(value.to_str().unwrap(), format!("v{n}"));
                 Ok(())
             })
             .unwrap();
+            assert_eq!(n, 2);
         };
-        pollster::block_on(fut.with_task_local_context([("k1", "v1"), ("k2", "v2")]));
+        pollster::block_on(
+            fut.with_task_local_context([("key", "v2")])
+                .with_task_local_context([("key", "v1")]),
+        );
     }
 }

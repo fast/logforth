@@ -16,11 +16,11 @@ use std::collections::BTreeMap;
 
 use crate::Diagnostic;
 use crate::Error;
-use crate::kv::Key;
-use crate::kv::Value;
+use crate::kv::KeyOwned;
+use crate::kv::ValueOwned;
 use crate::kv::Visitor;
 
-/// A diagnostic that stores key-value pairs in a static global map.
+/// A diagnostic that stores key-value pairs in a static map.
 ///
 /// ## Example
 ///
@@ -29,29 +29,37 @@ use crate::kv::Visitor;
 ///
 /// let mut diagnostic = StaticDiagnostic::default();
 /// diagnostic.insert("app_name", "acme");
+/// diagnostic.insert("workers", 4);
 /// ```
 #[derive(Default, Debug, Clone)]
 #[non_exhaustive]
 pub struct StaticDiagnostic {
-    kvs: BTreeMap<String, String>,
+    kvs: BTreeMap<KeyOwned, ValueOwned>,
 }
 
 impl StaticDiagnostic {
-    /// Create a new [`StaticDiagnostic`] instance with a prebuilt key-value store.
-    pub fn new(kvs: BTreeMap<String, String>) -> Self {
-        Self { kvs }
+    /// Creates a new [`StaticDiagnostic`] populated from `kvs`.
+    pub fn new<K, V, I>(kvs: I) -> Self
+    where
+        K: Into<KeyOwned>,
+        V: Into<ValueOwned>,
+        I: IntoIterator<Item = (K, V)>,
+    {
+        Self {
+            kvs: kvs.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+        }
     }
 
-    /// Insert a key-value pair into the static diagnostic .
+    /// Inserts or replaces a key-value pair in the diagnostic map.
     pub fn insert<K, V>(&mut self, key: K, value: V)
     where
-        K: Into<String>,
-        V: Into<String>,
+        K: Into<KeyOwned>,
+        V: Into<ValueOwned>,
     {
         self.kvs.insert(key.into(), value.into());
     }
 
-    /// Remove a key-value pair from the static diagnostic.
+    /// Removes a key-value pair from the diagnostic map.
     pub fn remove(&mut self, key: &str) {
         self.kvs.remove(key);
     }
@@ -59,9 +67,7 @@ impl StaticDiagnostic {
 
 impl Diagnostic for StaticDiagnostic {
     fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
-        for (key, value) in self.kvs.iter() {
-            let key = Key::borrowed(key.as_str());
-            let value = Value::str(value);
+        for (key, value) in &self.kvs {
             visitor.visit(key.view(), value.view())?;
         }
         Ok(())
