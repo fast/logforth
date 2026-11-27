@@ -13,6 +13,9 @@
 // limitations under the License.
 
 //! Key-value pairs in a log record or a diagnostic context.
+//!
+//! Keys prefixed with `logforth.` are reserved by Logforth; avoid using `logforth.*` for
+//! application-defined fields unless intentionally invoking a documented behavior.
 
 use std::borrow::Borrow;
 use std::borrow::Cow;
@@ -23,6 +26,9 @@ use std::slice;
 
 use crate::Error;
 use crate::str::RefStr;
+
+#[cfg(feature = "serde")]
+mod value_serde;
 
 /// A visitor to walk through key-value pairs.
 pub trait Visitor {

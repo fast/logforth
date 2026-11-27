@@ -104,3 +104,8 @@ workspace = true
 name = "recursive_logging"
 path = "tests/recursive_logging.rs"
 required-features = ["starter-log"]
+
+[[test]]
+name = "starter_log"
+path = "tests/starter_log.rs"
+required-features = ["starter-log"]

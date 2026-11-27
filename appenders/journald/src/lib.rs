@@ -59,9 +59,8 @@ fn current_exe_identifier() -> Option<String> {
 ///
 /// It also sets `SYSLOG_IDENTIFIER` if non-empty (see [`Journald::with_syslog_identifier`]).
 ///
-/// Additionally, it also adds the following non-standard fields:
+/// Additionally, it also adds the following non-standard field:
 ///
-/// - `TARGET`: The target of the log record (see [`Record::target()`]).
 /// - `CODE_MODULE`: The module path of the log record (see [`Record::module_path()`], only if
 ///   present).
 ///
@@ -311,11 +310,6 @@ impl Append for Journald {
             // SAFETY: write to a Vec<u8> always succeeds
             writeln!(&mut buffer, "CODE_LINE={line}").unwrap();
         }
-        put_field_bytes(
-            &mut buffer,
-            FieldName::WellFormed("TARGET"),
-            record.target().as_bytes(),
-        );
         // Put all structured values of the record
         let mut visitor = WriteKeyValues(&mut buffer);
         record.key_values().visit(&mut visitor)?;

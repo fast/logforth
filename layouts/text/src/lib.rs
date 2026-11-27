@@ -213,7 +213,7 @@ impl Layout for TextLayout {
         };
 
         let level = self.format_record_level(record.level());
-        let target = record.target();
+        let module_path = record.module_path().unwrap_or_default();
         let file = record.filename();
         let line = record.line().unwrap_or_default();
         let message = record.payload();
@@ -221,7 +221,7 @@ impl Layout for TextLayout {
         let mut visitor = KvWriter { text: time };
         write!(
             &mut visitor.text,
-            " {level:>6} {target}: {file}:{line} {message}"
+            " {level:>6} {module_path}: {file}:{line} {message}"
         )
         .unwrap();
         record.key_values().visit(&mut visitor)?;

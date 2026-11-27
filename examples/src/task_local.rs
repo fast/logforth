@@ -16,16 +16,17 @@ use logforth::diagnostic::TaskLocalDiagnostic;
 use logforth::diagnostic::task_local::FutureExt;
 use logforth::layout::TextLayout;
 use logforth::record::LevelFilter;
+use logforth::starter_log::LogStarterExt;
 
 #[tokio::main]
 async fn main() {
-    logforth::starter_log::builder()
+    logforth::builder()
         .dispatch(|d| {
             d.filter(LevelFilter::All)
                 .diagnostic(TaskLocalDiagnostic::default())
                 .append(logforth::append::Stderr::default().with_layout(TextLayout::default()))
         })
-        .apply();
+        .install();
 
     async {
         async {

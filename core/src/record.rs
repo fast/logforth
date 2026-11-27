@@ -32,7 +32,6 @@ pub struct Record<'a> {
 
     // the metadata
     level: Level,
-    target: RefStr<'a>,
     module_path: Option<RefStr<'a>>,
     file: Option<RefStr<'a>>,
     line: Option<u32>,
@@ -56,20 +55,6 @@ impl<'a> Record<'a> {
     /// See [`Level`] for details.
     pub fn level(&self) -> Level {
         self.level
-    }
-
-    /// The name of the target of the directive.
-    ///
-    /// This is typically the same as the module path, but can be set explicitly.
-    pub fn target(&self) -> &'a str {
-        self.target.get()
-    }
-
-    /// The name of the target of the directive, if it is a `'static` str.
-    ///
-    /// This is typically the same as the module path, but can be set explicitly.
-    pub fn target_static(&self) -> Option<&'static str> {
-        self.target.get_static()
     }
 
     /// The module path of the message.
@@ -105,7 +90,7 @@ impl<'a> Record<'a> {
 
     /// The line number in the source file.
     ///
-    /// This is typically set by the logging macro. If set, returns `Some(column)`; otherwise,
+    /// This is typically set by the logging macro. If set, returns `Some(line)`; otherwise,
     /// returns `None`.
     pub fn line(&self) -> Option<u32> {
         self.line
@@ -139,7 +124,6 @@ impl<'a> Record<'a> {
             record: Record {
                 now: self.now,
                 level: self.level,
-                target: self.target,
                 module_path: self.module_path,
                 file: self.file,
                 line: self.line,
@@ -155,7 +139,6 @@ impl<'a> Record<'a> {
         RecordOwned {
             now: self.now,
             level: self.level,
-            target: self.target.into_cow_static(),
             module_path: self.module_path.map(|m| m.into_cow_static()),
             file: self.file.map(|f| f.into_cow_static()),
             line: self.line,
@@ -191,7 +174,6 @@ impl Default for RecordBuilder<'_> {
             record: Record {
                 now: SystemTime::now(),
                 level: Level::Info,
-                target: RefStr::Static(""),
                 module_path: None,
                 file: None,
                 line: None,
@@ -213,18 +195,6 @@ impl<'a> RecordBuilder<'a> {
     /// Set [`level`](Record::level).
     pub fn level(mut self, level: Level) -> Self {
         self.record.level = level;
-        self
-    }
-
-    /// Set [`target`](Record::target).
-    pub fn target(mut self, target: &'a str) -> Self {
-        self.record.target = RefStr::Borrowed(target);
-        self
-    }
-
-    /// Set [`target`](Record::target) to a `'static` string.
-    pub fn target_static(mut self, target: &'static str) -> Self {
-        self.record.target = RefStr::Static(target);
         self
     }
 
@@ -284,7 +254,6 @@ pub struct RecordOwned {
 
     // the metadata
     level: Level,
-    target: Cow<'static, str>,
     module_path: Option<Cow<'static, str>>,
     file: Option<Cow<'static, str>>,
     line: Option<u32>,
@@ -303,10 +272,6 @@ impl RecordOwned {
         f(Record {
             now: self.now,
             level: self.level,
-            target: match &self.target {
-                Cow::Borrowed(s) => RefStr::Static(s),
-                Cow::Owned(s) => RefStr::Borrowed(s.as_ref()),
-            },
             module_path: match &self.module_path {
                 Some(Cow::Borrowed(s)) => Some(RefStr::Static(s)),
                 Some(Cow::Owned(s)) => Some(RefStr::Borrowed(s)),
@@ -322,76 +287,6 @@ impl RecordOwned {
             payload: format_args!("{}", self.payload),
             kvs: KeyValues::from(self.kvs.as_slice()),
         });
-    }
-}
-
-/// A minimal set of criteria for pre-filtering purposes.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct FilterCriteria<'a> {
-    level: Level,
-    target: &'a str,
-}
-
-impl<'a> FilterCriteria<'a> {
-    /// Get the [`level`](Record::level).
-    pub fn level(&self) -> Level {
-        self.level
-    }
-
-    /// Get the [`target`](Record::target).
-    pub fn target(&self) -> &'a str {
-        self.target
-    }
-
-    /// Create a builder initialized with the current criteria's values.
-    pub fn to_builder(&self) -> FilterCriteriaBuilder<'a> {
-        FilterCriteriaBuilder {
-            metadata: FilterCriteria {
-                level: self.level,
-                target: self.target,
-            },
-        }
-    }
-
-    /// Return a brand-new builder.
-    pub fn builder() -> FilterCriteriaBuilder<'a> {
-        FilterCriteriaBuilder::default()
-    }
-}
-
-/// Builder for [`FilterCriteria`].
-#[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct FilterCriteriaBuilder<'a> {
-    metadata: FilterCriteria<'a>,
-}
-
-impl Default for FilterCriteriaBuilder<'_> {
-    fn default() -> Self {
-        FilterCriteriaBuilder {
-            metadata: FilterCriteria {
-                level: Level::Info,
-                target: "",
-            },
-        }
-    }
-}
-
-impl<'a> FilterCriteriaBuilder<'a> {
-    /// Setter for [`level`](FilterCriteria::level).
-    pub fn level(mut self, arg: Level) -> Self {
-        self.metadata.level = arg;
-        self
-    }
-
-    /// Setter for [`target`](FilterCriteria::target).
-    pub fn target(mut self, target: &'a str) -> Self {
-        self.metadata.target = target;
-        self
-    }
-
-    /// Invoke the builder and return a `Metadata`
-    pub fn build(self) -> FilterCriteria<'a> {
-        self.metadata
     }
 }
 
@@ -490,6 +385,35 @@ pub enum Level {
 }
 
 impl Level {
+    /// All 24 severity levels in ascending severity order from [`Level::Trace`] to
+    /// [`Level::Fatal4`].
+    pub const ALL: [Level; 24] = [
+        Level::Trace,
+        Level::Trace2,
+        Level::Trace3,
+        Level::Trace4,
+        Level::Debug,
+        Level::Debug2,
+        Level::Debug3,
+        Level::Debug4,
+        Level::Info,
+        Level::Info2,
+        Level::Info3,
+        Level::Info4,
+        Level::Warn,
+        Level::Warn2,
+        Level::Warn3,
+        Level::Warn4,
+        Level::Error,
+        Level::Error2,
+        Level::Error3,
+        Level::Error4,
+        Level::Fatal,
+        Level::Fatal2,
+        Level::Fatal3,
+        Level::Fatal4,
+    ];
+
     /// Return the string representation the short name for the `Level`.
     ///
     /// This returns the same string as the `fmt::Display` implementation.

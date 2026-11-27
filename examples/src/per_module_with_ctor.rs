@@ -20,7 +20,7 @@ use logforth::append::Stdout;
 use logforth::filter::RustLogFilter;
 use logforth::filter::rustlog::RustLogFilterBuilder;
 use logforth::record::Level;
-use logforth::starter_log;
+use logforth::starter_log::LogStarterExt;
 
 static FILTER: OnceLock<Filter> = OnceLock::new();
 
@@ -53,7 +53,7 @@ mod bar {
 }
 
 fn main() {
-    starter_log::builder()
+    logforth::builder()
         .dispatch(|dispatch_builder| {
             dispatch_builder
                 .filter(
@@ -63,7 +63,7 @@ fn main() {
                 )
                 .append(Stdout::default())
         })
-        .apply();
+        .install();
 
     foo::run();
     bar::run();
@@ -100,6 +100,7 @@ impl Filter {
             directives.push(format!("{module_path}={}", level.name()));
         }
 
-        RustLogFilterBuilder::from_spec(directives.join(",")).build()
+        let builder = RustLogFilterBuilder::from_spec(directives.join(",")).unwrap();
+        builder.build()
     }
 }

@@ -17,7 +17,7 @@ use logforth::record::LevelFilter;
 fn main() {
     logforth::starter_log::stdout()
         .filter(LevelFilter::All)
-        .apply();
+        .install();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");

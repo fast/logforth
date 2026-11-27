@@ -130,7 +130,7 @@ fn default_timestamp_format(ts: Timestamp, tz: &TimeZone) -> String {
 struct RecordLine<'a> {
     timestamp: String,
     level: &'a str,
-    target: &'a str,
+    module_path: &'a str,
     file: &'a str,
     line: u32,
     message: std::fmt::Arguments<'a>,
@@ -164,7 +164,7 @@ impl Layout for JsonLayout {
         let record_line = RecordLine {
             timestamp,
             level: record.level().name(),
-            target: record.target(),
+            module_path: record.module_path().unwrap_or_default(),
             file: record.file().unwrap_or_default(),
             line: record.line().unwrap_or_default(),
             message: record.payload(),

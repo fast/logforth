@@ -15,6 +15,7 @@
 use logforth::append::file::FileBuilder;
 use logforth::layout::JsonLayout;
 use logforth::record::LevelFilter;
+use logforth::starter_log::LogStarterExt;
 
 fn main() {
     let rolling = FileBuilder::new("logs", "my_app")
@@ -23,9 +24,9 @@ fn main() {
         .build()
         .unwrap();
 
-    logforth::starter_log::builder()
+    logforth::builder()
         .dispatch(|d| d.filter(LevelFilter::All).append(rolling))
-        .apply();
+        .install();
 
     let repeat = 1;
 

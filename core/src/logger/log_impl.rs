@@ -20,8 +20,23 @@ use crate::Error;
 use crate::ErrorSink;
 use crate::Filter;
 use crate::filter::FilterResult;
-use crate::record::FilterCriteria;
+use crate::record::Level;
 use crate::record::Record;
+
+const fn level_bit(level: Level) -> u32 {
+    1u32 << (level as u8 - 1)
+}
+
+fn dispatch_accepts_level(filters: &[Box<dyn Filter>], level: Level) -> bool {
+    for filter in filters {
+        match filter.filter_level(level) {
+            FilterResult::Reject => return false,
+            FilterResult::Accept => return true,
+            FilterResult::Neutral => {}
+        }
+    }
+    true
+}
 
 /// A lightweight handle to a shared logging pipeline.
 ///
@@ -35,7 +50,8 @@ pub struct Logger {
 
 #[derive(Debug)]
 struct LoggerState {
-    dispatches: Box<[Dispatch]>,
+    level_mask: u32,
+    dispatches: Vec<Dispatch>,
     error_sink: Box<dyn ErrorSink>,
 }
 
@@ -59,24 +75,25 @@ impl Logger {
         if dispatches.is_empty() {
             Self::noop()
         } else {
+            let mut level_mask = 0u32;
+            for dispatch in &dispatches {
+                level_mask |= dispatch.level_mask;
+            }
             Self {
                 state: Some(Arc::new(LoggerState {
-                    dispatches: dispatches.into_boxed_slice(),
+                    level_mask,
+                    dispatches,
                     error_sink,
                 })),
             }
         }
     }
 
-    /// Returns `true` if at least one dispatch accepts `criteria`.
-    pub fn enabled(&self, criteria: &FilterCriteria) -> bool {
-        let Some(state) = self.state.as_deref() else {
-            return false;
-        };
-        state
-            .dispatches
-            .iter()
-            .any(|dispatch| dispatch.enabled(criteria))
+    /// Returns `true` if at least one dispatch branch may accept `level`.
+    pub fn enabled(&self, level: Level) -> bool {
+        self.state
+            .as_deref()
+            .is_some_and(|state| (state.level_mask & level_bit(level)) != 0)
     }
 
     /// Dispatches `record` across all configured branches.
@@ -84,6 +101,9 @@ impl Logger {
         let Some(state) = self.state.as_deref() else {
             return;
         };
+        if (state.level_mask & level_bit(record.level())) == 0 {
+            return;
+        }
         let default_error_sink = &*state.error_sink;
         for dispatch in &state.dispatches {
             dispatch.log(record, default_error_sink);
@@ -105,6 +125,7 @@ impl Logger {
 /// A grouped set of filters, diagnostics, and appenders.
 #[derive(Debug)]
 pub(super) struct Dispatch {
+    level_mask: u32,
     filters: Vec<Box<dyn Filter>>,
     diagnostics: Vec<Box<dyn Diagnostic>>,
     appends: Vec<Box<dyn Append>>,
@@ -123,7 +144,15 @@ impl Dispatch {
             "A Dispatch must have at least one appender"
         );
 
+        let mut level_mask = 0u32;
+        for level in Level::ALL {
+            if dispatch_accepts_level(&filters, level) {
+                level_mask |= level_bit(level);
+            }
+        }
+
         Self {
+            level_mask,
             filters,
             diagnostics,
             appends,
@@ -131,21 +160,14 @@ impl Dispatch {
         }
     }
 
-    fn enabled(&self, criteria: &FilterCriteria) -> bool {
-        for filter in &self.filters {
-            match filter.enabled(criteria, &self.diagnostics) {
-                FilterResult::Reject => return false,
-                FilterResult::Accept => return true,
-                FilterResult::Neutral => {}
-            }
+    fn log(&self, record: &Record, default_error_sink: &dyn ErrorSink) {
+        if (self.level_mask & level_bit(record.level())) == 0 {
+            return;
         }
 
-        true
-    }
-
-    fn log(&self, record: &Record, default_error_sink: &dyn ErrorSink) {
+        let diagnostics = &self.diagnostics;
         for filter in &self.filters {
-            match filter.matches(record, &self.diagnostics) {
+            match filter.filter(record, diagnostics) {
                 FilterResult::Reject => return,
                 FilterResult::Accept => break,
                 FilterResult::Neutral => {}
@@ -154,7 +176,7 @@ impl Dispatch {
 
         let error_sink = self.error_sink.as_deref().unwrap_or(default_error_sink);
         for append in &self.appends {
-            if let Err(err) = append.append(record, &self.diagnostics) {
+            if let Err(err) = append.append(record, diagnostics) {
                 let err = Error::new("failed to append record").with_source(err);
                 error_sink.sink(&err);
             }

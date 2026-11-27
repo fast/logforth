@@ -16,28 +16,34 @@ use logforth::append;
 use logforth::filter::rustlog::RustLogFilterBuilder;
 use logforth::record::Level;
 use logforth::record::LevelFilter;
+use logforth::starter_log::LogStarterExt;
+
+mod noisy {
+    pub fn run() {
+        log::warn!("Hello noisy warn!");
+        log::info!("Hello noisy info (filtered out)!");
+    }
+}
 
 fn main() {
-    // This is how you can allow trace level logs for everything else while silencing them
-    // for the ones you probably don't need (in this case various rerun modules).
-    let my_filter = RustLogFilterBuilder::from_default_env()
-        .filter_level(LevelFilter::MoreSevereEqual(Level::Trace))
-        .filter_module("rerun", LevelFilter::MoreSevereEqual(Level::Warn))
-        .filter_module("re_chunk", LevelFilter::MoreSevereEqual(Level::Warn))
-        .filter_module("re_log", LevelFilter::MoreSevereEqual(Level::Warn))
-        .filter_module("re_log_encoding", LevelFilter::MoreSevereEqual(Level::Warn))
-        .filter_module("re_sdk", LevelFilter::MoreSevereEqual(Level::Warn))
-        .filter_module("re_sorbet", LevelFilter::MoreSevereEqual(Level::Warn))
-        .filter_module("tracing", LevelFilter::MoreSevereEqual(Level::Warn))
+    // Allow trace logs by default while narrowing noisy prefixes to warn.
+    let builder = RustLogFilterBuilder::from_default_env().unwrap();
+    let my_filter = builder
+        .fallback(LevelFilter::MoreSevereEqual(Level::Trace))
+        .prefix(
+            concat!(module_path!(), "::noisy"),
+            LevelFilter::MoreSevereEqual(Level::Warn),
+        )
         .build();
 
-    logforth::starter_log::builder()
+    logforth::builder()
         .dispatch(|d| d.filter(my_filter).append(append::Stdout::default()))
-        .apply();
+        .install();
 
     log::error!("Hello error!");
     log::warn!("Hello warn!");
     log::info!("Hello info!");
     log::debug!("Hello debug!");
     log::trace!("Hello trace!");
+    noisy::run();
 }

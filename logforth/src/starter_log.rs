@@ -12,362 +12,172 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Starter configurations for quickly setting up logforth with the `log` crate
+//! Starter presets and extension traits for installing Logforth as the global [`log`] logger.
+//!
+//! Use [`stdout`], [`stderr`], or [`testing`] for single-sink setups driven by `RUST_LOG`, or
+//! import [`LogStarterExt`] to call `.install()` / `.try_install()` directly on a [`LoggerBuilder`]
+//! or [`Logger`] constructed via [`builder`].
 
 use logforth_bridge_log::LogBridge;
-use logforth_core::Logger;
 
 use crate::Append;
 use crate::Error;
 use crate::ErrorSink;
 use crate::Filter;
 use crate::Layout;
+use crate::Logger;
+use crate::LoggerBuilder;
 use crate::append;
-use crate::core::DispatchBuilder;
-use crate::core::LoggerBuilder;
+use crate::builder;
 use crate::error::StderrErrorSink;
 use crate::filter::rustlog::RustLogFilterBuilder;
 
-/// A builder for setting up logforth with the `log` crate.
-pub struct LogStarterBuilder {
-    builder: LoggerBuilder,
+mod sealed {
+    pub trait Sealed {}
 }
 
-/// Create a new empty [`LogStarterBuilder`] instance for configuring logforth setups.
+/// Extension trait for installing a Logforth [`Logger`], [`LoggerBuilder`], [`LogStarter`], or
+/// [`LogBridge`] as the global [`log`] logger.
 ///
 /// # Examples
 ///
 /// ```
 /// use logforth::append;
+/// use logforth::starter_log::LogStarterExt;
 ///
-/// let builder = logforth::starter_log::builder()
+/// logforth::builder()
 ///     .dispatch(|d| d.append(append::Stderr::default()))
-///     .apply();
+///     .install();
 /// ```
-pub fn builder() -> LogStarterBuilder {
-    use crate::core::builder;
-    LogStarterBuilder { builder: builder() }
-}
-
-impl LogStarterBuilder {
-    /// Register a new dispatch.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use logforth::append;
-    ///
-    /// logforth::starter_log::builder()
-    ///     .dispatch(|d| d.append(append::Stderr::default()))
-    ///     .apply();
-    /// ```
-    pub fn dispatch<F>(mut self, f: F) -> Self
-    where
-        F: FnOnce(DispatchBuilder) -> DispatchBuilder,
-    {
-        self.builder = self.builder.dispatch(f);
-        self
-    }
-
-    /// Configure the default [`ErrorSink`] used when dispatches fail to append or flush records.
-    ///
-    /// Defaults to [`StderrErrorSink`].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use logforth::append;
-    /// use logforth::error::BlackHoleErrorSink;
-    ///
-    /// logforth::starter_log::builder()
-    ///     .error_sink(BlackHoleErrorSink::default())
-    ///     .dispatch(|d| d.append(append::Stderr::default()))
-    ///     .apply();
-    /// ```
-    pub fn error_sink(mut self, error_sink: impl Into<Box<dyn ErrorSink>>) -> Self {
-        self.builder = self.builder.error_sink(error_sink);
-        self
-    }
-
-    /// Set up the global logger with all the configured dispatches.
-    ///
-    /// This should be called early in the execution of a Rust program. Any log events that occur
-    /// before initialization will be ignored.
-    ///
-    /// This function will set the global maximum log level to `Trace`. To override this, call
-    /// `log::set_max_level` after this function.
+pub trait LogStarterExt: sealed::Sealed + Sized {
+    /// Install `self` as the global [`log`] logger and update [`log::set_max_level`] from the
+    /// active levels.
     ///
     /// # Errors
     ///
-    /// Return an error if a global logger has already been set.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// if let Err(err) = logforth::starter_log::builder().try_apply() {
-    ///     eprintln!("failed to set logger: {err}");
-    /// }
-    /// ```
-    pub fn try_apply(self) -> Result<(), Error> {
-        let make_error = |_| Error::new("logging system has already been setup");
+    /// Returns an error if a global [`log`] logger has already been set or if filter
+    /// initialization fails.
+    fn try_install(self) -> Result<(), Error>;
 
-        let logger = Box::new(LogBridge::new(self.build()));
-        log::set_boxed_logger(logger).map_err(make_error)?;
-        log::set_max_level(log::LevelFilter::Trace);
+    /// Install `self` as the global [`log`] logger and update [`log::set_max_level`] from the
+    /// active levels.
+    ///
+    /// # Panics
+    ///
+    /// Panics if [`Self::try_install`] returns an error.
+    fn install(self) {
+        self.try_install()
+            .expect("failed to install global log logger");
+    }
+}
 
+impl sealed::Sealed for LogBridge {}
+
+impl LogStarterExt for LogBridge {
+    fn try_install(self) -> Result<(), Error> {
+        let max_level = self.max_level();
+        log::set_boxed_logger(Box::new(self))
+            .map_err(|err| Error::new("logging system has already been setup").with_source(err))?;
+        log::set_max_level(max_level);
         Ok(())
     }
+}
 
-    /// Set up the global logger with all the configured dispatches.
-    ///
-    /// This should be called early in the execution of a Rust program. Any log events that occur
-    /// before initialization will be ignored.
-    ///
-    /// This function will panic if it is called more than once, or if another library has already
-    /// initialized a global logger.
-    ///
-    /// This function will set the global maximum log level to `Trace`. To override this, call
-    /// `log::set_max_level` after this function.
-    ///
-    /// # Panics
-    ///
-    /// Panic if the global logger has already been set.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// logforth::starter_log::builder().apply();
-    /// ```
-    pub fn apply(self) {
-        self.try_apply()
-            .expect("LogStarterBuilder::apply must be called before the global logger initialized");
-    }
+impl sealed::Sealed for Logger {}
 
-    /// Build the configured [`Logger`].
-    ///
-    /// This is useful for advanced use cases where you want to intercept extra configs before
-    /// setting the logger as the global logger.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use logforth::bridge::log::LogBridge;
-    ///
-    /// let logger = logforth::starter_log::builder().build();
-    /// log::set_boxed_logger(Box::new(LogBridge::new(logger.clone()))).unwrap();
-    /// log::set_max_level(log::LevelFilter::Trace);
-    ///
-    /// logger.flush();
-    /// ```
-    pub fn build(self) -> Logger {
-        self.builder.build()
+impl LogStarterExt for Logger {
+    fn try_install(self) -> Result<(), Error> {
+        LogBridge::new(self).try_install()
     }
 }
 
-/// A builder for setting up logforth with the `log` crate, using the [testing] appender.
-///
-/// [testing]: append::Testing
-pub struct LogStarterTestingBuilder {
-    filter: Box<dyn Filter>,
-    layout: Box<dyn Layout>,
-    error_sink: Box<dyn ErrorSink>,
-}
+impl sealed::Sealed for LoggerBuilder {}
 
-/// Create a starter builder with a default [`append::Testing`] appender and a [`RustLogFilter`]
-/// respecting `RUST_LOG`.
-///
-/// [`RustLogFilter`]: crate::filter::RustLogFilter
-///
-/// # Examples
-///
-/// ```
-/// logforth::starter_log::testing().apply();
-/// log::error!("This error will be logged to stderr and respect output capture settings.");
-/// ```
-pub fn testing() -> LogStarterTestingBuilder {
-    LogStarterTestingBuilder {
-        filter: default_filter(),
-        layout: default_layout(),
-        error_sink: Box::new(StderrErrorSink::default()),
+impl LogStarterExt for LoggerBuilder {
+    fn try_install(self) -> Result<(), Error> {
+        self.build().try_install()
     }
 }
 
-impl LogStarterTestingBuilder {
-    /// Set the layout for the testing appender.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use logforth::layout::PlainTextLayout;
-    /// logforth::starter_log::testing()
-    ///     .layout(PlainTextLayout::default())
-    ///     .apply();
-    /// log::error!("This error will be logged to stderr.");
-    /// ```
-    pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
-        self.layout = layout.into();
-        self
-    }
+impl sealed::Sealed for LogStarter {}
 
-    /// Set the layout for the testing appender.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use logforth::record::LevelFilter;
-    /// # use logforth::record::Level;
-    /// logforth::starter_log::testing().filter(LevelFilter::MoreSevereEqual(Level::Warn)).apply();
-    /// log::info!("This info message will be ignored.");
-    pub fn filter(mut self, filter: impl Into<Box<dyn Filter>>) -> Self {
-        self.filter = filter.into();
-        self
-    }
-
-    /// Configure the [`ErrorSink`] used when the testing appender fails to format or write.
-    ///
-    /// Defaults to [`StderrErrorSink`].
-    pub fn error_sink(mut self, error_sink: impl Into<Box<dyn ErrorSink>>) -> Self {
-        self.error_sink = error_sink.into();
-        self
-    }
-
-    /// Set up the global logger with the testing dispatch.
-    ///
-    /// This should be called early in the execution of a Rust program. Any log events that occur
-    /// before initialization will be ignored.
-    ///
-    /// This function will set the global maximum log level to `Trace`. To override this, call
-    /// `log::set_max_level` after this function.
-    ///
-    /// # Errors
-    ///
-    /// Return an error if a global logger has already been set.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// if let Err(err) = logforth::starter_log::testing().try_apply() {
-    ///     eprintln!("failed to set logger: {err}");
-    /// }
-    /// ```
-    pub fn try_apply(self) -> Result<(), Error> {
-        self.into_builder().try_apply()
-    }
-
-    /// Set up the global logger with the configured testing dispatch.
-    ///
-    /// This should be called early in the execution of a Rust program. Any log events that occur
-    /// before initialization will be ignored.
-    ///
-    /// This function will panic if it is called more than once, or if another library has already
-    /// initialized a global logger.
-    ///
-    /// This function will set the global maximum log level to `Trace`. To override this, call
-    /// `log::set_max_level` after this function.
-    ///
-    /// # Panics
-    ///
-    /// Panic if the global logger has already been set.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// logforth::starter_log::testing().apply();
-    /// ```
-    pub fn apply(self) {
-        self.try_apply().expect(
-            "LogStarterTestingBuilder::apply must be called before the global logger initialized",
-        );
-    }
-
-    /// Build the configured [`Logger`].
-    ///
-    /// This is useful for advanced use cases where you want to intercept extra configs before
-    /// setting the logger as the global logger.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use logforth::bridge::log::LogBridge;
-    ///
-    /// let logger = logforth::starter_log::testing().build();
-    /// log::set_boxed_logger(Box::new(LogBridge::new(logger.clone()))).unwrap();
-    /// log::set_max_level(log::LevelFilter::Trace);
-    ///
-    /// logger.flush();
-    /// ```
-    pub fn build(self) -> Logger {
-        self.into_builder().build()
-    }
-
-    fn into_builder(self) -> LogStarterBuilder {
-        let Self {
-            filter,
-            layout,
-            error_sink,
-        } = self;
-        let append: Box<dyn Append> = Box::new(append::Testing::default().with_layout(layout));
-        builder()
-            .error_sink(error_sink)
-            .dispatch(|d| d.filter(filter).append(append))
+impl LogStarterExt for LogStarter {
+    fn try_install(self) -> Result<(), Error> {
+        LogStarter::try_install(self)
     }
 }
 
-enum StdStream {
+enum StarterSink {
     Stdout(append::Stdout),
     Stderr(append::Stderr),
+    Testing(append::Testing),
 }
 
-/// A builder for setting up logforth with the `log` crate, using standard output/error streams.
-pub struct LogStarterStdStreamBuilder {
-    append: StdStream,
-    filter: Box<dyn Filter>,
+impl StarterSink {
+    fn into_append(self, layout: Box<dyn Layout>) -> Box<dyn Append> {
+        match self {
+            Self::Stdout(a) => Box::new(a.with_layout(layout)),
+            Self::Stderr(a) => Box::new(a.with_layout(layout)),
+            Self::Testing(a) => Box::new(a.with_layout(layout)),
+        }
+    }
+}
+
+/// Create a starter preset writing to [`append::Stdout`] and respecting `RUST_LOG`.
+///
+/// # Examples
+///
+/// ```
+/// logforth::starter_log::stdout().install();
+/// log::error!("This error will be logged to stdout.");
+/// ```
+pub fn stdout() -> LogStarter {
+    LogStarter::new(StarterSink::Stdout(append::Stdout::default()))
+}
+
+/// Create a starter preset writing to [`append::Stderr`] and respecting `RUST_LOG`.
+///
+/// # Examples
+///
+/// ```
+/// logforth::starter_log::stderr().install();
+/// log::error!("This error will be logged to stderr.");
+/// ```
+pub fn stderr() -> LogStarter {
+    LogStarter::new(StarterSink::Stderr(append::Stderr::default()))
+}
+
+/// Create a starter preset writing to [`append::Testing`] and respecting `RUST_LOG`.
+///
+/// # Examples
+///
+/// ```
+/// logforth::starter_log::testing().install();
+/// log::error!("This error will be logged to stderr and respect test output capture.");
+/// ```
+pub fn testing() -> LogStarter {
+    LogStarter::new(StarterSink::Testing(append::Testing::default()))
+}
+
+/// A single-sink preset builder for installing Logforth into the [`log`] facade.
+pub struct LogStarter {
+    sink: StarterSink,
+    filter: Option<Box<dyn Filter>>,
     layout: Box<dyn Layout>,
     error_sink: Box<dyn ErrorSink>,
 }
 
-/// Create a starter builder with a default [`append::Stdout`] appender and a [`RustLogFilter`]
-/// respecting `RUST_LOG`.
-///
-/// [`RustLogFilter`]: crate::filter::RustLogFilter
-///
-/// # Examples
-///
-/// ```
-/// logforth::starter_log::stdout().apply();
-/// log::error!("This error will be logged to stdout.");
-/// ```
-pub fn stdout() -> LogStarterStdStreamBuilder {
-    LogStarterStdStreamBuilder {
-        append: StdStream::Stdout(append::Stdout::default()),
-        filter: default_filter(),
-        layout: default_layout(),
-        error_sink: Box::new(StderrErrorSink::default()),
+impl LogStarter {
+    fn new(sink: StarterSink) -> Self {
+        Self {
+            sink,
+            filter: None,
+            layout: default_layout(),
+            error_sink: Box::new(StderrErrorSink::default()),
+        }
     }
-}
 
-/// Create a starter builder with a default [`append::Stderr`] appender and a [`RustLogFilter`]
-/// respecting `RUST_LOG`.
-///
-/// [`RustLogFilter`]: crate::filter::RustLogFilter
-///
-/// # Examples
-///
-/// ```
-/// logforth::starter_log::stderr().apply();
-/// log::error!("This error will be logged to stderr.");
-/// ```
-pub fn stderr() -> LogStarterStdStreamBuilder {
-    LogStarterStdStreamBuilder {
-        append: StdStream::Stderr(append::Stderr::default()),
-        filter: default_filter(),
-        layout: default_layout(),
-        error_sink: Box::new(StderrErrorSink::default()),
-    }
-}
-
-impl LogStarterStdStreamBuilder {
-    /// Set the layout for the StdStream appender.
+    /// Override the layout for the preset appender.
     ///
     /// # Examples
     ///
@@ -375,7 +185,7 @@ impl LogStarterStdStreamBuilder {
     /// # use logforth::layout::PlainTextLayout;
     /// logforth::starter_log::stderr()
     ///     .layout(PlainTextLayout::default())
-    ///     .apply();
+    ///     .install();
     /// log::error!("This error will be logged to stderr.");
     /// ```
     pub fn layout(mut self, layout: impl Into<Box<dyn Layout>>) -> Self {
@@ -383,21 +193,24 @@ impl LogStarterStdStreamBuilder {
         self
     }
 
-    /// Set the layout for the StdStream appender.
+    /// Override the default `RUST_LOG` filter for the preset appender.
     ///
     /// # Examples
     ///
     /// ```
     /// # use logforth::record::LevelFilter;
     /// # use logforth::record::Level;
-    /// logforth::starter_log::stdout().filter(LevelFilter::MoreSevereEqual(Level::Warn)).apply();
+    /// logforth::starter_log::stdout()
+    ///     .filter(LevelFilter::MoreSevereEqual(Level::Warn))
+    ///     .install();
     /// log::info!("This info message will be ignored.");
+    /// ```
     pub fn filter(mut self, filter: impl Into<Box<dyn Filter>>) -> Self {
-        self.filter = filter.into();
+        self.filter = Some(filter.into());
         self
     }
 
-    /// Configure the [`ErrorSink`] used when the stream appender fails to write or flush.
+    /// Configure the [`ErrorSink`] used when the preset appender fails to format, write, or flush.
     ///
     /// Defaults to [`StderrErrorSink`].
     pub fn error_sink(mut self, error_sink: impl Into<Box<dyn ErrorSink>>) -> Self {
@@ -405,96 +218,97 @@ impl LogStarterStdStreamBuilder {
         self
     }
 
-    /// Set up the global logger with the configured std stream dispatch.
-    ///
-    /// This should be called early in the execution of a Rust program. Any log events that occur
-    /// before initialization will be ignored.
-    ///
-    /// This function will set the global maximum log level to `Trace`. To override this, call
-    /// `log::set_max_level` after this function.
+    /// Build and install the preset logger as the global [`log`] logger, updating
+    /// [`log::set_max_level`] from the active levels.
     ///
     /// # Errors
     ///
-    /// Return an error if a global logger has already been set.
+    /// Returns an error if `RUST_LOG` is invalid (when using the default filter) or if a global
+    /// [`log`] logger has already been installed.
     ///
     /// # Examples
     ///
     /// ```
-    /// if let Err(err) = logforth::starter_log::stdout().try_apply() {
-    ///     eprintln!("failed to set logger: {err}");
+    /// if let Err(err) = logforth::starter_log::stdout().try_install() {
+    ///     eprintln!("failed to install logger: {err}");
     /// }
     /// ```
-    pub fn try_apply(self) -> Result<(), Error> {
-        self.into_builder().try_apply()
+    pub fn try_install(self) -> Result<(), Error> {
+        <Logger as LogStarterExt>::try_install(self.try_build()?)
     }
 
-    /// Set up the global logger with the configured std stream dispatch.
-    ///
-    /// This should be called early in the execution of a Rust program. Any log events that occur
-    /// before initialization will be ignored.
-    ///
-    /// This function will panic if it is called more than once, or if another library has already
-    /// initialized a global logger.
-    ///
-    /// This function will set the global maximum log level to `Trace`. To override this, call
-    /// `log::set_max_level` after this function.
+    /// Build and install the preset logger as the global [`log`] logger, updating
+    /// [`log::set_max_level`] from the active levels.
     ///
     /// # Panics
     ///
-    /// Panic if the global logger has already been set.
+    /// Panics if `RUST_LOG` is invalid (when using the default filter) or if a global [`log`]
+    /// logger has already been installed.
     ///
     /// # Examples
     ///
     /// ```
-    /// logforth::starter_log::stdout().apply();
+    /// logforth::starter_log::stdout().install();
     /// ```
-    pub fn apply(self) {
-        self.try_apply().expect(
-            "LogStarterStdStreamBuilder::apply must be called before the global logger initialized",
-        );
+    pub fn install(self) {
+        self.try_install()
+            .expect("LogStarter::install failed to initialize logger");
     }
 
-    /// Build the configured [`Logger`].
+    /// Build the configured [`Logger`] without installing it globally.
     ///
-    /// This is useful for advanced use cases where you want to intercept extra configs before
-    /// setting the logger as the global logger.
+    /// # Errors
+    ///
+    /// Returns an error if `RUST_LOG` is invalid when using the default filter.
     ///
     /// # Examples
     ///
     /// ```
-    /// use logforth::bridge::log::LogBridge;
-    ///
-    /// let logger = logforth::starter_log::stdout().build();
-    /// log::set_boxed_logger(Box::new(LogBridge::new(logger.clone()))).unwrap();
-    /// log::set_max_level(log::LevelFilter::Trace);
-    ///
+    /// let logger = logforth::starter_log::stdout().try_build().unwrap();
     /// logger.flush();
     /// ```
-    pub fn build(self) -> Logger {
-        self.into_builder().build()
-    }
-
-    fn into_builder(self) -> LogStarterBuilder {
+    pub fn try_build(self) -> Result<Logger, Error> {
         let Self {
-            append,
+            sink,
             filter,
             layout,
             error_sink,
         } = self;
 
-        let append: Box<dyn Append> = match append {
-            StdStream::Stdout(a) => Box::new(a.with_layout(layout)),
-            StdStream::Stderr(a) => Box::new(a.with_layout(layout)),
+        let filter = match filter {
+            Some(filter) => filter,
+            None => {
+                let builder = RustLogFilterBuilder::from_default_env()?;
+                Box::new(builder.build())
+            }
         };
-
-        builder()
+        let append = sink.into_append(layout);
+        Ok(builder()
             .error_sink(error_sink)
             .dispatch(|d| d.filter(filter).append(append))
+            .build())
     }
-}
 
-fn default_filter() -> Box<dyn Filter> {
-    Box::new(RustLogFilterBuilder::from_default_env().build())
+    /// Build the configured [`Logger`] without installing it globally.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `RUST_LOG` is invalid when using the default filter.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth::starter_log::LogStarterExt;
+    ///
+    /// let logger = logforth::starter_log::stdout().build();
+    /// logger.clone().install();
+    ///
+    /// logger.flush();
+    /// ```
+    pub fn build(self) -> Logger {
+        self.try_build()
+            .expect("LogStarter::build failed to initialize filter")
+    }
 }
 
 fn default_layout() -> Box<dyn Layout> {

@@ -30,22 +30,23 @@
 //!
 //! # Examples
 //!
-//! Simple setup with a stderr appender:
+//! Simple setup with a stderr preset respecting `RUST_LOG`:
 //!
 //! ```
-//! logforth::starter_log::stderr().apply();
+//! logforth::starter_log::stderr().install();
 //!
 //! log::info!("This is an info message.");
 //! ```
 //!
-//! Advanced setup with custom filters and multiple appenders:
+//! Custom pipeline with multiple dispatches and filters:
 //!
 //! ```
 //! use logforth::append;
 //! use logforth::record::Level;
 //! use logforth::record::LevelFilter;
+//! use logforth::starter_log::LogStarterExt;
 //!
-//! logforth::starter_log::builder()
+//! logforth::builder()
 //!     .dispatch(|d| {
 //!         d.filter(LevelFilter::MoreSevereEqual(Level::Error))
 //!             .append(append::Stderr::default())
@@ -54,7 +55,7 @@
 //!         d.filter(LevelFilter::MoreSevereEqual(Level::Info))
 //!             .append(append::Stdout::default())
 //!     })
-//!     .apply();
+//!     .install();
 //!
 //! log::error!("Error message.");
 //! log::info!("Info message.");
@@ -67,7 +68,11 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
 
+pub use logforth_core::DispatchBuilder;
+pub use logforth_core::Logger;
+pub use logforth_core::LoggerBuilder;
 pub use logforth_core::append::Append;
+pub use logforth_core::builder;
 pub use logforth_core::diagnostic::Diagnostic;
 pub use logforth_core::error::Error;
 pub use logforth_core::error::ErrorSink;
@@ -110,16 +115,6 @@ pub mod bridge {
     pub mod log {
         pub use logforth_bridge_log::*;
     }
-}
-
-/// Core components of the logforth logging framework.
-pub mod core {
-    // structs
-    pub use logforth_core::DispatchBuilder;
-    pub use logforth_core::Logger;
-    pub use logforth_core::LoggerBuilder;
-    // methods
-    pub use logforth_core::builder;
 }
 
 /// Mapped Diagnostic Context (MDC).

@@ -18,7 +18,7 @@ use logforth::bridge::log::LogBridge;
 fn main() {
     log::set_max_level(log::LevelFilter::Trace);
 
-    let l = logforth::core::builder()
+    let l = logforth::builder()
         .dispatch(|d| d.append(append::Stdout::default()))
         .build();
 

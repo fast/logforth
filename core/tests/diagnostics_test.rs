@@ -30,7 +30,6 @@ use logforth_core::kv::KeyView;
 use logforth_core::kv::Value;
 use logforth_core::kv::ValueView;
 use logforth_core::kv::Visitor;
-use logforth_core::record::FilterCriteria;
 use logforth_core::record::Level;
 use logforth_core::record::Record;
 
@@ -279,11 +278,11 @@ struct MatchOverrideFilter {
 }
 
 impl Filter for MatchOverrideFilter {
-    fn enabled(&self, _: &FilterCriteria, _: &dyn Diagnostic) -> FilterResult {
+    fn filter_level(&self, _: Level) -> FilterResult {
         FilterResult::Neutral
     }
 
-    fn matches(&self, record: &Record, _: &dyn Diagnostic) -> FilterResult {
+    fn filter(&self, record: &Record, _: &dyn Diagnostic) -> FilterResult {
         if record
             .payload()
             .to_string()
