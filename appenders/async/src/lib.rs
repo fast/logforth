@@ -282,10 +282,7 @@ fn run_worker(
 }
 
 fn catch_panic(f: impl FnOnce() -> Result<(), Error>) -> Result<(), Error> {
-    match catch_unwind(AssertUnwindSafe(f)) {
-        Ok(result) => result,
-        Err(payload) => Err(panic_error(payload)),
-    }
+    catch_unwind(AssertUnwindSafe(f)).unwrap_or_else(|payload| Err(panic_error(payload)))
 }
 
 fn panic_error(payload: Box<dyn Any + Send>) -> Error {
