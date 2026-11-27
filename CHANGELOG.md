@@ -39,11 +39,11 @@ All significant changes to this project will be documented in this file.
 * Implement `Append`, `ErrorSink`, `Filter`, and `Layout` in `logforth-core`, and `MakeBody` in `logforth-append-opentelemetry`, for `Arc<T>` and `&'static T` where `T: ?Sized`, and implement `Diagnostic` for `&T`, `Arc<T>`, `()`, `Option<T>`, slices, arrays, and `Vec`.
 * Add `FileBuilder::timezone` in `logforth-append-file` (and re-export `jiff`) to configure the timezone used for rotation boundaries and segment filenames, defaulting to the system timezone.
 * Add `ThreadLocalDiagnostic::scope` and `ThreadLocalDiagnosticGuard` in `logforth-core` for `!Send` RAII scoped thread-local diagnostics that restore shadowed entries on drop.
-* Add `Value::owned`, `DebugValue::new`, `DisplayValue::new`, `KeyView::to_static_str`, and `ValueView::to_bytes` in `logforth-core`, and expand `From` conversions on `kv::{KeyOwned, Value, ValueOwned}` across scalars, strings, byte slices, `Option<T>`, and `&ValueOwned`.
+* Add `kv::LogValue`, `Value::owned`, `DebugValue::new`, `DisplayValue::new`, `KeyView::to_static_str`, and `ValueView::to_bytes` in `logforth-core`, and implement `From` on `kv::{KeyOwned, ValueOwned}` across scalars, strings, byte slices, and `Option<T>`.
 
 ### Improvements
 
-* Implement `Copy` for `kv::{Key, KeyView, Value, ValueView}`, `From<&'static str>` and `From<String>` for `kv::KeyOwned`, `From` scalar and string conversions for `kv::ValueOwned`, and `kv::Visitor` for `FnMut(KeyView, ValueView) -> Result<(), Error>` closures in `logforth-core`.
+* Implement `Copy` for `kv::{Key, KeyView, Value, ValueView}` and `kv::Visitor` for `FnMut(KeyView, ValueView) -> Result<(), Error>` closures in `logforth-core`.
 * Make `LevelFilter::test` a `const fn` in `logforth-core`, eliminate per-record `BTreeSet` lookups in `GoogleCloudLoggingLayout`, and format trace and span IDs on the stack without heap allocation in `FastraceDiagnostic`.
 * Implement `Clone` for `RustLogFilter` in `logforth-filter-rustlog`, and precompute dual level masks so levels rejected or unconditionally passed across all directives short-circuit before prefix lookup.
 * Map `kv::ValueView::Bytes` to `AnyValue::Bytes` in `logforth-append-opentelemetry`.

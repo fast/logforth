@@ -20,7 +20,9 @@
 use std::borrow::Borrow;
 use std::borrow::Cow;
 use std::fmt;
+use std::rc::Rc;
 use std::slice;
+use std::sync::Arc;
 
 use crate::Error;
 use crate::str::RefStr;
@@ -542,106 +544,176 @@ impl<'a> Value<'a> {
     }
 }
 
-macro_rules! impl_value_scalar_from {
-    ($ty:ty, |$v:ident| $expr:expr) => {
-        impl From<$ty> for Value<'_> {
-            fn from($v: $ty) -> Self {
-                $expr
-            }
-        }
+/// A value that can be captured as a borrowed structured [`Value`] for logging.
+///
+/// Structured field expressions in Logforth's native logging macros (`["key" = value]`) require
+/// [`LogValue`] and borrow `value` in place without consuming ownership. External types can
+/// implement [`LogValue`] directly using [`Value`] constructors such as [`Value::str`],
+/// [`Value::u64`], [`Value::owned`], [`Value::debug`], or [`Value::display`].
+///
+/// Because [`LogValue::log_value`] borrows `&self`, string values captured through [`LogValue`]
+/// project as [`ValueView::BorrowedStr`]; pass [`Value::static_str`] explicitly when `'static`
+/// string provenance is needed across asynchronous boundaries.
+pub trait LogValue {
+    /// Projects `self` as a borrowed [`Value`].
+    fn log_value(&self) -> Value<'_>;
+}
 
-        impl<'a> From<&'a $ty> for Value<'a> {
-            fn from($v: &'a $ty) -> Self {
-                let $v = *$v;
+impl<T: LogValue + ?Sized> LogValue for &T {
+    fn log_value(&self) -> Value<'_> {
+        (**self).log_value()
+    }
+}
+
+impl<T: LogValue + ?Sized> LogValue for Box<T> {
+    fn log_value(&self) -> Value<'_> {
+        (**self).log_value()
+    }
+}
+
+impl<T: LogValue + ?Sized> LogValue for Rc<T> {
+    fn log_value(&self) -> Value<'_> {
+        (**self).log_value()
+    }
+}
+
+impl<T: LogValue + ?Sized> LogValue for Arc<T> {
+    fn log_value(&self) -> Value<'_> {
+        (**self).log_value()
+    }
+}
+
+impl<B: ToOwned + LogValue + ?Sized> LogValue for Cow<'_, B> {
+    fn log_value(&self) -> Value<'_> {
+        (**self).log_value()
+    }
+}
+
+impl<T: LogValue> LogValue for Option<T> {
+    fn log_value(&self) -> Value<'_> {
+        match self {
+            Some(v) => v.log_value(),
+            None => Value::none(),
+        }
+    }
+}
+
+macro_rules! impl_scalar_log_value {
+    ($ty:ty, |$v:ident| $expr:expr) => {
+        impl LogValue for $ty {
+            fn log_value(&self) -> Value<'_> {
+                let $v = *self;
                 $expr
             }
         }
     };
 }
 
-impl_value_scalar_from!(bool, |v| Value::bool(v));
-impl_value_scalar_from!(char, |v| Value::char(v));
-impl_value_scalar_from!(i8, |v| Value::i64(i64::from(v)));
-impl_value_scalar_from!(i16, |v| Value::i64(i64::from(v)));
-impl_value_scalar_from!(i32, |v| Value::i64(i64::from(v)));
-impl_value_scalar_from!(i64, |v| Value::i64(v));
-impl_value_scalar_from!(i128, |v| Value::i128(v));
-impl_value_scalar_from!(isize, |v| Value::i64(v as i64));
-impl_value_scalar_from!(u8, |v| Value::u64(u64::from(v)));
-impl_value_scalar_from!(u16, |v| Value::u64(u64::from(v)));
-impl_value_scalar_from!(u32, |v| Value::u64(u64::from(v)));
-impl_value_scalar_from!(u64, |v| Value::u64(v));
-impl_value_scalar_from!(u128, |v| Value::u128(v));
-impl_value_scalar_from!(usize, |v| Value::u64(v as u64));
-impl_value_scalar_from!(f32, |v| Value::f64(f64::from(v)));
-impl_value_scalar_from!(f64, |v| Value::f64(v));
+impl_scalar_log_value!(bool, |v| Value::bool(v));
+impl_scalar_log_value!(char, |v| Value::char(v));
+impl_scalar_log_value!(i8, |v| Value::i64(i64::from(v)));
+impl_scalar_log_value!(i16, |v| Value::i64(i64::from(v)));
+impl_scalar_log_value!(i32, |v| Value::i64(i64::from(v)));
+impl_scalar_log_value!(i64, |v| Value::i64(v));
+impl_scalar_log_value!(i128, |v| Value::i128(v));
+impl_scalar_log_value!(isize, |v| Value::i64(v as i64));
+impl_scalar_log_value!(u8, |v| Value::u64(u64::from(v)));
+impl_scalar_log_value!(u16, |v| Value::u64(u64::from(v)));
+impl_scalar_log_value!(u32, |v| Value::u64(u64::from(v)));
+impl_scalar_log_value!(u64, |v| Value::u64(v));
+impl_scalar_log_value!(u128, |v| Value::u128(v));
+impl_scalar_log_value!(usize, |v| Value::u64(v as u64));
+impl_scalar_log_value!(f32, |v| Value::f64(f64::from(v)));
+impl_scalar_log_value!(f64, |v| Value::f64(v));
 
-impl<'a> From<&'a Value<'a>> for Value<'a> {
-    fn from(v: &'a Value<'a>) -> Self {
-        *v
+impl_scalar_log_value!(std::num::NonZeroI8, |v| Value::i64(i64::from(v.get())));
+impl_scalar_log_value!(std::num::NonZeroI16, |v| Value::i64(i64::from(v.get())));
+impl_scalar_log_value!(std::num::NonZeroI32, |v| Value::i64(i64::from(v.get())));
+impl_scalar_log_value!(std::num::NonZeroI64, |v| Value::i64(v.get()));
+impl_scalar_log_value!(std::num::NonZeroI128, |v| Value::i128(v.get()));
+impl_scalar_log_value!(std::num::NonZeroIsize, |v| Value::i64(v.get() as i64));
+impl_scalar_log_value!(std::num::NonZeroU8, |v| Value::u64(u64::from(v.get())));
+impl_scalar_log_value!(std::num::NonZeroU16, |v| Value::u64(u64::from(v.get())));
+impl_scalar_log_value!(std::num::NonZeroU32, |v| Value::u64(u64::from(v.get())));
+impl_scalar_log_value!(std::num::NonZeroU64, |v| Value::u64(v.get()));
+impl_scalar_log_value!(std::num::NonZeroU128, |v| Value::u128(v.get()));
+impl_scalar_log_value!(std::num::NonZeroUsize, |v| Value::u64(v.get() as u64));
+
+impl LogValue for str {
+    fn log_value(&self) -> Value<'_> {
+        Value::str(self)
     }
 }
 
-impl<'a> From<&'a str> for Value<'a> {
-    fn from(v: &'a str) -> Self {
-        Value::str(v)
+impl LogValue for String {
+    fn log_value(&self) -> Value<'_> {
+        Value::str(self.as_str())
     }
 }
 
-impl<'a> From<&'a String> for Value<'a> {
-    fn from(v: &'a String) -> Self {
-        Value::str(v.as_str())
+impl LogValue for [u8] {
+    fn log_value(&self) -> Value<'_> {
+        Value::bytes(self)
     }
 }
 
-impl<'a> From<&'a Cow<'_, str>> for Value<'a> {
-    fn from(v: &'a Cow<'_, str>) -> Self {
-        Value::str(v.as_ref())
+impl<const N: usize> LogValue for [u8; N] {
+    fn log_value(&self) -> Value<'_> {
+        Value::bytes(self.as_slice())
     }
 }
 
-impl<'a> From<&'a [u8]> for Value<'a> {
-    fn from(v: &'a [u8]) -> Self {
-        Value::bytes(v)
+impl LogValue for Vec<u8> {
+    fn log_value(&self) -> Value<'_> {
+        Value::bytes(self.as_slice())
     }
 }
 
-impl<'a, const N: usize> From<&'a [u8; N]> for Value<'a> {
-    fn from(v: &'a [u8; N]) -> Self {
-        Value::bytes(v.as_slice())
+impl LogValue for Value<'_> {
+    fn log_value(&self) -> Value<'_> {
+        *self
     }
 }
 
-impl<'a> From<&'a Vec<u8>> for Value<'a> {
-    fn from(v: &'a Vec<u8>) -> Self {
-        Value::bytes(v.as_slice())
+impl LogValue for ValueOwned {
+    fn log_value(&self) -> Value<'_> {
+        Value::owned(self)
     }
 }
 
-impl<'a> From<&'a ValueOwned> for Value<'a> {
-    fn from(v: &'a ValueOwned) -> Self {
-        Value::owned(v)
+impl LogValue for [Value<'_>] {
+    fn log_value(&self) -> Value<'_> {
+        Value::list(self)
     }
 }
 
-impl<'a> From<&'a [Value<'a>]> for Value<'a> {
-    fn from(v: &'a [Value<'a>]) -> Self {
-        Value::list(v)
+impl<const N: usize> LogValue for [Value<'_>; N] {
+    fn log_value(&self) -> Value<'_> {
+        Value::list(self.as_slice())
     }
 }
 
-impl<'a> From<&'a [(Key<'a>, Value<'a>)]> for Value<'a> {
-    fn from(v: &'a [(Key<'a>, Value<'a>)]) -> Self {
-        Value::map(v)
+impl LogValue for Vec<Value<'_>> {
+    fn log_value(&self) -> Value<'_> {
+        Value::list(self.as_slice())
     }
 }
 
-impl<'a, T: Into<Value<'a>>> From<Option<T>> for Value<'a> {
-    fn from(v: Option<T>) -> Self {
-        match v {
-            Some(v) => v.into(),
-            None => Value::none(),
-        }
+impl LogValue for [(Key<'_>, Value<'_>)] {
+    fn log_value(&self) -> Value<'_> {
+        Value::map(self)
+    }
+}
+
+impl<const N: usize> LogValue for [(Key<'_>, Value<'_>); N] {
+    fn log_value(&self) -> Value<'_> {
+        Value::map(self.as_slice())
+    }
+}
+
+impl LogValue for Vec<(Key<'_>, Value<'_>)> {
+    fn log_value(&self) -> Value<'_> {
+        Value::map(self.as_slice())
     }
 }
 
@@ -1177,13 +1249,14 @@ mod tests {
     fn duplicate_key_lookups_survive_ownership() {
         fn assert_traits<T: Copy + Send + Sync>() {}
         assert_traits::<Value<'_>>();
-        let first = Value::from(&1_i32);
+        let first = 1_i32.log_value();
         assert_eq!(first.view().to_i64(), Some(1));
-        assert!(matches!(Value::from(None::<i32>).view(), ValueView::None));
+        assert!(matches!(None::<i32>.log_value().view(), ValueView::None));
         let second = ValueOwned::i64(2);
         let key = Key::new("k");
-        let inner = [(key, first), (key, Value::from(&second))];
-        let outer = [(key, first), (key, Value::from(Some(Value::map(&inner))))];
+        let inner = [(key, first), (key, second.log_value())];
+        let map_opt = Some(Value::map(&inner));
+        let outer = [(key, first), (key, map_opt.log_value())];
         let record = Record::builder().key_values(outer.as_slice()).build();
         let check = |r: Record<'_>| {
             let map = r.key_values().get("k").unwrap().to_map().unwrap();

@@ -19,6 +19,7 @@ pub mod __private {
     use crate::Logger;
     use crate::kv::Key;
     use crate::kv::KeyValues;
+    use crate::kv::LogValue;
     use crate::kv::Value;
     use crate::record::Level;
     use crate::record::Record;
@@ -66,66 +67,16 @@ pub mod __private {
         logger.log(&record);
     }
 
-    pub struct ValueRef<'a, T: ?Sized>(pub &'a T);
-
-    impl<T: ?Sized> Copy for ValueRef<'_, T> {}
-
-    impl<T: ?Sized> Clone for ValueRef<'_, T> {
-        fn clone(&self) -> Self {
-            *self
-        }
-    }
-
-    pub trait CaptureRef<'v> {
-        fn __logforth_capture(self) -> Value<'v>;
-    }
-
-    impl<'a, 'v, T: ?Sized> CaptureRef<'v> for &&ValueRef<'a, T>
-    where
-        &'a T: Into<Value<'v>>,
-    {
-        #[inline]
-        fn __logforth_capture(self) -> Value<'v> {
-            self.0.into()
-        }
-    }
-
-    pub trait CaptureOptionRef<'v> {
-        fn __logforth_capture(self) -> Value<'v>;
-    }
-
-    impl<'a, 'v, U> CaptureOptionRef<'v> for &ValueRef<'a, Option<U>>
-    where
-        &'a U: Into<Value<'v>>,
-    {
-        #[inline]
-        fn __logforth_capture(self) -> Value<'v> {
-            match self.0 {
-                Some(v) => v.into(),
-                None => Value::none(),
-            }
-        }
-    }
-
-    pub trait CaptureCopy<'v> {
-        fn __logforth_capture(self) -> Value<'v>;
-    }
-
-    impl<'a, 'v, T> CaptureCopy<'v> for ValueRef<'a, T>
-    where
-        T: Copy + Into<Value<'v>>,
-    {
-        #[inline]
-        fn __logforth_capture(self) -> Value<'v> {
-            (*self.0).into()
-        }
+    #[inline]
+    pub fn capture_val<T: LogValue + ?Sized>(v: &T) -> Value<'_> {
+        v.log_value()
     }
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __log_impl {
-    (@entry $logger:expr, $level:expr, [], $($arg:tt)+) => {{
+    (@entry $logger:expr, $level:expr, [$($key:literal = $value:expr),* $(,)?], $($arg:tt)+) => {{
         match &($logger) {
             __logforth_logger => {
                 let __logforth_logger: &$crate::Logger = __logforth_logger;
@@ -144,89 +95,23 @@ macro_rules! __log_impl {
                                 );
                             &LOC
                         },
-                        &[],
+                        &[$((
+                            $crate::kv::Key::new($key),
+                            $crate::__private::capture_val(&($value)),
+                        )),*],
                         ::core::format_args!($($arg)+),
                     );
                 }
             }
         }
     }};
-    (@entry $logger:expr, $level:expr, [$($kv:tt)+], $($arg:tt)+) => {{
-        match &($logger) {
-            __logforth_logger => {
-                let __logforth_logger: &$crate::Logger = __logforth_logger;
-                let __logforth_level: $crate::record::Level = $level;
-                if __logforth_logger.enabled(__logforth_level) {
-                    $crate::__log_impl!(
-                        @kv [$($kv)+] -> [] (__logforth_logger, __logforth_level) $($arg)+
-                    );
-                }
-            }
-        }
-    }};
-    (@kv [] -> [$($kv:ident)+] ($logger:ident, $level:ident) $($arg:tt)+) => {{
-        let __logforth_kvs = [$($kv),+];
-        $crate::__private_log(
-            $logger,
-            $level,
-            {
-                static LOC: $crate::__private::Location = $crate::__private::Location::new(
-                    ::core::module_path!(),
-                    ::core::file!(),
-                    ::core::line!(),
-                    ::core::column!(),
-                );
-                &LOC
-            },
-            &__logforth_kvs,
-            ::core::format_args!($($arg)+),
-        );
-    }};
-    (@kv [$key:literal = $value:expr] -> [$($acc:tt)*] ($logger:ident, $level:ident) $($arg:tt)+) => {
-        match &($value) {
-            __logforth_val => {
-                let __logforth_kv = (
-                    $crate::kv::Key::new($key),
-                    {
-                        #[allow(unused_imports)]
-                        use $crate::__private::{
-                            CaptureCopy as _, CaptureOptionRef as _, CaptureRef as _,
-                        };
-                        (&&$crate::__private::ValueRef(__logforth_val)).__logforth_capture()
-                    },
-                );
-                $crate::__log_impl!(
-                    @kv [] -> [$($acc)* __logforth_kv] ($logger, $level) $($arg)+
-                );
-            }
-        }
-    };
-    (@kv [$key:literal = $value:expr, $($rest:tt)*] -> [$($acc:tt)*] ($logger:ident, $level:ident) $($arg:tt)+) => {
-        match &($value) {
-            __logforth_val => {
-                let __logforth_kv = (
-                    $crate::kv::Key::new($key),
-                    {
-                        #[allow(unused_imports)]
-                        use $crate::__private::{
-                            CaptureCopy as _, CaptureOptionRef as _, CaptureRef as _,
-                        };
-                        (&&$crate::__private::ValueRef(__logforth_val)).__logforth_capture()
-                    },
-                );
-                $crate::__log_impl!(
-                    @kv [$($rest)*] -> [$($acc)* __logforth_kv] ($logger, $level) $($arg)+
-                );
-            }
-        }
-    };
 }
 
 /// Logs a record at the specified [`Level`](crate::record::Level) to a [`Logger`](crate::Logger).
 ///
 /// `$logger` and `$level` are evaluated once up front. Structured key-values and format arguments
 /// are evaluated at most once and only when [`Logger::enabled`](crate::Logger::enabled) returns
-/// `true` for `$level`.
+/// `true` for `$level`. Structured field values implement [`LogValue`](crate::kv::LogValue).
 ///
 /// # Examples
 ///
@@ -430,6 +315,7 @@ mod tests {
     use crate::Error;
     use crate::Logger;
     use crate::builder;
+    use crate::kv::LogValue;
     use crate::kv::Value;
     use crate::kv::ValueOwned;
     use crate::record::Level;
@@ -474,35 +360,35 @@ mod tests {
 
     struct CustomNonCopy(String);
 
-    impl<'a> From<&'a CustomNonCopy> for Value<'a> {
-        fn from(v: &'a CustomNonCopy) -> Self {
-            Value::str(v.0.as_str())
+    impl LogValue for CustomNonCopy {
+        fn log_value(&self) -> Value<'_> {
+            Value::str(self.0.as_str())
         }
     }
 
     #[derive(Clone, Copy)]
     struct CustomCopy(u64);
 
-    impl From<CustomCopy> for Value<'_> {
-        fn from(v: CustomCopy) -> Self {
-            Value::u64(v.0)
+    impl LogValue for CustomCopy {
+        fn log_value(&self) -> Value<'_> {
+            Value::u64(self.0)
         }
     }
 
     // Send + !Sync type converting eagerly into Value without holding &Counter across .await.
     struct Counter(Cell<u32>);
 
-    impl From<&Counter> for Value<'_> {
-        fn from(c: &Counter) -> Self {
-            Value::u64(u64::from(c.0.get()))
+    impl LogValue for Counter {
+        fn log_value(&self) -> Value<'_> {
+            Value::u64(u64::from(self.0.get()))
         }
     }
 
     struct RangeVal(Range<usize>);
 
-    impl From<&RangeVal> for Value<'_> {
-        fn from(r: &RangeVal) -> Self {
-            Value::u64((r.0.end - r.0.start) as u64)
+    impl LogValue for RangeVal {
+        fn log_value(&self) -> Value<'_> {
+            Value::u64((self.0.end - self.0.start) as u64)
         }
     }
 
@@ -639,7 +525,11 @@ mod tests {
         let arc_logger = Arc::new(builder().dispatch(|d| d.append(collector.clone())).build());
 
         let owned_str = String::from("owned");
+        let arc_str: Arc<str> = Arc::from("arc");
+        let box_str: Box<str> = Box::from("box");
         let cow_str: Cow<'_, str> = Cow::Owned(String::from("cow"));
+        let cow_bytes: Cow<'_, [u8]> = Cow::Borrowed(b"cb");
+        let port_nz = std::num::NonZeroU16::new(8443).unwrap();
         let bytes_vec = vec![1_u8, 2, 3];
         let bytes_arr = [4_u8, 5];
         let val_owned = ValueOwned::str("value_owned");
@@ -662,7 +552,11 @@ mod tests {
                 "float_lit" = 0.5,
                 "owned_str" = owned_str,
                 "owned_str_ref" = &owned_str,
+                "arc_str" = arc_str,
+                "box_str" = box_str,
                 "cow_str" = cow_str,
+                "cow_bytes" = cow_bytes,
+                "port_nz" = port_nz,
                 "bytes_vec" = bytes_vec,
                 "bytes_slice" = bytes_vec.as_slice(),
                 "bytes_arr" = bytes_arr,
@@ -674,6 +568,8 @@ mod tests {
                 "custom_copy" = CustomCopy(42),
                 "opt_custom_copy" = Some(CustomCopy(43)),
                 "opt_string" = opt_string,
+                "opt_string_ref" = &opt_string,
+                "inline_list" = [Value::i64(1), Value::i64(2)],
                 "opt_val_owned" = opt_val_owned,
                 "opt_custom" = opt_custom,
                 "opt_u16" = opt_u16,
@@ -693,7 +589,10 @@ mod tests {
         static_str = "reassigned";
         assert_eq!(static_str, "reassigned");
         assert_eq!(owned_str, "owned");
+        assert_eq!(&*arc_str, "arc");
+        assert_eq!(&*box_str, "box");
         assert_eq!(cow_str, "cow");
+        assert_eq!(&*cow_bytes, b"cb");
         assert_eq!(bytes_vec, [1, 2, 3]);
         assert_eq!(val_owned.view().to_str(), Some("value_owned"));
         assert_eq!(custom.0, "custom");
@@ -707,7 +606,22 @@ mod tests {
             assert_eq!(kvs.get("int_lit").unwrap().to_i64(), Some(8080));
             assert_eq!(kvs.get("float_lit").unwrap().to_f64(), Some(0.5));
             assert_eq!(kvs.get("owned_str").unwrap().to_str(), Some("owned"));
+            assert_eq!(kvs.get("arc_str").unwrap().to_str(), Some("arc"));
+            assert_eq!(kvs.get("box_str").unwrap().to_str(), Some("box"));
+            assert_eq!(kvs.get("cow_bytes").unwrap().to_bytes(), Some(&b"cb"[..]));
+            assert_eq!(kvs.get("port_nz").unwrap().to_u64(), Some(8443));
             assert_eq!(kvs.get("opt_string").unwrap().to_str(), Some("opt_str"));
+            assert_eq!(kvs.get("opt_string_ref").unwrap().to_str(), Some("opt_str"));
+            assert_eq!(
+                kvs.get("inline_list")
+                    .unwrap()
+                    .to_list()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v.to_i64().unwrap())
+                    .collect::<Vec<_>>(),
+                [1, 2],
+            );
             assert_eq!(kvs.get("opt_u16").unwrap().to_u64(), Some(7));
             assert_eq!(kvs.get("opt_str_ref").unwrap().to_str(), Some("opt_ref"));
             assert_eq!(kvs.get("custom_copy").unwrap().to_u64(), Some(42));
