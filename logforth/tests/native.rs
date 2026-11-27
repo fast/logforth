@@ -18,17 +18,11 @@ use std::sync::Mutex;
 use logforth::Append;
 use logforth::Diagnostic;
 use logforth::Error;
-#[cfg(feature = "append-async")]
-use logforth::append::asynchronous::AsyncBuilder;
-#[cfg(feature = "bridge-log")]
-use logforth::bridge::log::LogBridge;
 use logforth::debug;
 use logforth::diagnostic::ThreadLocalDiagnostic;
 use logforth::error;
 use logforth::error::ErrorSink;
 use logforth::fatal;
-#[cfg(feature = "filter-rustlog")]
-use logforth::filter::rustlog::RustLogFilterBuilder;
 use logforth::info;
 use logforth::kv::Value;
 use logforth::log;
@@ -155,6 +149,9 @@ fn native_macros_error_sink_structured_fields_and_thread_local_diagnostic() {
 #[cfg(all(feature = "bridge-log", feature = "filter-rustlog"))]
 #[test]
 fn native_macro_and_log_bridge_share_rust_log_filter() {
+    use logforth::bridge::log::LogBridge;
+    use logforth::filter::rustlog::RustLogFilterBuilder;
+
     let spec = concat!("off,", module_path!(), "=info,custom::target=info");
     let filter = RustLogFilterBuilder::from_spec(spec).unwrap().build();
     let sink = Arc::new(RecordingAppend::default());
@@ -183,6 +180,8 @@ fn native_macro_and_log_bridge_share_rust_log_filter() {
 #[cfg(feature = "append-async")]
 #[test]
 fn native_macros_survive_async_dispatch_and_flush() {
+    use logforth::append::asynchronous::AsyncBuilder;
+
     let sink = Arc::new(RecordingAppend::default());
     let appender = AsyncBuilder::new("native-macro-async")
         .append(sink.clone())

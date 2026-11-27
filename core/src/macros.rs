@@ -318,6 +318,7 @@ mod tests {
     use crate::kv::LogValue;
     use crate::kv::Value;
     use crate::kv::ValueOwned;
+    use crate::kv::ValueView;
     use crate::record::Level;
     use crate::record::LevelFilter;
     use crate::record::Record;
@@ -651,10 +652,7 @@ mod tests {
 
         // Verify Hijack::capture is actually in scope (suppressing dead_code) without hijacking
         // macro KV capture, level MutexGuard drops before format args, and __LOC/LOC do not shadow.
-        assert!(matches!(
-            123_i32.capture().view(),
-            crate::kv::ValueView::None
-        ));
+        assert!(matches!(123_i32.capture().view(), ValueView::None));
         crate::log!(
             logger,
             *mutex_level.lock().unwrap(),

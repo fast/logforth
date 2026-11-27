@@ -136,7 +136,7 @@ impl RollingFileWriter {
         let excess = matching.len().saturating_sub(max_files.get());
         if excess == 0 {
             return Ok(());
-        };
+        }
         matching.sort_unstable_by_key(|(name, _)| *name);
         for (_, path) in matching
             .into_iter()
@@ -413,8 +413,6 @@ fn parse_seq(s: &str) -> Option<NonZeroU64> {
 #[cfg(test)]
 mod tests {
     use std::error::Error as _;
-    #[cfg(unix)]
-    use std::os::unix::fs::PermissionsExt as _;
 
     use tempfile::TempDir;
     use tempfile::tempdir;
@@ -578,6 +576,8 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn failed_rollover_appends_the_record_and_waits_one_second_before_retrying() {
+        use std::os::unix::fs::PermissionsExt as _;
+
         let dir = tempdir().unwrap();
         let mut writer = builder(&dir, Rotation::Minutely, "2026-11-25T17:00:59Z")
             .build()
