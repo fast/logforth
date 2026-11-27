@@ -120,18 +120,22 @@ impl Visitor for KvCollector<'_> {
         let key = key.as_str();
 
         if let Some(trace_project_id) = self.layout.trace_project_id.as_ref() {
-            if self.trace.is_none() && key == KEY_TRACE_ID {
+            if key == KEY_TRACE_ID {
                 self.trace = Some(format!("projects/{trace_project_id}/traces/{value}"));
                 return Ok(());
             }
 
-            if self.span_id.is_none() && key == KEY_SPAN_ID {
+            if key == KEY_SPAN_ID {
                 self.span_id = Some(value.to_string());
                 return Ok(());
             }
 
-            if self.trace_sampled.is_none() && matches!(key, KEY_SAMPLED | KEY_TRACE_SAMPLED) {
-                self.trace_sampled = value.to_bool();
+            if matches!(key, KEY_SAMPLED | KEY_TRACE_SAMPLED)
+                && let Some(sampled) = value.to_bool()
+            {
+                self.trace_sampled = Some(sampled);
+                self.payload_fields.remove(key);
+                self.labels.remove(key);
                 return Ok(());
             }
         }
@@ -186,10 +190,14 @@ struct RecordLine<'a> {
 }
 
 impl Layout for GoogleCloudLoggingLayout {
-    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
-        // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
-        // very unlikely if the system clock is correct.
-        let timestamp = jiff::Timestamp::try_from(record.time()).unwrap();
+    fn format(
+        &self,
+        record: &Record,
+        diags: &dyn Diagnostic,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), Error> {
+        let timestamp = jiff::Timestamp::try_from(record.time())
+            .map_err(|err| Error::new("invalid record timestamp").with_source(err))?;
 
         let mut visitor = KvCollector {
             layout: self,
@@ -200,8 +208,8 @@ impl Layout for GoogleCloudLoggingLayout {
             trace_sampled: None,
         };
 
-        record.key_values().visit(&mut visitor)?;
         diags.visit(&mut visitor)?;
+        record.key_values().visit(&mut visitor)?;
 
         let record_line = RecordLine {
             extra_fields: visitor.payload_fields,
@@ -219,7 +227,7 @@ impl Layout for GoogleCloudLoggingLayout {
             }),
         };
 
-        // SAFETY: RecordLine is serializable.
-        Ok(serde_json::to_vec(&record_line).unwrap())
+        serde_json::to_writer(&mut *buf, &record_line)
+            .map_err(|err| Error::new("failed to serialize log record").with_source(err))
     }
 }

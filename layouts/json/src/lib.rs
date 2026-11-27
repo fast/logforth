@@ -141,12 +141,14 @@ struct RecordLine<'a> {
 }
 
 impl Layout for JsonLayout {
-    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
-        let diagnostics = diags;
-
-        // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
-        // very unlikely if the system clock is correct.
-        let ts = Timestamp::try_from(record.time()).unwrap();
+    fn format(
+        &self,
+        record: &Record,
+        diags: &dyn Diagnostic,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), Error> {
+        let ts = Timestamp::try_from(record.time())
+            .map_err(|err| Error::new("invalid record timestamp").with_source(err))?;
         let timestamp = if let Some(format) = self.timestamp_format {
             format(ts, &self.timezone)
         } else {
@@ -157,9 +159,11 @@ impl Layout for JsonLayout {
         let mut kvs_visitor = KvCollector { kvs: &mut kvs };
         record.key_values().visit(&mut kvs_visitor)?;
 
-        let mut diags = Map::new();
-        let mut diags_visitor = KvCollector { kvs: &mut diags };
-        diagnostics.visit(&mut diags_visitor)?;
+        let mut diags_map = Map::new();
+        let mut diags_visitor = KvCollector {
+            kvs: &mut diags_map,
+        };
+        diags.visit(&mut diags_visitor)?;
 
         let record_line = RecordLine {
             timestamp,
@@ -169,10 +173,10 @@ impl Layout for JsonLayout {
             line: record.line().unwrap_or_default(),
             message: record.payload(),
             kvs,
-            diags,
+            diags: diags_map,
         };
 
-        // SAFETY: RecordLine is serializable.
-        Ok(serde_json::to_vec(&record_line).unwrap())
+        serde_json::to_writer(&mut *buf, &record_line)
+            .map_err(|err| Error::new("failed to serialize log record").with_source(err))
     }
 }

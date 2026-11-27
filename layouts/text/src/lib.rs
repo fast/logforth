@@ -20,7 +20,7 @@
 pub extern crate colored;
 pub extern crate jiff;
 
-use std::fmt::Write;
+use std::io::Write;
 
 use colored::Color;
 use colored::ColoredString;
@@ -182,35 +182,33 @@ impl TextLayout {
     }
 }
 
-struct KvWriter {
-    text: String,
+struct KvWriter<'a> {
+    buf: &'a mut Vec<u8>,
 }
 
-impl Visitor for KvWriter {
+impl Visitor for KvWriter<'_> {
     fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
-        use std::fmt::Write;
-
-        // SAFETY: write to a string always succeeds
-        write!(&mut self.text, " {key}={value}").unwrap();
-        Ok(())
+        write!(self.buf, " {key}={value}")
+            .map_err(|err| Error::new("failed to format key-value pair").with_source(err))
     }
 }
 
-fn default_timestamp_format(ts: Timestamp, tz: &TimeZone) -> String {
-    let offset = tz.to_offset(ts);
-    format!("{:.6}", ts.display_with_offset(offset))
-}
-
 impl Layout for TextLayout {
-    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
-        // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
-        // very unlikely if the system clock is correct.
-        let ts = Timestamp::try_from(record.time()).unwrap();
-        let time = if let Some(format) = self.timestamp_format {
-            format(ts, &self.timezone)
+    fn format(
+        &self,
+        record: &Record,
+        diags: &dyn Diagnostic,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), Error> {
+        let ts = Timestamp::try_from(record.time())
+            .map_err(|err| Error::new("invalid record timestamp").with_source(err))?;
+        if let Some(format) = self.timestamp_format {
+            buf.extend_from_slice(format(ts, &self.timezone).as_bytes());
         } else {
-            default_timestamp_format(ts, &self.timezone)
-        };
+            let offset = self.timezone.to_offset(ts);
+            write!(buf, "{:.6}", ts.display_with_offset(offset))
+                .map_err(|err| Error::new("failed to format record timestamp").with_source(err))?;
+        }
 
         let level = self.format_record_level(record.level());
         let module_path = record.module_path().unwrap_or_default();
@@ -218,16 +216,12 @@ impl Layout for TextLayout {
         let line = record.line().unwrap_or_default();
         let message = record.payload();
 
-        let mut visitor = KvWriter { text: time };
-        write!(
-            &mut visitor.text,
-            " {level:>6} {module_path}: {file}:{line} {message}"
-        )
-        .unwrap();
-        record.key_values().visit(&mut visitor)?;
-        diags.visit(&mut visitor)?;
+        write!(buf, " {level:>6} {module_path}: {file}:{line} {message}")
+            .map_err(|err| Error::new("failed to format log record").with_source(err))?;
 
-        Ok(visitor.text.into_bytes())
+        let mut visitor = KvWriter { buf };
+        record.key_values().visit(&mut visitor)?;
+        diags.visit(&mut visitor)
     }
 }
 
@@ -265,7 +259,7 @@ impl LevelColor {
     /// Colorize the log level.
     fn colorize_record_level(&self, no_color: bool, level: Level) -> ColoredString {
         if no_color {
-            ColoredString::from(level.to_string())
+            ColoredString::from(level.name())
         } else {
             let color = match level {
                 Level::Fatal | Level::Fatal2 | Level::Fatal3 | Level::Fatal4 => self.fatal,
@@ -275,7 +269,7 @@ impl LevelColor {
                 Level::Debug | Level::Debug2 | Level::Debug3 | Level::Debug4 => self.debug,
                 Level::Trace | Level::Trace2 | Level::Trace3 | Level::Trace4 => self.trace,
             };
-            ColoredString::from(level.to_string()).color(color)
+            ColoredString::from(level.name()).color(color)
         }
     }
 }
