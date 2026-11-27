@@ -73,13 +73,20 @@ pub use logforth_core::Logger;
 pub use logforth_core::LoggerBuilder;
 pub use logforth_core::append::Append;
 pub use logforth_core::builder;
+pub use logforth_core::debug;
 pub use logforth_core::diagnostic::Diagnostic;
+pub use logforth_core::error;
 pub use logforth_core::error::Error;
 pub use logforth_core::error::ErrorSink;
+pub use logforth_core::fatal;
 pub use logforth_core::filter::Filter;
+pub use logforth_core::info;
 pub use logforth_core::kv;
 pub use logforth_core::layout::Layout;
+pub use logforth_core::log;
 pub use logforth_core::record;
+pub use logforth_core::trace;
+pub use logforth_core::warn;
 
 /// Dispatch log records to various targets.
 pub mod append {
@@ -126,11 +133,6 @@ pub mod diagnostic {
     pub use logforth_diagnostic_task_local as task_local;
     #[cfg(feature = "diagnostic-task-local")]
     pub use logforth_diagnostic_task_local::TaskLocalDiagnostic;
-}
-
-/// Error types and sinks for internal runtime errors.
-pub mod error {
-    pub use logforth_core::error::*;
 }
 
 /// Filters for log records.
