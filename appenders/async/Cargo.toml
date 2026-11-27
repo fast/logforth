@@ -33,7 +33,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 logforth-core = { workspace = true }
-oneshot = { workspace = true }
 
 [lints]
 workspace = true

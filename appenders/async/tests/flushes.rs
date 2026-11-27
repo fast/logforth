@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 use std::sync::Barrier;
+use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
@@ -109,4 +110,75 @@ fn flush_handles_errors_in_worker_thread() {
 
     let err = rx.recv().unwrap();
     assert_eq!(err, "failed to flush appender: flush failed");
+}
+
+#[derive(Debug)]
+struct BlockingFirstAppend {
+    first_started: Arc<AtomicBool>,
+    first_barrier: Arc<Barrier>,
+    seen: Arc<Mutex<Vec<String>>>,
+}
+
+impl Append for BlockingFirstAppend {
+    fn append(&self, record: &Record, _: &dyn Diagnostic) -> Result<(), Error> {
+        if !self.first_started.swap(true, Ordering::SeqCst) {
+            self.first_barrier.wait();
+        }
+        self.seen.lock().unwrap().push(record.payload().to_string());
+        Ok(())
+    }
+
+    fn flush(&self) -> Result<(), Error> {
+        Ok(())
+    }
+}
+
+#[test]
+fn flush_completes_when_drop_incoming_buffer_is_full() {
+    let first_started = Arc::new(AtomicBool::new(false));
+    let first_barrier = Arc::new(Barrier::new(2));
+    let seen = Arc::new(Mutex::new(Vec::new()));
+
+    let async_append = Arc::new(
+        AsyncBuilder::new("async-drop-incoming-flush")
+            .buffered_lines_limit(Some(1))
+            .overflow_drop_incoming()
+            .append(BlockingFirstAppend {
+                first_started: first_started.clone(),
+                first_barrier: first_barrier.clone(),
+                seen: seen.clone(),
+            })
+            .build(),
+    );
+
+    let send = |msg: &'static str| {
+        async_append
+            .append(
+                &Record::builder().payload(format_args!("{msg}")).build(),
+                &(),
+            )
+            .unwrap();
+    };
+
+    // First record enters `BlockingFirstAppend::append`, freeing the 1-slot channel.
+    send("first");
+    while !first_started.load(Ordering::SeqCst) {
+        std::thread::yield_now();
+    }
+
+    // Second record fills the 1-slot channel; third record overflows and is dropped.
+    send("second");
+    send("dropped");
+
+    let flush_append = async_append.clone();
+    let flush_handle = std::thread::spawn(move || flush_append.flush());
+
+    first_barrier.wait();
+
+    flush_handle
+        .join()
+        .expect("flush thread panicked")
+        .expect("flush should wait for queued records instead of being dropped");
+
+    assert_eq!(*seen.lock().unwrap(), vec!["first", "second"]);
 }
