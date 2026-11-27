@@ -156,8 +156,6 @@ fn level_to_level(level: log::Level) -> Level {
 
 #[cfg(not(feature = "serde"))]
 mod kv {
-    use std::fmt;
-
     use super::KEY_LOGFORTH_TARGET;
 
     pub(super) struct KeyValuesStageOne<'a> {
@@ -206,11 +204,7 @@ mod kv {
 
         impl<'a> log::kv::VisitValue<'a> for ValueVisitor<'a> {
             fn visit_any(&mut self, value: log::kv::Value) -> Result<(), log::kv::Error> {
-                let mut buf = String::new();
-                if fmt::write(&mut buf, format_args!("{value}")).is_err() {
-                    buf = String::from("<fmt error>");
-                }
-                self.0 = MaybeOwnedValue::Owned(buf);
+                self.0 = MaybeOwnedValue::Owned(value.to_string());
                 Ok(())
             }
 

@@ -26,8 +26,8 @@ use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
+use logforth_core::kv::DisplayValue;
 use logforth_core::kv::KeyView;
-use logforth_core::kv::Value;
 use logforth_core::kv::ValueView;
 use logforth_core::layout::Layout;
 use logforth_core::record::Record;
@@ -116,18 +116,18 @@ impl Layout for LogfmtLayout {
         let line = record.line().unwrap_or_default();
         let payload = record.payload();
         let message = match record.payload_static() {
-            Some(msg) => Value::static_str(msg),
-            None => Value::display(&payload),
+            Some(msg) => ValueView::StaticStr(msg),
+            None => ValueView::Display(DisplayValue::new(&payload)),
         };
 
-        write_kv(buf, "level", Value::static_str(level.name()).view())?;
-        write_kv(buf, "module", Value::str(module).view())?;
+        write_kv(buf, "level", ValueView::StaticStr(level.name()))?;
+        write_kv(buf, "module", ValueView::BorrowedStr(module))?;
         write_kv(
             buf,
             "position",
-            Value::display(&format_args!("{file}:{line}")).view(),
+            ValueView::Display(DisplayValue::new(&format_args!("{file}:{line}"))),
         )?;
-        write_kv(buf, "message", message.view())?;
+        write_kv(buf, "message", message)?;
 
         let mut visit = |key: KeyView, value: ValueView| write_kv(buf, key.as_str(), value);
         record.key_values().visit(&mut visit)?;
