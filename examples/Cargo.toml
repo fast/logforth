@@ -65,6 +65,10 @@ tokio = { workspace = true, features = ["full"] }
 workspace = true
 
 [[example]]
+name = "native"
+path = "src/native.rs"
+
+[[example]]
 name = "asynchronous"
 path = "src/asynchronous.rs"
 required-features = ["starter-log", "append-async"]

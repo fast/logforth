@@ -30,6 +30,7 @@ All significant changes to this project will be documented in this file.
 
 ### New features
 
+* Add native structured logging macros (`log!`, `trace!`, `debug!`, `info!`, `warn!`, `error!`, and `fatal!`) in `logforth-core` and `logforth` supporting bracketed `"key" = value` fields on explicit `Logger` handles.
 * Add `Error::message` in `logforth-core` to borrow the error's own message string.
 * Make `Logger` a pointer-sized `Clone` and `Default` handle over a shared pipeline and add `const fn Logger::noop()` in `logforth-core`, and implement `Clone` for `LogBridge` in `logforth-bridge-log`.
 * Add `Level::ALL` in `logforth-core` and `ValueOwned::{from_serde, try_from_serde}` (behind the `serde` feature) to convert `serde::Serialize` values into structured `ValueOwned` trees without panicking.

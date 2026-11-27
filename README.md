@@ -20,7 +20,13 @@ Logforth is a versatile, extensible, and easy-to-use logging framework for Rust 
 
 ## Getting Started
 
-Add `log` and `logforth` to your `Cargo.toml`:
+Add `logforth` to your `Cargo.toml` with zero optional features required for native logging:
+
+```shell
+cargo add logforth
+```
+
+If you also want to collect logs emitted through the `log` crate facade, enable `starter-log` (or `bridge-log`):
 
 ```shell
 cargo add log
@@ -29,58 +35,86 @@ cargo add logforth -F starter-log
 
 ## Simple Usage
 
-Set up a basic logger that outputs to stdout:
-
-```rust
-fn main() {
-    logforth::starter_log::stdout().install();
-
-    log::error!("This is an error message.");
-    log::info!("This is an info message.");
-    log::debug!("This debug message will not be printed by default.");
-}
-```
-
-By default, all logging except the `error` level is disabled. You can enable logging at other levels by setting the [`RUST_LOG`](https://docs.rs/logforth-filter-rustlog/*/logforth_filter_rustlog/index.html) environment variable. For example, `RUST_LOG=all cargo run` will print all logs.
-
-## Advanced Usage
-
-Configure multiple dispatches with different filters and appenders:
+Build an explicit `Logger` and emit structured events with Logforth's native logging macros:
 
 ```rust
 use logforth::append;
 use logforth::record::Level;
 use logforth::record::LevelFilter;
+
+fn main() {
+    let logger = logforth::builder()
+        .dispatch(|d| {
+            d.filter(LevelFilter::MoreSevereEqual(Level::Info))
+                .append(append::Stdout::default())
+        })
+        .build();
+
+    let addr = "127.0.0.1:8080";
+    logforth::error!(logger, "This is an error message.");
+    logforth::info!(logger, ["port" = 8080, "tls" = true], "listening on {addr}");
+    logforth::debug!(logger, "This debug message will not be printed.");
+    logger.flush();
+}
+```
+
+### Interop with the `log` Crate
+
+With the `starter-log` feature enabled, you can set up a global `log` logger driven by the [`RUST_LOG`](https://docs.rs/logforth-filter-rustlog/*/logforth_filter_rustlog/index.html) environment variable, or bridge an existing `Logger` with `LogBridge`:
+
+```rust
+use logforth::bridge::log::LogBridge;
 use logforth::starter_log::LogStarterExt;
 
 fn main() {
-    logforth::builder()
-        .dispatch(|d| d
-            .filter(LevelFilter::MoreSevereEqual(Level::Error))
-            .append(append::Stderr::default()))
-        .dispatch(|d| d
-            .filter(LevelFilter::MoreSevereEqual(Level::Info))
-            .append(append::Stdout::default()))
-        .install();
+    // Option 1: Install a global stdout starter (defaults to `error` unless `RUST_LOG` is set, e.g. `RUST_LOG=all`).
+    logforth::starter_log::stdout().install();
 
-    log::error!("This error will be logged to stderr.");
-    log::info!("This info will be logged to stdout.");
-    log::debug!("This debug message will not be logged.");
+    // Option 2: Wrap a native `Logger` with `LogBridge` for `log` targets or global installation.
+    let logger = logforth::builder()
+        .dispatch(|d| d.append(logforth::append::Stdout::default()))
+        .build();
+    let bridge = LogBridge::new(logger);
+    log::info!(logger: bridge, "This info message flows through LogBridge.");
+}
+```
+
+## Advanced Usage
+
+Configure multiple dispatches with different filters and appenders on a native `Logger`:
+
+```rust
+use logforth::append;
+use logforth::record::Level;
+use logforth::record::LevelFilter;
+
+fn main() {
+    let logger = logforth::builder()
+        .dispatch(|d| {
+            d.filter(LevelFilter::MoreSevereEqual(Level::Error))
+                .append(append::Stderr::default())
+        })
+        .dispatch(|d| {
+            d.filter(LevelFilter::MoreSevereEqual(Level::Info))
+                .append(append::Stdout::default())
+        })
+        .build();
+
+    logforth::error!(logger, "This error will be logged to stderr.");
+    logforth::info!(logger, ["component" = "server"], "This info will be logged to stdout.");
+    logforth::debug!(logger, "This debug message will not be logged.");
+    logger.flush();
 }
 ```
 
 Configure OpenTelemetry appender to export logs to an OpenTelemetry backend ([full example](https://github.com/scopedb/percas/blob/d01db13b/crates/server/src/telemetry.rs#L131-L227)):
 
 ```rust
+use logforth::diagnostic::StaticDiagnostic;
 use logforth::starter_log::LogStarterExt;
 
 fn main() {
-    let static_diagnostic = {
-        let mut static_diagnostic = StaticDiagnostic::default();
-        static_diagnostic.insert("node_id", node_id);
-        static_diagnostic.insert("nodegroup", nodegroup);
-        static_diagnostic
-    };
+    let static_diagnostic = StaticDiagnostic::new([("node_id", node_id), ("nodegroup", nodegroup)]);
 
     let runtime = async_runtime();
     let filter = make_rust_log_filter(&opentelemetry.filter);
@@ -183,7 +217,7 @@ Users can also create their own filters by implementing the [`Filter`] trait.
 Logforth supports providing a mapped diagnostic context (MDC) for stamping each log request.
 
 * [`StaticDiagnostic`] allows you to set static key-value pairs for the entire application, like application version or hostname.
-* [`ThreadLocalDiagnostic`] allows you to set thread-local key-value pairs.
+* [`ThreadLocalDiagnostic`] provides scoped thread-local key-value pairs via `ThreadLocalDiagnostic::scope`, returning an RAII guard that restores shadowed entries on drop.
 * [`TaskLocalDiagnostic`] allows you to set task-local key-value pairs for async tasks.
 * [`FastraceDiagnostic`] integrates with the [Fastrace](https://docs.rs/fastrace/*/fastrace/) tracing system to provide tracing context (TraceId, SpanId, etc.) as diagnostics.
 
