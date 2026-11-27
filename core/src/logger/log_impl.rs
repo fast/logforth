@@ -71,7 +71,7 @@ impl Logger {
         Self { state: None }
     }
 
-    pub(super) fn new(dispatches: Vec<Dispatch>, error_sink: Box<dyn ErrorSink>) -> Self {
+    pub(crate) fn new(dispatches: Vec<Dispatch>, error_sink: Box<dyn ErrorSink>) -> Self {
         if dispatches.is_empty() {
             Self::noop()
         } else {
@@ -124,7 +124,7 @@ impl Logger {
 
 /// A grouped set of filters, diagnostics, and appenders.
 #[derive(Debug)]
-pub(super) struct Dispatch {
+pub struct Dispatch {
     level_mask: u32,
     filters: Vec<Box<dyn Filter>>,
     diagnostics: Vec<Box<dyn Diagnostic>>,
@@ -133,7 +133,7 @@ pub(super) struct Dispatch {
 }
 
 impl Dispatch {
-    pub(super) fn new(
+    pub fn new(
         filters: Vec<Box<dyn Filter>>,
         diagnostics: Vec<Box<dyn Diagnostic>>,
         appends: Vec<Box<dyn Append>>,

@@ -15,6 +15,7 @@
 use logforth::append::file::FileBuilder;
 use logforth::layout::JsonLayout;
 use logforth::record::LevelFilter;
+use logforth::starter_log::LogStarterExt as _;
 
 fn main() {
     let file = FileBuilder::new("logs", "my_app")
@@ -22,8 +23,6 @@ fn main() {
         .layout(JsonLayout::default())
         .build()
         .unwrap();
-
-    use logforth::starter_log::LogStarterExt;
 
     logforth::builder()
         .dispatch(|d| d.filter(LevelFilter::All).append(file))

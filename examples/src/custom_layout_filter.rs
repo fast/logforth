@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::Write as _;
+
 use logforth::Diagnostic;
 use logforth::Error;
 use logforth::Filter;
@@ -49,8 +51,6 @@ impl Layout for CustomLayout {
         diags: &dyn Diagnostic,
         buf: &mut Vec<u8>,
     ) -> Result<(), Error> {
-        use std::io::Write;
-
         let _ = diags;
         write!(buf, "[Alert] {}", record.payload())
             .map_err(|err| Error::new("failed to format custom record").with_source(err))

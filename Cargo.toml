@@ -80,6 +80,7 @@ unknown_lints = "deny"
 unused_must_use = "deny"
 
 [workspace.lints.clippy]
+allow_attributes = "deny"
 dbg_macro = "deny"
 
 [workspace.metadata.release]

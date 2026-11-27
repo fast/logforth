@@ -20,7 +20,7 @@
 
 use std::fs::File;
 use std::io;
-use std::io::Write;
+use std::io::Write as _;
 use std::mem;
 use std::os::fd::AsRawFd;
 use std::os::fd::FromRawFd;
@@ -30,16 +30,18 @@ use std::os::unix::net::UnixDatagram;
 use std::path::Path;
 use std::ptr;
 
+use crate::JOURNALD_PATH;
+
 // If the payload's too large for a single datagram, send it through a memfd, see
 // https://systemd.io/JOURNAL_NATIVE_PROTOCOL/
-pub(super) fn send_large_payload(socket: &UnixDatagram, payload: &[u8]) -> io::Result<usize> {
+pub fn send_large_payload(socket: &UnixDatagram, payload: &[u8]) -> io::Result<usize> {
     // Write the whole payload to a memfd
     let mut mem = create_sealable()?;
     mem.write_all(payload)?;
     // Fully seal the memfd to signal journald that its backing data won't resize anymore
     // and so is safe to mmap.
     seal_fully(mem.as_raw_fd())?;
-    send_one_fd_to(socket, mem.as_raw_fd(), super::JOURNALD_PATH)
+    send_one_fd_to(socket, mem.as_raw_fd(), JOURNALD_PATH)
 }
 
 fn create(flags: libc::c_uint) -> io::Result<File> {
@@ -154,8 +156,10 @@ fn send_one_fd_to<P: AsRef<Path>>(socket: &UnixDatagram, fd: RawFd, path: P) -> 
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn cmsg_buffer_size_for_one_fd() {
-        super::assert_cmsg_bufsize()
+        assert_cmsg_bufsize()
     }
 }

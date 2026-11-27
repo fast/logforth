@@ -13,9 +13,10 @@
 // limitations under the License.
 
 #[cfg(unix)]
-fn main() {
-    use logforth::starter_log::LogStarterExt;
+use logforth::starter_log::LogStarterExt as _;
 
+#[cfg(unix)]
+fn main() {
     let append = logforth::append::Journald::new().unwrap();
     logforth::builder().dispatch(|d| d.append(append)).install();
 

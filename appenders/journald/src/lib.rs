@@ -18,7 +18,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
 
-use std::io::Write;
+use std::io::Write as _;
 use std::os::unix::net::UnixDatagram;
 
 use logforth_core::Append;
@@ -29,6 +29,10 @@ use logforth_core::kv::ValueView;
 use logforth_core::kv::Visitor;
 use logforth_core::record::Level;
 use logforth_core::record::Record;
+
+use crate::field::FieldName;
+use crate::field::put_field_bytes;
+use crate::field::put_field_length_encoded;
 
 mod field;
 #[cfg(target_os = "linux")]
@@ -158,9 +162,9 @@ impl Journald {
     ///
     /// There are no restrictions on the value.
     pub fn with_extra_field<K: AsRef<str>, V: AsRef<[u8]>>(mut self, name: K, value: V) -> Self {
-        field::put_field_bytes(
+        put_field_bytes(
             &mut self.extra_fields,
-            field::FieldName::WriteEscaped(name.as_ref()),
+            FieldName::WriteEscaped(name.as_ref()),
             value.as_ref(),
         );
         self
@@ -176,9 +180,9 @@ impl Journald {
         V: AsRef<[u8]>,
     {
         for (name, value) in extra_fields {
-            field::put_field_bytes(
+            put_field_bytes(
                 &mut self.extra_fields,
-                field::FieldName::WriteEscaped(name.as_ref()),
+                FieldName::WriteEscaped(name.as_ref()),
                 value.as_ref(),
             );
         }
@@ -239,7 +243,7 @@ struct WriteKeyValues<'a>(&'a mut Vec<u8>);
 impl Visitor for WriteKeyValues<'_> {
     fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
         let key = key.as_str();
-        field::put_field_length_encoded(self.0, field::FieldName::WriteEscaped(key), value);
+        put_field_length_encoded(self.0, FieldName::WriteEscaped(key), value);
         Ok(())
     }
 }
@@ -248,8 +252,6 @@ impl Append for Journald {
     /// Extract all fields (standard and custom) from `record`, append all `extra_fields` given
     /// to this appender, and send the result to journald.
     fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
-        use field::*;
-
         let mut buffer = vec![];
 
         // Write standard fields. Numeric fields can't contain new lines so we

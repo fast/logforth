@@ -25,16 +25,20 @@ use logforth::starter_log::LogStarterExt;
 static FILTER: OnceLock<Filter> = OnceLock::new();
 
 mod foo {
+    #[cfg(debug_assertions)]
+    use logforth::record::Level;
+
+    #[cfg(debug_assertions)]
+    use crate::FILTER;
+    #[cfg(debug_assertions)]
+    use crate::Filter;
+
     // This is how you can allow debug level logs for this module while keeping the default log
     // level for everything else at info.
     #[cfg(debug_assertions)]
     #[ctor::ctor]
     unsafe fn set_log_filter() {
-        use logforth::record::Level;
-
-        use crate::Filter;
-
-        super::FILTER
+        FILTER
             .get_or_init(|| Filter::new(Level::Info))
             .set_module_level(module_path!(), Level::Debug);
     }

@@ -85,10 +85,10 @@
 
 pub extern crate jiff;
 
+mod append;
 pub use self::append::File;
 pub use self::append::FileBuilder;
 
-mod append;
 mod clock;
 mod rolling;
 mod rotation;

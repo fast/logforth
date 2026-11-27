@@ -314,13 +314,11 @@ impl LogStarter {
 fn default_layout() -> Box<dyn Layout> {
     #[cfg(feature = "layout-text")]
     {
-        use crate::layout::TextLayout;
-        Box::new(TextLayout::default())
+        Box::new(crate::layout::TextLayout::default())
     }
 
     #[cfg(not(feature = "layout-text"))]
     {
-        use crate::layout::PlainTextLayout;
-        Box::new(PlainTextLayout::default())
+        Box::new(crate::layout::PlainTextLayout::default())
     }
 }

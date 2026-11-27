@@ -325,7 +325,7 @@ mod tests {
 
     #[no_implicit_prelude]
     mod no_prelude {
-        pub(super) fn emit(logger: &crate::Logger) {
+        pub fn emit(logger: &crate::Logger) {
             crate::info!(logger, "no prelude plain");
             crate::info!(logger, ["k" = 1_i32, "s" = "ok"], "no prelude kv");
         }

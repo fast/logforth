@@ -163,7 +163,7 @@ mod rustls_ext {
     use fasyslog::sender::SyslogSender;
     use fasyslog::sender::rustls::ClientConfig;
 
-    use super::SyslogBuilder;
+    use crate::SyslogBuilder;
 
     impl SyslogBuilder {
         /// Create a TLS sender that sends messages to the well-known port (6514).
@@ -207,7 +207,7 @@ mod native_tls_ext {
     use fasyslog::sender::SyslogSender;
     use fasyslog::sender::native_tls::TlsConnectorBuilder;
 
-    use super::SyslogBuilder;
+    use crate::SyslogBuilder;
 
     impl SyslogBuilder {
         /// Create a TLS sender that sends messages to the well-known port (6514).
@@ -246,7 +246,7 @@ mod unix_ext {
 
     use fasyslog::sender::SyslogSender;
 
-    use super::SyslogBuilder;
+    use crate::SyslogBuilder;
 
     impl SyslogBuilder {
         /// Create a new syslog writer that sends messages to the given Unix stream socket.

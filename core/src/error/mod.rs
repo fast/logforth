@@ -15,15 +15,16 @@
 //! Error types and sinks for internal runtime errors produced by the logging pipeline.
 
 use std::borrow::Cow;
-use std::error::Error as StdError;
+use std::error::Error as _;
 use std::fmt;
 
 mod black_hole;
-mod sink;
-mod stderr;
-
 pub use self::black_hole::BlackHoleErrorSink;
+
+mod sink;
 pub use self::sink::ErrorSink;
+
+mod stderr;
 pub use self::stderr::StderrErrorSink;
 
 /// An error returned or reported by Logforth components.
@@ -33,7 +34,7 @@ pub struct Error {
 
 struct ErrorState {
     message: Cow<'static, str>,
-    source: Option<Box<dyn StdError + Send + Sync + 'static>>,
+    source: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
 }
 
 impl Error {
@@ -55,7 +56,7 @@ impl Error {
     /// Attach or replace the underlying causal error.
     pub fn with_source(
         mut self,
-        src: impl Into<Box<dyn StdError + Send + Sync + 'static>>,
+        src: impl Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
     ) -> Self {
         self.state.source = Some(src.into());
         self
@@ -105,12 +106,12 @@ impl fmt::Debug for Error {
     }
 }
 
-impl StdError for Error {
-    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         self.state
             .source
             .as_deref()
-            .map(|err| err as &(dyn StdError + 'static))
+            .map(|err| err as &(dyn std::error::Error + 'static))
     }
 }
 
@@ -134,8 +135,8 @@ mod tests {
         }
     }
 
-    impl StdError for TransportError {
-        fn source(&self) -> Option<&(dyn StdError + 'static)> {
+    impl std::error::Error for TransportError {
+        fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
             Some(&self.cause)
         }
     }

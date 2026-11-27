@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::Write as _;
 use std::num::NonZeroU64;
 use std::num::NonZeroUsize;
 
@@ -33,8 +34,6 @@ impl Layout for CustomLayout {
         diags: &dyn Diagnostic,
         buf: &mut Vec<u8>,
     ) -> Result<(), Error> {
-        use std::io::Write;
-
         let _ = diags;
         write!(buf, "{} [{}] {}", self.0, record.level(), record.payload()).unwrap();
         Ok(())

@@ -20,13 +20,14 @@ use std::sync::Arc;
 use crate::Error;
 use crate::kv;
 
-mod impls;
 mod static_global;
-mod thread_local;
-
 pub use self::static_global::StaticDiagnostic;
+
+mod thread_local;
 pub use self::thread_local::ThreadLocalDiagnostic;
 pub use self::thread_local::ThreadLocalDiagnosticGuard;
+
+mod impls;
 
 /// A Mapped Diagnostic Context (MDC) that provides diagnostic key-values.
 pub trait Diagnostic: fmt::Debug + Send + Sync {

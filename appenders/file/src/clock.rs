@@ -15,14 +15,14 @@
 use jiff::Timestamp;
 
 #[derive(Debug)]
-pub(crate) enum Clock {
+pub enum Clock {
     DefaultClock,
     #[cfg(test)]
     ManualClock(Timestamp),
 }
 
 impl Clock {
-    pub(crate) fn now(&self) -> Timestamp {
+    pub fn now(&self) -> Timestamp {
         match self {
             Clock::DefaultClock => Timestamp::now(),
             #[cfg(test)]

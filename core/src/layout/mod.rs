@@ -22,7 +22,6 @@ use crate::Error;
 use crate::record::Record;
 
 mod plain_text;
-
 pub use self::plain_text::PlainTextLayout;
 
 /// A layout for formatting log records into a byte buffer.
