@@ -25,7 +25,6 @@ use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::kv::KeyView;
 use logforth_core::kv::ValueView;
-use logforth_core::kv::Visitor;
 use logforth_core::layout::Layout;
 use logforth_core::record::Record;
 use serde::Serialize;
@@ -106,19 +105,15 @@ impl JsonLayout {
     }
 }
 
-struct KvCollector<'a> {
-    kvs: &'a mut Map<String, serde_json::Value>,
-}
-
-impl Visitor for KvCollector<'_> {
-    fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
-        let key = key.to_string();
-        match serde_json::to_value(value) {
-            Ok(value) => self.kvs.insert(key, value),
-            Err(_) => self.kvs.insert(key, value.to_string().into()),
-        };
-        Ok(())
-    }
+fn collect_kv(
+    kvs: &mut Map<String, serde_json::Value>,
+    key: KeyView,
+    value: ValueView,
+) -> Result<(), Error> {
+    let key = key.to_string();
+    let value = serde_json::to_value(value).unwrap_or_else(|_| value.to_string().into());
+    kvs.insert(key, value);
+    Ok(())
 }
 
 fn default_timestamp_format(ts: Timestamp, tz: &TimeZone) -> String {
@@ -155,26 +150,24 @@ impl Layout for JsonLayout {
             default_timestamp_format(ts, &self.timezone)
         };
 
-        let mut kvs = Map::new();
-        let mut kvs_visitor = KvCollector { kvs: &mut kvs };
-        record.key_values().visit(&mut kvs_visitor)?;
-
-        let mut diags_map = Map::new();
-        let mut diags_visitor = KvCollector {
-            kvs: &mut diags_map,
-        };
-        diags.visit(&mut diags_visitor)?;
-
-        let record_line = RecordLine {
+        let mut record_line = RecordLine {
             timestamp,
             level: record.level().name(),
             module_path: record.module_path().unwrap_or_default(),
             file: record.file().unwrap_or_default(),
             line: record.line().unwrap_or_default(),
             message: record.payload(),
-            kvs,
-            diags: diags_map,
+            kvs: Map::new(),
+            diags: Map::new(),
         };
+
+        let kvs = record.key_values();
+        kvs.visit(&mut |key: KeyView, value: ValueView| {
+            collect_kv(&mut record_line.kvs, key, value)
+        })?;
+        diags.visit(&mut |key: KeyView, value: ValueView| {
+            collect_kv(&mut record_line.diags, key, value)
+        })?;
 
         serde_json::to_writer(&mut *buf, &record_line)
             .map_err(|err| Error::new("failed to serialize log record").with_source(err))

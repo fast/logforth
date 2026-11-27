@@ -26,11 +26,9 @@ use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
-use logforth_core::kv::Key;
 use logforth_core::kv::KeyView;
 use logforth_core::kv::Value;
 use logforth_core::kv::ValueView;
-use logforth_core::kv::Visitor;
 use logforth_core::layout::Layout;
 use logforth_core::record::Record;
 
@@ -75,32 +73,25 @@ impl LogfmtLayout {
     }
 }
 
-struct KvFormatter<'a> {
-    buf: &'a mut Vec<u8>,
-}
+// The encode logic is copied from https://github.com/go-logfmt/logfmt/blob/76262ea7/encode.go.
+fn write_kv(buf: &mut Vec<u8>, key: &str, value: ValueView) -> Result<(), Error> {
+    let is_special = |c: char| c.is_control() || matches!(c, ' ' | '=' | '"');
 
-impl Visitor for KvFormatter<'_> {
-    // The encode logic is copied from https://github.com/go-logfmt/logfmt/blob/76262ea7/encode.go.
-    fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
-        let is_special = |c: char| c.is_control() || matches!(c, ' ' | '=' | '"');
-
-        let key = key.as_str();
-        if key.chars().any(is_special) {
-            return Err(Error::new(format!("key contains special chars: {key}")));
-        }
-
-        let value = match value.to_str() {
-            Some(s) => Cow::Borrowed(s),
-            None => Cow::Owned(value.to_string()),
-        };
-
-        if value.chars().any(is_special) {
-            write!(self.buf, " {key}=\"{}\"", value.escape_debug())
-        } else {
-            write!(self.buf, " {key}={value}")
-        }
-        .map_err(|err| Error::new("failed to format key-value pair").with_source(err))
+    if key.chars().any(is_special) {
+        return Err(Error::new(format!("key contains special chars: {key}")));
     }
+
+    let value = match value.to_str() {
+        Some(s) => Cow::Borrowed(s),
+        None => Cow::Owned(value.to_string()),
+    };
+
+    if value.chars().any(is_special) {
+        write!(buf, " {key}=\"{}\"", value.escape_debug())
+    } else {
+        write!(buf, " {key}={value}")
+    }
+    .map_err(|err| Error::new("failed to format key-value pair").with_source(err))
 }
 
 impl Layout for LogfmtLayout {
@@ -123,29 +114,23 @@ impl Layout for LogfmtLayout {
         let module = record.module_path().unwrap_or_default();
         let file = record.filename();
         let line = record.line().unwrap_or_default();
-        let message = if let Some(msg) = record.payload_static() {
-            Cow::Borrowed(msg)
-        } else {
-            Cow::Owned(record.payload().to_string())
+        let payload = record.payload();
+        let message = match record.payload_static() {
+            Some(msg) => Value::static_str(msg),
+            None => Value::display(&payload),
         };
 
-        let mut visitor = KvFormatter { buf };
-
-        visitor.visit(
-            Key::new("level").view(),
-            Value::static_str(level.name()).view(),
-        )?;
-        visitor.visit(Key::new("module").view(), Value::str(module).view())?;
-        visitor.visit(
-            Key::new("position").view(),
+        write_kv(buf, "level", Value::static_str(level.name()).view())?;
+        write_kv(buf, "module", Value::str(module).view())?;
+        write_kv(
+            buf,
+            "position",
             Value::display(&format_args!("{file}:{line}")).view(),
         )?;
-        visitor.visit(
-            Key::new("message").view(),
-            Value::str(message.as_ref()).view(),
-        )?;
+        write_kv(buf, "message", message.view())?;
 
-        record.key_values().visit(&mut visitor)?;
-        diags.visit(&mut visitor)
+        let mut visit = |key: KeyView, value: ValueView| write_kv(buf, key.as_str(), value);
+        record.key_values().visit(&mut visit)?;
+        diags.visit(&mut visit)
     }
 }
