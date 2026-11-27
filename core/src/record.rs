@@ -186,6 +186,12 @@ impl Default for RecordBuilder<'_> {
 }
 
 impl<'a> RecordBuilder<'a> {
+    /// Sets [`time`][Record::time].
+    pub fn time(mut self, time: SystemTime) -> Self {
+        self.record.now = time;
+        self
+    }
+
     /// Set [`payload`](Record::payload).
     pub fn payload(mut self, payload: fmt::Arguments<'a>) -> Self {
         self.record.payload = payload;
