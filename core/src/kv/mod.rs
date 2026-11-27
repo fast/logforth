@@ -527,7 +527,7 @@ impl<'a> Value<'a> {
     }
 
     /// Create a value borrowing an owned [`ValueOwned`].
-    pub const fn from_owned(v: &'a ValueOwned) -> Self {
+    pub const fn owned(v: &'a ValueOwned) -> Self {
         Value(ValueState::Owned(v))
     }
 
@@ -620,7 +620,7 @@ impl<'a> From<&'a Vec<u8>> for Value<'a> {
 
 impl<'a> From<&'a ValueOwned> for Value<'a> {
     fn from(v: &'a ValueOwned) -> Self {
-        Value::from_owned(v)
+        Value::owned(v)
     }
 }
 

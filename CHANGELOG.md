@@ -38,7 +38,7 @@ All significant changes to this project will be documented in this file.
 * Implement `Append`, `ErrorSink`, `Filter`, and `Layout` in `logforth-core`, and `MakeBody` in `logforth-append-opentelemetry`, for `Arc<T>` and `&'static T` where `T: ?Sized`, and implement `Diagnostic` for `&T`, `Arc<T>`, `()`, `Option<T>`, slices, arrays, and `Vec`.
 * Add `FileBuilder::timezone` in `logforth-append-file` (and re-export `jiff`) to configure the timezone used for rotation boundaries and segment filenames, defaulting to the system timezone.
 * Add `ThreadLocalDiagnostic::scope` and `ThreadLocalDiagnosticGuard` in `logforth-core` for `!Send` RAII scoped thread-local diagnostics that restore shadowed entries on drop.
-* Add `Value::from_owned`, `DebugValue::new`, `DisplayValue::new`, `KeyView::to_static_str`, and `ValueView::to_bytes` in `logforth-core`, and expand `From` conversions on `kv::{KeyOwned, Value, ValueOwned}` across scalars, strings, byte slices, `Option<T>`, and `&ValueOwned`.
+* Add `Value::owned`, `DebugValue::new`, `DisplayValue::new`, `KeyView::to_static_str`, and `ValueView::to_bytes` in `logforth-core`, and expand `From` conversions on `kv::{KeyOwned, Value, ValueOwned}` across scalars, strings, byte slices, `Option<T>`, and `&ValueOwned`.
 
 ### Improvements
 
