@@ -69,17 +69,21 @@ impl AsyncState {
 
 impl Drop for AsyncState {
     fn drop(&mut self) {
-        // SAFETY: state is always Some before dropped.
-        let State {
+        let Some(State {
             overflow: _,
             sender,
             handle,
-        } = self.0.take().unwrap();
+        }) = self.0.take()
+        else {
+            return;
+        };
 
         // drop our sender, threads will break the loop after receiving and processing
         drop(sender);
 
         // wait for the thread to finish
-        handle.join().expect("failed to join async appender thread");
+        if handle.thread().id() != std::thread::current().id() {
+            let _ = handle.join();
+        }
     }
 }

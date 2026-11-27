@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::any::Any;
+use std::panic::AssertUnwindSafe;
+use std::panic::catch_unwind;
+
 use logforth_core::Append;
 use logforth_core::Diagnostic;
 use logforth_core::Error;
@@ -55,18 +59,35 @@ impl Worker {
 
                     record.with(|record| {
                         for append in appends.iter() {
-                            if let Err(err) = append.append(&record, &diag) {
-                                let err = Error::new("failed to append record").with_source(err);
-                                error_sink.sink(&err);
+                            match catch_unwind(AssertUnwindSafe(|| append.append(&record, &diag))) {
+                                Ok(Ok(())) => {}
+                                Ok(Err(err)) => {
+                                    let err =
+                                        Error::new("failed to append record").with_source(err);
+                                    error_sink.sink(&err);
+                                }
+                                Err(payload) => {
+                                    let err = Error::new("failed to append record")
+                                        .with_source(panic_error(payload));
+                                    error_sink.sink(&err);
+                                }
                             }
                         }
                     });
                 }
                 Task::Flush { done } => {
                     for append in appends.iter() {
-                        if let Err(err) = append.flush() {
-                            let err = Error::new("failed to flush appender").with_source(err);
-                            error_sink.sink(&err);
+                        match catch_unwind(AssertUnwindSafe(|| append.flush())) {
+                            Ok(Ok(())) => {}
+                            Ok(Err(err)) => {
+                                let err = Error::new("failed to flush appender").with_source(err);
+                                error_sink.sink(&err);
+                            }
+                            Err(payload) => {
+                                let err = Error::new("failed to flush appender")
+                                    .with_source(panic_error(payload));
+                                error_sink.sink(&err);
+                            }
                         }
                     }
                     let _ = done.send(());
@@ -74,6 +95,15 @@ impl Worker {
             }
         }
     }
+}
+
+fn panic_error(payload: Box<dyn Any + Send>) -> Error {
+    let msg = payload
+        .downcast_ref::<&'static str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("non-string panic payload");
+    Error::new(format!("appender panicked: {msg}"))
 }
 
 #[derive(Debug)]
