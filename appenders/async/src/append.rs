@@ -109,7 +109,7 @@ impl Append for Async {
     }
 
     fn flush(&self) -> Result<(), Error> {
-        let (done_tx, done_rx) = oneshot::channel();
+        let (done_tx, done_rx) = mpsc::sync_channel(1);
 
         let task = Task::Flush { done: done_tx };
         self.send_task(task)?;

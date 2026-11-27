@@ -17,6 +17,8 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
 
+use std::sync::mpsc;
+
 use logforth_core::kv;
 use logforth_core::record::RecordOwned;
 
@@ -33,7 +35,7 @@ enum Task {
         diags: Vec<(kv::KeyOwned, kv::ValueOwned)>,
     },
     Flush {
-        done: oneshot::Sender<()>,
+        done: mpsc::SyncSender<()>,
     },
 }
 
