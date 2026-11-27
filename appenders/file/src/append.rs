@@ -161,7 +161,8 @@ impl File {
 
 impl Append for File {
     fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
-        let mut bytes = self.layout.format(record, diags)?;
+        let mut bytes = Vec::new();
+        self.layout.format(record, diags, &mut bytes)?;
         bytes.push(b'\n');
         let mut writer = self.writer();
         writer.write_all(&bytes)

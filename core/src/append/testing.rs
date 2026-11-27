@@ -63,7 +63,8 @@ impl Testing {
 
 impl Append for Testing {
     fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
-        let bytes = self.layout.format(record, diags)?;
+        let mut bytes = Vec::new();
+        self.layout.format(record, diags, &mut bytes)?;
         eprintln!("{}", String::from_utf8_lossy(&bytes));
         Ok(())
     }

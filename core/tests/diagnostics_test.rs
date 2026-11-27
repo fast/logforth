@@ -301,13 +301,19 @@ struct PrefixLayout {
 }
 
 impl Layout for PrefixLayout {
-    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
-        let mut line = format!("{}:{}", self.prefix, record.payload());
+    fn format(
+        &self,
+        record: &Record,
+        diags: &dyn Diagnostic,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), Error> {
+        use std::io::Write;
+
+        write!(buf, "{}:{}", self.prefix, record.payload()).unwrap();
         diags.visit(&mut |key: KeyView, value: ValueView| {
-            line.push_str(&format!(" {key}={value}"));
+            write!(buf, " {key}={value}").unwrap();
             Ok(())
-        })?;
-        Ok(line.into_bytes())
+        })
     }
 }
 
@@ -334,7 +340,8 @@ impl RecordingAppend {
 
 impl Append for RecordingAppend {
     fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error> {
-        let bytes = self.layout.format(record, diags)?;
+        let mut bytes = Vec::new();
+        self.layout.format(record, diags, &mut bytes)?;
         self.lines
             .lock()
             .unwrap()

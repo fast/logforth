@@ -20,6 +20,7 @@
 pub extern crate jiff;
 
 use std::borrow::Cow;
+use std::io::Write;
 
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
@@ -74,43 +75,49 @@ impl LogfmtLayout {
     }
 }
 
-struct KvFormatter {
-    text: String,
+struct KvFormatter<'a> {
+    buf: &'a mut Vec<u8>,
 }
 
-impl Visitor for KvFormatter {
+impl Visitor for KvFormatter<'_> {
     // The encode logic is copied from https://github.com/go-logfmt/logfmt/blob/76262ea7/encode.go.
     fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error> {
-        use std::fmt::Write;
+        let is_special = |c: char| c.is_control() || matches!(c, ' ' | '=' | '"');
 
         let key = key.as_str();
-        let value = value.to_string();
-        let value = value.as_str();
-
-        if key.contains([' ', '=', '"']) {
-            // omit keys contain special chars
+        if key.chars().any(is_special) {
             return Err(Error::new(format!("key contains special chars: {key}")));
         }
 
-        // SAFETY: write to a string always succeeds
-        if value.contains([' ', '=', '"']) {
-            write!(&mut self.text, " {key}=\"{}\"", value.escape_debug()).unwrap();
-        } else {
-            write!(&mut self.text, " {key}={value}").unwrap();
-        }
+        let value = match value.to_str() {
+            Some(s) => Cow::Borrowed(s),
+            None => Cow::Owned(value.to_string()),
+        };
 
-        Ok(())
+        if value.chars().any(is_special) {
+            write!(self.buf, " {key}=\"{}\"", value.escape_debug())
+        } else {
+            write!(self.buf, " {key}={value}")
+        }
+        .map_err(|err| Error::new("failed to format key-value pair").with_source(err))
     }
 }
 
 impl Layout for LogfmtLayout {
-    fn format(&self, record: &Record, diags: &dyn Diagnostic) -> Result<Vec<u8>, Error> {
-        // SAFETY: jiff::Timestamp::try_from only fails if the time is out of range, which is
-        // very unlikely if the system clock is correct.
-        let ts = Timestamp::try_from(record.time()).unwrap();
+    fn format(
+        &self,
+        record: &Record,
+        diags: &dyn Diagnostic,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), Error> {
+        let ts = Timestamp::try_from(record.time())
+            .map_err(|err| Error::new("invalid record timestamp").with_source(err))?;
         let tz = self.tz.clone().unwrap_or_else(TimeZone::system);
         let offset = tz.to_offset(ts);
         let time = ts.display_with_offset(offset);
+
+        write!(buf, "timestamp={time:.6}")
+            .map_err(|err| Error::new("failed to format record timestamp").with_source(err))?;
 
         let level = record.level();
         let module = record.module_path().unwrap_or_default();
@@ -122,9 +129,7 @@ impl Layout for LogfmtLayout {
             Cow::Owned(record.payload().to_string())
         };
 
-        let mut visitor = KvFormatter {
-            text: format!("timestamp={time:.6}"),
-        };
+        let mut visitor = KvFormatter { buf };
 
         visitor.visit(
             Key::new("level").view(),
@@ -141,8 +146,6 @@ impl Layout for LogfmtLayout {
         )?;
 
         record.key_values().visit(&mut visitor)?;
-        diags.visit(&mut visitor)?;
-
-        Ok(visitor.text.into_bytes())
+        diags.visit(&mut visitor)
     }
 }

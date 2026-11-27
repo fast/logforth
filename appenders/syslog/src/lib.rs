@@ -360,7 +360,8 @@ impl SyslogFormatter {
                         .format_rfc3164(severity, Some(record.payload()))
                 ),
                 Some(ref layout) => {
-                    let message = layout.format(record, diags)?;
+                    let mut message = Vec::new();
+                    layout.format(record, diags, &mut message)?;
                     let message = String::from_utf8_lossy(&message);
                     format!("{}", self.context.format_rfc3164(severity, Some(message)))
                 }
@@ -380,7 +381,8 @@ impl SyslogFormatter {
                         )
                     ),
                     Some(ref layout) => {
-                        let message = layout.format(record, diags)?;
+                        let mut message = Vec::new();
+                        layout.format(record, diags, &mut message)?;
                         let message = String::from_utf8_lossy(&message);
                         format!(
                             "{}",
