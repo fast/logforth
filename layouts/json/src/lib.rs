@@ -150,25 +150,24 @@ impl Layout for JsonLayout {
             default_timestamp_format(ts, &self.timezone)
         };
 
-        let mut kvs = Map::new();
-        record
-            .key_values()
-            .visit(&mut |key: KeyView, value: ValueView| collect_kv(&mut kvs, key, value))?;
-
-        let mut diags_map = Map::new();
-        diags
-            .visit(&mut |key: KeyView, value: ValueView| collect_kv(&mut diags_map, key, value))?;
-
-        let record_line = RecordLine {
+        let mut record_line = RecordLine {
             timestamp,
             level: record.level().name(),
             module_path: record.module_path().unwrap_or_default(),
             file: record.file().unwrap_or_default(),
             line: record.line().unwrap_or_default(),
             message: record.payload(),
-            kvs,
-            diags: diags_map,
+            kvs: Map::new(),
+            diags: Map::new(),
         };
+
+        let kvs = record.key_values();
+        kvs.visit(&mut |key: KeyView, value: ValueView| {
+            collect_kv(&mut record_line.kvs, key, value)
+        })?;
+        diags.visit(&mut |key: KeyView, value: ValueView| {
+            collect_kv(&mut record_line.diags, key, value)
+        })?;
 
         serde_json::to_writer(&mut *buf, &record_line)
             .map_err(|err| Error::new("failed to serialize log record").with_source(err))
