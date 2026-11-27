@@ -153,10 +153,11 @@ impl Layout for JsonLayout {
         let mut kvs = Map::new();
         record
             .key_values()
-            .visit(&mut |key, value| collect_kv(&mut kvs, key, value))?;
+            .visit(&mut |key: KeyView, value: ValueView| collect_kv(&mut kvs, key, value))?;
 
         let mut diags_map = Map::new();
-        diags.visit(&mut |key, value| collect_kv(&mut diags_map, key, value))?;
+        diags
+            .visit(&mut |key: KeyView, value: ValueView| collect_kv(&mut diags_map, key, value))?;
 
         let record_line = RecordLine {
             timestamp,
