@@ -11,14 +11,19 @@ cargo add logforth-core logforth-filter-rustlog
 ```
 
 ```rust
-use logforth_core::Logger;
+use logforth_core::LoggerBuilder;
 use logforth_core::append::Stderr;
+use logforth_core::record::Level;
+use logforth_core::record::LevelFilter;
 use logforth_filter_rustlog::RustLogFilterBuilder;
 
-fn build_logger() -> Result<Logger, logforth_core::Error> {
-    let filter = RustLogFilterBuilder::from_default_env_or("info,my_app::db=debug")?.build();
+fn build_logger() -> Result<logforth_core::Logger, logforth_core::Error> {
+    let builder = RustLogFilterBuilder::from_default_env_or("info,my_app::db=debug")?;
+    let filter = builder
+        .prefix("hyper", LevelFilter::MoreSevereEqual(Level::Warn))
+        .build();
 
-    Ok(Logger::builder()
+    Ok(LoggerBuilder::new()
         .dispatch(|d| d.filter(filter).append(Stderr::new()))
         .build())
 }
@@ -28,14 +33,14 @@ fn build_logger() -> Result<Logger, logforth_core::Error> {
 
 Specifications consist of comma-separated directives evaluated case-insensitively across all 24 Logforth severity levels (`trace`, `trace2`..`trace4`, `debug`..`debug4`, `info`..`info4`, `warn`..`warn4`, `error`..`error4`, `fatal`..`fatal4`) plus the pseudo-levels `off` and `all`:
 
-| Directive       | Meaning                                                                             |
-| :-------------- | :---------------------------------------------------------------------------------- |
-| `info`          | Sets the unmatched fallback threshold to `info` and more severe levels.             |
-| `off` / `all`   | Disables or enables all levels as the unmatched fallback.                           |
-| `my_crate`      | Enables all levels (`all`) for targets starting with `my_crate`.                    |
-| `my_crate=`     | Equivalent to `my_crate` (enables all levels for targets starting with `my_crate`). |
-| `my_crate=warn` | Enables `warn` and more severe levels for targets starting with `my_crate`.         |
-| `my_crate=off`  | Disables all levels for targets starting with `my_crate`.                           |
+| Directive        | Meaning                                                                             |
+| :--------------- | :---------------------------------------------------------------------------------- |
+| `info` / `=info` | Sets the unmatched fallback threshold to `info` and more severe levels.             |
+| `off` / `all`    | Disables or enables all levels as the unmatched fallback (`=` is alias for `all`).  |
+| `my_crate`       | Enables all levels (`all`) for targets starting with `my_crate`.                    |
+| `my_crate=`      | Equivalent to `my_crate` (enables all levels for targets starting with `my_crate`). |
+| `my_crate=warn`  | Enables `warn` and more severe levels for targets starting with `my_crate`.         |
+| `my_crate=off`   | Disables all levels for targets starting with `my_crate`.                           |
 
 - **Longest prefix wins**: When multiple prefix directives match a record, the longest matching prefix determines the threshold.
 - **Target resolution**: Prefix directives match an explicit `"logforth.target"` string key-value entry on the record when present (for example, custom targets forwarded by `logforth-bridge-log`), falling back to `Record::module_path`.
