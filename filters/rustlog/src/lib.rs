@@ -12,66 +12,63 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! A filter that follows the famous `RUST_LOG` directive pattern.
+//! Prefix and fallback log filtering compatible with `RUST_LOG` directive syntax.
 //!
-//! Log levels are controlled by prefix matching (typically on module paths), and by default all
-//! logging is disabled except for the `error` level.
+//! [`RustLogFilter`] implements [`Filter`] using an unmatched fallback [`LevelFilter`] and zero or
+//! more string-prefix rules constructed via [`RustLogFilterBuilder`]:
+//! - Use [`RustLogFilterBuilder::from_default_env`] or
+//!   [`RustLogFilterBuilder::from_default_env_or`] to read directives from [`DEFAULT_FILTER_ENV`]
+//!   (`RUST_LOG`).
+//! - Use [`RustLogFilterBuilder::from_env`] or [`RustLogFilterBuilder::from_env_or`] to read from a
+//!   custom environment variable.
+//! - Use [`RustLogFilterBuilder::from_spec`], [`FromStr`], or [`TryFrom<&str>`] to parse a
+//!   comma-separated specification string directly, or configure rules programmatically with
+//!   [`RustLogFilterBuilder::fallback`] and [`RustLogFilterBuilder::prefix`].
 //!
-//! You can use [`RustLogFilterBuilder::from_default_env`] to configure the filter from the
-//! `RUST_LOG` environment variable, or [`RustLogFilterBuilder::from_spec`] to configure the
-//! filter by directly passing a specification string.
+//! # Directive syntax
 //!
-//! The specification string is a comma-separated list of logging directives. A logging directive is
-//! of the form:
+//! A specification is a comma-separated list of directives (`directive1,directive2,...`). Leading
+//! and trailing ASCII/Unicode whitespace around commas and `=` is trimmed, empty segments are
+//! ignored, and later directives override earlier ones with the same prefix (or fallback):
 //!
-//! ```text
-//! prefix=level
+//! | Form           | Effect                                                                                  |
+//! | :------------- | :-------------------------------------------------------------------------------------- |
+//! | `level`        | Sets the fallback threshold for records matching no prefix rule.                        |
+//! | `prefix=level` | Sets the threshold for targets starting with `prefix`.                                  |
+//! | `prefix`       | Enables all levels ([`LevelFilter::All`]) for targets starting with `prefix`.           |
+//! | `prefix=`      | Equivalent to `prefix` ([`LevelFilter::All`]).                                          |
+//!
+//! Level names are ASCII case-insensitive and accept all 24 [`Level`] variants (`trace`,
+//! `trace2`..`trace4`, `debug`..`debug4`, `info`..`info4`, `warn`..`warn4`, `error`..`error4`,
+//! `fatal`..`fatal4`) as well as `off` ([`LevelFilter::Off`]) and `all` ([`LevelFilter::All`]).
+//! Malformed directives fail fast by returning [`Error`].
+//!
+//! # Target matching and dispatch semantics
+//!
+//! - **Target precedence**: Prefix rules match an explicit `"logforth.target"` string entry in
+//!   [`Record::key_values`] when present (such as custom targets bridged from `log`), falling back
+//!   to [`Record::module_path`]. Longest matching prefix wins.
+//! - **Default fallback**: Building an empty [`RustLogFilterBuilder`] enables `error` and more
+//!   severe levels. Building a builder that configures only prefix rules sets the unmatched
+//!   fallback to [`LevelFilter::Off`] so unmentioned crates remain silent.
+//! - **Narrowing filter**: Accepted records return [`FilterResult::Neutral`] (never
+//!   [`FilterResult::Accept`]) so subsequent filters in the same dispatch continue to run; rejected
+//!   records return [`FilterResult::Reject`].
+//!
+//! # Examples
+//!
 //! ```
+//! use logforth_core::Logger;
+//! use logforth_core::append::Stderr;
+//! use logforth_filter_rustlog::RustLogFilterBuilder;
 //!
-//! `prefix` is typically a `path::to::module` prefix matched against [`Record::module_path`], or an
-//! explicit `"logforth.target"` key-value entry when present (for example, when bridging `log`
-//! records with an overridden target).
-//!
-//! The path to the module is rooted in the name of the crate it was compiled for. Thus, if your
-//! program is contained in a file `hello.rs`, for example, to turn on logging for this file you
-//! would use a value of `RUST_LOG=hello`. Furthermore, this path is a prefix-search, so all modules
-//! nested in the specified module will also have logging enabled.
-//!
-//! When providing the crate name or a module path, explicitly specifying the log level is optional.
-//! If omitted, all logging for the item (and its children) will be enabled.
-//!
-//! The names of the log levels that may be specified correspond to the variations of the [`Level`]
-//! enum. The most common used levels include:
-//!
-//! * `fatal`
-//! * `error`
-//! * `warn`
-//! * `info`
-//! * `debug`
-//! * `trace`
-//!
-//! There is also a pseudo logging level, `off`, which may be specified to disable all logging for a
-//! given prefix or for the entire application. As with the logging levels, the letter case is not
-//! significant; e.g., `debug`, `DEBUG`, and `dEbuG` all represent the same logging level.
-//!
-//! As the log level for a prefix is optional, the prefix to enable logging for is also optional. If
-//! only a level is provided, then the fallback log level for all unmatched records is set to this
-//! value.
-//!
-//! Some examples of valid values are:
-//!
-//! * `hello` turns on all logging for the 'hello' module prefix
-//! * `trace` turns on all logging for the application
-//! * `TRACE` turns on all logging for the application (same as previous)
-//! * `info` turns on all info logging
-//! * `INFO` turns on all info logging (same as previous)
-//! * `hello=debug` turns on debug logging for 'hello'
-//! * `hello=DEBUG` turns on debug logging for 'hello' (same as previous)
-//! * `hello,std::option` turns on hello, and std's option logging
-//! * `error,hello=warn` turns on fallback error logging and also warn for hello
-//! * `error,hello=off` turns on fallback error logging, but turns off logging for hello
-//! * `off` turns off all logging for the application
-//! * `OFF` turns off all logging for the application (same as previous)
+//! let filter = RustLogFilterBuilder::from_spec("info,my_app::db=debug,hyper=warn")?.build();
+//! let logger = Logger::builder()
+//!     .dispatch(|d| d.filter(filter).append(Stderr::new()))
+//!     .build();
+//! # drop(logger);
+//! # Ok::<(), logforth_core::Error>(())
+//! ```
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
@@ -88,7 +85,8 @@ use logforth_core::record::Level;
 use logforth_core::record::LevelFilter;
 use logforth_core::record::Record;
 
-/// The default environment variable for filtering logs.
+/// Default environment variable name (`"RUST_LOG"`) read by
+/// [`RustLogFilterBuilder::from_default_env`] and [`RustLogFilterBuilder::from_default_env_or`].
 pub const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
 
 // Keep synchronized with "Appendix: Key-Value Naming Conventions" in DESIGN.md.
@@ -212,19 +210,17 @@ impl FromStr for RustLogFilter {
     }
 }
 
-/// A builder for [`RustLogFilter`].
+/// A builder that parses `RUST_LOG` specifications and configures prefix rules for
+/// [`RustLogFilter`].
 ///
-/// It can be used to parse a set of directives from a string and/or configure programmatic rules
-/// before building a [`RustLogFilter`] instance.
-///
-/// ## Example
+/// # Examples
 ///
 /// ```
 /// use logforth_filter_rustlog::RustLogFilterBuilder;
 ///
-/// // Parse the filter from the default environment variable `RUST_LOG`.
-/// let builder = RustLogFilterBuilder::from_default_env().unwrap();
-/// let filter = builder.build();
+/// let filter = RustLogFilterBuilder::from_default_env()?.build();
+/// # drop(filter);
+/// # Ok::<(), logforth_core::Error>(())
 /// ```
 #[derive(Debug, Default)]
 pub struct RustLogFilterBuilder {
@@ -233,33 +229,34 @@ pub struct RustLogFilterBuilder {
 }
 
 impl RustLogFilterBuilder {
-    /// Initialize the filter builder from the `RUST_LOG` environment variable.
+    /// Creates a builder from the [`DEFAULT_FILTER_ENV`] (`RUST_LOG`) environment variable.
     ///
     /// If `RUST_LOG` is unset, returns an empty builder (which defaults to `error` on
     /// [`Self::build`]).
     ///
     /// # Errors
     ///
-    /// Returns an error if `RUST_LOG` is not valid UTF-8 or contains a malformed directive.
+    /// Returns an [`Error`] if `RUST_LOG` is not valid UTF-8 or contains a malformed directive.
     ///
     /// # Examples
     ///
     /// ```
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let builder = RustLogFilterBuilder::from_default_env().unwrap();
-    /// let filter = builder.build();
+    /// let filter = RustLogFilterBuilder::from_default_env()?.build();
+    /// # drop(filter);
+    /// # Ok::<(), logforth_core::Error>(())
     /// ```
     pub fn from_default_env() -> Result<Self, Error> {
         Self::from_env(DEFAULT_FILTER_ENV)
     }
 
-    /// Initialize the filter builder from the `RUST_LOG` environment variable, falling back to
-    /// `default` when `RUST_LOG` is unset.
+    /// Creates a builder from [`DEFAULT_FILTER_ENV`] (`RUST_LOG`), parsing `default` when
+    /// `RUST_LOG` is unset.
     ///
     /// # Errors
     ///
-    /// Returns an error if `RUST_LOG` is not valid UTF-8 or if the effective specification
+    /// Returns an [`Error`] if `RUST_LOG` is not valid UTF-8 or if the selected specification
     /// contains a malformed directive.
     ///
     /// # Examples
@@ -267,29 +264,31 @@ impl RustLogFilterBuilder {
     /// ```
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let builder = RustLogFilterBuilder::from_default_env_or("info").unwrap();
-    /// let filter = builder.build();
+    /// let filter = RustLogFilterBuilder::from_default_env_or("info")?.build();
+    /// # drop(filter);
+    /// # Ok::<(), logforth_core::Error>(())
     /// ```
     pub fn from_default_env_or(default: impl AsRef<str>) -> Result<Self, Error> {
         Self::from_env_or(DEFAULT_FILTER_ENV, default)
     }
 
-    /// Initialize the filter builder from the named environment variable.
+    /// Creates a builder from the environment variable `name`.
     ///
-    /// If the variable is unset, returns an empty builder (which defaults to `error` on
+    /// If `name` is unset, returns an empty builder (which defaults to `error` on
     /// [`Self::build`]).
     ///
     /// # Errors
     ///
-    /// Returns an error if the variable is not valid UTF-8 or contains a malformed directive.
+    /// Returns an [`Error`] if the variable is not valid UTF-8 or contains a malformed directive.
     ///
     /// # Examples
     ///
     /// ```
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let builder = RustLogFilterBuilder::from_env("MY_LOG").unwrap();
-    /// let filter = builder.build();
+    /// let filter = RustLogFilterBuilder::from_env("MY_LOG")?.build();
+    /// # drop(filter);
+    /// # Ok::<(), logforth_core::Error>(())
     /// ```
     pub fn from_env(name: impl AsRef<str>) -> Result<Self, Error> {
         match read_env_var(name.as_ref())? {
@@ -298,12 +297,12 @@ impl RustLogFilterBuilder {
         }
     }
 
-    /// Initialize the filter builder from the named environment variable, falling back to
-    /// `default` when the variable is unset.
+    /// Creates a builder from the environment variable `name`, parsing `default` when `name` is
+    /// unset.
     ///
     /// # Errors
     ///
-    /// Returns an error if the variable is not valid UTF-8 or if the effective specification
+    /// Returns an [`Error`] if the variable is not valid UTF-8 or if the selected specification
     /// contains a malformed directive.
     ///
     /// # Examples
@@ -311,8 +310,9 @@ impl RustLogFilterBuilder {
     /// ```
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let builder = RustLogFilterBuilder::from_env_or("MY_LOG", "info").unwrap();
-    /// let filter = builder.build();
+    /// let filter = RustLogFilterBuilder::from_env_or("MY_LOG", "info")?.build();
+    /// # drop(filter);
+    /// # Ok::<(), logforth_core::Error>(())
     /// ```
     pub fn from_env_or(name: impl AsRef<str>, default: impl AsRef<str>) -> Result<Self, Error> {
         match read_env_var(name.as_ref())? {
@@ -321,19 +321,20 @@ impl RustLogFilterBuilder {
         }
     }
 
-    /// Initialize the filter builder from a `RUST_LOG` specification string.
+    /// Creates a builder by parsing a comma-separated `RUST_LOG` specification string.
     ///
     /// # Errors
     ///
-    /// Returns an error on the first malformed directive in `spec`.
+    /// Returns an [`Error`] on the first malformed directive in `spec`.
     ///
     /// # Examples
     ///
     /// ```
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let builder = RustLogFilterBuilder::from_spec("info,my_crate=debug").unwrap();
-    /// let filter = builder.build();
+    /// let filter = RustLogFilterBuilder::from_spec("info,my_crate=debug")?.build();
+    /// # drop(filter);
+    /// # Ok::<(), logforth_core::Error>(())
     /// ```
     pub fn from_spec(spec: impl AsRef<str>) -> Result<Self, Error> {
         let mut builder = Self::default();
@@ -369,7 +370,7 @@ impl RustLogFilterBuilder {
         Ok(builder)
     }
 
-    /// Set the fallback [`LevelFilter`] applied when no prefix directive matches.
+    /// Sets the fallback [`LevelFilter`] applied when no prefix directive matches.
     ///
     /// # Examples
     ///
@@ -387,7 +388,7 @@ impl RustLogFilterBuilder {
         self
     }
 
-    /// Set the [`LevelFilter`] for records whose `"logforth.target"` (when present) or
+    /// Sets the [`LevelFilter`] for records whose `"logforth.target"` (when present) or
     /// [`Record::module_path`] starts with `prefix` (longest prefix match wins).
     ///
     /// # Examples
@@ -407,10 +408,11 @@ impl RustLogFilterBuilder {
         self
     }
 
-    /// Consume the builder to produce a [`RustLogFilter`].
+    /// Builds the [`RustLogFilter`].
     ///
-    /// If the builder has no directives configured, a default fallback directive of the `error`
-    /// level will be added.
+    /// If neither a fallback nor any prefix directive was configured, defaults the fallback to
+    /// `LevelFilter::MoreSevereEqual(Level::Error)`. If only prefix directives were configured,
+    /// unmatched targets default to [`LevelFilter::Off`].
     pub fn build(self) -> RustLogFilter {
         let fallback = match self.fallback {
             Some(fallback) => fallback,
