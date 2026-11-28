@@ -1,8 +1,55 @@
-# Logforth RUST_LOG Filter
+# Logforth `RUST_LOG` Filter
 
-This filter is derived by [env_filter](https://crates.io/crates/env_filter), with significant modifications to suit our needs:
+`logforth-filter-rustlog` provides [`RustLogFilter`](https://docs.rs/logforth-filter-rustlog/latest/logforth_filter_rustlog/struct.RustLogFilter.html) and [`RustLogFilterBuilder`](https://docs.rs/logforth-filter-rustlog/latest/logforth_filter_rustlog/struct.RustLogFilterBuilder.html), implementing `logforth_core::Filter` with `RUST_LOG`-style prefix and fallback directives.
 
-1. Logforth needs not the original `FilterLog` struct.
-2. Logforth uses its own `Level`, `LevelFilter`, `FilterResult`, and `Record` types.
-3. The regex based global filter is discarded. Prefix matching on module paths (or explicit target overrides) is sufficient.
-4. Interfaces and methods are refactored to be more ergonomic.
+Most applications can enable this crate through the [`logforth`](https://crates.io/crates/logforth) facade crate with the `filter-rustlog` feature (included in `starter-log`). Depend on `logforth-filter-rustlog` directly when composing split `logforth-*` crates onto `logforth-core`.
+
+## Quick start
+
+```shell
+cargo add logforth-core logforth-filter-rustlog
+```
+
+```rust
+use logforth_core::Logger;
+use logforth_core::append::Stderr;
+use logforth_filter_rustlog::RustLogFilterBuilder;
+
+fn build_logger() -> Result<Logger, logforth_core::Error> {
+    let filter = RustLogFilterBuilder::from_default_env_or("info,my_app::db=debug")?.build();
+
+    Ok(Logger::builder()
+        .dispatch(|d| d.filter(filter).append(Stderr::new()))
+        .build())
+}
+```
+
+## Directive syntax
+
+Specifications consist of comma-separated directives evaluated case-insensitively across all 24 Logforth severity levels (`trace`, `trace2`..`trace4`, `debug`..`debug4`, `info`..`info4`, `warn`..`warn4`, `error`..`error4`, `fatal`..`fatal4`) plus the pseudo-levels `off` and `all`:
+
+| Directive       | Meaning                                                                             |
+| :-------------- | :---------------------------------------------------------------------------------- |
+| `info`          | Sets the unmatched fallback threshold to `info` and more severe levels.             |
+| `off` / `all`   | Disables or enables all levels as the unmatched fallback.                           |
+| `my_crate`      | Enables all levels (`all`) for targets starting with `my_crate`.                    |
+| `my_crate=`     | Equivalent to `my_crate` (enables all levels for targets starting with `my_crate`). |
+| `my_crate=warn` | Enables `warn` and more severe levels for targets starting with `my_crate`.         |
+| `my_crate=off`  | Disables all levels for targets starting with `my_crate`.                           |
+
+- **Longest prefix wins**: When multiple prefix directives match a record, the longest matching prefix determines the threshold.
+- **Target resolution**: Prefix directives match an explicit `"logforth.target"` string key-value entry on the record when present (for example, custom targets forwarded by `logforth-bridge-log`), falling back to `Record::module_path`.
+- **Fail-fast validation**: Malformed directives and non-UTF-8 environment variables return `logforth_core::Error` immediately instead of printing warnings to standard error.
+
+## Acknowledgments
+
+Directive syntax and prefix matching are adapted from [`env_filter`](https://crates.io/crates/env_filter), tailored to Logforth's 24-level model, `FilterResult` pipeline, and structured target overrides without regex payload filtering.
+
+## Documentation
+
+- [Rust API documentation](https://docs.rs/logforth-filter-rustlog)
+- [Logforth facade crate](https://docs.rs/logforth)
+
+## License
+
+Licensed under the Apache License, Version 2.0.

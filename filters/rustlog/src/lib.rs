@@ -12,70 +12,69 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! A filter that follows the famous `RUST_LOG` directive pattern.
+//! Prefix and fallback log filtering compatible with `RUST_LOG` directive syntax.
 //!
-//! Log levels are controlled by prefix matching (typically on module paths), and by default all
-//! logging is disabled except for the `error` level.
+//! [`RustLogFilter`] implements [`Filter`] using an unmatched fallback [`LevelFilter`] and zero or
+//! more string-prefix rules constructed via [`RustLogFilterBuilder`]:
+//! - Use [`RustLogFilterBuilder::from_default_env`] or
+//!   [`RustLogFilterBuilder::from_default_env_or`] to read directives from [`DEFAULT_FILTER_ENV`]
+//!   (`RUST_LOG`).
+//! - Use [`RustLogFilterBuilder::from_env`] or [`RustLogFilterBuilder::from_env_or`] to read from a
+//!   custom environment variable.
+//! - Use [`RustLogFilterBuilder::from_spec`], [`FromStr`], or [`TryFrom<&str>`] to parse a
+//!   comma-separated specification string directly, or configure rules programmatically with
+//!   [`RustLogFilterBuilder::fallback`] and [`RustLogFilterBuilder::prefix`].
 //!
-//! You can use [`RustLogFilterBuilder::from_default_env`] to configure the filter from the
-//! `RUST_LOG` environment variable, or [`RustLogFilterBuilder::from_spec`] to configure the
-//! filter by directly passing a specification string.
+//! # Directive syntax
 //!
-//! The specification string is a comma-separated list of logging directives. A logging directive is
-//! of the form:
+//! A specification is a comma-separated list of directives (`directive1,directive2,...`). Leading
+//! and trailing ASCII/Unicode whitespace around commas and `=` is trimmed, empty segments are
+//! ignored, and later directives override earlier ones with the same prefix (or fallback):
 //!
-//! ```text
-//! prefix=level
+//! | Form           | Effect                                                                                  |
+//! | :------------- | :-------------------------------------------------------------------------------------- |
+//! | `level`        | Sets the fallback threshold for records matching no prefix rule.                        |
+//! | `prefix=level` | Sets the threshold for targets starting with `prefix`.                                  |
+//! | `prefix`       | Enables all levels ([`LevelFilter::All`]) for targets starting with `prefix`.           |
+//! | `prefix=`      | Equivalent to `prefix` ([`LevelFilter::All`]).                                          |
+//!
+//! Level names are ASCII case-insensitive and accept all 24 [`Level`] variants (`trace`,
+//! `trace2`..`trace4`, `debug`..`debug4`, `info`..`info4`, `warn`..`warn4`, `error`..`error4`,
+//! `fatal`..`fatal4`) as well as `off` ([`LevelFilter::Off`]) and `all` ([`LevelFilter::All`]).
+//! Malformed directives fail fast by returning [`Error`].
+//!
+//! # Target matching and dispatch semantics
+//!
+//! - **Target precedence**: Prefix rules match an explicit `"logforth.target"` string entry in
+//!   [`Record::key_values`] when present (such as custom targets bridged from `log`), falling back
+//!   to [`Record::module_path`]. Longest matching prefix wins.
+//! - **Default fallback**: Building an empty [`RustLogFilterBuilder`] enables `error` and more
+//!   severe levels. Building a builder that configures only prefix rules sets the unmatched
+//!   fallback to [`LevelFilter::Off`] so unmentioned crates remain silent.
+//! - **Narrowing filter**: Accepted records return [`FilterResult::Neutral`] (never
+//!   [`FilterResult::Accept`]) so subsequent filters in the same dispatch continue to run; rejected
+//!   records return [`FilterResult::Reject`].
+//!
+//! # Examples
+//!
 //! ```
+//! use logforth_core::Logger;
+//! use logforth_core::append::Stderr;
+//! use logforth_filter_rustlog::RustLogFilterBuilder;
 //!
-//! `prefix` is typically a `path::to::module` prefix matched against [`Record::module_path`], or an
-//! explicit `"logforth.target"` key-value entry when present (for example, when bridging `log`
-//! records with an overridden target).
-//!
-//! The path to the module is rooted in the name of the crate it was compiled for. Thus, if your
-//! program is contained in a file `hello.rs`, for example, to turn on logging for this file you
-//! would use a value of `RUST_LOG=hello`. Furthermore, this path is a prefix-search, so all modules
-//! nested in the specified module will also have logging enabled.
-//!
-//! When providing the crate name or a module path, explicitly specifying the log level is optional.
-//! If omitted, all logging for the item (and its children) will be enabled.
-//!
-//! The names of the log levels that may be specified correspond to the variations of the [`Level`]
-//! enum. The most common used levels include:
-//!
-//! * `fatal`
-//! * `error`
-//! * `warn`
-//! * `info`
-//! * `debug`
-//! * `trace`
-//!
-//! There is also a pseudo logging level, `off`, which may be specified to disable all logging for a
-//! given prefix or for the entire application. As with the logging levels, the letter case is not
-//! significant; e.g., `debug`, `DEBUG`, and `dEbuG` all represent the same logging level.
-//!
-//! As the log level for a prefix is optional, the prefix to enable logging for is also optional. If
-//! only a level is provided, then the fallback log level for all unmatched records is set to this
-//! value.
-//!
-//! Some examples of valid values are:
-//!
-//! * `hello` turns on all logging for the 'hello' module prefix
-//! * `trace` turns on all logging for the application
-//! * `TRACE` turns on all logging for the application (same as previous)
-//! * `info` turns on all info logging
-//! * `INFO` turns on all info logging (same as previous)
-//! * `hello=debug` turns on debug logging for 'hello'
-//! * `hello=DEBUG` turns on debug logging for 'hello' (same as previous)
-//! * `hello,std::option` turns on hello, and std's option logging
-//! * `error,hello=warn` turns on fallback error logging and also warn for hello
-//! * `error,hello=off` turns on fallback error logging, but turns off logging for hello
-//! * `off` turns off all logging for the application
-//! * `OFF` turns off all logging for the application (same as previous)
+//! let filter = RustLogFilterBuilder::from_spec("info,my_app::db=debug,hyper=warn")?.build();
+//! let logger = Logger::builder()
+//!     .dispatch(|d| d.filter(filter).append(Stderr::new()))
+//!     .build();
+//! # drop(logger);
+//! # Ok::<(), logforth_core::Error>(())
+//! ```
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
 
+use std::collections::BTreeMap;
+use std::env::VarError;
 use std::str::FromStr;
 
 use logforth_core::Diagnostic;
@@ -86,7 +85,8 @@ use logforth_core::record::Level;
 use logforth_core::record::LevelFilter;
 use logforth_core::record::Record;
 
-/// The default environment variable for filtering logs.
+/// Default environment variable name (`"RUST_LOG"`) read by
+/// [`RustLogFilterBuilder::from_default_env`] and [`RustLogFilterBuilder::from_default_env_or`].
 pub const DEFAULT_FILTER_ENV: &str = "RUST_LOG";
 
 // Keep synchronized with "Appendix: Key-Value Naming Conventions" in DESIGN.md.
@@ -118,26 +118,7 @@ struct PrefixDirective {
 }
 
 impl RustLogFilter {
-    fn from_directives(directives: Vec<Directive>) -> Self {
-        let mut fallback = LevelFilter::Off;
-        let mut prefixes: Vec<PrefixDirective> = Vec::new();
-
-        for directive in directives {
-            match directive.prefix {
-                None => fallback = directive.level,
-                Some(prefix) => {
-                    if let Some(existing) = prefixes.iter_mut().find(|d| d.prefix == prefix) {
-                        existing.level = directive.level;
-                    } else {
-                        prefixes.push(PrefixDirective {
-                            prefix,
-                            level: directive.level,
-                        });
-                    }
-                }
-            }
-        }
-
+    fn new(fallback: LevelFilter, mut prefixes: Vec<PrefixDirective>) -> Self {
         // Longest prefix first so the first `starts_with` hit is the most specific match.
         prefixes.sort_by(|a, b| {
             b.prefix
@@ -165,16 +146,6 @@ impl RustLogFilter {
             always_neutral,
         }
     }
-
-    fn level_filter_for(&self, name: Option<&str>) -> LevelFilter {
-        let name = name.unwrap_or("");
-        for directive in &self.prefixes {
-            if name.starts_with(&directive.prefix) {
-                return directive.level;
-            }
-        }
-        self.fallback
-    }
 }
 
 impl Filter for RustLogFilter {
@@ -196,13 +167,20 @@ impl Filter for RustLogFilter {
             return FilterResult::Neutral;
         }
 
-        let name = record
+        let target = record
             .key_values()
             .get(KEY_LOGFORTH_TARGET)
             .and_then(|v| v.to_str())
-            .or_else(|| record.module_path());
+            .or_else(|| record.module_path())
+            .unwrap_or("");
 
-        if self.level_filter_for(name).test(level) {
+        let rule = self
+            .prefixes
+            .iter()
+            .find(|d| target.starts_with(&d.prefix))
+            .map_or(self.fallback, |d| d.level);
+
+        if rule.test(level) {
             FilterResult::Neutral
         } else {
             FilterResult::Reject
@@ -232,53 +210,53 @@ impl FromStr for RustLogFilter {
     }
 }
 
-/// A builder for [`RustLogFilter`].
+/// A builder that parses `RUST_LOG` specifications and configures prefix rules for
+/// [`RustLogFilter`].
 ///
-/// It can be used to parse a set of directives from a string and/or configure programmatic rules
-/// before building a [`RustLogFilter`] instance.
-///
-/// ## Example
+/// # Examples
 ///
 /// ```
 /// use logforth_filter_rustlog::RustLogFilterBuilder;
 ///
-/// // Parse the filter from the default environment variable `RUST_LOG`.
-/// let builder = RustLogFilterBuilder::from_default_env().unwrap();
-/// let filter = builder.build();
+/// let filter = RustLogFilterBuilder::from_default_env()?.build();
+/// # drop(filter);
+/// # Ok::<(), logforth_core::Error>(())
 /// ```
 #[derive(Debug, Default)]
 pub struct RustLogFilterBuilder {
-    directives: Vec<Directive>,
+    fallback: Option<LevelFilter>,
+    prefixes: BTreeMap<String, LevelFilter>,
 }
 
 impl RustLogFilterBuilder {
-    /// Initialize the filter builder from the `RUST_LOG` environment variable.
+    /// Creates a builder from the [`DEFAULT_FILTER_ENV`] (`RUST_LOG`) environment variable.
     ///
     /// If `RUST_LOG` is unset, returns an empty builder (which defaults to `error` on
     /// [`Self::build`]).
     ///
     /// # Errors
     ///
-    /// Returns an error if `RUST_LOG` is not valid UTF-8 or contains a malformed directive.
+    /// Returns an [`Error`] if `RUST_LOG` is not valid UTF-8 or contains a malformed directive.
     ///
     /// # Examples
     ///
     /// ```
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let builder = RustLogFilterBuilder::from_default_env().unwrap();
-    /// let filter = builder.build();
+    /// let filter = RustLogFilterBuilder::from_default_env()?.build();
+    /// # drop(filter);
+    /// # Ok::<(), logforth_core::Error>(())
     /// ```
     pub fn from_default_env() -> Result<Self, Error> {
         Self::from_env(DEFAULT_FILTER_ENV)
     }
 
-    /// Initialize the filter builder from the `RUST_LOG` environment variable, falling back to
-    /// `default` when `RUST_LOG` is unset.
+    /// Creates a builder from [`DEFAULT_FILTER_ENV`] (`RUST_LOG`), parsing `default` when
+    /// `RUST_LOG` is unset.
     ///
     /// # Errors
     ///
-    /// Returns an error if `RUST_LOG` is not valid UTF-8 or if the effective specification
+    /// Returns an [`Error`] if `RUST_LOG` is not valid UTF-8 or if the selected specification
     /// contains a malformed directive.
     ///
     /// # Examples
@@ -286,48 +264,45 @@ impl RustLogFilterBuilder {
     /// ```
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let builder = RustLogFilterBuilder::from_default_env_or("info").unwrap();
-    /// let filter = builder.build();
+    /// let filter = RustLogFilterBuilder::from_default_env_or("info")?.build();
+    /// # drop(filter);
+    /// # Ok::<(), logforth_core::Error>(())
     /// ```
     pub fn from_default_env_or(default: impl AsRef<str>) -> Result<Self, Error> {
         Self::from_env_or(DEFAULT_FILTER_ENV, default)
     }
 
-    /// Initialize the filter builder from the named environment variable.
+    /// Creates a builder from the environment variable `name`.
     ///
-    /// If the variable is unset, returns an empty builder (which defaults to `error` on
+    /// If `name` is unset, returns an empty builder (which defaults to `error` on
     /// [`Self::build`]).
     ///
     /// # Errors
     ///
-    /// Returns an error if the variable is not valid UTF-8 or contains a malformed directive.
+    /// Returns an [`Error`] if the variable is not valid UTF-8 or contains a malformed directive.
     ///
     /// # Examples
     ///
     /// ```
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let builder = RustLogFilterBuilder::from_env("MY_LOG").unwrap();
-    /// let filter = builder.build();
+    /// let filter = RustLogFilterBuilder::from_env("MY_LOG")?.build();
+    /// # drop(filter);
+    /// # Ok::<(), logforth_core::Error>(())
     /// ```
     pub fn from_env(name: impl AsRef<str>) -> Result<Self, Error> {
-        let name = name.as_ref();
-        match std::env::var(name) {
-            Ok(spec) => Self::from_spec(spec),
-            Err(std::env::VarError::NotPresent) => Ok(Self::default()),
-            Err(err @ std::env::VarError::NotUnicode(_)) => Err(Error::new(format!(
-                "environment variable '{name}' is not valid UTF-8"
-            ))
-            .with_source(err)),
+        match read_env_var(name.as_ref())? {
+            Some(spec) => Self::from_spec(spec),
+            None => Ok(Self::default()),
         }
     }
 
-    /// Initialize the filter builder from the named environment variable, falling back to
-    /// `default` when the variable is unset.
+    /// Creates a builder from the environment variable `name`, parsing `default` when `name` is
+    /// unset.
     ///
     /// # Errors
     ///
-    /// Returns an error if the variable is not valid UTF-8 or if the effective specification
+    /// Returns an [`Error`] if the variable is not valid UTF-8 or if the selected specification
     /// contains a malformed directive.
     ///
     /// # Examples
@@ -335,45 +310,67 @@ impl RustLogFilterBuilder {
     /// ```
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let builder = RustLogFilterBuilder::from_env_or("MY_LOG", "info").unwrap();
-    /// let filter = builder.build();
+    /// let filter = RustLogFilterBuilder::from_env_or("MY_LOG", "info")?.build();
+    /// # drop(filter);
+    /// # Ok::<(), logforth_core::Error>(())
     /// ```
     pub fn from_env_or(name: impl AsRef<str>, default: impl AsRef<str>) -> Result<Self, Error> {
-        let name = name.as_ref();
-        match std::env::var(name) {
-            Ok(spec) => Self::from_spec(spec),
-            Err(std::env::VarError::NotPresent) => Self::from_spec(default),
-            Err(err @ std::env::VarError::NotUnicode(_)) => Err(Error::new(format!(
-                "environment variable '{name}' is not valid UTF-8"
-            ))
-            .with_source(err)),
+        match read_env_var(name.as_ref())? {
+            Some(spec) => Self::from_spec(spec),
+            None => Self::from_spec(default),
         }
     }
 
-    /// Initialize the filter builder from a `RUST_LOG` specification string.
+    /// Creates a builder by parsing a comma-separated `RUST_LOG` specification string.
     ///
     /// # Errors
     ///
-    /// Returns an error on the first malformed directive in `spec`.
+    /// Returns an [`Error`] on the first malformed directive in `spec`.
     ///
     /// # Examples
     ///
     /// ```
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let builder = RustLogFilterBuilder::from_spec("info,my_crate=debug").unwrap();
-    /// let filter = builder.build();
+    /// let filter = RustLogFilterBuilder::from_spec("info,my_crate=debug")?.build();
+    /// # drop(filter);
+    /// # Ok::<(), logforth_core::Error>(())
     /// ```
     pub fn from_spec(spec: impl AsRef<str>) -> Result<Self, Error> {
-        let directives = parse_spec(spec.as_ref())?;
         let mut builder = Self::default();
-        for directive in directives {
-            builder.upsert_directive(directive);
+        for item in spec.as_ref().split(',').map(str::trim) {
+            if item.is_empty() {
+                continue;
+            }
+
+            match item.split_once('=') {
+                None => match parse_level_filter(item) {
+                    Some(level) => builder.fallback = Some(level),
+                    None => {
+                        builder.prefixes.insert(item.to_owned(), LevelFilter::All);
+                    }
+                },
+                Some((raw_prefix, raw_level)) => {
+                    let prefix = raw_prefix.trim();
+                    let raw_level = raw_level.trim();
+                    if prefix.is_empty() || raw_level.contains('=') {
+                        return Err(Error::new(format!("malformed logging spec '{item}'")));
+                    }
+                    let level = if raw_level.is_empty() {
+                        LevelFilter::All
+                    } else {
+                        parse_level_filter(raw_level).ok_or_else(|| {
+                            Error::new(format!("malformed logging spec '{raw_level}'"))
+                        })?
+                    };
+                    builder.prefixes.insert(prefix.to_owned(), level);
+                }
+            }
         }
         Ok(builder)
     }
 
-    /// Set the fallback [`LevelFilter`] applied when no prefix directive matches.
+    /// Sets the fallback [`LevelFilter`] applied when no prefix directive matches.
     ///
     /// # Examples
     ///
@@ -387,14 +384,11 @@ impl RustLogFilterBuilder {
     ///     .build();
     /// ```
     pub fn fallback(mut self, filter: LevelFilter) -> Self {
-        self.upsert_directive(Directive {
-            prefix: None,
-            level: filter,
-        });
+        self.fallback = Some(filter);
         self
     }
 
-    /// Set the [`LevelFilter`] for records whose `"logforth.target"` (when present) or
+    /// Sets the [`LevelFilter`] for records whose `"logforth.target"` (when present) or
     /// [`Record::module_path`] starts with `prefix` (longest prefix match wins).
     ///
     /// # Examples
@@ -410,95 +404,42 @@ impl RustLogFilterBuilder {
     ///     .build();
     /// ```
     pub fn prefix(mut self, prefix: impl Into<String>, filter: LevelFilter) -> Self {
-        self.upsert_directive(Directive {
-            prefix: Some(prefix.into()),
-            level: filter,
-        });
+        self.prefixes.insert(prefix.into(), filter);
         self
     }
 
-    /// Consume the builder to produce a [`RustLogFilter`].
+    /// Builds the [`RustLogFilter`].
     ///
-    /// If the builder has no directives configured, a default fallback directive of the `error`
-    /// level will be added.
+    /// If neither a fallback nor any prefix directive was configured, defaults the fallback to
+    /// `LevelFilter::MoreSevereEqual(Level::Error)`. If only prefix directives were configured,
+    /// unmatched targets default to [`LevelFilter::Off`].
     pub fn build(self) -> RustLogFilter {
-        let Self { directives } = self;
-
-        if directives.is_empty() {
-            RustLogFilter::from_directives(vec![Directive {
-                prefix: None,
-                level: LevelFilter::MoreSevereEqual(Level::Error),
-            }])
-        } else {
-            RustLogFilter::from_directives(directives)
-        }
-    }
-
-    /// Insert the directive or update an existing directive with the same prefix.
-    fn upsert_directive(&mut self, mut directive: Directive) {
-        if let Some(pos) = self
-            .directives
-            .iter()
-            .position(|d| d.prefix == directive.prefix)
-        {
-            std::mem::swap(&mut self.directives[pos], &mut directive);
-        } else {
-            self.directives.push(directive);
-        }
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct Directive {
-    prefix: Option<String>,
-    level: LevelFilter,
-}
-
-/// Parse a logging specification string and return a vector of directives, failing fast on the
-/// first malformed directive.
-fn parse_spec(spec: &str) -> Result<Vec<Directive>, Error> {
-    let mut directives = Vec::new();
-
-    for s in spec.split(',').map(str::trim) {
-        if s.is_empty() {
-            continue;
-        }
-
-        let mut parts = s.split('=');
-        let part0 = parts.next().map(str::trim).unwrap_or_default();
-        let part1 = parts.next().map(str::trim);
-
-        if part0.is_empty() || parts.next().is_some() {
-            return Err(Error::new(format!("malformed logging spec '{s}'")));
-        }
-
-        let (level, prefix) = match part1 {
-            None => {
-                if let Some(level) = from_str_for_env(part0) {
-                    // if the single argument is a log level string, treat that as a fallback
-                    (level, None)
-                } else {
-                    (LevelFilter::All, Some(part0.to_owned()))
-                }
-            }
-            Some(part1) => {
-                if part1.is_empty() {
-                    (LevelFilter::All, Some(part0.to_owned()))
-                } else if let Some(level) = from_str_for_env(part1) {
-                    (level, Some(part0.to_owned()))
-                } else {
-                    return Err(Error::new(format!("malformed logging spec '{part1}'")));
-                }
-            }
+        let fallback = match self.fallback {
+            Some(fallback) => fallback,
+            None if self.prefixes.is_empty() => LevelFilter::MoreSevereEqual(Level::Error),
+            None => LevelFilter::Off,
         };
-
-        directives.push(Directive { prefix, level });
+        let prefixes = self
+            .prefixes
+            .into_iter()
+            .map(|(prefix, level)| PrefixDirective { prefix, level })
+            .collect();
+        RustLogFilter::new(fallback, prefixes)
     }
-
-    Ok(directives)
 }
 
-fn from_str_for_env(text: &str) -> Option<LevelFilter> {
+fn read_env_var(name: &str) -> Result<Option<String>, Error> {
+    match std::env::var(name) {
+        Ok(spec) => Ok(Some(spec)),
+        Err(VarError::NotPresent) => Ok(None),
+        Err(err @ VarError::NotUnicode(_)) => Err(Error::new(format!(
+            "environment variable '{name}' is not valid UTF-8"
+        ))
+        .with_source(err)),
+    }
+}
+
+fn parse_level_filter(text: &str) -> Option<LevelFilter> {
     if let Ok(level) = Level::from_str(text) {
         Some(LevelFilter::MoreSevereEqual(level))
     } else if text.eq_ignore_ascii_case("off") {
