@@ -112,7 +112,7 @@ impl Layout for LogfmtLayout {
 
         let level = record.level();
         let module = record.module_path().unwrap_or_default();
-        let file = record.filename();
+        let file = record.filename().unwrap_or_default();
         let line = record.line().unwrap_or_default();
         let payload = record.payload();
         let message = match record.payload_static() {

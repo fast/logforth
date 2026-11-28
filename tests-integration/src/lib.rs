@@ -86,11 +86,7 @@ impl RecordingAppender {
             .lock()
             .unwrap()
             .iter()
-            .map(|event| {
-                let mut payload = String::new();
-                event.record.with(|r| payload = r.payload().to_string());
-                payload
-            })
+            .map(|event| event.record.with(|r| r.payload().to_string()))
             .collect()
     }
 

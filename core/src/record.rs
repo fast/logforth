@@ -52,72 +52,83 @@ pub struct Record<'a> {
 
 impl<'a> Record<'a> {
     /// Returns the timestamp observed when the record was created.
-    pub fn time(&self) -> SystemTime {
+    pub const fn time(&self) -> SystemTime {
         self.now
     }
 
     /// Returns the severity [`Level`] of the record.
-    pub fn level(&self) -> Level {
+    pub const fn level(&self) -> Level {
         self.level
     }
 
     /// Returns the Rust module path where the record was emitted, if set.
-    pub fn module_path(&self) -> Option<&'a str> {
-        self.module_path.map(|s| s.get())
+    pub const fn module_path(&self) -> Option<&'a str> {
+        match self.module_path {
+            Some(s) => Some(s.get()),
+            None => None,
+        }
     }
 
     /// Returns the Rust module path if it was supplied with `'static` provenance.
-    pub fn module_path_static(&self) -> Option<&'static str> {
-        self.module_path.and_then(|s| s.get_static())
+    pub const fn module_path_static(&self) -> Option<&'static str> {
+        match self.module_path {
+            Some(s) => s.get_static(),
+            None => None,
+        }
     }
 
     /// Returns the source file path where the record was emitted, if set.
-    pub fn file(&self) -> Option<&'a str> {
-        self.file.map(|s| s.get())
+    pub const fn file(&self) -> Option<&'a str> {
+        match self.file {
+            Some(s) => Some(s.get()),
+            None => None,
+        }
     }
 
     /// Returns the source file path if it was supplied with `'static` provenance.
-    pub fn file_static(&self) -> Option<&'static str> {
-        self.file.and_then(|s| s.get_static())
+    pub const fn file_static(&self) -> Option<&'static str> {
+        match self.file {
+            Some(s) => s.get_static(),
+            None => None,
+        }
     }
 
-    /// Returns the terminal filename component of [`Record::file`], or an empty string when unset.
-    pub fn filename(&self) -> Cow<'a, str> {
+    /// Returns the terminal filename component of [`Record::file`], if present.
+    pub fn filename(&self) -> Option<&'a str> {
         self.file()
             .map(std::path::Path::new)
             .and_then(std::path::Path::file_name)
-            .map(std::ffi::OsStr::to_string_lossy)
-            .unwrap_or_default()
+            .and_then(std::ffi::OsStr::to_str)
     }
 
     /// Returns the 1-based source line number where the record was emitted, if set.
-    pub fn line(&self) -> Option<u32> {
+    pub const fn line(&self) -> Option<u32> {
         self.line
     }
 
     /// Returns the 1-based source column number where the record was emitted, if set.
-    pub fn column(&self) -> Option<u32> {
+    pub const fn column(&self) -> Option<u32> {
         self.column
     }
 
     /// Returns the formatted message arguments of the record.
-    pub fn payload(&self) -> fmt::Arguments<'a> {
+    pub const fn payload(&self) -> fmt::Arguments<'a> {
         self.payload
     }
 
     /// Returns the message body as a `'static` string slice when it contains no formatting
     /// placeholders.
-    pub fn payload_static(&self) -> Option<&'static str> {
+    pub const fn payload_static(&self) -> Option<&'static str> {
         self.payload.as_str()
     }
 
     /// Returns the structured key-value pairs attached to this record.
-    pub fn key_values(&self) -> &KeyValues<'a> {
-        &self.kvs
+    pub const fn key_values(&self) -> KeyValues<'a> {
+        self.kvs
     }
 
     /// Creates a [`RecordBuilder`] initialized with a copy of this record's fields.
-    pub fn to_builder(&self) -> RecordBuilder<'a> {
+    pub const fn to_builder(&self) -> RecordBuilder<'a> {
         RecordBuilder {
             record: Record {
                 now: self.now,
@@ -275,8 +286,9 @@ pub struct RecordOwned {
 }
 
 impl RecordOwned {
-    /// Invokes `f` with a borrowed [`Record`] view over this owned snapshot.
-    pub fn with(&self, f: impl FnOnce(Record<'_>)) {
+    /// Invokes `f` with a borrowed [`Record`] view over this owned snapshot and returns its
+    /// result.
+    pub fn with<R>(&self, f: impl FnOnce(Record<'_>) -> R) -> R {
         f(Record {
             now: self.now,
             level: self.level,
@@ -294,7 +306,7 @@ impl RecordOwned {
             column: self.column,
             payload: format_args!("{}", self.payload),
             kvs: KeyValues::from(self.kvs.as_slice()),
-        });
+        })
     }
 }
 

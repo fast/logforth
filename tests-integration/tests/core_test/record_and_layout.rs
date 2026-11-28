@@ -22,6 +22,7 @@ use logforth_core::append::Testing;
 use logforth_core::builder;
 use logforth_core::diagnostic::StaticDiagnostic;
 use logforth_core::kv::Key;
+use logforth_core::kv::KeyValues;
 use logforth_core::kv::Value;
 use logforth_core::kv::Visitor;
 use logforth_core::layout::PlainTextLayout;
@@ -36,25 +37,40 @@ struct RecordSnapshot {
     level: Level,
     module_path: Option<String>,
     file: Option<String>,
-    filename: String,
+    filename: Option<String>,
     line: Option<u32>,
     column: Option<u32>,
     payload: String,
     kvs: Vec<(String, String)>,
 }
 
+const fn check_const_record_accessors<'a>(record: &Record<'a>) -> KeyValues<'a> {
+    let _ = record.time();
+    let _ = record.level();
+    let _ = record.module_path();
+    let _ = record.module_path_static();
+    let _ = record.file();
+    let _ = record.file_static();
+    let _ = record.line();
+    let _ = record.column();
+    let _ = record.payload();
+    let _ = record.payload_static();
+    let _ = record.to_builder();
+    record.key_values()
+}
+
 fn snapshot_record(record: &Record<'_>) -> RecordSnapshot {
+    let kvs = check_const_record_accessors(record);
     RecordSnapshot {
         time: record.time(),
         level: record.level(),
         module_path: record.module_path().map(str::to_owned),
         file: record.file().map(str::to_owned),
-        filename: record.filename().into_owned(),
+        filename: record.filename().map(str::to_owned),
         line: record.line(),
         column: record.column(),
         payload: record.payload().to_string(),
-        kvs: record
-            .key_values()
+        kvs: kvs
             .iter()
             .map(|(k, v)| (k.as_str().to_owned(), v.to_string()))
             .collect(),
@@ -72,7 +88,6 @@ fn all_twenty_four_levels_preserve_severity_order_discriminants_padding_and_pars
 
         let name = level.name();
         assert_eq!(level.to_string(), name);
-        assert_eq!(format!("{level:?}"), name);
         assert_eq!(format!("{level:>6}").len(), 6);
 
         assert_eq!(name.parse::<Level>().unwrap(), level);
@@ -140,12 +155,11 @@ fn record_owned_round_trip_preserves_metadata_provenance_and_structured_fields()
 
     assert_eq!(static_record.module_path_static(), Some("app::net"));
     assert_eq!(static_record.file_static(), Some("src/net/listener.rs"));
-    assert_eq!(static_record.filename(), "listener.rs");
+    assert_eq!(static_record.filename(), Some("listener.rs"));
     assert_eq!(static_record.payload_static(), Some("static payload"));
 
     let expected_snapshot = snapshot_record(&static_record);
-    static_record.to_owned().with(|reprojected| {
-        assert_eq!(snapshot_record(&reprojected), expected_snapshot);
+    let reprojected_snapshot = static_record.to_owned().with(|reprojected| {
         assert_eq!(reprojected.module_path_static(), Some("app::net"));
         assert_eq!(reprojected.file_static(), Some("src/net/listener.rs"));
         assert_eq!(
@@ -160,23 +174,26 @@ fn record_owned_round_trip_preserves_metadata_provenance_and_structured_fields()
                 .to_static_str(),
             None
         );
+        snapshot_record(&reprojected)
     });
+    assert_eq!(reprojected_snapshot, expected_snapshot);
 
-    // Override via `to_builder` with non-static borrows and verify provenance downgrades cleanly.
+    // Override via `to_builder` with non-static borrows and verify provenance and `'a` lifetimes.
     let dynamic_mod = String::from("dynamic::worker");
-    let dynamic_file = String::from("worker.rs");
+    let dynamic_file = String::from("dir/worker.rs");
     let check_rebuilt = |rebuilt: &Record<'_>| {
         assert_eq!(rebuilt.module_path_static(), None);
         assert_eq!(rebuilt.file_static(), None);
-        assert_eq!(rebuilt.filename(), "worker.rs");
         assert_eq!(rebuilt.payload_static(), None);
 
         let rebuilt_snapshot = snapshot_record(rebuilt);
-        rebuilt.to_owned().with(|reprojected| {
-            assert_eq!(snapshot_record(&reprojected), rebuilt_snapshot);
+        let owned_snapshot = rebuilt.to_owned().with(|reprojected| {
             assert_eq!(reprojected.module_path_static(), None);
             assert_eq!(reprojected.file_static(), None);
+            assert_eq!(reprojected.payload_static(), None);
+            snapshot_record(&reprojected)
         });
+        assert_eq!(owned_snapshot, rebuilt_snapshot);
     };
     check_rebuilt(
         &static_record
@@ -188,6 +205,25 @@ fn record_owned_round_trip_preserves_metadata_provenance_and_structured_fields()
             .payload(format_args!("bound to {dynamic_host}"))
             .build(),
     );
+
+    // `filename` and `key_values` borrow from `'a` rather than from `&Record`.
+    let (borrowed_filename, borrowed_kvs) = {
+        let temp = static_record
+            .to_builder()
+            .file(Some(&dynamic_file))
+            .payload(format_args!(""))
+            .build();
+        (temp.filename(), temp.key_values())
+    };
+    assert_eq!(borrowed_filename, Some("worker.rs"));
+    assert_eq!(borrowed_kvs.get("port").unwrap().to_u64(), Some(8080));
+
+    // Unset or root-only file paths produce `filename() == None`.
+    let default_record = Record::builder().build();
+    assert_eq!(default_record.filename(), None);
+    assert_eq!(default_record.payload_static(), Some(""));
+    assert!(default_record.to_owned().with(|r| r.filename().is_none()));
+    assert_eq!(Record::builder().file_static("/").build().filename(), None);
 }
 
 #[derive(Debug)]

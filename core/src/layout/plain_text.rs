@@ -62,7 +62,7 @@ impl Layout for PlainTextLayout {
 
         let level = record.level().name();
         let module_path = record.module_path().unwrap_or_default();
-        let file = record.filename();
+        let file = record.filename().unwrap_or_default();
         let line = record.line().unwrap_or_default();
         let message = record.payload();
         write!(buf, " {level:>6} {module_path}: {file}:{line} {message}")
