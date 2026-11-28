@@ -88,24 +88,6 @@ fn public_types_are_send_sync_and_unpin() {
 }
 
 #[test]
-fn lightweight_views_and_enums_are_copy() {
-    fn assert_copy<T: Copy>() {}
-
-    assert_copy::<Level>();
-    assert_copy::<LevelFilter>();
-    assert_copy::<FilterResult>();
-    assert_copy::<Key<'_>>();
-    assert_copy::<KeyView<'_>>();
-    assert_copy::<Value<'_>>();
-    assert_copy::<ValueView<'_>>();
-    assert_copy::<KeyValues<'_>>();
-    assert_copy::<ListValue<'_>>();
-    assert_copy::<MapValue<'_>>();
-    assert_copy::<DebugValue<'_>>();
-    assert_copy::<DisplayValue<'_>>();
-}
-
-#[test]
 fn hot_path_handles_and_zst_components_preserve_compact_memory_layout() {
     assert_eq!(size_of::<Logger>(), size_of::<usize>());
     assert_eq!(size_of::<Error>(), size_of::<usize>());

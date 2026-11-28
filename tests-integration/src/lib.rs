@@ -24,7 +24,6 @@ use logforth_core::Diagnostic;
 use logforth_core::Error;
 use logforth_core::ErrorSink;
 use logforth_core::Layout;
-use logforth_core::kv::KeyValues;
 use logforth_core::kv::KeyView;
 use logforth_core::kv::ValueView;
 use logforth_core::layout::PlainTextLayout;
@@ -42,13 +41,6 @@ pub struct CapturedEvent {
     pub formatted: Vec<u8>,
     /// Diagnostic entries `(key, value.to_string())` observed during `append`.
     pub diagnostics: Vec<(String, String)>,
-}
-
-impl CapturedEvent {
-    /// Returns the formatted output decoded as UTF-8.
-    pub fn line(&self) -> &str {
-        std::str::from_utf8(&self.formatted).expect("formatted output must be valid UTF-8")
-    }
 }
 
 #[derive(Debug)]
@@ -102,14 +94,18 @@ impl RecordingAppender {
             .collect()
     }
 
-    /// Returns the formatted lines produced by the configured [`Layout`].
+    /// Returns the UTF-8 formatted lines produced by the configured [`Layout`].
     pub fn lines(&self) -> Vec<String> {
         self.state
             .events
             .lock()
             .unwrap()
             .iter()
-            .map(|event| event.line().to_owned())
+            .map(|event| {
+                std::str::from_utf8(&event.formatted)
+                    .expect("formatted output must be valid UTF-8")
+                    .to_owned()
+            })
             .collect()
     }
 
@@ -186,16 +182,6 @@ impl ErrorSink for RecordingErrorSink {
 pub fn collect_diagnostics(diags: &dyn Diagnostic) -> Result<Vec<(String, String)>, Error> {
     let mut entries = Vec::new();
     diags.visit(&mut |key: KeyView, value: ValueView| {
-        entries.push((key.as_str().to_owned(), value.to_string()));
-        Ok(())
-    })?;
-    Ok(entries)
-}
-
-/// Collects all entries from `kvs` as `(key, value.to_string())` pairs.
-pub fn collect_kvs(kvs: &KeyValues<'_>) -> Result<Vec<(String, String)>, Error> {
-    let mut entries = Vec::new();
-    kvs.visit(&mut |key: KeyView, value: ValueView| {
         entries.push((key.as_str().to_owned(), value.to_string()));
         Ok(())
     })?;

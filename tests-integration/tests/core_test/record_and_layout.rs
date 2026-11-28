@@ -29,7 +29,6 @@ use logforth_core::record::Level;
 use logforth_core::record::LevelFilter;
 use logforth_core::record::Record;
 use tests_integration::RecordingErrorSink;
-use tests_integration::collect_kvs;
 
 #[derive(Debug, PartialEq, Eq)]
 struct RecordSnapshot {
@@ -54,7 +53,11 @@ fn snapshot_record(record: &Record<'_>) -> RecordSnapshot {
         line: record.line(),
         column: record.column(),
         payload: record.payload().to_string(),
-        kvs: collect_kvs(record.key_values()).unwrap(),
+        kvs: record
+            .key_values()
+            .iter()
+            .map(|(k, v)| (k.as_str().to_owned(), v.to_string()))
+            .collect(),
     }
 }
 

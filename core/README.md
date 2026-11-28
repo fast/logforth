@@ -74,9 +74,8 @@ fn build_json_logger() -> Result<Logger, logforth_core::Error> {
 ## Documentation
 
 - [Rust API documentation](https://docs.rs/logforth-core)
-- [Architecture and 1.0 design](../DESIGN.md)
 - [Logforth facade crate](https://docs.rs/logforth)
 
 ## License
 
-Licensed under the [Apache License, Version 2.0](../LICENSE).
+Licensed under the Apache License, Version 2.0.
