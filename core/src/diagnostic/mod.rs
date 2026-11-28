@@ -12,7 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Mapped Diagnostic Context (MDC).
+//! Mapped Diagnostic Context (MDC) sources for enriching log records with contextual key-values.
+//!
+//! [`Diagnostic`] omits a `'static` supertrait bound so decorating appenders and layouts can chain
+//! stack-borrowed per-call context onto incoming `diags` (for example, `&[diags, &extra]`) without
+//! heap allocation, while [`DispatchBuilder::diagnostic`](crate::DispatchBuilder::diagnostic)
+//! requires `'static` via `Box<dyn Diagnostic>`.
+//!
+//! Built-in implementations forward `&T` and `Arc<T>`, and compose `()` (empty context),
+//! `Option<T>`, `[T]`, `[T; N]`, and `Vec<T>` (along with the matching `Box<dyn Diagnostic>`
+//! containers) sequentially.
 
 use std::fmt;
 use std::sync::Arc;

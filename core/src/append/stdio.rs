@@ -21,7 +21,9 @@ use crate::append::Append;
 use crate::layout::PlainTextLayout;
 use crate::record::Record;
 
-/// An appender that writes log records to standard output.
+/// An appender that writes formatted log records followed by `\n` to standard output.
+///
+/// Defaults to [`PlainTextLayout`]. Formatting runs before acquiring the standard output stream.
 ///
 /// # Examples
 ///
@@ -44,9 +46,9 @@ impl Default for Stdout {
 }
 
 impl Stdout {
-    /// Set the layout for the [`Stdout`] appender.
+    /// Sets the [`Layout`] used to format records written to standard output.
     ///
-    /// Default to [`PlainTextLayout`].
+    /// Defaults to [`PlainTextLayout`].
     ///
     /// # Examples
     ///
@@ -81,7 +83,9 @@ impl Append for Stdout {
     }
 }
 
-/// An appender that writes log records to standard error.
+/// An appender that writes formatted log records followed by `\n` to standard error.
+///
+/// Defaults to [`PlainTextLayout`]. Formatting runs before acquiring the standard error stream.
 ///
 /// # Examples
 ///
@@ -104,9 +108,9 @@ impl Default for Stderr {
 }
 
 impl Stderr {
-    /// Set the layout for the [`Stderr`] appender.
+    /// Sets the [`Layout`] used to format records written to standard error.
     ///
-    /// Default to [`PlainTextLayout`].
+    /// Defaults to [`PlainTextLayout`].
     ///
     /// # Examples
     ///

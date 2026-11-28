@@ -18,7 +18,7 @@ use std::io::Write;
 use crate::Error;
 use crate::ErrorSink;
 
-/// An [`ErrorSink`] that writes internal errors to standard error on a best-effort basis.
+/// An [`ErrorSink`] that writes internal errors to standard error as `logforth: {err:#}`.
 ///
 /// If writing to standard error fails (for example, when standard error is closed or broken), the
 /// failure is silently ignored.

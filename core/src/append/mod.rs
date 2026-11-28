@@ -12,7 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Dispatch log records to various targets.
+//! Sinks that deliver log records to output targets.
+//!
+//! [`Append`] receives structured [`Record`] metadata, payload, and [`Diagnostic`] context directly
+//! so protocol-native sinks can encode typed fields without intermediate text serialization, while
+//! byte-stream sinks compose a [`Layout`](crate::Layout) internally and own record framing (such as
+//! a trailing newline).
+//!
+//! `Arc<T>` and `&'static T` forward [`Append`] so multiple dispatch branches or [`Logger`](crate::Logger)
+//! instances can share a single stateful appender.
 
 use std::fmt;
 use std::sync::Arc;
@@ -28,12 +36,23 @@ pub use self::stdio::Stdout;
 mod testing;
 pub use self::testing::Testing;
 
-/// An appender that can process log records.
+/// A sink that processes and delivers log records.
+///
+/// Implementations must remain thread-safe (`Send + Sync`) and must never route log records back
+/// into their owning [`Logger`](crate::Logger).
 pub trait Append: fmt::Debug + Send + Sync + 'static {
-    /// Dispatch a log record to the append target.
+    /// Delivers `record` and its associated `diags` context to the target sink.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Error`] if formatting, encoding, or writing the record fails.
     fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error>;
 
-    /// Flush any buffered records.
+    /// Flushes any buffered records to the underlying destination.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Error`] if flushing buffered output fails.
     fn flush(&self) -> Result<(), Error>;
 }
 

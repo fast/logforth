@@ -89,14 +89,20 @@ impl Logger {
         }
     }
 
-    /// Returns `true` if at least one dispatch branch may accept `level`.
+    /// Returns `true` if at least one dispatch branch may accept records at `level`.
+    ///
+    /// Evaluated as a single bitwise test against the union of all branches' precomputed level
+    /// masks before a callsite constructs a [`Record`].
     pub fn enabled(&self, level: Level) -> bool {
         self.state
             .as_deref()
             .is_some_and(|state| (state.level_mask & level_bit(level)) != 0)
     }
 
-    /// Dispatches `record` across all configured branches.
+    /// Dispatches `record` across all configured branches in registration order.
+    ///
+    /// If an appender returns an [`Error`], the error is forwarded to the branch's overriding
+    /// [`ErrorSink`] (or the logger's fallback [`ErrorSink`]) and remaining appenders still run.
     pub fn log(&self, record: &Record) {
         let Some(state) = self.state.as_deref() else {
             return;
@@ -110,7 +116,10 @@ impl Logger {
         }
     }
 
-    /// Flushes all appenders across all configured branches.
+    /// Flushes all appenders across all configured branches in registration order.
+    ///
+    /// Any flush failure is reported to the active [`ErrorSink`] while continuing to flush
+    /// remaining appenders.
     pub fn flush(&self) {
         let Some(state) = self.state.as_deref() else {
             return;
