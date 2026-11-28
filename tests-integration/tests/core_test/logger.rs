@@ -27,14 +27,21 @@ use logforth_core::ErrorSink;
 use logforth_core::Filter;
 use logforth_core::Layout;
 use logforth_core::Logger;
+use logforth_core::LoggerBuilder;
+use logforth_core::append::Stderr;
+use logforth_core::append::Stdout;
+use logforth_core::append::Testing;
 use logforth_core::builder;
 use logforth_core::diagnostic::StaticDiagnostic;
+use logforth_core::diagnostic::ThreadLocalDiagnostic;
 use logforth_core::error::BlackHoleErrorSink;
+use logforth_core::error::StderrErrorSink;
 use logforth_core::filter::FilterResult;
 use logforth_core::kv::Key;
 use logforth_core::kv::KeyView;
 use logforth_core::kv::Value;
 use logforth_core::kv::ValueView;
+use logforth_core::layout::PlainTextLayout;
 use logforth_core::record::Level;
 use logforth_core::record::LevelFilter;
 use logforth_core::record::Record;
@@ -48,7 +55,9 @@ const NOOP_LOGGER: Logger = Logger::noop();
 fn noop_default_and_empty_builders_disable_all_levels_and_skip_sinks() {
     let errors = RecordingErrorSink::default();
     let empty_logger = builder().error_sink(errors.clone()).build();
-    let skipped_branch_logger = builder()
+    let method_empty_logger = Logger::builder().error_sink(errors.clone()).build();
+    let default_builder_logger = LoggerBuilder::default().error_sink(errors.clone()).build();
+    let skipped_branch_logger = LoggerBuilder::new()
         .error_sink(errors.clone())
         .dispatch(|d| d.filter(LevelFilter::All))
         .build();
@@ -62,6 +71,8 @@ fn noop_default_and_empty_builders_disable_all_levels_and_skip_sinks() {
         NOOP_LOGGER,
         Logger::default(),
         empty_logger,
+        method_empty_logger,
+        default_builder_logger,
         skipped_branch_logger,
     ] {
         let cloned = logger.clone();
@@ -407,6 +418,10 @@ impl ErrorSink for StaticCountingErrorSink {
 fn arc_and_static_forwarding_share_all_five_traits_across_dispatches() {
     static STATIC_FILTER: SubstringRejectFilter = SubstringRejectFilter("drop-static");
     static STATIC_LAYOUT: PrefixLayout = PrefixLayout("static");
+    static STATIC_PLAIN_LAYOUT: PlainTextLayout = PlainTextLayout::new();
+    static STATIC_TLS_DIAG: ThreadLocalDiagnostic = ThreadLocalDiagnostic::new();
+    static STATIC_STDERR_SINK: StderrErrorSink = StderrErrorSink::new();
+    static STATIC_BLACK_HOLE_SINK: BlackHoleErrorSink = BlackHoleErrorSink::new();
     static STATIC_DIAG: LazyLock<StaticDiagnostic> =
         LazyLock::new(|| StaticDiagnostic::new([("origin", "static")]));
     static STATIC_APPEND: LazyLock<RecordingAppender> =
@@ -414,6 +429,18 @@ fn arc_and_static_forwarding_share_all_five_traits_across_dispatches() {
     static STATIC_ERROR_SINK: StaticCountingErrorSink = StaticCountingErrorSink {
         calls: AtomicUsize::new(0),
     };
+
+    // Exercise `new()` constructors alongside `&'static` forwarding of `const fn` ZST components.
+    let _configured_std = Logger::builder()
+        .error_sink(&STATIC_STDERR_SINK)
+        .dispatch(|d| {
+            d.diagnostic(&STATIC_TLS_DIAG)
+                .error_sink(&STATIC_BLACK_HOLE_SINK)
+                .append(Stdout::new().with_layout(&STATIC_PLAIN_LAYOUT))
+                .append(Stderr::new().with_layout(&STATIC_PLAIN_LAYOUT))
+                .append(Testing::new().with_layout(&STATIC_PLAIN_LAYOUT))
+        })
+        .build();
 
     let arc_filter: Arc<dyn Filter> = Arc::new(SubstringRejectFilter("drop-arc"));
     let arc_layout: Arc<dyn Layout> = Arc::new(PrefixLayout("arc"));

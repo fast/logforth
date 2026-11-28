@@ -20,6 +20,13 @@ use crate::ErrorSink;
 #[non_exhaustive]
 pub struct BlackHoleErrorSink {}
 
+impl BlackHoleErrorSink {
+    /// Creates a new [`BlackHoleErrorSink`].
+    pub const fn new() -> Self {
+        Self {}
+    }
+}
+
 impl ErrorSink for BlackHoleErrorSink {
     fn sink(&self, _: &Error) {}
 }

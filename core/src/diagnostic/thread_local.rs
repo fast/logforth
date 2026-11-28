@@ -90,6 +90,11 @@ impl Drop for ThreadLocalDiagnosticGuard {
 pub struct ThreadLocalDiagnostic {}
 
 impl ThreadLocalDiagnostic {
+    /// Creates a new [`ThreadLocalDiagnostic`].
+    pub const fn new() -> Self {
+        Self {}
+    }
+
     /// Pushes scoped key-value pairs onto the current thread's diagnostic stack and returns an
     /// RAII guard that removes this scope when dropped.
     ///

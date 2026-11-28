@@ -26,6 +26,13 @@ use crate::ErrorSink;
 #[non_exhaustive]
 pub struct StderrErrorSink {}
 
+impl StderrErrorSink {
+    /// Creates a new [`StderrErrorSink`].
+    pub const fn new() -> Self {
+        Self {}
+    }
+}
+
 impl ErrorSink for StderrErrorSink {
     fn sink(&self, err: &Error) {
         let _ = writeln!(io::stderr().lock(), "logforth: {err:#}");

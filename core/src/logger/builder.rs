@@ -32,10 +32,7 @@ use crate::logger::log_impl::Dispatch;
 ///     .build();
 /// ```
 pub fn builder() -> LoggerBuilder {
-    LoggerBuilder {
-        dispatches: vec![],
-        error_sink: Box::new(StderrErrorSink::default()),
-    }
+    LoggerBuilder::new()
 }
 
 /// A builder that assembles a [`Logger`] from ordered dispatch branches and a fallback
@@ -44,10 +41,11 @@ pub fn builder() -> LoggerBuilder {
 /// # Examples
 ///
 /// ```
-/// use logforth_core::append;
+/// use logforth_core::Logger;
+/// use logforth_core::append::Stdout;
 ///
-/// let logger = logforth_core::builder()
-///     .dispatch(|d| d.append(append::Stdout::default()))
+/// let logger = Logger::builder()
+///     .dispatch(|d| d.append(Stdout::new()))
 ///     .build();
 /// ```
 #[must_use = "call `build` to construct a logger instance"]
@@ -58,7 +56,21 @@ pub struct LoggerBuilder {
     error_sink: Box<dyn ErrorSink>,
 }
 
+impl Default for LoggerBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LoggerBuilder {
+    /// Creates an empty [`LoggerBuilder`] with [`StderrErrorSink`] as the fallback error sink.
+    pub fn new() -> Self {
+        Self {
+            dispatches: vec![],
+            error_sink: Box::new(StderrErrorSink::new()),
+        }
+    }
+
     /// Registers a dispatch branch configured by `f`.
     ///
     /// If `f` returns a [`DispatchBuilder`] with no appenders configured, the branch is skipped.
