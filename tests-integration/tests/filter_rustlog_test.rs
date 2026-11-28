@@ -18,28 +18,35 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
-use logforth_core::Diagnostic;
-use logforth_core::Filter;
-use logforth_core::Logger;
-use logforth_core::filter::FilterResult;
-use logforth_core::kv::Key;
-use logforth_core::kv::Value;
-use logforth_core::record::Level;
-use logforth_core::record::LevelFilter;
-use logforth_core::record::Record;
-use logforth_filter_rustlog::DEFAULT_FILTER_ENV;
-use logforth_filter_rustlog::RustLogFilter;
-use logforth_filter_rustlog::RustLogFilterBuilder;
+use logforth::Diagnostic;
+use logforth::Filter;
+use logforth::LoggerBuilder;
+use logforth::filter::FilterResult;
+use logforth::filter::RustLogFilter;
+use logforth::filter::rustlog::DEFAULT_FILTER_ENV;
+use logforth::filter::rustlog::RustLogFilterBuilder;
+use logforth::kv::Key;
+use logforth::kv::Value;
+use logforth::record::Level;
+use logforth::record::LevelFilter;
+use logforth::record::Record;
+use logforth::record::RecordBuilder;
 use tests_integration::RecordingAppender;
 
+const EMPTY_BUILDER: RustLogFilterBuilder = RustLogFilterBuilder::new();
+
 fn accepts(filter: &RustLogFilter, level: Level, module: Option<&str>) -> bool {
-    let record = Record::builder().level(level).module_path(module).build();
+    let record = RecordBuilder::new()
+        .level(level)
+        .module_path(module)
+        .build();
     filter.filter(&record, &()) != FilterResult::Reject
 }
 
 #[test]
 fn empty_and_whitespace_builders_default_to_error_while_prefix_only_silences_unmatched() {
     for filter in [
+        EMPTY_BUILDER.clone().build(),
         RustLogFilterBuilder::default().build(),
         RustLogFilterBuilder::from_spec("").unwrap().build(),
         RustLogFilterBuilder::from_spec("  ,  , ").unwrap().build(),
@@ -104,12 +111,13 @@ fn directive_syntax_supports_all_twenty_four_levels_pseudo_levels_and_last_write
         assert!(!accepts(&off_filter, level, Some("app")));
     }
 
-    // Bare `prefix` and `prefix=` enable `All`, whitespace is trimmed, and later duplicates win.
-    let layered = RustLogFilterBuilder::from_spec(
-        " info , warn , bare_mod , eq_empty = , dup = debug , dup = error2 ",
+    // Bare `prefix` and `prefix=` enable `All`, `=level` and `=` set fallback, whitespace is
+    // trimmed, and later duplicates win.
+    let builder = RustLogFilterBuilder::from_spec(
+        " info , = warn , bare_mod , eq_empty = , dup = debug , dup = error2 ",
     )
-    .unwrap()
-    .build();
+    .unwrap();
+    let layered = builder.build();
 
     assert!(!accepts(&layered, Level::Info4, Some("unmatched")));
     assert!(accepts(&layered, Level::Warn, Some("unmatched")));
@@ -117,17 +125,49 @@ fn directive_syntax_supports_all_twenty_four_levels_pseudo_levels_and_last_write
     assert!(accepts(&layered, Level::Trace, Some("eq_empty::child")));
     assert!(!accepts(&layered, Level::Error, Some("dup::child")));
     assert!(accepts(&layered, Level::Error2, Some("dup::child")));
+
+    let eq_all = RustLogFilterBuilder::from_spec(" = , quiet = error ")
+        .unwrap()
+        .build();
+    assert!(accepts(&eq_all, Level::Trace, Some("unmatched")));
+    assert!(!accepts(&eq_all, Level::Warn, Some("quiet::sub")));
+    assert!(accepts(&eq_all, Level::Error, Some("quiet::sub")));
+
+    // Empty prefix in `Builder::prefix` normalizes to `fallback`, so later calls in either order
+    // override cleanly without leaving a shadowing `""` prefix entry.
+    let prefix_then_fallback = RustLogFilterBuilder::new()
+        .prefix("", LevelFilter::All)
+        .fallback(LevelFilter::MoreSevereEqual(Level::Warn))
+        .build();
+    assert!(!accepts(&prefix_then_fallback, Level::Info, Some("app")));
+    assert!(accepts(&prefix_then_fallback, Level::Warn, Some("app")));
+
+    let fallback_then_prefix = RustLogFilterBuilder::new()
+        .fallback(LevelFilter::MoreSevereEqual(Level::Error))
+        .prefix("", LevelFilter::MoreSevereEqual(Level::Debug))
+        .build();
+    assert!(accepts(&fallback_then_prefix, Level::Debug, Some("app")));
+    assert!(!accepts(&fallback_then_prefix, Level::Trace, Some("app")));
+
+    // Post-editing a parsed builder overrides specific prefixes and fallback cleanly.
+    let post_edited_builder = RustLogFilterBuilder::from_spec("debug,hyper=trace").unwrap();
+    let post_edited = post_edited_builder
+        .prefix("hyper", LevelFilter::MoreSevereEqual(Level::Warn))
+        .build();
+    assert!(accepts(&post_edited, Level::Debug, Some("my_app")));
+    assert!(!accepts(&post_edited, Level::Info, Some("hyper::client")));
+    assert!(accepts(&post_edited, Level::Warn, Some("hyper::client")));
 }
 
 #[test]
 fn longest_prefix_wins_and_subtree_overrides_narrow_or_widen_parent_rules() {
     let sink = RecordingAppender::default();
-    let filter = RustLogFilterBuilder::from_spec(
+    let builder = RustLogFilterBuilder::from_spec(
         "error,app=info,app::db=warn,app::db::pool=trace,app::noisy=off",
     )
-    .unwrap()
-    .build();
-    let logger = Logger::builder()
+    .unwrap();
+    let filter = builder.build();
+    let logger = LoggerBuilder::new()
         .dispatch(|d| d.filter(filter.clone()).append(sink.clone()))
         .build();
 
@@ -145,7 +185,7 @@ fn longest_prefix_wins_and_subtree_overrides_narrow_or_widen_parent_rules() {
     for (module, level, should_pass) in cases {
         let msg = format!("{module}:{level}");
         logger.log(
-            &Record::builder()
+            &RecordBuilder::new()
                 .level(level)
                 .module_path(Some(module))
                 .payload(format_args!("{msg}"))
@@ -201,10 +241,9 @@ fn dual_level_bitmasks_prune_disabled_levels_and_preserve_downstream_filters() {
     //   `Logger::enabled`.
     // - `Warn..=Fatal4`: accepted by fallback AND all prefixes (`always_neutral == 1`), yet must
     //   still return `FilterResult::Neutral` so `downstream` executes!
-    let filter = RustLogFilterBuilder::from_spec("warn,app::sub=info")
-        .unwrap()
-        .build();
-    let logger = Logger::builder()
+    let builder = RustLogFilterBuilder::from_spec("warn,app::sub=info").unwrap();
+    let filter = builder.build();
+    let logger = LoggerBuilder::new()
         .dispatch(|d| {
             d.filter(filter)
                 .filter(downstream.clone())
@@ -217,7 +256,7 @@ fn dual_level_bitmasks_prune_disabled_levels_and_preserve_downstream_filters() {
     assert!(logger.enabled(Level::Error));
 
     logger.log(
-        &Record::builder()
+        &RecordBuilder::new()
             .level(Level::Debug)
             .module_path_static("app::sub")
             .payload(format_args!("pruned"))
@@ -228,14 +267,14 @@ fn dual_level_bitmasks_prune_disabled_levels_and_preserve_downstream_filters() {
     // `Error` hits `always_neutral` fast path in `RustLogFilter`, then `downstream` rejects one
     // and lets the other pass.
     logger.log(
-        &Record::builder()
+        &RecordBuilder::new()
             .level(Level::Error)
             .module_path_static("unmatched")
             .payload(format_args!("reject-downstream"))
             .build(),
     );
     logger.log(
-        &Record::builder()
+        &RecordBuilder::new()
             .level(Level::Error)
             .module_path_static("unmatched")
             .payload(format_args!("keep-downstream"))
@@ -258,22 +297,35 @@ fn logforth_target_kv_overrides_module_path_without_colliding_with_user_target_f
         Key::new("logforth.target"),
         Value::static_str("custom::audit"),
     )];
-    let audit_record = Record::builder()
+    let audit_record = RecordBuilder::new()
         .level(Level::Trace)
         .module_path_static("app::quiet")
         .key_values(audit_kvs.as_slice())
         .build();
     assert_eq!(filter.filter(&audit_record, &()), FilterResult::Neutral);
 
-    let audit_no_mod = Record::builder()
+    let audit_no_mod = RecordBuilder::new()
         .level(Level::Debug)
         .key_values(audit_kvs.as_slice())
         .build();
     assert_eq!(filter.filter(&audit_no_mod, &()), FilterResult::Neutral);
 
+    // Explicit empty `"logforth.target"` still overrides `module_path` and routes to `fallback`
+    // rather than falling back to `module_path`.
+    let empty_target_kvs = [(Key::new("logforth.target"), Value::static_str(""))];
+    let empty_target_record = RecordBuilder::new()
+        .level(Level::Info)
+        .module_path_static("app::quiet")
+        .key_values(empty_target_kvs.as_slice())
+        .build();
+    assert_eq!(
+        filter.filter(&empty_target_record, &()),
+        FilterResult::Neutral
+    );
+
     // Non-string `"logforth.target"` falls back to `Record::module_path`.
     let numeric_target_kvs = [(Key::new("logforth.target"), Value::u64(42))];
-    let fallback_to_mod = Record::builder()
+    let fallback_to_mod = RecordBuilder::new()
         .level(Level::Warn)
         .module_path_static("app::quiet")
         .key_values(numeric_target_kvs.as_slice())
@@ -282,7 +334,7 @@ fn logforth_target_kv_overrides_module_path_without_colliding_with_user_target_f
 
     // Application `"target"` key-value never collides with reserved `"logforth.target"`.
     let app_target_kvs = [(Key::new("target"), Value::static_str("app::quiet"))];
-    let app_record = Record::builder()
+    let app_record = RecordBuilder::new()
         .level(Level::Info)
         .module_path_static("app::service")
         .key_values(app_target_kvs.as_slice())
@@ -292,7 +344,7 @@ fn logforth_target_kv_overrides_module_path_without_colliding_with_user_target_f
 
 #[test]
 fn malformed_directives_fail_fast_on_first_error() {
-    for bad_spec in ["=debug", " = info ", "a=b=c", "a==", "crate1=not_a_level"] {
+    for bad_spec in ["=not_a_level", "==", "a=b=c", "a==", "crate1=not_a_level"] {
         assert!(
             RustLogFilterBuilder::from_spec(bad_spec).is_err(),
             "expected error for malformed spec {bad_spec:?}"

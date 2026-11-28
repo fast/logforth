@@ -1887,7 +1887,6 @@ version = "0.0.0"
 dependencies = [
  "logforth",
  "logforth-core",
- "logforth-filter-rustlog",
  "serde",
 ]
 

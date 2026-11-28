@@ -45,7 +45,6 @@ logforth = { workspace = true, features = [
   "layout-text",
   "starter-log",
 ] }
-logforth-filter-rustlog = { workspace = true }
 serde = { workspace = true }
 
 [lib]

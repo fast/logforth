@@ -34,6 +34,7 @@ use logforth_core::kv::Value;
 use logforth_core::kv::ValueOwned;
 use logforth_core::kv::ValueView;
 use logforth_core::record::Record;
+use logforth_core::record::RecordBuilder;
 use serde::Serialize;
 
 #[test]
@@ -338,7 +339,7 @@ fn container_display_formats_values_consistently_across_sync_and_owned_paths() {
         "[-1, \"borrowed\", \"static\", 'x', <none>, b\"\\0\\nA\", {\"ok\": true, \"dyn_key\": 7}]";
     let expected_map = "{\"ok\": true, \"dyn_key\": 7}";
 
-    let record = Record::builder().key_values(top_kvs.as_slice()).build();
+    let record = RecordBuilder::new().key_values(top_kvs.as_slice()).build();
     let verify = |r: &Record<'_>| {
         let mut iter = r.key_values().iter();
         let (_, first_val) = iter.next().unwrap();
@@ -367,7 +368,7 @@ fn duplicate_keys_preserve_insertion_order_and_resolve_get_with_last_entry_wins(
         (k, Value::map(&inner_entries)),
     ];
 
-    let record = Record::builder()
+    let record = RecordBuilder::new()
         .key_values(outer_entries.as_slice())
         .build();
 

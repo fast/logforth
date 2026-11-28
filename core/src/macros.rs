@@ -22,7 +22,7 @@ pub mod __private {
     use crate::kv::LogValue;
     use crate::kv::Value;
     use crate::record::Level;
-    use crate::record::Record;
+    use crate::record::RecordBuilder;
 
     #[derive(Debug, Clone, Copy)]
     pub struct Location {
@@ -55,7 +55,7 @@ pub mod __private {
         kvs: &[(Key<'_>, Value<'_>)],
         payload: fmt::Arguments<'_>,
     ) {
-        let record = Record::builder()
+        let record = RecordBuilder::new()
             .level(level)
             .module_path_static(loc.module_path)
             .file_static(loc.file)

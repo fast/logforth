@@ -41,10 +41,10 @@ pub fn builder() -> LoggerBuilder {
 /// # Examples
 ///
 /// ```
-/// use logforth_core::Logger;
+/// use logforth_core::LoggerBuilder;
 /// use logforth_core::append::Stdout;
 ///
-/// let logger = Logger::builder()
+/// let logger = LoggerBuilder::new()
 ///     .dispatch(|d| d.append(Stdout::new()))
 ///     .build();
 /// ```
@@ -123,10 +123,10 @@ impl LoggerBuilder {
     /// # Examples
     ///
     /// ```
-    /// use logforth_core::record::Record;
+    /// use logforth_core::record::RecordBuilder;
     ///
     /// let l = logforth_core::builder().build();
-    /// let r = Record::builder()
+    /// let r = RecordBuilder::new()
     ///     .payload(format_args!("hello world!"))
     ///     .build();
     /// l.log(&r);

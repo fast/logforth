@@ -29,6 +29,7 @@ use logforth_core::layout::PlainTextLayout;
 use logforth_core::record::Level;
 use logforth_core::record::LevelFilter;
 use logforth_core::record::Record;
+use logforth_core::record::RecordBuilder;
 use tests_integration::RecordingErrorSink;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -142,7 +143,7 @@ fn record_owned_round_trip_preserves_metadata_provenance_and_structured_fields()
         (Key::new("port"), Value::u64(8080)),
     ];
 
-    let static_record = Record::builder()
+    let static_record = RecordBuilder::new()
         .time(ts)
         .level(Level::Warn2)
         .module_path_static("app::net")
@@ -219,11 +220,14 @@ fn record_owned_round_trip_preserves_metadata_provenance_and_structured_fields()
     assert_eq!(borrowed_kvs.get("port").unwrap().to_u64(), Some(8080));
 
     // Unset or root-only file paths produce `filename() == None`.
-    let default_record = Record::builder().build();
+    let default_record = RecordBuilder::new().build();
     assert_eq!(default_record.filename(), None);
     assert_eq!(default_record.payload_static(), Some(""));
     assert!(default_record.to_owned().with(|r| r.filename().is_none()));
-    assert_eq!(Record::builder().file_static("/").build().filename(), None);
+    assert_eq!(
+        RecordBuilder::new().file_static("/").build().filename(),
+        None
+    );
 }
 
 #[derive(Debug)]
@@ -258,7 +262,7 @@ fn plain_text_layout_appends_to_existing_buffer_and_handles_pre_epoch_and_errors
         });
     };
     format_both(
-        &Record::builder()
+        &RecordBuilder::new()
             .time(ts)
             .level(Level::Info)
             .module_path_static("app::http")
@@ -274,7 +278,7 @@ fn plain_text_layout_appends_to_existing_buffer_and_handles_pre_epoch_and_errors
     assert_eq!(direct_buf, owned_buf);
 
     // Pre-UNIX_EPOCH timestamps render as negative nanoseconds without panicking.
-    let pre_epoch = Record::builder()
+    let pre_epoch = RecordBuilder::new()
         .time(SystemTime::UNIX_EPOCH - Duration::from_micros(42))
         .level(Level::Error)
         .payload(format_args!("clock skew"))
@@ -318,13 +322,13 @@ fn testing_appender_handles_lossy_utf8_and_propagates_layout_errors() {
         .build();
 
     logger.log(
-        &Record::builder()
+        &RecordBuilder::new()
             .level(Level::Info)
             .payload(format_args!("captured-by-test-harness"))
             .build(),
     );
     logger.log(
-        &Record::builder()
+        &RecordBuilder::new()
             .level(Level::Error)
             .payload(format_args!("triggers-layout-error"))
             .build(),

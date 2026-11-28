@@ -31,12 +31,17 @@
 //! and trailing ASCII/Unicode whitespace around commas and `=` is trimmed, empty segments are
 //! ignored, and later directives override earlier ones with the same prefix (or fallback):
 //!
-//! | Form           | Effect                                                                                  |
-//! | :------------- | :-------------------------------------------------------------------------------------- |
-//! | `level`        | Sets the fallback threshold for records matching no prefix rule.                        |
-//! | `prefix=level` | Sets the threshold for targets starting with `prefix`.                                  |
-//! | `prefix`       | Enables all levels ([`LevelFilter::All`]) for targets starting with `prefix`.           |
-//! | `prefix=`      | Equivalent to `prefix` ([`LevelFilter::All`]).                                          |
+//! | Form           | Effect                                                                         |
+//! | :------------- | :----------------------------------------------------------------------------- |
+//! | `off`          | Disables all levels ([`LevelFilter::Off`]) as the unmatched fallback.          |
+//! | `all`          | Enables all levels ([`LevelFilter::All`]) as the unmatched fallback.           |
+//! | `level`        | Enables `level` and more severe levels as the unmatched fallback.              |
+//! | `prefix`       | Enables all levels ([`LevelFilter::All`]) for targets starting with `prefix`.  |
+//! | `prefix=level` | Enables `level` and more severe levels for targets starting with `prefix`.     |
+//! | `prefix=off`   | Disables all levels ([`LevelFilter::Off`]) for targets starting with `prefix`. |
+//! | `=`            | Equivalent to `all` ([`LevelFilter::All`] as the unmatched fallback).          |
+//! | `=level`       | Equivalent to `level` (sets the unmatched fallback threshold).                 |
+//! | `prefix=`      | Equivalent to `prefix` ([`LevelFilter::All`] for targets with `prefix`).       |
 //!
 //! Level names are ASCII case-insensitive and accept all 24 [`Level`] variants (`trace`,
 //! `trace2`..`trace4`, `debug`..`debug4`, `info`..`info4`, `warn`..`warn4`, `error`..`error4`,
@@ -58,12 +63,13 @@
 //! # Examples
 //!
 //! ```
-//! use logforth_core::Logger;
+//! use logforth_core::LoggerBuilder;
 //! use logforth_core::append::Stderr;
 //! use logforth_filter_rustlog::RustLogFilterBuilder;
 //!
-//! let filter = RustLogFilterBuilder::from_spec("info,my_app::db=debug,hyper=warn")?.build();
-//! let logger = Logger::builder()
+//! let builder = RustLogFilterBuilder::from_spec("info,my_app::db=debug,hyper=warn")?;
+//! let filter = builder.build();
+//! let logger = LoggerBuilder::new()
 //!     .dispatch(|d| d.filter(filter).append(Stderr::new()))
 //!     .build();
 //! # drop(logger);
@@ -171,14 +177,16 @@ impl Filter for RustLogFilter {
             .key_values()
             .get(KEY_LOGFORTH_TARGET)
             .and_then(|v| v.to_str())
-            .or_else(|| record.module_path())
-            .unwrap_or("");
+            .or_else(|| record.module_path());
 
-        let rule = self
-            .prefixes
-            .iter()
-            .find(|d| target.starts_with(&d.prefix))
-            .map_or(self.fallback, |d| d.level);
+        let rule = match target {
+            Some(t) if !t.is_empty() => self
+                .prefixes
+                .iter()
+                .find(|d| t.starts_with(&d.prefix))
+                .map_or(self.fallback, |d| d.level),
+            _ => self.fallback,
+        };
 
         if rule.test(level) {
             FilterResult::Neutral
@@ -190,7 +198,7 @@ impl Filter for RustLogFilter {
 
 impl From<LevelFilter> for RustLogFilter {
     fn from(filter: LevelFilter) -> Self {
-        RustLogFilterBuilder::default().fallback(filter).build()
+        RustLogFilterBuilder::new().fallback(filter).build()
     }
 }
 
@@ -218,17 +226,38 @@ impl FromStr for RustLogFilter {
 /// ```
 /// use logforth_filter_rustlog::RustLogFilterBuilder;
 ///
-/// let filter = RustLogFilterBuilder::from_default_env()?.build();
+/// let builder = RustLogFilterBuilder::from_default_env()?;
+/// let filter = builder.build();
 /// # drop(filter);
 /// # Ok::<(), logforth_core::Error>(())
 /// ```
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct RustLogFilterBuilder {
     fallback: Option<LevelFilter>,
     prefixes: BTreeMap<String, LevelFilter>,
 }
 
 impl RustLogFilterBuilder {
+    /// Creates an empty [`RustLogFilterBuilder`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use logforth_core::record::Level;
+    /// use logforth_core::record::LevelFilter;
+    /// use logforth_filter_rustlog::RustLogFilterBuilder;
+    ///
+    /// let filter = RustLogFilterBuilder::new()
+    ///     .fallback(LevelFilter::MoreSevereEqual(Level::Info))
+    ///     .build();
+    /// ```
+    pub const fn new() -> Self {
+        Self {
+            fallback: None,
+            prefixes: BTreeMap::new(),
+        }
+    }
+
     /// Creates a builder from the [`DEFAULT_FILTER_ENV`] (`RUST_LOG`) environment variable.
     ///
     /// If `RUST_LOG` is unset, returns an empty builder (which defaults to `error` on
@@ -243,7 +272,8 @@ impl RustLogFilterBuilder {
     /// ```
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let filter = RustLogFilterBuilder::from_default_env()?.build();
+    /// let builder = RustLogFilterBuilder::from_default_env()?;
+    /// let filter = builder.build();
     /// # drop(filter);
     /// # Ok::<(), logforth_core::Error>(())
     /// ```
@@ -264,7 +294,8 @@ impl RustLogFilterBuilder {
     /// ```
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let filter = RustLogFilterBuilder::from_default_env_or("info")?.build();
+    /// let builder = RustLogFilterBuilder::from_default_env_or("info")?;
+    /// let filter = builder.build();
     /// # drop(filter);
     /// # Ok::<(), logforth_core::Error>(())
     /// ```
@@ -286,14 +317,15 @@ impl RustLogFilterBuilder {
     /// ```
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let filter = RustLogFilterBuilder::from_env("MY_LOG")?.build();
+    /// let builder = RustLogFilterBuilder::from_env("MY_LOG")?;
+    /// let filter = builder.build();
     /// # drop(filter);
     /// # Ok::<(), logforth_core::Error>(())
     /// ```
     pub fn from_env(name: impl AsRef<str>) -> Result<Self, Error> {
         match read_env_var(name.as_ref())? {
             Some(spec) => Self::from_spec(spec),
-            None => Ok(Self::default()),
+            None => Ok(Self::new()),
         }
     }
 
@@ -310,7 +342,8 @@ impl RustLogFilterBuilder {
     /// ```
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let filter = RustLogFilterBuilder::from_env_or("MY_LOG", "info")?.build();
+    /// let builder = RustLogFilterBuilder::from_env_or("MY_LOG", "info")?;
+    /// let filter = builder.build();
     /// # drop(filter);
     /// # Ok::<(), logforth_core::Error>(())
     /// ```
@@ -332,12 +365,13 @@ impl RustLogFilterBuilder {
     /// ```
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let filter = RustLogFilterBuilder::from_spec("info,my_crate=debug")?.build();
+    /// let builder = RustLogFilterBuilder::from_spec("info,my_crate=debug")?;
+    /// let filter = builder.build();
     /// # drop(filter);
     /// # Ok::<(), logforth_core::Error>(())
     /// ```
     pub fn from_spec(spec: impl AsRef<str>) -> Result<Self, Error> {
-        let mut builder = Self::default();
+        let mut builder = Self::new();
         for item in spec.as_ref().split(',').map(str::trim) {
             if item.is_empty() {
                 continue;
@@ -353,7 +387,7 @@ impl RustLogFilterBuilder {
                 Some((raw_prefix, raw_level)) => {
                     let prefix = raw_prefix.trim();
                     let raw_level = raw_level.trim();
-                    if prefix.is_empty() || raw_level.contains('=') {
+                    if raw_level.contains('=') {
                         return Err(Error::new(format!("malformed logging spec '{item}'")));
                     }
                     let level = if raw_level.is_empty() {
@@ -363,7 +397,11 @@ impl RustLogFilterBuilder {
                             Error::new(format!("malformed logging spec '{raw_level}'"))
                         })?
                     };
-                    builder.prefixes.insert(prefix.to_owned(), level);
+                    if prefix.is_empty() {
+                        builder.fallback = Some(level);
+                    } else {
+                        builder.prefixes.insert(prefix.to_owned(), level);
+                    }
                 }
             }
         }
@@ -379,7 +417,7 @@ impl RustLogFilterBuilder {
     /// use logforth_core::record::LevelFilter;
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let filter = RustLogFilterBuilder::default()
+    /// let filter = RustLogFilterBuilder::new()
     ///     .fallback(LevelFilter::MoreSevereEqual(Level::Info))
     ///     .build();
     /// ```
@@ -391,6 +429,9 @@ impl RustLogFilterBuilder {
     /// Sets the [`LevelFilter`] for records whose `"logforth.target"` (when present) or
     /// [`Record::module_path`] starts with `prefix` (longest prefix match wins).
     ///
+    /// Passing an empty `prefix` (`""`) sets the unmatched fallback [`LevelFilter`], equivalent to
+    /// [`Self::fallback`].
+    ///
     /// # Examples
     ///
     /// ```
@@ -398,13 +439,18 @@ impl RustLogFilterBuilder {
     /// use logforth_core::record::LevelFilter;
     /// use logforth_filter_rustlog::RustLogFilterBuilder;
     ///
-    /// let filter = RustLogFilterBuilder::default()
+    /// let filter = RustLogFilterBuilder::new()
     ///     .fallback(LevelFilter::MoreSevereEqual(Level::Info))
     ///     .prefix("my_crate::db", LevelFilter::MoreSevereEqual(Level::Warn))
     ///     .build();
     /// ```
     pub fn prefix(mut self, prefix: impl Into<String>, filter: LevelFilter) -> Self {
-        self.prefixes.insert(prefix.into(), filter);
+        let prefix = prefix.into();
+        if prefix.is_empty() {
+            self.fallback = Some(filter);
+        } else {
+            self.prefixes.insert(prefix, filter);
+        }
         self
     }
 
