@@ -31,14 +31,17 @@
 //! and trailing ASCII/Unicode whitespace around commas and `=` is trimmed, empty segments are
 //! ignored, and later directives override earlier ones with the same prefix (or fallback):
 //!
-//! | Form           | Effect                                                                        |
-//! | :------------- | :---------------------------------------------------------------------------- |
-//! | `level`        | Sets the fallback threshold for records matching no prefix rule.              |
-//! | `=level`       | Equivalent to `level` (empty prefix sets the fallback threshold).             |
-//! | `=`            | Enables all levels ([`LevelFilter::All`]) as the fallback threshold.          |
-//! | `prefix=level` | Sets the threshold for targets starting with `prefix`.                        |
-//! | `prefix`       | Enables all levels ([`LevelFilter::All`]) for targets starting with `prefix`. |
-//! | `prefix=`      | Equivalent to `prefix` ([`LevelFilter::All`]).                                |
+//! | Form           | Effect                                                                         |
+//! | :------------- | :----------------------------------------------------------------------------- |
+//! | `off`          | Disables all levels ([`LevelFilter::Off`]) as the unmatched fallback.          |
+//! | `all`          | Enables all levels ([`LevelFilter::All`]) as the unmatched fallback.           |
+//! | `level`        | Enables `level` and more severe levels as the unmatched fallback.              |
+//! | `prefix`       | Enables all levels ([`LevelFilter::All`]) for targets starting with `prefix`.  |
+//! | `prefix=level` | Enables `level` and more severe levels for targets starting with `prefix`.     |
+//! | `prefix=off`   | Disables all levels ([`LevelFilter::Off`]) for targets starting with `prefix`. |
+//! | `=`            | Equivalent to `all` ([`LevelFilter::All`] as the unmatched fallback).          |
+//! | `=level`       | Equivalent to `level` (sets the unmatched fallback threshold).                 |
+//! | `prefix=`      | Equivalent to `prefix` ([`LevelFilter::All`] for targets with `prefix`).       |
 //!
 //! Level names are ASCII case-insensitive and accept all 24 [`Level`] variants (`trace`,
 //! `trace2`..`trace4`, `debug`..`debug4`, `info`..`info4`, `warn`..`warn4`, `error`..`error4`,
