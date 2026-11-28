@@ -30,6 +30,7 @@ use logforth_core::kv::Key;
 use logforth_core::kv::Value;
 use logforth_core::kv::Visitor;
 use logforth_core::record::Record;
+use logforth_core::record::RecordBuilder;
 use tests_integration::RecordingAppender;
 use tests_integration::collect_diagnostics;
 
@@ -173,7 +174,7 @@ fn composite_diagnostics_visit_in_order_chain_non_static_borrows_and_short_circu
                 })
         })
         .build();
-    logger.log(&Record::builder().payload(format_args!("42")).build());
+    logger.log(&RecordBuilder::new().payload(format_args!("42")).build());
     assert_eq!(
         sink.events()[0].diagnostics,
         [
@@ -302,7 +303,7 @@ fn thread_local_diagnostic_degrades_to_empty_during_tls_destructor_teardown() {
             drop(self.held_guard.take());
             let _ephemeral = ThreadLocalDiagnostic::scope([("teardown", self.tag)]);
             self.logger.log(
-                &Record::builder()
+                &RecordBuilder::new()
                     .payload(format_args!("dtor-{}", self.tag))
                     .build(),
             );

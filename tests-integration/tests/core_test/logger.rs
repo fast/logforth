@@ -45,6 +45,7 @@ use logforth_core::layout::PlainTextLayout;
 use logforth_core::record::Level;
 use logforth_core::record::LevelFilter;
 use logforth_core::record::Record;
+use logforth_core::record::RecordBuilder;
 use tests_integration::FailingAppender;
 use tests_integration::RecordingAppender;
 use tests_integration::RecordingErrorSink;
@@ -55,14 +56,14 @@ const NOOP_LOGGER: Logger = Logger::noop();
 fn noop_default_and_empty_builders_disable_all_levels_and_skip_sinks() {
     let errors = RecordingErrorSink::default();
     let empty_logger = builder().error_sink(errors.clone()).build();
-    let method_empty_logger = Logger::builder().error_sink(errors.clone()).build();
+    let new_empty_logger = LoggerBuilder::new().error_sink(errors.clone()).build();
     let default_builder_logger = LoggerBuilder::default().error_sink(errors.clone()).build();
     let skipped_branch_logger = LoggerBuilder::new()
         .error_sink(errors.clone())
         .dispatch(|d| d.filter(LevelFilter::All))
         .build();
 
-    let record = Record::builder()
+    let record = RecordBuilder::new()
         .level(Level::Fatal4)
         .payload(format_args!("ignored"))
         .build();
@@ -71,7 +72,7 @@ fn noop_default_and_empty_builders_disable_all_levels_and_skip_sinks() {
         NOOP_LOGGER,
         Logger::default(),
         empty_logger,
-        method_empty_logger,
+        new_empty_logger,
         default_builder_logger,
         skipped_branch_logger,
     ] {
@@ -102,7 +103,7 @@ fn cloned_handles_share_pipeline_across_threads() {
         handles.push(thread::spawn(move || {
             worker_barrier.wait();
             worker_logger.log(
-                &Record::builder()
+                &RecordBuilder::new()
                     .payload(format_args!("worker-{worker_id}"))
                     .build(),
             );
@@ -144,19 +145,19 @@ fn dispatch_method_order_is_commutative_while_preserving_chain_order() {
     assert!(!logger.enabled(Level::Warn));
 
     logger.log(
-        &Record::builder()
+        &RecordBuilder::new()
             .level(Level::Debug)
             .payload(format_args!("dropped-debug"))
             .build(),
     );
     logger.log(
-        &Record::builder()
+        &RecordBuilder::new()
             .level(Level::Warn)
             .payload(format_args!("dropped-warn"))
             .build(),
     );
     logger.log(
-        &Record::builder()
+        &RecordBuilder::new()
             .level(Level::Info)
             .payload(format_args!("accepted-info"))
             .build(),
@@ -276,7 +277,7 @@ fn level_bitmask_prunes_disabled_levels_before_filter_evaluation_and_supports_pr
         (Level::Debug, "unsampled-debug"),
     ] {
         logger.log(
-            &Record::builder()
+            &RecordBuilder::new()
                 .level(level)
                 .payload(format_args!("{msg}"))
                 .build(),
@@ -289,7 +290,7 @@ fn level_bitmask_prunes_disabled_levels_before_filter_evaluation_and_supports_pr
     // Promoted Debug short-circuits Branch 2's `Error` filter via `FilterResult::Accept`.
     let sampled_kv = [(Key::new("sampled"), Value::bool(true))];
     logger.log(
-        &Record::builder()
+        &RecordBuilder::new()
             .level(Level::Debug)
             .key_values(sampled_kv.as_slice())
             .payload(format_args!("sampled-debug"))
@@ -300,13 +301,13 @@ fn level_bitmask_prunes_disabled_levels_before_filter_evaluation_and_supports_pr
 
     // Info runs Branch 1's filter chain; Error runs both branches.
     logger.log(
-        &Record::builder()
+        &RecordBuilder::new()
             .level(Level::Info)
             .payload(format_args!("info-msg"))
             .build(),
     );
     logger.log(
-        &Record::builder()
+        &RecordBuilder::new()
             .level(Level::Error)
             .payload(format_args!("error-msg"))
             .build(),
@@ -343,7 +344,11 @@ fn error_routing_isolates_failing_appenders_and_applies_branch_overrides() {
         })
         .build();
 
-    logger.log(&Record::builder().payload(format_args!("event-1")).build());
+    logger.log(
+        &RecordBuilder::new()
+            .payload(format_args!("event-1"))
+            .build(),
+    );
     logger.flush();
 
     assert_eq!(healthy_sibling.payloads(), ["event-1"]);
@@ -431,7 +436,7 @@ fn arc_and_static_forwarding_share_all_five_traits_across_dispatches() {
     };
 
     // Exercise `new()` constructors alongside `&'static` forwarding of `const fn` ZST components.
-    let _configured_std = Logger::builder()
+    let _configured_std = LoggerBuilder::new()
         .error_sink(&STATIC_STDERR_SINK)
         .dispatch(|d| {
             d.diagnostic(&STATIC_TLS_DIAG)
@@ -472,7 +477,7 @@ fn arc_and_static_forwarding_share_all_five_traits_across_dispatches() {
         .build();
 
     for msg in ["keep", "drop-arc", "drop-static"] {
-        logger.log(&Record::builder().payload(format_args!("{msg}")).build());
+        logger.log(&RecordBuilder::new().payload(format_args!("{msg}")).build());
     }
     logger.flush();
 

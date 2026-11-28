@@ -70,7 +70,7 @@ impl LogBridge {
             (record.target() != record.module_path().unwrap_or("")).then_some(record.target());
 
         // basic fields
-        let mut builder = logforth_core::record::Record::builder()
+        let mut builder = logforth_core::record::RecordBuilder::new()
             .level(level)
             .line(record.line());
 

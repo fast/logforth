@@ -19,7 +19,6 @@ use crate::Diagnostic;
 use crate::Error;
 use crate::ErrorSink;
 use crate::Filter;
-use crate::LoggerBuilder;
 use crate::filter::FilterResult;
 use crate::record::Level;
 use crate::record::Record;
@@ -63,20 +62,17 @@ impl Logger {
     ///
     /// ```
     /// use logforth_core::Logger;
-    /// use logforth_core::record::Record;
+    /// use logforth_core::record::RecordBuilder;
     ///
     /// const NOOP: Logger = Logger::noop();
-    /// NOOP.log(&Record::builder().payload(format_args!("ignored")).build());
+    /// NOOP.log(
+    ///     &RecordBuilder::new()
+    ///         .payload(format_args!("ignored"))
+    ///         .build(),
+    /// );
     /// ```
     pub const fn noop() -> Self {
         Self { state: None }
-    }
-
-    /// Creates a new [`LoggerBuilder`] for configuring log dispatch branches.
-    ///
-    /// Equivalent to [`builder`](crate::builder) and [`LoggerBuilder::new`].
-    pub fn builder() -> LoggerBuilder {
-        LoggerBuilder::new()
     }
 
     pub(crate) fn new(dispatches: Vec<Dispatch>, error_sink: Box<dyn ErrorSink>) -> Self {

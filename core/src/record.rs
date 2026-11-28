@@ -14,8 +14,8 @@
 
 //! Structured log records, severity levels, and level predicates.
 //!
-//! Synchronous logging paths construct a stack-borrowed [`Record`] via [`Record::builder`] (or the
-//! native logging macros) without heap allocation. Asynchronous boundaries promote a [`Record`]
+//! Synchronous logging paths construct a stack-borrowed [`Record`] via [`RecordBuilder::new`] (or
+//! the native logging macros) without heap allocation. Asynchronous boundaries promote a [`Record`]
 //! into a `'static + Send + Sync` [`RecordOwned`] via [`Record::to_owned`] and re-project a
 //! borrowed view on the worker side through [`RecordOwned::with`].
 
@@ -167,12 +167,6 @@ impl<'a> Record<'a> {
                 .collect(),
         }
     }
-
-    /// Creates a new [`RecordBuilder`] with default metadata (`SystemTime::now()`, [`Level::Info`],
-    /// empty payload, and empty key-values).
-    pub fn builder() -> RecordBuilder<'a> {
-        RecordBuilder::default()
-    }
 }
 
 /// A builder for constructing a [`Record`].
@@ -183,6 +177,14 @@ pub struct RecordBuilder<'a> {
 
 impl Default for RecordBuilder<'_> {
     fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<'a> RecordBuilder<'a> {
+    /// Creates a new [`RecordBuilder`] with default metadata (`SystemTime::now()`, [`Level::Info`],
+    /// empty payload, and empty key-values).
+    pub fn new() -> Self {
         RecordBuilder {
             record: Record {
                 now: SystemTime::now(),
@@ -196,9 +198,6 @@ impl Default for RecordBuilder<'_> {
             },
         }
     }
-}
-
-impl<'a> RecordBuilder<'a> {
     /// Sets [`Record::time`].
     pub fn time(mut self, time: SystemTime) -> Self {
         self.record.now = time;

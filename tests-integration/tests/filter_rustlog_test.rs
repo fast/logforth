@@ -30,12 +30,16 @@ use logforth::kv::Value;
 use logforth::record::Level;
 use logforth::record::LevelFilter;
 use logforth::record::Record;
+use logforth::record::RecordBuilder;
 use tests_integration::RecordingAppender;
 
 const EMPTY_BUILDER: RustLogFilterBuilder = RustLogFilterBuilder::new();
 
 fn accepts(filter: &RustLogFilter, level: Level, module: Option<&str>) -> bool {
-    let record = Record::builder().level(level).module_path(module).build();
+    let record = RecordBuilder::new()
+        .level(level)
+        .module_path(module)
+        .build();
     filter.filter(&record, &()) != FilterResult::Reject
 }
 
@@ -181,7 +185,7 @@ fn longest_prefix_wins_and_subtree_overrides_narrow_or_widen_parent_rules() {
     for (module, level, should_pass) in cases {
         let msg = format!("{module}:{level}");
         logger.log(
-            &Record::builder()
+            &RecordBuilder::new()
                 .level(level)
                 .module_path(Some(module))
                 .payload(format_args!("{msg}"))
@@ -252,7 +256,7 @@ fn dual_level_bitmasks_prune_disabled_levels_and_preserve_downstream_filters() {
     assert!(logger.enabled(Level::Error));
 
     logger.log(
-        &Record::builder()
+        &RecordBuilder::new()
             .level(Level::Debug)
             .module_path_static("app::sub")
             .payload(format_args!("pruned"))
@@ -263,14 +267,14 @@ fn dual_level_bitmasks_prune_disabled_levels_and_preserve_downstream_filters() {
     // `Error` hits `always_neutral` fast path in `RustLogFilter`, then `downstream` rejects one
     // and lets the other pass.
     logger.log(
-        &Record::builder()
+        &RecordBuilder::new()
             .level(Level::Error)
             .module_path_static("unmatched")
             .payload(format_args!("reject-downstream"))
             .build(),
     );
     logger.log(
-        &Record::builder()
+        &RecordBuilder::new()
             .level(Level::Error)
             .module_path_static("unmatched")
             .payload(format_args!("keep-downstream"))
@@ -293,14 +297,14 @@ fn logforth_target_kv_overrides_module_path_without_colliding_with_user_target_f
         Key::new("logforth.target"),
         Value::static_str("custom::audit"),
     )];
-    let audit_record = Record::builder()
+    let audit_record = RecordBuilder::new()
         .level(Level::Trace)
         .module_path_static("app::quiet")
         .key_values(audit_kvs.as_slice())
         .build();
     assert_eq!(filter.filter(&audit_record, &()), FilterResult::Neutral);
 
-    let audit_no_mod = Record::builder()
+    let audit_no_mod = RecordBuilder::new()
         .level(Level::Debug)
         .key_values(audit_kvs.as_slice())
         .build();
@@ -309,7 +313,7 @@ fn logforth_target_kv_overrides_module_path_without_colliding_with_user_target_f
     // Explicit empty `"logforth.target"` still overrides `module_path` and routes to `fallback`
     // rather than falling back to `module_path`.
     let empty_target_kvs = [(Key::new("logforth.target"), Value::static_str(""))];
-    let empty_target_record = Record::builder()
+    let empty_target_record = RecordBuilder::new()
         .level(Level::Info)
         .module_path_static("app::quiet")
         .key_values(empty_target_kvs.as_slice())
@@ -321,7 +325,7 @@ fn logforth_target_kv_overrides_module_path_without_colliding_with_user_target_f
 
     // Non-string `"logforth.target"` falls back to `Record::module_path`.
     let numeric_target_kvs = [(Key::new("logforth.target"), Value::u64(42))];
-    let fallback_to_mod = Record::builder()
+    let fallback_to_mod = RecordBuilder::new()
         .level(Level::Warn)
         .module_path_static("app::quiet")
         .key_values(numeric_target_kvs.as_slice())
@@ -330,7 +334,7 @@ fn logforth_target_kv_overrides_module_path_without_colliding_with_user_target_f
 
     // Application `"target"` key-value never collides with reserved `"logforth.target"`.
     let app_target_kvs = [(Key::new("target"), Value::static_str("app::quiet"))];
-    let app_record = Record::builder()
+    let app_record = RecordBuilder::new()
         .level(Level::Info)
         .module_path_static("app::service")
         .key_values(app_target_kvs.as_slice())
