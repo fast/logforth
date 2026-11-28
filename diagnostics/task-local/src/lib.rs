@@ -154,11 +154,11 @@ impl<F: Future> FutureExt for F {}
 
 /// A [`Future`] adapter created by [`FutureExt::with_task_local_context`] that installs task-local
 /// diagnostic entries while polling the inner future.
-#[pin_project::pin_project]
+// Pinning is structural for `future` and non-structural for `context`: do not implement `Drop` or
+// a custom `Unpin` on `TaskLocalFuture`, and never expose `&mut F` from a pinned instance.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug, Clone)]
 pub struct TaskLocalFuture<F> {
-    #[pin]
     future: F,
     context: TaskLocalContext,
 }
@@ -177,17 +177,27 @@ impl<F: Future> Future for TaskLocalFuture<F> {
             }
         }
 
-        let this = self.project();
-        if this.context.is_empty() {
-            return this.future.poll(cx);
+        #[expect(
+            unsafe_code,
+            reason = "structural pin projection of TaskLocalFuture::future"
+        )]
+        // SAFETY: `TaskLocalFuture` implements neither `Drop` nor a custom `Unpin` and is not
+        // `#[repr(packed)]`, so pinning `self` structurally pins `future` while `context` is only
+        // shared by reference.
+        let (future, context) = unsafe {
+            let this = self.get_unchecked_mut();
+            (Pin::new_unchecked(&mut this.future), &this.context)
+        };
+        if context.is_empty() {
+            return future.poll(cx);
         }
 
         let _guard = TASK_LOCAL_MAP
             .try_with(|map| {
-                map.borrow_mut().push(this.context.clone());
+                map.borrow_mut().push(context.clone());
                 Guard
             })
             .ok();
-        this.future.poll(cx)
+        future.poll(cx)
     }
 }
