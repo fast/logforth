@@ -43,13 +43,14 @@ All significant changes to this project will be documented in this file.
 
 ### Improvements
 
-* Implement `Copy` for `kv::{Key, KeyView, Value, ValueView}` and `kv::Visitor` for `FnMut(KeyView, ValueView) -> Result<(), Error>` closures in `logforth-core`.
+* Implement `Copy` for `kv::{Key, KeyView, Value, ValueView}`, `Clone` and `Debug` for `kv::KeyValuesIter`, and `kv::Visitor` for `FnMut(KeyView, ValueView) -> Result<(), Error>` closures in `logforth-core`.
 * Make `LevelFilter::test` a `const fn` in `logforth-core`, eliminate per-record `BTreeSet` lookups in `GoogleCloudLoggingLayout`, and format trace and span IDs on the stack without heap allocation in `FastraceDiagnostic`.
 * Implement `Clone` for `RustLogFilter` in `logforth-filter-rustlog`, and precompute dual level masks so levels rejected or unconditionally passed across all directives short-circuit before prefix lookup.
 * Map `kv::ValueView::Bytes` to `AnyValue::Bytes` in `logforth-append-opentelemetry`.
 
 ### Bug fixes
 
+* `ValueView`'s `Display` implementation and `Debug` on `kv::{KeyValues, ListValue, MapValue}` in `logforth-core` now format list and map entries as values and string keys instead of exposing internal enum and wrapper names.
 * `Logger::log` and `Logger::flush` in `logforth-core` no longer panic when writing internal error reports to standard error fails.
 * `File` in `logforth-append-file` now opens segment files in append mode so external truncation does not leave NUL holes, avoids panicking on matching prefix and suffix edge cases or out-of-range timestamps, and avoids truncating rotation timestamps or file sizes on 32-bit targets.
 * `TextLayout`, `LogfmtLayout`, `JsonLayout`, and `GoogleCloudLoggingLayout` now return `Err` instead of panicking on out-of-range record timestamps, `LogfmtLayout` quotes and escapes control characters in values and rejects control characters in keys, and `GoogleCloudLoggingLayout` gives explicit `Record` key-values precedence over colliding `Diagnostic` entries.

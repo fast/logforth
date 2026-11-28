@@ -24,7 +24,6 @@ impl ValueOwned {
     ///
     /// If serialization fails, returns a string placeholder describing the failure instead of
     /// panicking.
-    #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
     pub fn from_serde(value: &(impl serde::Serialize + ?Sized)) -> Self {
         Self::try_from_serde(value)
             .unwrap_or_else(|err| Self::str(format!("<serde error: {}>", err.message())))
@@ -35,7 +34,6 @@ impl ValueOwned {
     /// # Errors
     ///
     /// Returns an [`Error`] if `value`'s [`serde::Serialize`] implementation fails.
-    #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
     pub fn try_from_serde(value: &(impl serde::Serialize + ?Sized)) -> Result<Self, Error> {
         value.serialize(ValueSerializer).map_err(|err| err.0)
     }

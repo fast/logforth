@@ -74,7 +74,6 @@ impl fmt::Display for Key<'_> {
 }
 
 #[cfg(feature = "serde")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for Key<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_str(self)
@@ -139,7 +138,6 @@ impl fmt::Display for KeyOwned {
 }
 
 #[cfg(feature = "serde")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for KeyOwned {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_str(self)
@@ -178,7 +176,6 @@ impl fmt::Display for KeyView<'_> {
 }
 
 #[cfg(feature = "serde")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for KeyView<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_str(self)
@@ -253,18 +250,37 @@ impl fmt::Display for DisplayValue<'_> {
     }
 }
 
+struct ContainerEntry<'a>(ValueView<'a>);
+
+impl fmt::Debug for ContainerEntry<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.0 {
+            ValueView::BorrowedStr(v) | ValueView::StaticStr(v) => fmt::Debug::fmt(v, f),
+            ValueView::Char(v) => fmt::Debug::fmt(&v, f),
+            other => fmt::Display::fmt(&other, f),
+        }
+    }
+}
+
 /// A borrowed view over a list value.
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct ListValue<'a>(ListValueState<'a>);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 enum ListValueState<'a> {
     Borrowed(&'a [Value<'a>]),
     Owned(&'a [ValueOwned]),
 }
 
+impl fmt::Debug for ListValue<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_list()
+            .entries(self.iter().map(ContainerEntry))
+            .finish()
+    }
+}
+
 #[cfg(feature = "serde")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for ListValue<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_seq(self.iter())
@@ -298,13 +314,21 @@ impl<'a> ListValue<'a> {
 }
 
 /// An iterator over list values.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ListValueIter<'a>(ListValueIterState<'a>);
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 enum ListValueIterState<'a> {
     Borrowed(slice::Iter<'a, Value<'a>>),
     Owned(slice::Iter<'a, ValueOwned>),
+}
+
+impl fmt::Debug for ListValueIter<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_list()
+            .entries(self.clone().map(ContainerEntry))
+            .finish()
+    }
 }
 
 impl<'a> Iterator for ListValueIter<'a> {
@@ -326,17 +350,24 @@ impl<'a> Iterator for ListValueIter<'a> {
 }
 
 /// A borrowed view over a map value.
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct MapValue<'a>(MapValueState<'a>);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 enum MapValueState<'a> {
     Borrowed(&'a [(Key<'a>, Value<'a>)]),
     Owned(&'a [(KeyOwned, ValueOwned)]),
 }
 
+impl fmt::Debug for MapValue<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_map()
+            .entries(self.iter().map(|(k, v)| (k.as_str(), ContainerEntry(v))))
+            .finish()
+    }
+}
+
 #[cfg(feature = "serde")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for MapValue<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_map(self.iter())
@@ -384,13 +415,21 @@ impl<'a> MapValue<'a> {
 }
 
 /// An iterator over map key-value pairs.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct MapValueIter<'a>(MapValueIterState<'a>);
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 enum MapValueIterState<'a> {
     Borrowed(slice::Iter<'a, (Key<'a>, Value<'a>)>),
     Owned(slice::Iter<'a, (KeyOwned, ValueOwned)>),
+}
+
+impl fmt::Debug for MapValueIter<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_map()
+            .entries(self.clone().map(|(k, v)| (k.as_str(), ContainerEntry(v))))
+            .finish()
+    }
 }
 
 impl<'a> Iterator for MapValueIter<'a> {
@@ -457,7 +496,6 @@ impl fmt::Debug for ValueState<'_> {
 }
 
 #[cfg(feature = "serde")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for Value<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self.view().serialize(serializer)
@@ -803,7 +841,6 @@ impl<T: Into<ValueOwned>> From<Option<T>> for ValueOwned {
 }
 
 #[cfg(feature = "serde")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for ValueOwned {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self.view().serialize(serializer)
@@ -966,20 +1003,8 @@ impl fmt::Display for ValueView<'_> {
             ValueView::I128(v) => v.fmt(f),
             ValueView::U128(v) => v.fmt(f),
             ValueView::Char(v) => v.fmt(f),
-            ValueView::List(v) => {
-                let mut dbg = f.debug_list();
-                for item in v.iter() {
-                    dbg.entry(&item);
-                }
-                dbg.finish()
-            }
-            ValueView::Map(v) => {
-                let mut dbg = f.debug_map();
-                for (k, v) in v.iter() {
-                    dbg.entry(&k, &v);
-                }
-                dbg.finish()
-            }
+            ValueView::List(v) => fmt::Debug::fmt(v, f),
+            ValueView::Map(v) => fmt::Debug::fmt(v, f),
             ValueView::Debug(v) => fmt::Debug::fmt(v, f),
             ValueView::Display(v) => fmt::Display::fmt(v, f),
         }
@@ -987,7 +1012,6 @@ impl fmt::Display for ValueView<'_> {
 }
 
 #[cfg(feature = "serde")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for ValueView<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match &self {
@@ -1164,13 +1188,21 @@ impl<'a> ValueView<'a> {
 }
 
 /// A collection of key-value pairs.
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct KeyValues<'a>(KeyValuesState<'a>);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 enum KeyValuesState<'a> {
     Borrowed(&'a [(Key<'a>, Value<'a>)]),
     Owned(&'a [(KeyOwned, ValueOwned)]),
+}
+
+impl fmt::Debug for KeyValues<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_map()
+            .entries(self.iter().map(|(k, v)| (k.as_str(), ContainerEntry(v))))
+            .finish()
+    }
 }
 
 impl KeyValues<'_> {
@@ -1245,11 +1277,21 @@ impl<'a> From<&'a [(KeyOwned, ValueOwned)]> for KeyValues<'a> {
 }
 
 /// An iterator over key-value pairs.
+#[derive(Clone)]
 pub struct KeyValuesIter<'a>(KeyValuesIterState<'a>);
 
+#[derive(Clone)]
 enum KeyValuesIterState<'a> {
     Borrowed(slice::Iter<'a, (Key<'a>, Value<'a>)>),
     Owned(slice::Iter<'a, (KeyOwned, ValueOwned)>),
+}
+
+impl fmt::Debug for KeyValuesIter<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_map()
+            .entries(self.clone().map(|(k, v)| (k.as_str(), ContainerEntry(v))))
+            .finish()
+    }
 }
 
 impl<'a> Iterator for KeyValuesIter<'a> {
