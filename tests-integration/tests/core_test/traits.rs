@@ -32,6 +32,7 @@ use logforth_core::kv::DisplayValue;
 use logforth_core::kv::Key;
 use logforth_core::kv::KeyOwned;
 use logforth_core::kv::KeyValues;
+use logforth_core::kv::KeyValuesIter;
 use logforth_core::kv::KeyView;
 use logforth_core::kv::ListValue;
 use logforth_core::kv::ListValueIter;
@@ -72,6 +73,7 @@ fn public_types_are_send_sync_and_unpin() {
     assert_send_sync_unpin::<Value<'_>>();
     assert_send_sync_unpin::<ValueOwned>();
     assert_send_sync_unpin::<KeyValues<'_>>();
+    assert_send_sync_unpin::<KeyValuesIter<'_>>();
     assert_send_sync_unpin::<ListValue<'_>>();
     assert_send_sync_unpin::<ListValueIter<'_>>();
     assert_send_sync_unpin::<MapValue<'_>>();
