@@ -12,7 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! A diagnostic that enriches log records with trace context provided by the Fastrace library.
+//! Diagnostic context integration with [`fastrace`].
+//!
+//! [`FastraceDiagnostic`] queries [`SpanContext::current_local_parent`] on the current thread and,
+//! when a local parent span is active, visits three well-known structured fields without heap
+//! allocation:
+//! - `"trace_id"`: 32-character lowercase hexadecimal `TraceId`;
+//! - `"span_id"`: 16-character lowercase hexadecimal `SpanId`;
+//! - `"sampled"`: boolean sampling flag (`SpanContext::sampled`).
+//!
+//! Following [`fastrace`]'s library convention, this crate does not enable the `fastrace/enable`
+//! Cargo feature on its own; enable `fastrace/enable` in the final application binary for span
+//! contexts to be active at runtime.
+//!
+//! # Examples
+//!
+//! ```
+//! use fastrace::Span;
+//! use fastrace::collector::SpanContext;
+//! use logforth_core::LoggerBuilder;
+//! use logforth_core::append::Testing;
+//! use logforth_diagnostic_fastrace::FastraceDiagnostic;
+//!
+//! let logger = LoggerBuilder::new()
+//!     .dispatch(|d| {
+//!         d.diagnostic(FastraceDiagnostic::new())
+//!             .append(Testing::new())
+//!     })
+//!     .build();
+//!
+//! let root = Span::root("root", SpanContext::random());
+//! let _guard = root.set_local_parent();
+//! logforth_core::info!(logger, "inside span");
+//! ```
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
@@ -39,27 +71,37 @@ fn encode_hex<const BYTES: usize, const HEX_LEN: usize>(bytes: [u8; BYTES]) -> [
     out
 }
 
-/// A diagnostic that enriches log records with trace context provided by the Fastrace library.
+/// A [`Diagnostic`] that enriches log records with `"trace_id"`, `"span_id"`, and `"sampled"` from
+/// the active local [`fastrace`] span.
 ///
-/// ## Example
+/// When no local parent span is active on the current thread, [`Diagnostic::visit`] is a no-op.
+///
+/// # Examples
 ///
 /// ```
 /// use logforth_diagnostic_fastrace::FastraceDiagnostic;
 ///
-/// let diagnostic = FastraceDiagnostic::default();
+/// const DIAG: FastraceDiagnostic = FastraceDiagnostic::new();
+/// # let _ = DIAG;
 /// ```
 #[derive(Default, Debug, Clone)]
 #[non_exhaustive]
 pub struct FastraceDiagnostic {}
 
+impl FastraceDiagnostic {
+    /// Creates a new [`FastraceDiagnostic`].
+    pub const fn new() -> Self {
+        Self {}
+    }
+}
+
 impl Diagnostic for FastraceDiagnostic {
     fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
         if let Some(span) = SpanContext::current_local_parent() {
-            // NOTE: TraceId and SpanId are formatted as lowercase hex without heap allocation.
             let trace_id = encode_hex::<16, 32>(span.trace_id.0.to_be_bytes());
             let span_id = encode_hex::<8, 16>(span.span_id.0.to_be_bytes());
-            let trace_id = std::str::from_utf8(&trace_id).unwrap();
-            let span_id = std::str::from_utf8(&span_id).unwrap();
+            let trace_id = std::str::from_utf8(&trace_id).expect("hex digits are valid ASCII");
+            let span_id = std::str::from_utf8(&span_id).expect("hex digits are valid ASCII");
 
             visitor.visit(Key::new(KEY_TRACE_ID).view(), Value::str(trace_id).view())?;
             visitor.visit(Key::new(KEY_SPAN_ID).view(), Value::str(span_id).view())?;

@@ -1883,6 +1883,7 @@ dependencies = [
 name = "tests-integration"
 version = "0.0.0"
 dependencies = [
+ "fastrace",
  "logforth",
  "logforth-core",
  "serde",
