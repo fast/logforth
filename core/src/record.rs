@@ -289,41 +289,24 @@ impl RecordOwned {
     /// Invokes `f` with a borrowed [`Record`] view over this owned snapshot and returns its
     /// result.
     pub fn with<R>(&self, f: impl FnOnce(Record<'_>) -> R) -> R {
-        let module_path = match &self.module_path {
-            Some(Cow::Borrowed(s)) => Some(RefStr::Static(s)),
-            Some(Cow::Owned(s)) => Some(RefStr::Borrowed(s)),
-            None => None,
-        };
-        let file = match &self.file {
-            Some(Cow::Borrowed(s)) => Some(RefStr::Static(s)),
-            Some(Cow::Owned(s)) => Some(RefStr::Borrowed(s)),
-            None => None,
-        };
-        let kvs = KeyValues::from(self.kvs.as_slice());
-
-        if self.payload.is_empty() {
-            f(Record {
-                now: self.now,
-                level: self.level,
-                module_path,
-                file,
-                line: self.line,
-                column: self.column,
-                payload: format_args!(""),
-                kvs,
-            })
-        } else {
-            f(Record {
-                now: self.now,
-                level: self.level,
-                module_path,
-                file,
-                line: self.line,
-                column: self.column,
-                payload: format_args!("{}", self.payload),
-                kvs,
-            })
-        }
+        f(Record {
+            now: self.now,
+            level: self.level,
+            module_path: match &self.module_path {
+                Some(Cow::Borrowed(s)) => Some(RefStr::Static(s)),
+                Some(Cow::Owned(s)) => Some(RefStr::Borrowed(s)),
+                None => None,
+            },
+            file: match &self.file {
+                Some(Cow::Borrowed(s)) => Some(RefStr::Static(s)),
+                Some(Cow::Owned(s)) => Some(RefStr::Borrowed(s)),
+                None => None,
+            },
+            line: self.line,
+            column: self.column,
+            payload: format_args!("{}", self.payload),
+            kvs: KeyValues::from(self.kvs.as_slice()),
+        })
     }
 }
 

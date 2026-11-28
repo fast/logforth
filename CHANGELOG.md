@@ -45,7 +45,7 @@ All significant changes to this project will be documented in this file.
 ### Improvements
 
 * Implement `Copy` for `kv::{Key, KeyView, Value, ValueView}`, `Clone` and `Debug` for `kv::KeyValuesIter`, and `kv::Visitor` for `FnMut(KeyView, ValueView) -> Result<(), Error>` closures in `logforth-core`.
-* Make `LevelFilter::test`, `Record` field accessors, and `Record::to_builder` `const fn`, return the closure result from `RecordOwned::with`, and preserve `Record::payload_static() == Some("")` across `RecordOwned::with` for empty payloads in `logforth-core`; eliminate per-record `BTreeSet` lookups in `GoogleCloudLoggingLayout`, and format trace and span IDs on the stack without heap allocation in `FastraceDiagnostic`.
+* Make `LevelFilter::test`, `Record` field accessors, and `Record::to_builder` `const fn`, and return the closure result from `RecordOwned::with` in `logforth-core`; eliminate per-record `BTreeSet` lookups in `GoogleCloudLoggingLayout`, and format trace and span IDs on the stack without heap allocation in `FastraceDiagnostic`.
 * Implement `Clone` for `RustLogFilter` in `logforth-filter-rustlog`, and precompute dual level masks so levels rejected or unconditionally passed across all directives short-circuit before prefix lookup.
 * Map `kv::ValueView::Bytes` to `AnyValue::Bytes` in `logforth-append-opentelemetry`.
 

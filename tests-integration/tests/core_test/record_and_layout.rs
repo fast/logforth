@@ -218,16 +218,11 @@ fn record_owned_round_trip_preserves_metadata_provenance_and_structured_fields()
     assert_eq!(borrowed_filename, Some("worker.rs"));
     assert_eq!(borrowed_kvs.get("port").unwrap().to_u64(), Some(8080));
 
-    // Empty payloads retain `payload_static() == Some("")` across `RecordOwned::with`, and unset
-    // or root-only file paths produce `filename() == None`.
+    // Unset or root-only file paths produce `filename() == None`.
     let default_record = Record::builder().build();
     assert_eq!(default_record.filename(), None);
     assert_eq!(default_record.payload_static(), Some(""));
-    let reprojected_payload_static = default_record.to_owned().with(|r| {
-        assert_eq!(r.filename(), None);
-        r.payload_static()
-    });
-    assert_eq!(reprojected_payload_static, Some(""));
+    assert!(default_record.to_owned().with(|r| r.filename().is_none()));
     assert_eq!(Record::builder().file_static("/").build().filename(), None);
 }
 
