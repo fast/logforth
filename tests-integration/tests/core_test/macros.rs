@@ -115,6 +115,7 @@ fn all_macro_levels_and_argument_forms_capture_callsite_location_and_fields() {
     assert_eq!(events[2].payload_static, Some(""));
     events[2].record.with(|r| {
         assert_eq!(r.level(), Level::Info);
+        assert_eq!(r.payload_static(), Some(""));
         assert_eq!(r.payload().to_string(), "");
         let (k, v) = r.key_values().iter().next().unwrap();
         assert_eq!(k.to_static_str(), Some("only_kv"));

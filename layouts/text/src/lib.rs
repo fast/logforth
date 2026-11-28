@@ -200,7 +200,7 @@ impl Layout for TextLayout {
 
         let level = self.format_record_level(record.level());
         let module_path = record.module_path().unwrap_or_default();
-        let file = record.filename();
+        let file = record.filename().unwrap_or_default();
         let line = record.line().unwrap_or_default();
         let message = record.payload();
 
