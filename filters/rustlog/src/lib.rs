@@ -76,6 +76,8 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
 
+use std::collections::BTreeMap;
+use std::env::VarError;
 use std::str::FromStr;
 
 use logforth_core::Diagnostic;
@@ -118,26 +120,7 @@ struct PrefixDirective {
 }
 
 impl RustLogFilter {
-    fn from_directives(directives: Vec<Directive>) -> Self {
-        let mut fallback = LevelFilter::Off;
-        let mut prefixes: Vec<PrefixDirective> = Vec::new();
-
-        for directive in directives {
-            match directive.prefix {
-                None => fallback = directive.level,
-                Some(prefix) => {
-                    if let Some(existing) = prefixes.iter_mut().find(|d| d.prefix == prefix) {
-                        existing.level = directive.level;
-                    } else {
-                        prefixes.push(PrefixDirective {
-                            prefix,
-                            level: directive.level,
-                        });
-                    }
-                }
-            }
-        }
-
+    fn new(fallback: LevelFilter, mut prefixes: Vec<PrefixDirective>) -> Self {
         // Longest prefix first so the first `starts_with` hit is the most specific match.
         prefixes.sort_by(|a, b| {
             b.prefix
@@ -165,16 +148,6 @@ impl RustLogFilter {
             always_neutral,
         }
     }
-
-    fn level_filter_for(&self, name: Option<&str>) -> LevelFilter {
-        let name = name.unwrap_or("");
-        for directive in &self.prefixes {
-            if name.starts_with(&directive.prefix) {
-                return directive.level;
-            }
-        }
-        self.fallback
-    }
 }
 
 impl Filter for RustLogFilter {
@@ -196,13 +169,20 @@ impl Filter for RustLogFilter {
             return FilterResult::Neutral;
         }
 
-        let name = record
+        let target = record
             .key_values()
             .get(KEY_LOGFORTH_TARGET)
             .and_then(|v| v.to_str())
-            .or_else(|| record.module_path());
+            .or_else(|| record.module_path())
+            .unwrap_or("");
 
-        if self.level_filter_for(name).test(level) {
+        let rule = self
+            .prefixes
+            .iter()
+            .find(|d| target.starts_with(&d.prefix))
+            .map_or(self.fallback, |d| d.level);
+
+        if rule.test(level) {
             FilterResult::Neutral
         } else {
             FilterResult::Reject
@@ -248,7 +228,8 @@ impl FromStr for RustLogFilter {
 /// ```
 #[derive(Debug, Default)]
 pub struct RustLogFilterBuilder {
-    directives: Vec<Directive>,
+    fallback: Option<LevelFilter>,
+    prefixes: BTreeMap<String, LevelFilter>,
 }
 
 impl RustLogFilterBuilder {
@@ -311,14 +292,9 @@ impl RustLogFilterBuilder {
     /// let filter = builder.build();
     /// ```
     pub fn from_env(name: impl AsRef<str>) -> Result<Self, Error> {
-        let name = name.as_ref();
-        match std::env::var(name) {
-            Ok(spec) => Self::from_spec(spec),
-            Err(std::env::VarError::NotPresent) => Ok(Self::default()),
-            Err(err @ std::env::VarError::NotUnicode(_)) => Err(Error::new(format!(
-                "environment variable '{name}' is not valid UTF-8"
-            ))
-            .with_source(err)),
+        match read_env_var(name.as_ref())? {
+            Some(spec) => Self::from_spec(spec),
+            None => Ok(Self::default()),
         }
     }
 
@@ -339,14 +315,9 @@ impl RustLogFilterBuilder {
     /// let filter = builder.build();
     /// ```
     pub fn from_env_or(name: impl AsRef<str>, default: impl AsRef<str>) -> Result<Self, Error> {
-        let name = name.as_ref();
-        match std::env::var(name) {
-            Ok(spec) => Self::from_spec(spec),
-            Err(std::env::VarError::NotPresent) => Self::from_spec(default),
-            Err(err @ std::env::VarError::NotUnicode(_)) => Err(Error::new(format!(
-                "environment variable '{name}' is not valid UTF-8"
-            ))
-            .with_source(err)),
+        match read_env_var(name.as_ref())? {
+            Some(spec) => Self::from_spec(spec),
+            None => Self::from_spec(default),
         }
     }
 
@@ -365,10 +336,35 @@ impl RustLogFilterBuilder {
     /// let filter = builder.build();
     /// ```
     pub fn from_spec(spec: impl AsRef<str>) -> Result<Self, Error> {
-        let directives = parse_spec(spec.as_ref())?;
         let mut builder = Self::default();
-        for directive in directives {
-            builder.upsert_directive(directive);
+        for item in spec.as_ref().split(',').map(str::trim) {
+            if item.is_empty() {
+                continue;
+            }
+
+            match item.split_once('=') {
+                None => match parse_level_filter(item) {
+                    Some(level) => builder.fallback = Some(level),
+                    None => {
+                        builder.prefixes.insert(item.to_owned(), LevelFilter::All);
+                    }
+                },
+                Some((raw_prefix, raw_level)) => {
+                    let prefix = raw_prefix.trim();
+                    let raw_level = raw_level.trim();
+                    if prefix.is_empty() || raw_level.contains('=') {
+                        return Err(Error::new(format!("malformed logging spec '{item}'")));
+                    }
+                    let level = if raw_level.is_empty() {
+                        LevelFilter::All
+                    } else {
+                        parse_level_filter(raw_level).ok_or_else(|| {
+                            Error::new(format!("malformed logging spec '{raw_level}'"))
+                        })?
+                    };
+                    builder.prefixes.insert(prefix.to_owned(), level);
+                }
+            }
         }
         Ok(builder)
     }
@@ -387,10 +383,7 @@ impl RustLogFilterBuilder {
     ///     .build();
     /// ```
     pub fn fallback(mut self, filter: LevelFilter) -> Self {
-        self.upsert_directive(Directive {
-            prefix: None,
-            level: filter,
-        });
+        self.fallback = Some(filter);
         self
     }
 
@@ -410,10 +403,7 @@ impl RustLogFilterBuilder {
     ///     .build();
     /// ```
     pub fn prefix(mut self, prefix: impl Into<String>, filter: LevelFilter) -> Self {
-        self.upsert_directive(Directive {
-            prefix: Some(prefix.into()),
-            level: filter,
-        });
+        self.prefixes.insert(prefix.into(), filter);
         self
     }
 
@@ -422,83 +412,32 @@ impl RustLogFilterBuilder {
     /// If the builder has no directives configured, a default fallback directive of the `error`
     /// level will be added.
     pub fn build(self) -> RustLogFilter {
-        let Self { directives } = self;
-
-        if directives.is_empty() {
-            RustLogFilter::from_directives(vec![Directive {
-                prefix: None,
-                level: LevelFilter::MoreSevereEqual(Level::Error),
-            }])
-        } else {
-            RustLogFilter::from_directives(directives)
-        }
-    }
-
-    /// Insert the directive or update an existing directive with the same prefix.
-    fn upsert_directive(&mut self, mut directive: Directive) {
-        if let Some(pos) = self
-            .directives
-            .iter()
-            .position(|d| d.prefix == directive.prefix)
-        {
-            std::mem::swap(&mut self.directives[pos], &mut directive);
-        } else {
-            self.directives.push(directive);
-        }
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct Directive {
-    prefix: Option<String>,
-    level: LevelFilter,
-}
-
-/// Parse a logging specification string and return a vector of directives, failing fast on the
-/// first malformed directive.
-fn parse_spec(spec: &str) -> Result<Vec<Directive>, Error> {
-    let mut directives = Vec::new();
-
-    for s in spec.split(',').map(str::trim) {
-        if s.is_empty() {
-            continue;
-        }
-
-        let mut parts = s.split('=');
-        let part0 = parts.next().map(str::trim).unwrap_or_default();
-        let part1 = parts.next().map(str::trim);
-
-        if part0.is_empty() || parts.next().is_some() {
-            return Err(Error::new(format!("malformed logging spec '{s}'")));
-        }
-
-        let (level, prefix) = match part1 {
-            None => {
-                if let Some(level) = from_str_for_env(part0) {
-                    // if the single argument is a log level string, treat that as a fallback
-                    (level, None)
-                } else {
-                    (LevelFilter::All, Some(part0.to_owned()))
-                }
-            }
-            Some(part1) => {
-                if part1.is_empty() {
-                    (LevelFilter::All, Some(part0.to_owned()))
-                } else if let Some(level) = from_str_for_env(part1) {
-                    (level, Some(part0.to_owned()))
-                } else {
-                    return Err(Error::new(format!("malformed logging spec '{part1}'")));
-                }
-            }
+        let fallback = match self.fallback {
+            Some(fallback) => fallback,
+            None if self.prefixes.is_empty() => LevelFilter::MoreSevereEqual(Level::Error),
+            None => LevelFilter::Off,
         };
-
-        directives.push(Directive { prefix, level });
+        let prefixes = self
+            .prefixes
+            .into_iter()
+            .map(|(prefix, level)| PrefixDirective { prefix, level })
+            .collect();
+        RustLogFilter::new(fallback, prefixes)
     }
-
-    Ok(directives)
 }
 
-fn from_str_for_env(text: &str) -> Option<LevelFilter> {
+fn read_env_var(name: &str) -> Result<Option<String>, Error> {
+    match std::env::var(name) {
+        Ok(spec) => Ok(Some(spec)),
+        Err(VarError::NotPresent) => Ok(None),
+        Err(err @ VarError::NotUnicode(_)) => Err(Error::new(format!(
+            "environment variable '{name}' is not valid UTF-8"
+        ))
+        .with_source(err)),
+    }
+}
+
+fn parse_level_filter(text: &str) -> Option<LevelFilter> {
     if let Ok(level) = Level::from_str(text) {
         Some(LevelFilter::MoreSevereEqual(level))
     } else if text.eq_ignore_ascii_case("off") {
