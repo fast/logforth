@@ -34,8 +34,7 @@ pub use self::stderr::StderrErrorSink;
 /// A single-word error returned or reported by Logforth components.
 ///
 /// Formatting with `{}` writes [`Error::message`] alone; alternate formatting `{:#}` appends the
-/// causal chain separated by `: `. Formatting with `{:?}` renders a multi-line `Caused by:` report,
-/// while `{:#?}` renders the underlying debug structure.
+/// causal chain separated by `: `.
 pub struct Error {
     state: Box<ErrorState>,
 }

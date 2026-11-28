@@ -50,7 +50,7 @@ All significant changes to this project will be documented in this file.
 
 ### Bug fixes
 
-* `ValueView`'s `Display` implementation and `Debug` on `kv::{KeyValues, ListValue, MapValue}` in `logforth-core` now format list and map entries as values and string keys instead of exposing internal enum and wrapper names.
+* `ValueView`'s `Display` implementation in `logforth-core` now formats list and map entries as values and string keys instead of exposing internal enum and wrapper names.
 * `Logger::log` and `Logger::flush` in `logforth-core` no longer panic when writing internal error reports to standard error fails.
 * `File` in `logforth-append-file` now opens segment files in append mode so external truncation does not leave NUL holes, avoids panicking on matching prefix and suffix edge cases or out-of-range timestamps, and avoids truncating rotation timestamps or file sizes on 32-bit targets.
 * `TextLayout`, `LogfmtLayout`, `JsonLayout`, and `GoogleCloudLoggingLayout` now return `Err` instead of panicking on out-of-range record timestamps, `LogfmtLayout` quotes and escapes control characters in values and rejects control characters in keys, and `GoogleCloudLoggingLayout` gives explicit `Record` key-values precedence over colliding `Diagnostic` entries.

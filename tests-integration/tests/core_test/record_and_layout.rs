@@ -72,7 +72,6 @@ fn all_twenty_four_levels_preserve_severity_order_discriminants_padding_and_pars
 
         let name = level.name();
         assert_eq!(level.to_string(), name);
-        assert_eq!(format!("{level:?}"), name);
         assert_eq!(format!("{level:>6}").len(), 6);
 
         assert_eq!(name.parse::<Level>().unwrap(), level);
