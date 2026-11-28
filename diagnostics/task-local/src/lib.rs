@@ -12,17 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! A diagnostic that stores key-value pairs in a task-local context stack.
+//! Runtime-agnostic task-local diagnostic context for [`Future`]s.
+//!
+//! [`FutureExt::with_task_local_context`] wraps a [`Future`] in a [`TaskLocalFuture`] that pushes
+//! structured `(KeyOwned, ValueOwned)` entries onto a thread-local stack for the duration of each
+//! [`Future::poll`] call and pops them whenever the future yields or completes. Register
+//! [`TaskLocalDiagnostic`] on a dispatch branch to expose the active task's scoped key-values to
+//! filters, layouts, and appenders across `.await` points on any async executor.
 //!
 //! # Examples
 //!
 //! ```
-//! use logforth_core::Diagnostic;
-//! use logforth_core::kv::Visitor;
-//! use logforth_diagnostic_task_local::FutureExt;
+//! use std::pin::pin;
+//! use std::task::Context;
+//! use std::task::Poll;
+//! use std::task::Waker;
 //!
-//! let fut = async { log::info!("Hello, world!") };
-//! fut.with_task_local_context([("key", "value")]);
+//! use logforth_core::LoggerBuilder;
+//! use logforth_core::append::Testing;
+//! use logforth_diagnostic_task_local::FutureExt;
+//! use logforth_diagnostic_task_local::TaskLocalDiagnostic;
+//!
+//! let logger = LoggerBuilder::new()
+//!     .dispatch(|d| {
+//!         d.diagnostic(TaskLocalDiagnostic::new())
+//!             .append(Testing::new())
+//!     })
+//!     .build();
+//!
+//! let fut = async {
+//!     logforth_core::info!(logger, "processing job");
+//! }
+//! .with_task_local_context([("job_id", "job-7")]);
+//!
+//! let mut cx = Context::from_waker(Waker::noop());
+//! assert_eq!(pin!(fut).poll(&mut cx), Poll::Ready(()));
 //! ```
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -46,15 +70,32 @@ thread_local! {
     static TASK_LOCAL_MAP: RefCell<Vec<TaskLocalContext>> = const { RefCell::new(Vec::new()) };
 }
 
-/// A diagnostic that stores key-value pairs in a task-local context.
+/// A [`Diagnostic`] that visits key-value pairs attached to the currently polled
+/// [`TaskLocalFuture`].
 ///
-/// Nested [`FutureExt::with_task_local_context`] scopes shadow outer values for the same key and
-/// restore them when the inner future completes.
+/// Active entries are scoped through [`FutureExt::with_task_local_context`]. Nested scopes shadow
+/// outer values for the same key and restore them when the inner future completes. If thread-local
+/// storage is already destroyed on the current thread during teardown, visiting degrades to an
+/// empty context instead of panicking.
 ///
-/// See the [crate documentation](self) for usage examples.
+/// # Examples
+///
+/// ```
+/// use logforth_diagnostic_task_local::TaskLocalDiagnostic;
+///
+/// const DIAG: TaskLocalDiagnostic = TaskLocalDiagnostic::new();
+/// # let _ = DIAG;
+/// ```
 #[derive(Default, Debug, Clone)]
 #[non_exhaustive]
 pub struct TaskLocalDiagnostic {}
+
+impl TaskLocalDiagnostic {
+    /// Creates a new [`TaskLocalDiagnostic`].
+    pub const fn new() -> Self {
+        Self {}
+    }
+}
 
 impl Diagnostic for TaskLocalDiagnostic {
     fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
@@ -87,31 +128,39 @@ fn is_shadowed(
             .any(|frame| frame.iter().any(|(k, _)| k == key))
 }
 
-/// An extension trait for futures to run them with a task-local context.
-///
-/// See the [crate documentation](self) for usage examples.
+/// Extension trait attaching scoped task-local diagnostic key-values to a [`Future`].
 pub trait FutureExt: Future {
-    /// Run a future with a task-local context.
-    fn with_task_local_context<K, V, I>(self, kvs: I) -> impl Future<Output = Self::Output>
+    /// Wraps `self` so `kvs` are visible to [`TaskLocalDiagnostic`] whenever the returned
+    /// [`TaskLocalFuture`] is polled.
+    ///
+    /// Nested scopes shadow outer values for the same key and restore them when the inner future
+    /// completes; duplicate keys within `kvs` resolve with last-entry-wins precedence.
+    fn with_task_local_context<K, V, I>(self, kvs: I) -> TaskLocalFuture<Self>
     where
         Self: Sized,
         K: Into<KeyOwned>,
         V: Into<ValueOwned>,
         I: IntoIterator<Item = (K, V)>,
     {
-        let future = self;
         let context = kvs.into_iter().map(|(k, v)| (k.into(), v.into())).collect();
-        TaskLocalFuture { future, context }
+        TaskLocalFuture {
+            future: self,
+            context,
+        }
     }
 }
 
 impl<F: Future> FutureExt for F {}
 
+/// A [`Future`] adapter created by [`FutureExt::with_task_local_context`] that installs task-local
+/// diagnostic entries while polling the inner future.
 #[pin_project::pin_project]
-struct TaskLocalFuture<F> {
+#[must_use = "futures do nothing unless you `.await` or poll them"]
+#[derive(Debug, Clone)]
+pub struct TaskLocalFuture<F> {
     #[pin]
     future: F,
-    context: Arc<[(KeyOwned, ValueOwned)]>,
+    context: TaskLocalContext,
 }
 
 impl<F: Future> Future for TaskLocalFuture<F> {
@@ -129,6 +178,10 @@ impl<F: Future> Future for TaskLocalFuture<F> {
         }
 
         let this = self.project();
+        if this.context.is_empty() {
+            return this.future.poll(cx);
+        }
+
         let _guard = TASK_LOCAL_MAP
             .try_with(|map| {
                 map.borrow_mut().push(this.context.clone());
