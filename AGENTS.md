@@ -2,7 +2,7 @@
 
 This document is the single source of truth for workspace structure, development commands, Rust style, documentation contracts, testing, changelog rules, and pull request conventions for both human contributors and coding agents. Keep documented workflows synchronized with structural changes, and run `cargo x check`, `cargo x test`, and `cargo x lint` before submitting or handing work back.
 
-For architectural direction, pipeline semantics, and the target `1.0` design, see [DESIGN.md](DESIGN.md).
+For workspace architectural direction and cross-crate conventions, see [DESIGN.md](DESIGN.md).
 
 ## Workspace Layout
 
@@ -44,6 +44,7 @@ Use the shared [deslopify skill](.agents/skills/deslopify/SKILL.md) to survey Lo
 ## Documentation
 
 - Keep each Markdown prose paragraph and list item on one source line, and format Markdown tables so their columns and delimiters align in the source.
+- Keep workspace-wide architectural direction and cross-crate conventions in [DESIGN.md](DESIGN.md), and document crate-specific contracts, usage, and module invariants in each crate's rustdoc (`//!` and `///`), module comments, and self-contained `<crate>/README.md` without `../` parent-directory links.
 - Document caller-observable contracts in `///` comments without leaking implementation details. Use noun phrases for types, third-person present-tense verbs for operations, and public API labels on intra-doc links (such as `` [`Layout`][logforth_core::layout::Layout] ``).
 - Include `# Errors`, `# Panics`, `# Safety`, and trailing `# Examples` (with visible imports) only when applicable, explaining simple return values in the summary or body.
 - Reserve `//` comments for non-obvious invariants, `// SAFETY:` preconditions, or external quirks rather than restating code, and preserve existing provenance and license notices.
