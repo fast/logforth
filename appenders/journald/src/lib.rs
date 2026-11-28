@@ -36,6 +36,10 @@ use crate::field::put_field_length_encoded;
 
 mod field;
 #[cfg(target_os = "linux")]
+#[expect(
+    unsafe_code,
+    reason = "journald large-payload transport requires libc memfd and sendmsg FFI"
+)]
 mod memfd;
 
 const JOURNALD_PATH: &str = "/run/systemd/journal/socket";

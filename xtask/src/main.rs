@@ -53,12 +53,16 @@ impl Command {
 enum SubCommand {
     #[command(about = "Compile workspace packages.")]
     Build(CommandBuild),
-    #[command(about = "Check workspace packages across feature configurations.")]
+    #[command(about = "Check workspace packages under the feature matrix.")]
     Check(CommandCheck),
     #[command(about = "Run workspace quality checks.")]
     Lint(CommandLint),
     #[command(about = "Run workspace tests.")]
     Test(CommandTest),
+}
+
+fn cargo() -> process::Command {
+    find_command("cargo")
 }
 
 fn find_command(command: &str) -> process::Command {
@@ -74,8 +78,12 @@ fn find_command(command: &str) -> process::Command {
 
 fn ensure_installed(binary: &str, crate_name: &str) {
     if which::which(binary).is_err() {
-        let mut cmd = find_command("cargo");
-        cmd.args(["install", crate_name]);
+        let mut cmd = cargo();
+        if which::which("cargo-binstall").is_ok() {
+            cmd.args(["binstall", "--no-confirm", "--locked", crate_name]);
+        } else {
+            cmd.args(["install", "--locked", crate_name]);
+        }
         run_command(cmd);
     }
 }

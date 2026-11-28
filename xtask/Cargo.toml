@@ -18,12 +18,15 @@ publish = false
 
 edition.workspace = true
 license.workspace = true
+readme.workspace = true
+repository.workspace = true
 rust-version.workspace = true
 
 [package.metadata.release]
 release = false
 
 [dependencies]
+cargo_metadata = { workspace = true }
 clap = { workspace = true }
 which = { workspace = true }
 

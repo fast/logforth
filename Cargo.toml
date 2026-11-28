@@ -54,6 +54,7 @@ logforth-layout-logfmt = { version = "0.4.0", path = "layouts/logfmt" }
 logforth-layout-text = { version = "0.4.0", path = "layouts/text" }
 
 # Crates.io dependencies
+cargo_metadata = { version = "0.23.1" }
 clap = { version = "4.5.49", features = ["derive"] }
 colored = { version = "3.0" }
 fastrace = { version = "0.7" }
@@ -72,12 +73,14 @@ which = { version = "8.0.0" }
 
 [workspace.lints.rust]
 unknown_lints = "deny"
+unsafe_code = "deny"
 unsafe_op_in_unsafe_fn = "deny"
 unused_must_use = "deny"
 
 [workspace.lints.clippy]
 allow_attributes = "deny"
 dbg_macro = "deny"
+missing_safety_doc = "deny"
 
 [workspace.metadata.release]
 consolidate-commits = false
