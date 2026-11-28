@@ -47,6 +47,13 @@ use crate::record::Record;
 #[non_exhaustive]
 pub struct PlainTextLayout {}
 
+impl PlainTextLayout {
+    /// Creates a new [`PlainTextLayout`].
+    pub const fn new() -> Self {
+        Self {}
+    }
+}
+
 impl Layout for PlainTextLayout {
     fn format(
         &self,

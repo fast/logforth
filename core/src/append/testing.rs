@@ -39,13 +39,18 @@ pub struct Testing {
 
 impl Default for Testing {
     fn default() -> Self {
-        Self {
-            layout: Box::new(PlainTextLayout::default()),
-        }
+        Self::new()
     }
 }
 
 impl Testing {
+    /// Creates a new [`Testing`] appender formatted with [`PlainTextLayout`].
+    pub fn new() -> Self {
+        Self {
+            layout: Box::new(PlainTextLayout::new()),
+        }
+    }
+
     /// Sets the [`Layout`] used to format records emitted by [`Testing`].
     ///
     /// Defaults to [`PlainTextLayout`].

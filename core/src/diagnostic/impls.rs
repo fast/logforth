@@ -55,7 +55,7 @@ impl<T: Diagnostic> Diagnostic for Vec<T> {
 // `Box<dyn Diagnostic>` cannot implement `Diagnostic` directly without overlapping
 // `From<T> for Box<dyn Diagnostic>` and reflexive `From<T> for T`, so mirror the
 // four container implementations above for `Box<dyn Diagnostic>`.
-impl Diagnostic for Option<Box<dyn Diagnostic>> {
+impl Diagnostic for Option<Box<dyn Diagnostic + '_>> {
     fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
         if let Some(diag) = self {
             diag.as_ref().visit(visitor)?;
@@ -64,7 +64,7 @@ impl Diagnostic for Option<Box<dyn Diagnostic>> {
     }
 }
 
-impl Diagnostic for [Box<dyn Diagnostic>] {
+impl Diagnostic for [Box<dyn Diagnostic + '_>] {
     fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
         for diag in self {
             diag.as_ref().visit(visitor)?;
@@ -73,13 +73,13 @@ impl Diagnostic for [Box<dyn Diagnostic>] {
     }
 }
 
-impl<const N: usize> Diagnostic for [Box<dyn Diagnostic>; N] {
+impl<const N: usize> Diagnostic for [Box<dyn Diagnostic + '_>; N] {
     fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
         self.as_slice().visit(visitor)
     }
 }
 
-impl Diagnostic for Vec<Box<dyn Diagnostic>> {
+impl Diagnostic for Vec<Box<dyn Diagnostic + '_>> {
     fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error> {
         self.as_slice().visit(visitor)
     }

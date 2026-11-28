@@ -39,13 +39,18 @@ pub struct Stdout {
 
 impl Default for Stdout {
     fn default() -> Self {
-        Self {
-            layout: Box::new(PlainTextLayout::default()),
-        }
+        Self::new()
     }
 }
 
 impl Stdout {
+    /// Creates a new [`Stdout`] appender formatted with [`PlainTextLayout`].
+    pub fn new() -> Self {
+        Self {
+            layout: Box::new(PlainTextLayout::new()),
+        }
+    }
+
     /// Sets the [`Layout`] used to format records written to standard output.
     ///
     /// Defaults to [`PlainTextLayout`].
@@ -101,13 +106,18 @@ pub struct Stderr {
 
 impl Default for Stderr {
     fn default() -> Self {
-        Self {
-            layout: Box::new(PlainTextLayout::default()),
-        }
+        Self::new()
     }
 }
 
 impl Stderr {
+    /// Creates a new [`Stderr`] appender formatted with [`PlainTextLayout`].
+    pub fn new() -> Self {
+        Self {
+            layout: Box::new(PlainTextLayout::new()),
+        }
+    }
+
     /// Sets the [`Layout`] used to format records written to standard error.
     ///
     /// Defaults to [`PlainTextLayout`].
