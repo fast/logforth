@@ -12,7 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Filters for log records.
+//! Filters for selecting or promoting log records within a dispatch branch.
+//!
+//! Each dispatch evaluates its [`Filter`] chain in registration order:
+//! - [`FilterResult::Reject`] drops the record immediately from the current dispatch.
+//! - [`FilterResult::Accept`] accepts the record immediately, bypassing remaining filters in the
+//!   current dispatch.
+//! - [`FilterResult::Neutral`] passes control to the next filter; the dispatch accepts the record
+//!   if every filter finishes [`FilterResult::Neutral`].
+//!
+//! When a [`Logger`](crate::Logger) is built, each dispatch evaluates [`Filter::filter_level`]
+//! across [`Level::ALL`](crate::record::Level::ALL) to precompute a fast-path bitmask tested by
+//! [`Logger::enabled`](crate::Logger::enabled) and [`Logger::log`](crate::Logger::log).
 
 use std::fmt;
 use std::sync::Arc;
@@ -22,14 +33,14 @@ use crate::record::Level;
 use crate::record::LevelFilter;
 use crate::record::Record;
 
-/// The result of evaluating a [`Filter`].
+/// The decision produced by evaluating a [`Filter`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FilterResult {
-    /// Accept the record immediately and bypass remaining filters in the current dispatch.
+    /// Accepts the record immediately and bypasses remaining filters in the current dispatch.
     Accept,
-    /// Drop the record immediately from the current dispatch.
+    /// Drops the record immediately from the current dispatch.
     Reject,
-    /// Express no final decision and pass control to the next filter in the dispatch.
+    /// Expresses no final decision and passes control to the next filter in the dispatch.
     Neutral,
 }
 

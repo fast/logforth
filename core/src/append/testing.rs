@@ -19,8 +19,11 @@ use crate::append::Append;
 use crate::layout::PlainTextLayout;
 use crate::record::Record;
 
-/// An appender that writes log records that can be captured by a test harness (like `cargo test`),
-/// and thus the outputs are suppressed unless `--nocapture` or `--show-output` is specified.
+/// An appender that emits log records via `eprintln!` so Rust's test harness can capture them.
+///
+/// Under `cargo test`, output is buffered per test and suppressed unless a test fails or
+/// `--nocapture` / `--show-output` is passed. Non-UTF-8 bytes produced by the configured [`Layout`]
+/// are replaced lossily before printing.
 ///
 /// # Examples
 ///
@@ -43,9 +46,9 @@ impl Default for Testing {
 }
 
 impl Testing {
-    /// Set the layout for the [`Testing`] appender.
+    /// Sets the [`Layout`] used to format records emitted by [`Testing`].
     ///
-    /// Default to [`PlainTextLayout`].
+    /// Defaults to [`PlainTextLayout`].
     ///
     /// # Examples
     ///

@@ -109,9 +109,22 @@ macro_rules! __log_impl {
 
 /// Logs a record at the specified [`Level`](crate::record::Level) to a [`Logger`](crate::Logger).
 ///
-/// `$logger` and `$level` are evaluated once up front. Structured key-values and format arguments
-/// are evaluated at most once and only when [`Logger::enabled`](crate::Logger::enabled) returns
-/// `true` for `$level`. Structured field values implement [`LogValue`](crate::kv::LogValue).
+/// Supports three call forms:
+/// - `log!(logger, level, "format {}", arg)` for a formatted message;
+/// - `log!(logger, level, ["key" = value, ...], "format {}", arg)` for structured fields plus a
+///   formatted message;
+/// - `log!(logger, level, ["key" = value, ...])` for structured fields with an empty message body.
+///
+/// `$logger` (which may be a [`Logger`](crate::Logger) or any reference/smart pointer dereferencing
+/// to [`Logger`](crate::Logger)) and `$level` are evaluated once up front, dropping any temporary
+/// guards in `$level` before checking [`Logger::enabled`](crate::Logger::enabled). Structured
+/// key-values and format arguments are evaluated at most once and only when `enabled` returns
+/// `true`.
+///
+/// Structured field keys must be string literals (`'static` provenance), and field values borrow in
+/// place through [`LogValue`](crate::kv::LogValue) without moving non-`Copy` locals. Because
+/// [`Value`](crate::kv::Value) is `Send + Sync`, enclosing `async` futures remain `Send` across
+/// `.await` points in macro arguments as long as temporaries held across `.await` are `Send`.
 ///
 /// # Examples
 ///

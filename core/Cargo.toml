@@ -16,13 +16,14 @@
 name = "logforth-core"
 version = "0.4.0"
 
-description = "Core structs and functions for Logforth."
-keywords = ["logging", "log"]
+description = "Core traits, structured records, and pipeline primitives for Logforth."
+documentation = "https://docs.rs/logforth-core"
+keywords = ["logging", "structured-logging", "log", "diagnostics"]
+readme = "README.md"
 
 categories.workspace = true
 edition.workspace = true
 license.workspace = true
-readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

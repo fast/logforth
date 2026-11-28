@@ -71,9 +71,14 @@ impl Drop for ThreadLocalDiagnosticGuard {
     }
 }
 
-/// A diagnostic that provides scoped key-value pairs stored in thread-local storage.
+/// A diagnostic context that reads scoped key-value pairs from thread-local storage.
 ///
-/// ## Example
+/// Active entries are managed through [`ThreadLocalDiagnostic::scope`]. If thread-local storage is
+/// already destroyed on the current thread (such as when logging from another thread-local
+/// destructor during thread teardown), visiting [`ThreadLocalDiagnostic`] degrades to an empty
+/// context instead of panicking.
+///
+/// # Examples
 ///
 /// ```
 /// use logforth_core::diagnostic::ThreadLocalDiagnostic;

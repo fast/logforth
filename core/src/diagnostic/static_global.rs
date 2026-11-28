@@ -20,9 +20,12 @@ use crate::kv::KeyOwned;
 use crate::kv::ValueOwned;
 use crate::kv::Visitor;
 
-/// A diagnostic that stores key-value pairs in a static map.
+/// A diagnostic context backed by an ordered map of key-value pairs.
 ///
-/// ## Example
+/// Entries are visited in ascending lexicographic key order, and inserting an existing key
+/// replaces its previous value.
+///
+/// # Examples
 ///
 /// ```
 /// use logforth_core::diagnostic::StaticDiagnostic;

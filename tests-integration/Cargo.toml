@@ -23,6 +23,9 @@ rust-version.workspace = true
 [package.metadata.release]
 release = false
 
+[dependencies]
+logforth-core = { workspace = true, features = ["serde"] }
+
 [dev-dependencies]
 logforth = { workspace = true, features = [
   "append-async",
@@ -42,7 +45,7 @@ logforth = { workspace = true, features = [
   "layout-text",
   "starter-log",
 ] }
-logforth-core = { workspace = true, features = ["serde"] }
+serde = { workspace = true }
 
 [lib]
 bench = false

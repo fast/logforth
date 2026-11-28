@@ -22,16 +22,18 @@ use crate::kv::KeyView;
 use crate::kv::ValueView;
 use crate::record::Record;
 
-/// A layout that formats log record as plain text.
+/// A zero-dependency layout that formats log records as single-line plain text.
 ///
-/// Output format:
+/// Timestamps are rendered as signed nanoseconds relative to [`SystemTime::UNIX_EPOCH`], followed
+/// by the right-aligned 6-character severity name, module path, source filename and line number,
+/// message payload, [`Record::key_values`], and [`Diagnostic`] entries:
 ///
 /// ```text
-/// 1760092868730397000 ERROR simple: simple.rs:24 Hello error!
-/// 1760092868730572000  WARN simple: simple.rs:25 Hello warn!
-/// 1760092868730576000  INFO simple: simple.rs:26 Hello info!
-/// 1760092868730579000 DEBUG simple: simple.rs:27 Hello debug!
-/// 1760092868730581000 TRACE simple: simple.rs:28 Hello trace!
+/// 1760092868730397000  ERROR simple: simple.rs:24 Hello error!
+/// 1760092868730572000   WARN simple: simple.rs:25 Hello warn!
+/// 1760092868730576000   INFO simple: simple.rs:26 Hello info!
+/// 1760092868730579000  DEBUG simple: simple.rs:27 Hello debug!
+/// 1760092868730581000  TRACE simple: simple.rs:28 Hello trace!
 /// ```
 ///
 /// # Examples
@@ -41,7 +43,6 @@ use crate::record::Record;
 ///
 /// let text_layout = PlainTextLayout::default();
 /// ```
-
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct PlainTextLayout {}

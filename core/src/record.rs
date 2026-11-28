@@ -12,7 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Log record and metadata.
+//! Structured log records, severity levels, and level predicates.
+//!
+//! Synchronous logging paths construct a stack-borrowed [`Record`] via [`Record::builder`] (or the
+//! native logging macros) without heap allocation. Asynchronous boundaries promote a [`Record`]
+//! into a `'static + Send + Sync` [`RecordOwned`] via [`Record::to_owned`] and re-project a
+//! borrowed view on the worker side through [`RecordOwned::with`].
 
 use std::borrow::Cow;
 use std::fmt;
@@ -24,7 +29,8 @@ use crate::kv;
 use crate::kv::KeyValues;
 use crate::str::RefStr;
 
-/// The payload of a log message.
+/// A borrowed log event carrying timestamp, severity, source location, payload, and structured
+/// key-values.
 #[derive(Clone, Debug)]
 pub struct Record<'a> {
     // the observed time
@@ -45,41 +51,37 @@ pub struct Record<'a> {
 }
 
 impl<'a> Record<'a> {
-    /// The observed time.
+    /// Returns the timestamp observed when the record was created.
     pub fn time(&self) -> SystemTime {
         self.now
     }
 
-    /// The severity level of the message.
-    ///
-    /// See [`Level`] for details.
+    /// Returns the severity [`Level`] of the record.
     pub fn level(&self) -> Level {
         self.level
     }
 
-    /// The module path of the message.
+    /// Returns the Rust module path where the record was emitted, if set.
     pub fn module_path(&self) -> Option<&'a str> {
         self.module_path.map(|s| s.get())
     }
 
-    /// The module path of the message, if it is a `'static` str.
+    /// Returns the Rust module path if it was supplied with `'static` provenance.
     pub fn module_path_static(&self) -> Option<&'static str> {
         self.module_path.and_then(|s| s.get_static())
     }
 
-    /// The source file containing the message.
+    /// Returns the source file path where the record was emitted, if set.
     pub fn file(&self) -> Option<&'a str> {
         self.file.map(|s| s.get())
     }
 
-    /// The source file containing the message, if it is a `'static` str.
+    /// Returns the source file path if it was supplied with `'static` provenance.
     pub fn file_static(&self) -> Option<&'static str> {
         self.file.and_then(|s| s.get_static())
     }
 
-    /// The filename of the source file.
-    // obtain filename only from record's full file path
-    // reason: the module is already logged + full file path is noisy for some layouts
+    /// Returns the terminal filename component of [`Record::file`], or an empty string when unset.
     pub fn filename(&self) -> Cow<'a, str> {
         self.file()
             .map(std::path::Path::new)
@@ -88,37 +90,33 @@ impl<'a> Record<'a> {
             .unwrap_or_default()
     }
 
-    /// The line number in the source file.
-    ///
-    /// This is typically set by the logging macro. If set, returns `Some(line)`; otherwise,
-    /// returns `None`.
+    /// Returns the 1-based source line number where the record was emitted, if set.
     pub fn line(&self) -> Option<u32> {
         self.line
     }
 
-    /// The column number in the source file.
-    ///
-    /// This is typically not set. If set, returns `Some(column)`; otherwise, returns `None`.
+    /// Returns the 1-based source column number where the record was emitted, if set.
     pub fn column(&self) -> Option<u32> {
         self.column
     }
 
-    /// The message body.
+    /// Returns the formatted message arguments of the record.
     pub fn payload(&self) -> fmt::Arguments<'a> {
         self.payload
     }
 
-    /// The message body, if it is a `'static` str.
+    /// Returns the message body as a `'static` string slice when it contains no formatting
+    /// placeholders.
     pub fn payload_static(&self) -> Option<&'static str> {
         self.payload.as_str()
     }
 
-    /// The key-values.
+    /// Returns the structured key-value pairs attached to this record.
     pub fn key_values(&self) -> &KeyValues<'a> {
         &self.kvs
     }
 
-    /// Create a builder initialized with the current record's values.
+    /// Creates a [`RecordBuilder`] initialized with a copy of this record's fields.
     pub fn to_builder(&self) -> RecordBuilder<'a> {
         RecordBuilder {
             record: Record {
@@ -134,7 +132,10 @@ impl<'a> Record<'a> {
         }
     }
 
-    /// Convert to an owned record.
+    /// Converts this borrowed record into a `'static` [`RecordOwned`] snapshot.
+    ///
+    /// Fields backed by `'static` strings preserve their static borrows without heap allocation,
+    /// while formatted payloads and borrowed values are materialized.
     pub fn to_owned(&self) -> RecordOwned {
         RecordOwned {
             now: self.now,
@@ -156,13 +157,14 @@ impl<'a> Record<'a> {
         }
     }
 
-    /// Returns a new builder.
+    /// Creates a new [`RecordBuilder`] with default metadata (`SystemTime::now()`, [`Level::Info`],
+    /// empty payload, and empty key-values).
     pub fn builder() -> RecordBuilder<'a> {
         RecordBuilder::default()
     }
 }
 
-/// Builder for [`Record`].
+/// A builder for constructing a [`Record`].
 #[derive(Debug)]
 pub struct RecordBuilder<'a> {
     record: Record<'a>,
@@ -186,73 +188,73 @@ impl Default for RecordBuilder<'_> {
 }
 
 impl<'a> RecordBuilder<'a> {
-    /// Sets [`time`][Record::time].
+    /// Sets [`Record::time`].
     pub fn time(mut self, time: SystemTime) -> Self {
         self.record.now = time;
         self
     }
 
-    /// Set [`payload`](Record::payload).
+    /// Sets [`Record::payload`].
     pub fn payload(mut self, payload: fmt::Arguments<'a>) -> Self {
         self.record.payload = payload;
         self
     }
 
-    /// Set [`level`](Record::level).
+    /// Sets [`Record::level`].
     pub fn level(mut self, level: Level) -> Self {
         self.record.level = level;
         self
     }
 
-    /// Set [`module_path`](Record::module_path).
+    /// Sets [`Record::module_path`] from an optional borrowed string.
     pub fn module_path(mut self, path: Option<&'a str>) -> Self {
         self.record.module_path = path.map(RefStr::Borrowed);
         self
     }
 
-    /// Set [`module_path`](Record::module_path) to a `'static` string.
+    /// Sets [`Record::module_path`] from a `'static` string literal, preserving static provenance.
     pub fn module_path_static(mut self, path: &'static str) -> Self {
         self.record.module_path = Some(RefStr::Static(path));
         self
     }
 
-    /// Set [`file`](Record::file).
+    /// Sets [`Record::file`] from an optional borrowed string.
     pub fn file(mut self, file: Option<&'a str>) -> Self {
         self.record.file = file.map(RefStr::Borrowed);
         self
     }
 
-    /// Set [`file`](Record::file) to a `'static` string.
+    /// Sets [`Record::file`] from a `'static` string literal, preserving static provenance.
     pub fn file_static(mut self, file: &'static str) -> Self {
         self.record.file = Some(RefStr::Static(file));
         self
     }
 
-    /// Set [`line`](Record::line).
+    /// Sets [`Record::line`].
     pub fn line(mut self, line: Option<u32>) -> Self {
         self.record.line = line;
         self
     }
 
-    /// Set [`column`](Record::column).
+    /// Sets [`Record::column`].
     pub fn column(mut self, column: Option<u32>) -> Self {
         self.record.column = column;
         self
     }
 
-    /// Set [`key_values`](struct.Record.html#method.key_values)
+    /// Sets [`Record::key_values`].
     pub fn key_values(mut self, kvs: impl Into<KeyValues<'a>>) -> Self {
         self.record.kvs = kvs.into();
         self
     }
 
-    /// Invoke the builder and return a `Record`
+    /// Consumes the builder and returns the constructed [`Record`].
     pub fn build(self) -> Record<'a> {
         self.record
     }
 }
 
-/// Owned version of a log record.
+/// An owned `'static` snapshot of a [`Record`] suitable for sending across threads or channels.
 #[derive(Clone, Debug)]
 pub struct RecordOwned {
     // the observed time
@@ -273,7 +275,7 @@ pub struct RecordOwned {
 }
 
 impl RecordOwned {
-    /// Execute the given function with the `Record`.
+    /// Invokes `f` with a borrowed [`Record`] view over this owned snapshot.
     pub fn with(&self, f: impl FnOnce(Record<'_>)) {
         f(Record {
             now: self.now,
@@ -296,12 +298,13 @@ impl RecordOwned {
     }
 }
 
-/// A Level is the importance or severity of a log event.
+/// The importance or severity of a log event.
 ///
-/// The higher the level, the more important or severe the event.
+/// Higher discriminants represent more severe events (`Trace = 1` through `Fatal4 = 24`).
+/// [`FromStr`] parses ASCII case-insensitive level names (`"trace"` through `"fatal4"`).
 ///
-/// The level design follows the [OpenTelemetry severity number specification][severity-number]
-/// and [mapping guideline][mapping-guideline].
+/// The 24 variants follow the [OpenTelemetry severity number specification][severity-number] and
+/// [mapping guideline][mapping-guideline].
 ///
 /// [severity-number]: https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitynumber
 /// [mapping-guideline]: https://opentelemetry.io/docs/specs/otel/logs/data-model-appendix/#appendix-b-severitynumber-example-mappings
@@ -328,9 +331,9 @@ pub enum Level {
     Debug = 5,
     /// DEBUG2. A debugging event.
     Debug2 = 6,
-    /// DEBUG2. A debugging event.
-    Debug3 = 7,
     /// DEBUG3. A debugging event.
+    Debug3 = 7,
+    /// DEBUG4. A debugging event.
     Debug4 = 8,
     /// INFO. An informational event.
     ///
@@ -420,9 +423,7 @@ impl Level {
         Level::Fatal4,
     ];
 
-    /// Return the string representation the short name for the `Level`.
-    ///
-    /// This returns the same string as the `fmt::Display` implementation.
+    /// Returns the uppercase canonical name of this `Level` (matching its [`fmt::Display`] output).
     pub const fn name(&self) -> &'static str {
         const LEVEL_NAMES: [&str; 24] = [
             "TRACE", "TRACE2", "TRACE3", "TRACE4", "DEBUG", "DEBUG2", "DEBUG3", "DEBUG4", "INFO",
@@ -445,29 +446,33 @@ impl fmt::Display for Level {
     }
 }
 
-/// An enum representing the available verbosity level filters of the logger.
+/// A severity predicate over [`Level`] values.
+///
+/// Implements [`Filter`](crate::Filter) by returning [`FilterResult::Neutral`](crate::filter::FilterResult::Neutral)
+/// when [`LevelFilter::test`] succeeds and [`FilterResult::Reject`](crate::filter::FilterResult::Reject)
+/// otherwise.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub enum LevelFilter {
-    /// Disable all levels.
+    /// Disables all levels.
     Off,
-    /// Enabled if the target level is equal to the filter level.
+    /// Enables only the specified level.
     Equal(Level),
-    /// Enabled if the target level is not equal to the filter level.
+    /// Enables every level except the specified level.
     NotEqual(Level),
-    /// Enabled if the target level is more severe than the filter level.
+    /// Enables levels strictly more severe than the specified level.
     MoreSevere(Level),
-    /// Enabled if the target level is more severe than or equal to the filter level.
+    /// Enables levels more severe than or equal to the specified level.
     MoreSevereEqual(Level),
-    /// Enabled if the target level is more verbose than the filter level.
+    /// Enables levels strictly more verbose than the specified level.
     MoreVerbose(Level),
-    /// Enabled if the target level is more verbose than or equal to the filter level.
+    /// Enables levels more verbose than or equal to the specified level.
     MoreVerboseEqual(Level),
-    /// Enable all levels.
+    /// Enables all levels.
     All,
 }
 
 impl LevelFilter {
-    /// Check the given level if satisfies the filter condition.
+    /// Returns `true` if `level` satisfies this filter condition.
     ///
     /// # Examples
     ///
@@ -477,10 +482,10 @@ impl LevelFilter {
     ///
     /// let level_filter = LevelFilter::MoreSevere(Level::Info);
     ///
-    /// assert_eq!(level_filter.test(Level::Trace), false);
-    /// assert_eq!(level_filter.test(Level::Info), false);
-    /// assert_eq!(level_filter.test(Level::Warn), true);
-    /// assert_eq!(level_filter.test(Level::Error), true);
+    /// assert!(!level_filter.test(Level::Trace));
+    /// assert!(!level_filter.test(Level::Info));
+    /// assert!(level_filter.test(Level::Warn));
+    /// assert!(level_filter.test(Level::Error));
     /// ```
     pub const fn test(&self, level: Level) -> bool {
         let level = level as u8;

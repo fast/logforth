@@ -12,7 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Key-value pairs in a log record or a diagnostic context.
+//! Structured key-value pairs for log records and diagnostic contexts.
+//!
+//! Logforth models structured data across three layers so synchronous paths stay allocation-free
+//! while asynchronous workers preserve full fidelity:
+//! - **Borrowed carriers** ([`Key`], [`Value`], [`KeyValues`]) live on the caller stack; native
+//!   logging macros project values into [`Value`] via [`LogValue`].
+//! - **Read-only views** ([`KeyView`], [`ValueView`], [`ListValue`], [`MapValue`], [`Visitor`])
+//!   unify inspection across borrowed and owned storage without intermediate allocations.
+//! - **Owned snapshots** ([`KeyOwned`], [`ValueOwned`]) carry `'static + Send + Sync` structured
+//!   trees across thread boundaries and diagnostic scopes.
+//!
+//! Iteration over [`KeyValues`] and [`MapValue`] preserves insertion order, while point lookups via
+//! [`KeyValues::get`] and [`MapValue::get`] resolve duplicate keys using last-entry-wins order.
 //!
 //! Keys prefixed with `logforth.` are reserved by Logforth; avoid using `logforth.*` for
 //! application-defined fields unless intentionally invoking a documented behavior.
@@ -30,9 +42,15 @@ use crate::str::RefStr;
 #[cfg(feature = "serde")]
 mod value_serde;
 
-/// A visitor to walk through key-value pairs.
+/// A visitor that walks structured key-value pairs.
+///
+/// Implemented automatically for closures of type `FnMut(KeyView, ValueView) -> Result<(), Error>`.
 pub trait Visitor {
-    /// Visit a key-value pair.
+    /// Visits a single key-value pair.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Error`] if processing the entry fails, stopping further traversal.
     fn visit(&mut self, key: KeyView, value: ValueView) -> Result<(), Error>;
 }
 
@@ -45,7 +63,7 @@ where
     }
 }
 
-/// A key in a key-value pair.
+/// A borrowed key in a structured key-value pair.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Key<'a>(RefStr<'a>);
 
@@ -56,6 +74,7 @@ impl fmt::Display for Key<'_> {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for Key<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_str(self)
@@ -69,27 +88,27 @@ impl Borrow<str> for Key<'_> {
 }
 
 impl Key<'static> {
-    /// Create a new key from a static `&str`.
+    /// Creates a key from a `'static` string literal, preserving static provenance.
     pub const fn new(k: &'static str) -> Key<'static> {
         Key(RefStr::Static(k))
     }
 }
 
 impl<'a> Key<'a> {
-    /// Create a new key from a `&str`.
+    /// Creates a key from a borrowed `&str` with non-`'static` lifetime.
     ///
-    /// The [`Key::new`] method should be preferred where possible.
+    /// Prefer [`Key::new`] when the key is a `'static` string literal.
     pub const fn borrowed(k: &'a str) -> Key<'a> {
         Key(RefStr::Borrowed(k))
     }
 
-    /// Create a borrowed view of this key.
+    /// Returns a read-only [`KeyView`] of this key.
     pub const fn view(&self) -> KeyView<'a> {
         KeyView(self.0)
     }
 }
 
-/// An owned key in a key-value pair.
+/// An owned `'static` key in a structured key-value pair.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct KeyOwned(Cow<'static, str>);
 
@@ -120,6 +139,7 @@ impl fmt::Display for KeyOwned {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for KeyOwned {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_str(self)
@@ -127,12 +147,12 @@ impl serde::Serialize for KeyOwned {
 }
 
 impl KeyOwned {
-    /// Create an owned key.
+    /// Creates an owned key from a `'static` borrow or owned `String`.
     pub fn new(k: impl Into<Cow<'static, str>>) -> KeyOwned {
         KeyOwned(k.into())
     }
 
-    /// Create a borrowed view of this owned key.
+    /// Returns a read-only [`KeyView`] of this owned key.
     pub fn view(&self) -> KeyView<'_> {
         KeyView(match &self.0 {
             Cow::Borrowed(s) => RefStr::Static(s),
@@ -141,7 +161,7 @@ impl KeyOwned {
     }
 }
 
-/// A borrowed view of a key in a key-value pair.
+/// A read-only view of a key across borrowed and owned key representations.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct KeyView<'a>(RefStr<'a>);
 
@@ -158,6 +178,7 @@ impl fmt::Display for KeyView<'_> {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for KeyView<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_str(self)
@@ -243,6 +264,7 @@ enum ListValueState<'a> {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for ListValue<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_seq(self.iter())
@@ -314,6 +336,7 @@ enum MapValueState<'a> {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for MapValue<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_map(self.iter())
@@ -434,6 +457,7 @@ impl fmt::Debug for ValueState<'_> {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for Value<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self.view().serialize(serializer)
@@ -779,6 +803,7 @@ impl<T: Into<ValueOwned>> From<Option<T>> for ValueOwned {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for ValueOwned {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self.view().serialize(serializer)
@@ -962,6 +987,7 @@ impl fmt::Display for ValueView<'_> {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for ValueView<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match &self {
@@ -1193,7 +1219,11 @@ impl<'a> KeyValues<'a> {
         }
     }
 
-    /// Visit the key-value pairs with the provided visitor.
+    /// Visits every key-value pair in insertion order with `visitor`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first [`Error`] produced by `visitor` and stops further iteration.
     pub fn visit(&self, visitor: &mut dyn Visitor) -> Result<(), Error> {
         for (k, v) in self.iter() {
             visitor.visit(k, v)?;

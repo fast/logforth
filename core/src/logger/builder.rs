@@ -20,7 +20,7 @@ use crate::Logger;
 use crate::error::StderrErrorSink;
 use crate::logger::log_impl::Dispatch;
 
-/// Create a new empty [`LoggerBuilder`] instance for configuring log dispatching.
+/// Creates an empty [`LoggerBuilder`] for configuring log dispatch branches.
 ///
 /// # Examples
 ///
@@ -38,7 +38,8 @@ pub fn builder() -> LoggerBuilder {
     }
 }
 
-/// A builder for configuring log dispatching.
+/// A builder that assembles a [`Logger`] from ordered dispatch branches and a fallback
+/// [`ErrorSink`].
 ///
 /// # Examples
 ///
@@ -58,7 +59,9 @@ pub struct LoggerBuilder {
 }
 
 impl LoggerBuilder {
-    /// Register a new dispatch with the [`LoggerBuilder`].
+    /// Registers a dispatch branch configured by `f`.
+    ///
+    /// If `f` returns a [`DispatchBuilder`] with no appenders configured, the branch is skipped.
     ///
     /// # Examples
     ///
@@ -79,7 +82,7 @@ impl LoggerBuilder {
         self
     }
 
-    /// Configure the default [`ErrorSink`] used when dispatches fail to append or flush records.
+    /// Sets the fallback [`ErrorSink`] used when a dispatch fails to append or flush records.
     ///
     /// Defaults to [`StderrErrorSink`]. Individual dispatches may override this via
     /// [`DispatchBuilder::error_sink`].
@@ -100,7 +103,10 @@ impl LoggerBuilder {
         self
     }
 
-    /// Build the [`Logger`].
+    /// Builds the [`Logger`].
+    ///
+    /// If no dispatch branch with at least one appender was registered, returns an allocation-free
+    /// no-op logger equivalent to [`Logger::noop`].
     ///
     /// # Examples
     ///
@@ -118,10 +124,11 @@ impl LoggerBuilder {
     }
 }
 
-/// A builder for configuring a log dispatch branch, including filters, diagnostics, and appenders.
+/// A builder for a single dispatch branch within a [`Logger`].
 ///
 /// Configured filters, diagnostics, and any [`error_sink`](Self::error_sink) override apply to the
-/// entire dispatch branch across all of its appenders regardless of method call order. A branch
+/// entire branch across all of its appenders regardless of method call order, while multiple
+/// filters, diagnostics, or appenders preserve their respective registration order. A branch
 /// configured with no appenders is skipped when registered on [`LoggerBuilder`].
 ///
 /// # Examples
@@ -156,7 +163,7 @@ impl DispatchBuilder {
         }
     }
 
-    /// Add a filter to this dispatch.
+    /// Appends a [`Filter`] to this dispatch's filter chain.
     ///
     /// # Examples
     ///
@@ -177,7 +184,7 @@ impl DispatchBuilder {
         self
     }
 
-    /// Add a diagnostic to this dispatch.
+    /// Appends a [`Diagnostic`] context source to this dispatch.
     ///
     /// # Examples
     ///
@@ -200,9 +207,10 @@ impl DispatchBuilder {
         self
     }
 
-    /// Configure an [`ErrorSink`] specific to this dispatch.
+    /// Overrides the [`ErrorSink`] used when appenders in this dispatch fail.
     ///
-    /// When unset, errors from this dispatch fall back to the [`Logger`]'s [`ErrorSink`].
+    /// Calling this method multiple times replaces any previously configured branch override. When
+    /// unset, errors from this dispatch fall back to [`LoggerBuilder::error_sink`].
     ///
     /// # Examples
     ///
@@ -222,7 +230,7 @@ impl DispatchBuilder {
         self
     }
 
-    /// Add an appender to this dispatch.
+    /// Appends an [`Append`] sink to receive records accepted by this dispatch.
     ///
     /// # Examples
     ///

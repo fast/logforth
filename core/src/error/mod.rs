@@ -13,6 +13,10 @@
 // limitations under the License.
 
 //! Error types and sinks for internal runtime errors produced by the logging pipeline.
+//!
+//! [`Error`] boxes its internal state so `Result<(), Error>` occupies a single pointer word on hot
+//! formatting, visiting, and appending paths. Operational failures inside a [`Logger`](crate::Logger)
+//! are wrapped with stage context and delivered to the configured [`ErrorSink`].
 
 use std::borrow::Cow;
 use std::error::Error as _;
@@ -27,7 +31,11 @@ pub use self::sink::ErrorSink;
 mod stderr;
 pub use self::stderr::StderrErrorSink;
 
-/// An error returned or reported by Logforth components.
+/// A single-word error returned or reported by Logforth components.
+///
+/// Formatting with `{}` writes [`Error::message`] alone; alternate formatting `{:#}` appends the
+/// causal chain separated by `: `. Formatting with `{:?}` renders a multi-line `Caused by:` report,
+/// while `{:#?}` renders the underlying debug structure.
 pub struct Error {
     state: Box<ErrorState>,
 }
@@ -38,7 +46,7 @@ struct ErrorState {
 }
 
 impl Error {
-    /// Create a new [`Error`] with the given message.
+    /// Creates a new [`Error`] with `message` and no underlying causal source.
     pub fn new(message: impl Into<Cow<'static, str>>) -> Self {
         Self {
             state: Box::new(ErrorState {
@@ -48,12 +56,12 @@ impl Error {
         }
     }
 
-    /// Return the error message.
+    /// Returns this error's own message without causal sources.
     pub fn message(&self) -> &str {
         &self.state.message
     }
 
-    /// Attach or replace the underlying causal error.
+    /// Attaches `src` as the underlying causal error, replacing any previously attached source.
     pub fn with_source(
         mut self,
         src: impl Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
