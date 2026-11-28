@@ -27,6 +27,7 @@ release = false
 logforth-core = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
+fastrace = { workspace = true, features = ["enable"] }
 logforth = { workspace = true, features = [
   "append-async",
   "append-fastrace",
