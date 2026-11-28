@@ -1,13 +1,13 @@
-# Architecture and 1.0 Design
+# Architectural Design Guidelines
 
-This document defines the architectural model, public contracts, and target `1.0` design for `logforth-core` and its surrounding ecosystem crates. Runnable examples belong in [README.md](README.md) and crate-level API documentation.
+This document states the workspace-wide architectural direction, pipeline invariants, and cross-crate conventions for Logforth. Concrete type signatures, crate-specific behavior, and runnable examples live in each crate's API documentation (`//!` and `///`) and self-contained `<crate>/README.md` files; repository workflows and style conventions live in [AGENTS.md](AGENTS.md).
 
 ## Scope and Crate Versioning
 
-- `logforth-core` carries zero mandatory third-party dependencies. Stabilizing `logforth-core 1.0` establishes a stable contract for `Logger`, `Record`, `kv`, and the five core extension traits without coupling SemVer stability to external SDKs.
-- The `logforth` umbrella facade and peripheral appenders, layouts, filters, diagnostics, and ecosystem bridges evolve on independent `0.x` tracks so external dependencies such as `opentelemetry`, `jiff`, `fastrace`, and `log` can upgrade at their own pace.
+- `logforth-core` carries zero mandatory third-party dependencies so stabilizing `logforth-core 1.0` freezes the core pipeline, structured event model, and extension traits without coupling SemVer stability to external SDKs.
+- The `logforth` umbrella facade and peripheral appenders, layouts, filters, diagnostics, and ecosystem bridges evolve on independent `0.x` tracks so external integrations (`opentelemetry`, `jiff`, `fastrace`, `log`, and system daemons) can upgrade at their own pace.
 
-## Pipeline Topology and Assembly
+## Pipeline Topology and Composition
 
 Logforth separates three concerns into distinct primitives:
 
@@ -17,93 +17,36 @@ Logforth separates three concerns into distinct primitives:
 | Channel (`Logger`)   | Which reliability, schema, and lifecycle stream owns it?  | Explicit `Logger` instances                                   |
 | Fan-out (`Dispatch`) | Which output slices and destinations receive this stream? | Ordered `Dispatch` branches inside a `Logger`                 |
 
-- `Logger` is a lightweight `Clone` handle over a shared immutable pipeline, with no global singleton in `logforth-core`. Applications expose process-wide channels through their own initialized statics or dependency injection, while libraries accepting an optional logger can default to a zero-allocation `const fn Logger::noop()`.
-- All five component traits (`Append`, `Layout`, `Filter`, `Diagnostic`, and `ErrorSink`) implement forwarding for `Arc<T>` and `&'static T` across all trait methods (with `Diagnostic` forwarding `&T` across any lifetime), allowing multiple dispatches or independent `Logger` instances to share stateful components directly as a directed acyclic graph; an `Append` or `ErrorSink` must never route back into its owning `Logger`.
-- Configuration placement follows each component's role in the pipeline. `LoggerBuilder::error_sink` sets the logger-wide failure fallback, and `DispatchBuilder::error_sink` optionally overrides it for a specific branch. Out-of-band executors such as `Async` manage an independent worker lifecycle and configure their own `ErrorSink`. `Filter` and `Diagnostic` are configured on `DispatchBuilder` because branches within a `Logger` exist to select distinct event subsets and context; branches that share a filter or diagnostic share it explicitly via `Arc`. A `DispatchBuilder` configures a single branch as a unit regardless of method call order, and branches configured with no appenders are skipped during `Logger` construction.
-
-For example, an application can isolate `audit` events on a dedicated `Logger` while its main diagnostic `Logger` fans out `Warn` records to standard error and `Debug` records to a shared `Arc<File>`.
-
-## Core Extension Traits
-
-Every long-lived pipeline extension point (`Filter`, `Layout`, `Append`, and `ErrorSink`) is an object-safe trait (`fmt::Debug + Send + Sync + 'static`) paired with concrete struct implementations rather than closed enums or ad-hoc function pointers. `Diagnostic` omits the `'static` supertrait bound so per-call and decorator contexts can borrow stack-resident data, while `Box<dyn Diagnostic>` enforces `'static` when registering diagnostics on a `Dispatch`:
-
-```rust
-pub trait Filter: fmt::Debug + Send + Sync + 'static {
-    fn filter_level(&self, level: Level) -> FilterResult;
-    fn filter(&self, record: &Record, diags: &dyn Diagnostic) -> FilterResult;
-}
-
-pub trait Diagnostic: fmt::Debug + Send + Sync {
-    fn visit(&self, visitor: &mut dyn kv::Visitor) -> Result<(), Error>;
-}
-
-pub trait Layout: fmt::Debug + Send + Sync + 'static {
-    fn format(&self, record: &Record, diags: &dyn Diagnostic, buf: &mut Vec<u8>) -> Result<(), Error>;
-}
-
-pub trait Append: fmt::Debug + Send + Sync + 'static {
-    fn append(&self, record: &Record, diags: &dyn Diagnostic) -> Result<(), Error>;
-    fn flush(&self) -> Result<(), Error>;
-}
-
-pub trait ErrorSink: fmt::Debug + Send + Sync + 'static {
-    fn sink(&self, err: &Error);
-}
-```
-
-`Diagnostic` is composable: `&T` and `Arc<T>` forward references and shared ownership, while `()` (empty context), `Option<T>`, `[T]`, `[T; N]`, and `Vec<T>` (along with the matching `Box<dyn Diagnostic>` containers) compose optional and sequential sources. Callers pass `&dyn Diagnostic` directly without wrapper enums or intermediate allocations, and decorating appenders or layouts can chain borrowed per-call context onto incoming `diags` as `&[diags, &extra]`.
-
-`Append` consumes structured `&Record` and `&dyn Diagnostic` directly so protocol-native sinks can encode typed fields without intermediate text serialization, whereas byte-stream sinks compose a `Layout` internally.
-
-`Layout::format` appends formatted bytes into a caller-supplied `&mut Vec<u8>` rather than allocating a new buffer per record. Implementations must only append to `buf` without modifying or removing prior bytes, callers reusing `buf` must discard partial output on `Err`, and record framing such as a trailing newline belongs to the owning `Append` rather than `Layout`.
+- `Logger` is a lightweight `Clone` handle over a shared immutable pipeline, with no ambient global singleton in `logforth-core`. Applications expose process-wide channels through explicit statics or dependency injection, while libraries accepting an optional logger default to a zero-allocation `Logger::noop()`.
+- All five extension points (`Filter`, `Diagnostic`, `Layout`, `Append`, and `ErrorSink`) are open object-safe traits paired with concrete types rather than closed enums or ad-hoc callbacks, forwarding shared references (`Arc<T>` and `&'static T`) so dispatches and loggers compose as a directed acyclic graph. `Diagnostic` omits a `'static` supertrait bound so decorators can chain stack-borrowed per-call context without allocation, enforcing `'static` only when registering long-lived diagnostics on a `Dispatch`.
+- `Append` consumes structured records and diagnostics directly so protocol-native sinks encode typed fields without intermediate text serialization, whereas byte-stream sinks compose a `Layout` internally. `Layout` appends formatted bytes into reusable caller-supplied buffers without modifying prior contents or adding record framing (such as trailing newlines, which belong to the owning `Append`).
+- Configuration placement follows pipeline role: `LoggerBuilder` sets the fallback `ErrorSink`, `DispatchBuilder` configures branch-wide filters, diagnostics, appenders, and optional `ErrorSink` overrides as a unit (skipping appender-less branches), and out-of-band executors manage their own worker `ErrorSink`.
 
 ## Filtering and Fast-Path Pruning
 
-- `Level` defines 24 exhaustive severity variants with `#[repr(u8)]` discriminants `1..=24` from `Trace` through `Fatal4`, aligned 1-to-1 with OpenTelemetry `SeverityNumber` while leaving 232 niche values for compact enum layout.
-- `FilterResult` models an ordered decision chain with three outcomes:
-  - `Reject` drops the record immediately from the current `Dispatch`.
-  - `Accept` short-circuits remaining filters in the current `Dispatch` and accepts the record immediately, supporting context-driven dynamic promotion ahead of baseline level thresholds.
-  - `Neutral` expresses no decision and passes control to the next filter; a `Dispatch` accepts the record if all filters finish `Neutral`.
-- Each `Filter` reports the most permissive outcome (`Accept > Neutral > Reject`) that `Filter::filter` may produce at each `Level` through `Filter::filter_level(level)`. When a `Logger` is built, each `Dispatch` evaluates its `Filter` chain across all 24 levels once and caches the accepted subset (including non-monotonic `LevelFilter` predicates) in a single-register internal bitmask.
-- `Logger::enabled(level)` tests the union of its dispatches' level masks in a single bitwise operation before a callsite constructs a `Record`, and `Logger::log` tests each branch's level mask before evaluating its `Filter` chain. Attaching a leading context-driven `Accept` filter enables the promoted levels on that branch, trading static level pruning for per-event context inspection while retaining downstream `LevelFilter` items to reject non-promoted records; runtime-mutable narrowing filters report `Neutral` from `Filter::filter_level` so dynamic updates take effect immediately.
-- `RustLogFilter` matches an explicit `"logforth.target"` key-value entry when present (preserving `RUST_LOG` target directives such as `my_app::db=warn` for bridged `log` records without colliding with user `"target"` fields) before falling back to `Record::module_path()`, and fails fast with `Err(Error)` on malformed directive specifications or non-UTF-8 environment variables.
+- Severity levels align 1-to-1 with the 24 OpenTelemetry severity numbers (`1..=24`), fitting in a compact `u8` with niche space and enabling single-register 24-bit level masks.
+- Filter chains evaluate a tri-state outcome in registration order: `Reject` drops the record from the current `Dispatch`, `Accept` short-circuits remaining filters to support context-driven dynamic promotion ahead of downstream thresholds, and `Neutral` passes control onward (accepting the record if all filters finish `Neutral`).
+- Each `Filter` reports its most permissive outcome per level (`Accept > Neutral > Reject`) at build time so `Dispatch` and `Logger` precompute static level bitmasks, pruning disabled callsites in a single bitwise test before `Record` construction while allowing runtime-mutable narrowing filters to return `Neutral` so dynamic updates take effect immediately.
 
-## Structured Key-Values and Diagnostics
+## Structured Key-Values, Diagnostics, and Macros
 
-- `Record<'a>` carries `time`, `level`, `module_path`, `file`, `line`, `column`, `payload`, and a zero-allocation `KeyValues<'a>` slice.
-- Synchronous paths borrow `Record<'a>`, `Key<'a>`, and `Value<'a>` on the caller stack, using `RefStr<'a>` to distinguish ephemeral `&'a str` borrows from zero-copy `&'static str` literals. Across asynchronous boundaries, `Record::to_owned()` promotes records into `'static + Send` `RecordOwned`, `KeyOwned`, and `ValueOwned` snapshots that workers re-project via `RecordOwned::with`.
-- `Value<'a>` is a `Copy + Send + Sync` borrowed carrier constructed via explicit constructors (`Value::str`, `Value::static_str`, `Value::bytes`, `Value::list`, `Value::map`, `Value::owned`, `Value::debug`, `Value::display`, and scalar constructors), while `kv::LogValue` (`fn log_value(&self) -> Value<'_>`) projects scalars (including `NonZero*`), strings, byte slices/arrays/`Vec<u8>`, `Option<T>`, `&T`, `Box<T>`, `Rc<T>`, `Arc<T>`, `Cow<B>`, `Value<'_>`, `ValueOwned`, and list/map containers without `From` conversions on `Value<'a>`; external and workspace types can implement `LogValue` directly. `ValueView<'a>` is a `Copy`, `#[non_exhaustive]` enum that unifies read-only projection across `Value<'a>` and `ValueOwned`, implementing `fmt::Display` so unhandled variants degrade cleanly to strings while `KeyView` and `ValueView` expose typed scalar, byte, container, and `'static` string accessors.
-- `ValueOwned` is `'static + Send + Sync` and stores `Cow<'static, str>`, `Box<[u8]>`, `Box<[ValueOwned]>`, and insertion-ordered `Box<[(KeyOwned, ValueOwned)]>` slices so synchronous and asynchronous paths preserve identical field ordering and duplicate-key semantics. On enabled callsites, nested structures that cannot be borrowed directly construct a temporary `ValueOwned` via custom constructors or the optional `serde` feature's `ValueOwned::from_serde` and `ValueOwned::try_from_serde`, then borrow into `KeyValues<'a>` through `Value::owned` or `LogValue`.
-- `StaticDiagnostic`, `ThreadLocalDiagnostic` with `!Send` RAII scope guards, and `TaskLocalDiagnostic` store `(KeyOwned, ValueOwned)`; nested `ThreadLocalDiagnostic::scope` and `FutureExt::with_task_local_context` scopes shadow outer entries for the same key and restore them when exited. `Diagnostic::visit` may run multiple times per record and must remain side-effect-free; when keys collide in map-based outputs, explicit `Record` key-values take precedence over `Diagnostic` entries.
+- Synchronous paths borrow records, keys, and values on the caller stack while preserving `'static` string provenance to avoid copies; across asynchronous boundaries, records promote into `'static + Send + Sync` owned snapshots that preserve field insertion order and last-entry-wins duplicate-key lookup semantics.
+- Native logging macros place bracketed `"key" = value` assignments ahead of `format_args!` as valid Rust expressions projected through `kv::LogValue`. Logger and level expressions evaluate once; enabled structured fields and format arguments evaluate at most once while borrowing non-`Copy` locals in place, and eager projection into `Send + Sync` borrowed values keeps enclosing `async` futures `Send` across `.await` points in macro arguments.
+- Diagnostic traversal may run multiple times per record and must remain side-effect-free. Scoped thread-local and task-local diagnostics shadow outer entries for the same key and restore them automatically when exiting the scope.
+- `Fatal` severities record event importance metadata only and neither flush buffers nor terminate the process.
 
 ## Error Handling and Operational Safety
 
-- `Error` boxes its `Cow<'static, str>` message and optional `Box<dyn StdError + Send + Sync + 'static>` cause so `Result<(), Error>` occupies a single word on hot `Visitor`, `Layout`, and `Append` return paths.
-- Logging pipelines must never `panic!` or `.unwrap()` on runtime operational failures such as out-of-range timestamps, broken pipes, closed descriptors, log rotation errors, or fallible protocol serialization; in-memory `Display` and `Debug` formatting follows the standard `core::fmt` contract. Leaf components return `Err(Error)` with operation-specific messages, `RollingFileWriter` writes the current record to the active file before surfacing any rollover or cleanup error, and `ErrorSink` implementations operate on a best-effort basis that silently absorbs internal delivery failures without panicking.
-- User `Display` and `Debug` formatting always runs on the caller thread outside appender I/O mutexes.
-- `ThreadLocalDiagnostic` and `TaskLocalDiagnostic` access thread-local storage exclusively via `LocalKey::try_with` so logging from TLS destructors during thread teardown degrades to empty context instead of aborting.
-- `Async` workers isolate per-record dispatch with `catch_unwind`, report panics via `ErrorSink`, and avoid `.expect()` when joining worker threads in `Drop`. Because Rust does not run destructors on `static` items at process exit, global bridges require an explicit `flush()` before shutdown.
+- `Error` boxes its message and causal source chain so `Result<(), Error>` occupies a single pointer word on hot formatting, visiting, and appending paths.
+- Logging pipelines must never panic on runtime operational failures such as out-of-range timestamps, broken pipes, closed descriptors, log rotation or retention errors, or fallible wire serialization. Leaf components return structured `Error`s (committing active record writes before surfacing post-write rollover or cleanup errors), execution roots and asynchronous workers isolate failures and panics via `ErrorSink`, and `ErrorSink` implementations silently absorb their own delivery failures without panicking or routing records back into their owning `Logger`.
+- User `Display` and `Debug` formatting and value destruction execute outside appender I/O locks.
+- Thread-local and task-local diagnostics access thread-local storage exclusively via fallible lookups (`LocalKey::try_with`) so logging during thread teardown degrades to an empty context instead of aborting.
+- Because Rust does not run destructors on `static` items at process exit, buffered and asynchronous pipelines require an explicit `flush()` before shutdown.
 
-## Native Logging Macros
+## Ecosystem Interop
 
-```rust
-logforth::info!(logger, "listening on {}", addr);
-logforth::info!(logger, ["port" = port, "tls" = true], "server started");
-logforth::info!(logger, ["jobs.completed" = count, "error" = Value::debug(&err)]);
-```
-
-- Structured fields precede the format string using bracketed `"key" = value` assignment expressions with string literal keys and plain Rust value expressions implementing `kv::LogValue` rather than sigils or implicit field shorthands. Every macro argument is a valid Rust `ast::Expr` so `rustfmt` formats the entire invocation without colliding with `format_args!` named parameters.
-- `$logger` and `$level` evaluate once. When `logger.enabled(level)` succeeds, structured fields expand as a flat slice `&[(Key::new(key), __private::capture_val(&(value))), ...]` passed alongside `format_args!(...)` directly into `__private_log`; value and format-argument expressions evaluate at most once, temporaries stay alive across the `__private_log` call without moving non-`Copy` locals, and because `Value<'_>` is `Send + Sync` (projected eagerly from `&T` via `LogValue::log_value`), enclosing `async` futures remain `Send` across `.await` points in log arguments as long as argument temporaries held across `.await` are `Send`.
-- String literal keys expand to `Key::new` with `'static` provenance (while string values captured via `LogValue` borrow as `&str` unless wrapped in `Value::static_str`), and record construction delegates to a non-generic `__private_log` helper backed by a `static` callsite location descriptor. `Level::Fatal` records severity metadata only and neither flushes nor terminates the process.
-
-## Ecosystem Interop and Bridges
-
-`logforth-bridge-log` adapts the `log` crate into a `Logger` so applications can adopt native `Logger` pipelines while continuing to collect logs from ecosystem dependencies:
-
-- `LogBridge` implements `log::Log`, forwarding structured key-values and updating `log::set_max_level` from `Logger::enabled` on global installation.
-- `LogBridge` populates `Record::module_path` from the event's module path and emits a `"logforth.target"` key-value entry only when the upstream caller explicitly overrode `target` to differ from `module_path`.
-- `LogBridge::enabled` delegates to `Logger::enabled` on the mapped severity level as a conservative, false-negative-free pre-check for `log::log_enabled!`; per-prefix filtering executes inside each `Dispatch` when `Log::log` forwards the record.
-- Libraries seeking ambient global logging emit via `log` directly, whereas libraries adopting `logforth` natively accept an injected `Logger` defaulting to `Logger::noop()`.
+- Ecosystem bridges (such as `logforth-bridge-log` for the `log` facade) adapt external logging facades onto an explicit `Logger`, using `Logger::enabled` as a conservative, false-negative-free pre-check and deferring prefix or context filtering to each `Dispatch`.
+- Libraries seeking ambient global logging emit via ecosystem facades directly, whereas libraries adopting Logforth natively accept an injected `Logger` defaulting to `Logger::noop()`.
 
 ## Appendix: Key-Value Naming Conventions
 
@@ -129,4 +72,4 @@ logforth::info!(logger, ["jobs.completed" = count, "error" = Value::debug(&err)]
 ### Precedence and Flat-Format Envelope Fields
 
 - When `Record::key_values()` and `Diagnostic` emit the same key, map-based outputs give precedence to explicit `Record` key-values over `Diagnostic` entries.
-- Nested layouts such as `JsonLayout` isolate structured entries under `kvs` and `diags`, whereas flat layouts and protocol sinks (`LogfmtLayout`, `GoogleCloudLoggingLayout`, `OpentelemetryLog`, `FastraceEvent`, and `Journald`) emit record metadata and key-values in a single flat namespace; avoid reusing envelope field names such as `timestamp`, `level`, `severity`, `message`, `module`, or `module_path` when targeting flat sinks.
+- Nested layouts isolate structured entries under dedicated sub-objects (`kvs` and `diags`), whereas flat layouts and protocol sinks emit record metadata and key-values in a single flat namespace; avoid reusing envelope field names such as `timestamp`, `level`, `severity`, `message`, `module`, or `module_path` when targeting flat sinks.
