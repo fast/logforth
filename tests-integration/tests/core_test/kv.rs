@@ -100,7 +100,9 @@ fn log_value_and_value_owned_project_scalars_containers_and_wrappers() {
     assert_eq!(rc_str.log_value().view().to_str(), Some("rc"));
     assert_eq!(arc_str.log_value().view().to_str(), Some("arc"));
     assert_eq!(cow_str.log_value().view().to_str(), Some("cow"));
-    assert!(matches!(None::<u64>.log_value().view(), ValueView::None));
+    assert!(None::<u64>.log_value().view().is_none());
+    assert!(!Some(0_u64).log_value().view().is_none());
+    assert!(!"".log_value().view().is_none());
     assert_eq!(None::<u64>.log_value().view().to_string(), "<none>");
 
     let bytes_view = box_bytes.log_value();
@@ -124,6 +126,163 @@ fn log_value_and_value_owned_project_scalars_containers_and_wrappers() {
     let items: Vec<_> = list_view.iter().collect();
     assert_eq!(items[0].to_i64(), Some(1));
     assert_eq!(items[1].to_static_str(), Some("two"));
+}
+
+#[test]
+fn value_view_integer_accessors_convert_losslessly_and_reject_out_of_range_values() {
+    const {
+        assert!(ValueView::None.is_none());
+        assert!(matches!(ValueView::I64(8080).to_u64(), Some(8080)));
+        assert!(matches!(ValueView::U64(8080).to_i64(), Some(8080)));
+        assert!(matches!(ValueView::I64(8080).to_u128(), Some(8080)));
+        assert!(matches!(ValueView::U128(8080).to_i128(), Some(8080)));
+    }
+
+    type Expected = (Option<i64>, Option<u64>, Option<i128>, Option<u128>);
+    let i64_max_u64 = i64::MAX as u64;
+    let i64_max_i128 = i128::from(i64::MAX);
+    let i64_max_u128 = i64::MAX as u128;
+    let i64_min_i128 = i128::from(i64::MIN);
+    let u64_max_i128 = i128::from(u64::MAX);
+    let u64_max_u128 = u128::from(u64::MAX);
+    let i128_max_u128 = i128::MAX as u128;
+
+    let cases: &[(ValueView<'_>, Expected)] = &[
+        // `I64` boundaries
+        (
+            ValueView::I64(i64::MIN),
+            (Some(i64::MIN), None, Some(i64_min_i128), None),
+        ),
+        (ValueView::I64(-1), (Some(-1), None, Some(-1), None)),
+        (ValueView::I64(0), (Some(0), Some(0), Some(0), Some(0))),
+        (
+            ValueView::I64(i64::MAX),
+            (
+                Some(i64::MAX),
+                Some(i64_max_u64),
+                Some(i64_max_i128),
+                Some(i64_max_u128),
+            ),
+        ),
+        // `U64` boundaries
+        (
+            ValueView::U64(i64_max_u64),
+            (
+                Some(i64::MAX),
+                Some(i64_max_u64),
+                Some(i64_max_i128),
+                Some(i64_max_u128),
+            ),
+        ),
+        (
+            ValueView::U64(i64_max_u64 + 1),
+            (
+                None,
+                Some(i64_max_u64 + 1),
+                Some(i64_max_i128 + 1),
+                Some(i64_max_u128 + 1),
+            ),
+        ),
+        (
+            ValueView::U64(u64::MAX),
+            (None, Some(u64::MAX), Some(u64_max_i128), Some(u64_max_u128)),
+        ),
+        // `I128` boundaries
+        (
+            ValueView::I128(i128::MIN),
+            (None, None, Some(i128::MIN), None),
+        ),
+        (
+            ValueView::I128(i64_min_i128 - 1),
+            (None, None, Some(i64_min_i128 - 1), None),
+        ),
+        (
+            ValueView::I128(i64_min_i128),
+            (Some(i64::MIN), None, Some(i64_min_i128), None),
+        ),
+        (
+            ValueView::I128(i64_max_i128),
+            (
+                Some(i64::MAX),
+                Some(i64_max_u64),
+                Some(i64_max_i128),
+                Some(i64_max_u128),
+            ),
+        ),
+        (
+            ValueView::I128(i64_max_i128 + 1),
+            (
+                None,
+                Some(i64_max_u64 + 1),
+                Some(i64_max_i128 + 1),
+                Some(i64_max_u128 + 1),
+            ),
+        ),
+        (
+            ValueView::I128(u64_max_i128),
+            (None, Some(u64::MAX), Some(u64_max_i128), Some(u64_max_u128)),
+        ),
+        (
+            ValueView::I128(u64_max_i128 + 1),
+            (None, None, Some(u64_max_i128 + 1), Some(u64_max_u128 + 1)),
+        ),
+        (
+            ValueView::I128(i128::MAX),
+            (None, None, Some(i128::MAX), Some(i128_max_u128)),
+        ),
+        // `U128` boundaries
+        (
+            ValueView::U128(i64_max_u128),
+            (
+                Some(i64::MAX),
+                Some(i64_max_u64),
+                Some(i64_max_i128),
+                Some(i64_max_u128),
+            ),
+        ),
+        (
+            ValueView::U128(i64_max_u128 + 1),
+            (
+                None,
+                Some(i64_max_u64 + 1),
+                Some(i64_max_i128 + 1),
+                Some(i64_max_u128 + 1),
+            ),
+        ),
+        (
+            ValueView::U128(u64_max_u128),
+            (None, Some(u64::MAX), Some(u64_max_i128), Some(u64_max_u128)),
+        ),
+        (
+            ValueView::U128(u64_max_u128 + 1),
+            (None, None, Some(u64_max_i128 + 1), Some(u64_max_u128 + 1)),
+        ),
+        (
+            ValueView::U128(i128_max_u128),
+            (None, None, Some(i128::MAX), Some(i128_max_u128)),
+        ),
+        (
+            ValueView::U128(i128_max_u128 + 1),
+            (None, None, None, Some(i128_max_u128 + 1)),
+        ),
+        (
+            ValueView::U128(u128::MAX),
+            (None, None, None, Some(u128::MAX)),
+        ),
+        // Non-integer variants are never coerced.
+        (ValueView::F64(42.0), (None, None, None, None)),
+        (ValueView::StaticStr("42"), (None, None, None, None)),
+        (ValueView::Bool(true), (None, None, None, None)),
+        (ValueView::None, (None, None, None, None)),
+    ];
+
+    for &(view, expected) in cases {
+        let actual = (view.to_i64(), view.to_u64(), view.to_i128(), view.to_u128());
+        assert_eq!(actual, expected, "mismatch for view {view}");
+    }
+    // `to_f64` remains strictly `ValueView::F64` without lossy integer coercion.
+    assert_eq!(ValueView::I64(42).to_f64(), None);
+    assert_eq!(ValueView::U64(42).to_f64(), None);
 }
 
 #[test]

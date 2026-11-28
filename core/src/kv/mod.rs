@@ -1058,7 +1058,12 @@ impl ValueView<'_> {
 }
 
 impl<'a> ValueView<'a> {
-    /// Try to convert this view into a boolean.
+    /// Returns `true` if this view is [`ValueView::None`].
+    pub const fn is_none(&self) -> bool {
+        matches!(self, ValueView::None)
+    }
+
+    /// Returns this view as a `bool` if it is [`ValueView::Bool`].
     pub const fn to_bool(&self) -> Option<bool> {
         if let ValueView::Bool(b) = self {
             Some(*b)
@@ -1067,25 +1072,31 @@ impl<'a> ValueView<'a> {
         }
     }
 
-    /// Try to convert this view into a signed 64-bit integer.
+    /// Returns this view as an `i64` if it is an integer within `i64::MIN..=i64::MAX`.
     pub const fn to_i64(&self) -> Option<i64> {
-        if let ValueView::I64(i) = self {
-            Some(*i)
-        } else {
-            None
+        match *self {
+            ValueView::I64(i) => Some(i),
+            ValueView::U64(u) if u <= i64::MAX as u64 => Some(u as i64),
+            ValueView::I128(i) if i >= i64::MIN as i128 && i <= i64::MAX as i128 => Some(i as i64),
+            ValueView::U128(u) if u <= i64::MAX as u128 => Some(u as i64),
+            _ => None,
         }
     }
 
-    /// Try to convert this view into an unsigned 64-bit integer.
+    /// Returns this view as a `u64` if it is a non-negative integer within `0..=u64::MAX`.
     pub const fn to_u64(&self) -> Option<u64> {
-        if let ValueView::U64(u) = self {
-            Some(*u)
-        } else {
-            None
+        match *self {
+            ValueView::U64(u) => Some(u),
+            ValueView::I64(i) if i >= 0 => Some(i as u64),
+            ValueView::I128(i) if i >= 0 && i <= u64::MAX as i128 => Some(i as u64),
+            ValueView::U128(u) if u <= u64::MAX as u128 => Some(u as u64),
+            _ => None,
         }
     }
 
-    /// Try to convert this view into a 64-bit floating point number.
+    /// Returns this view as an `f64` if it is [`ValueView::F64`].
+    ///
+    /// Integer variants are not coerced to `f64`.
     pub const fn to_f64(&self) -> Option<f64> {
         if let ValueView::F64(f) = self {
             Some(*f)
@@ -1094,25 +1105,29 @@ impl<'a> ValueView<'a> {
         }
     }
 
-    /// Try to convert this view into a signed 128-bit integer.
+    /// Returns this view as an `i128` if it is an integer within `i128::MIN..=i128::MAX`.
     pub const fn to_i128(&self) -> Option<i128> {
-        if let ValueView::I128(i) = self {
-            Some(*i)
-        } else {
-            None
+        match *self {
+            ValueView::I128(i) => Some(i),
+            ValueView::I64(i) => Some(i as i128),
+            ValueView::U64(u) => Some(u as i128),
+            ValueView::U128(u) if u <= i128::MAX as u128 => Some(u as i128),
+            _ => None,
         }
     }
 
-    /// Try to convert this view into an unsigned 128-bit integer.
+    /// Returns this view as a `u128` if it is a non-negative integer within `0..=u128::MAX`.
     pub const fn to_u128(&self) -> Option<u128> {
-        if let ValueView::U128(u) = self {
-            Some(*u)
-        } else {
-            None
+        match *self {
+            ValueView::U128(u) => Some(u),
+            ValueView::U64(u) => Some(u as u128),
+            ValueView::I64(i) if i >= 0 => Some(i as u128),
+            ValueView::I128(i) if i >= 0 => Some(i as u128),
+            _ => None,
         }
     }
 
-    /// Try to convert this view into a Unicode scalar value.
+    /// Returns this view as a `char` if it is [`ValueView::Char`].
     pub const fn to_char(&self) -> Option<char> {
         if let ValueView::Char(c) = self {
             Some(*c)
@@ -1121,7 +1136,8 @@ impl<'a> ValueView<'a> {
         }
     }
 
-    /// Try to convert this view into a string slice.
+    /// Returns this view as a string slice if it is [`ValueView::BorrowedStr`] or
+    /// [`ValueView::StaticStr`].
     pub const fn to_str(&self) -> Option<&'a str> {
         if let ValueView::BorrowedStr(s) = self {
             Some(*s)
@@ -1132,7 +1148,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
-    /// Try to convert this view into a static string slice.
+    /// Returns this view as a `'static` string slice if it is [`ValueView::StaticStr`].
     pub const fn to_static_str(&self) -> Option<&'static str> {
         if let ValueView::StaticStr(s) = self {
             Some(*s)
@@ -1141,7 +1157,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
-    /// Try to convert this view into a byte slice.
+    /// Returns this view as a byte slice if it is [`ValueView::Bytes`].
     pub const fn to_bytes(&self) -> Option<&'a [u8]> {
         if let ValueView::Bytes(b) = self {
             Some(*b)
@@ -1150,7 +1166,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
-    /// Try to convert this view into a display-formatted value.
+    /// Returns this view as a [`DisplayValue`] if it is [`ValueView::Display`].
     pub const fn to_display(&self) -> Option<DisplayValue<'a>> {
         if let ValueView::Display(d) = self {
             Some(*d)
@@ -1159,7 +1175,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
-    /// Try to convert this view into a list value.
+    /// Returns this view as a [`ListValue`] if it is [`ValueView::List`].
     pub const fn to_list(&self) -> Option<ListValue<'a>> {
         if let ValueView::List(l) = self {
             Some(*l)
@@ -1168,7 +1184,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
-    /// Try to convert this view into a map value.
+    /// Returns this view as a [`MapValue`] if it is [`ValueView::Map`].
     pub const fn to_map(&self) -> Option<MapValue<'a>> {
         if let ValueView::Map(m) = self {
             Some(*m)
@@ -1177,7 +1193,7 @@ impl<'a> ValueView<'a> {
         }
     }
 
-    /// Try to convert this view into a debug-formatted value.
+    /// Returns this view as a [`DebugValue`] if it is [`ValueView::Debug`].
     pub const fn to_debug(&self) -> Option<DebugValue<'a>> {
         if let ValueView::Debug(d) = self {
             Some(*d)
