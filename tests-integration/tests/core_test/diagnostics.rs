@@ -151,6 +151,18 @@ fn composite_diagnostics_visit_in_order_chain_non_static_borrows_and_short_circu
     let boxed_vec = Vec::from(boxed_array);
     assert_eq!(collect_diagnostics(&boxed_vec).unwrap().len(), 2);
 
+    // Boxed diagnostic containers also accept non-`'static` stack-borrowed trait objects.
+    let dynamic_key = String::from("scoped_box");
+    let dynamic_val = String::from("local");
+    let borrowed_boxes: Vec<Box<dyn Diagnostic + '_>> = vec![Box::new(ScopedDiag {
+        key: &dynamic_key,
+        value: &dynamic_val,
+    })];
+    assert_eq!(
+        collect_diagnostics(&borrowed_boxes).unwrap(),
+        [("scoped_box".to_owned(), "local".to_owned())]
+    );
+
     // Decorator chains stack-borrowed non-'static diagnostics onto dispatch diagnostics.
     let sink = RecordingAppender::default();
     let logger = builder()

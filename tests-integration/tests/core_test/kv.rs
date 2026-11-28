@@ -23,6 +23,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use logforth_core::Error;
+use logforth_core::kv::DebugValue;
+use logforth_core::kv::DisplayValue;
 use logforth_core::kv::Key;
 use logforth_core::kv::KeyOwned;
 use logforth_core::kv::KeyValues;
@@ -40,6 +42,9 @@ fn keys_preserve_static_provenance_and_satisfy_borrow_str_equivalence() {
     let dynamic_raw = String::from("service.name");
     let borrowed_key = Key::borrowed(&dynamic_raw);
 
+    assert_eq!(static_key.as_str(), "service.name");
+    assert_eq!(static_key.as_ref(), "service.name");
+    assert_eq!(borrowed_key.view().as_ref(), "service.name");
     assert_eq!(static_key, borrowed_key);
     assert_eq!(static_key.view(), borrowed_key.view());
     assert_eq!(static_key.view().to_static_str(), Some("service.name"));
@@ -54,8 +59,19 @@ fn keys_preserve_static_provenance_and_satisfy_borrow_str_equivalence() {
     let owned_from_static = KeyOwned::from("service.name");
     let owned_from_string = KeyOwned::from(dynamic_raw.clone());
     let owned_from_cow = KeyOwned::from(Cow::Borrowed("service.name"));
+    let owned_from_key = KeyOwned::from(static_key);
+    let owned_from_view = KeyOwned::from(borrowed_key.view());
+    assert_eq!(owned_from_static.as_str(), "service.name");
+    assert_eq!(owned_from_static.as_ref(), "service.name");
     assert_eq!(owned_from_static, owned_from_string);
     assert_eq!(owned_from_static, owned_from_cow);
+    assert_eq!(owned_from_static, owned_from_key);
+    assert_eq!(owned_from_static, owned_from_view);
+    assert_eq!(
+        static_key.to_owned().view().to_static_str(),
+        Some("service.name")
+    );
+    assert_eq!(owned_from_view.view().to_static_str(), None);
     assert_eq!(
         owned_from_static.view().to_static_str(),
         Some("service.name")
@@ -117,13 +133,24 @@ fn log_value_and_value_owned_project_scalars_containers_and_wrappers() {
 
     // ValueOwned From conversions and container round-trips.
     let owned_none: ValueOwned = Option::<i32>::None.into();
-    assert!(matches!(owned_none.view(), ValueView::None));
+    assert!(owned_none.view().is_none());
+    assert_eq!(ValueOwned::from(nz_i16).view().to_i64(), Some(-12));
+    assert_eq!(ValueOwned::from(nz_u32).view().to_u64(), Some(8080));
+    assert_eq!(
+        ValueOwned::from(nz_i128).view().to_i128(),
+        Some(i128::MIN + 1)
+    );
+    assert_eq!(ValueOwned::from(nz_u128).view().to_u128(), Some(u128::MAX));
 
-    let owned_list = ValueOwned::list([ValueOwned::from(1_i32), ValueOwned::from("two")]);
-    let list_view = owned_list.log_value().view().to_list().unwrap();
+    let owned_list = ValueOwned::list([
+        ValueOwned::from(Value::i64(1)),
+        ValueOwned::from(Value::static_str("two").view()),
+    ]);
+    let borrowed_owned = Value::owned(&owned_list).to_owned();
+    let list_view = borrowed_owned.log_value().view().to_list().unwrap();
     assert_eq!(list_view.len(), 2);
     assert!(!list_view.is_empty());
-    let items: Vec<_> = list_view.iter().collect();
+    let items: Vec<_> = list_view.into_iter().collect();
     assert_eq!(items[0].to_i64(), Some(1));
     assert_eq!(items[1].to_static_str(), Some("two"));
 }
@@ -349,11 +376,16 @@ fn duplicate_keys_preserve_insertion_order_and_resolve_get_with_last_entry_wins(
         assert_eq!(kvs.len(), 3);
         assert!(!kvs.is_empty());
 
-        let visited_keys: Vec<_> = kvs.iter().map(|(key, _)| key.as_str().to_owned()).collect();
+        let visited_keys: Vec<_> = kvs
+            .into_iter()
+            .map(|(key, _)| key.as_str().to_owned())
+            .collect();
         assert_eq!(visited_keys, ["dup", "other", "dup"]);
 
         let inner_map = kvs.get("dup").unwrap().to_map().unwrap();
         assert_eq!(inner_map.len(), 3);
+        let inner_keys: Vec<_> = (&inner_map).into_iter().map(|(k, _)| k.as_str()).collect();
+        assert_eq!(inner_keys, ["dup", "other", "dup"]);
         assert_eq!(inner_map.get("dup").unwrap().to_i64(), Some(2));
         assert_eq!(inner_map.get("other").unwrap().to_str(), Some("keep"));
         assert!(inner_map.get("missing").is_none());
@@ -495,7 +527,7 @@ fn serde_captures_structured_trees_and_degrades_gracefully_on_failure() {
     let numeric_map = root.get("numeric_map").unwrap().to_map().unwrap();
     assert_eq!(numeric_map.get("200").unwrap().to_str(), Some("ok"));
 
-    // Round-trip `ValueOwned` back through `serde::Serialize` via `ValueOwned::try_from_serde`.
+    // Round-trip `ValueOwned`, `KeyValues`, `DebugValue`, and `DisplayValue` through `Serialize`.
     let reserialized = ValueOwned::try_from_serde(&owned).unwrap();
     assert_eq!(
         reserialized
@@ -506,6 +538,29 @@ fn serde_captures_structured_trees_and_degrades_gracefully_on_failure() {
             .unwrap()
             .to_u128(),
         Some(u128::MAX)
+    );
+    let fmt_entries = [
+        (Key::new("dbg"), Value::debug(&42_u32)),
+        (Key::new("disp"), Value::display(&"plain")),
+    ];
+    let serialized_kvs =
+        ValueOwned::try_from_serde(&KeyValues::from(fmt_entries.as_slice())).unwrap();
+    let kvs_map = serialized_kvs.view().to_map().unwrap();
+    assert_eq!(kvs_map.get("dbg").unwrap().to_str(), Some("42"));
+    assert_eq!(kvs_map.get("disp").unwrap().to_str(), Some("plain"));
+    assert_eq!(
+        ValueOwned::try_from_serde(&DebugValue::new(&7_u8))
+            .unwrap()
+            .view()
+            .to_str(),
+        Some("7")
+    );
+    assert_eq!(
+        ValueOwned::try_from_serde(&DisplayValue::new(&"ok"))
+            .unwrap()
+            .view()
+            .to_str(),
+        Some("ok")
     );
 
     // Fallible `Serialize` implementations return `Err` or a non-panicking placeholder string.

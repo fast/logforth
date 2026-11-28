@@ -82,7 +82,13 @@ impl serde::Serialize for Key<'_> {
 
 impl Borrow<str> for Key<'_> {
     fn borrow(&self) -> &str {
-        &self.0
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for Key<'_> {
+    fn as_ref(&self) -> &str {
+        self.as_str()
     }
 }
 
@@ -101,9 +107,20 @@ impl<'a> Key<'a> {
         Key(RefStr::Borrowed(k))
     }
 
+    /// Returns the underlying key string slice.
+    pub const fn as_str(&self) -> &'a str {
+        self.0.get()
+    }
+
     /// Returns a read-only [`KeyView`] of this key.
     pub const fn view(&self) -> KeyView<'a> {
         KeyView(self.0)
+    }
+
+    /// Converts this borrowed key into an owned [`KeyOwned`], preserving `'static` provenance when
+    /// available.
+    pub fn to_owned(&self) -> KeyOwned {
+        self.view().to_owned()
     }
 }
 
@@ -125,9 +142,27 @@ impl_key_owned_from!(&'static str);
 impl_key_owned_from!(String);
 impl_key_owned_from!(Cow<'static, str>);
 
+impl From<Key<'_>> for KeyOwned {
+    fn from(k: Key<'_>) -> Self {
+        k.to_owned()
+    }
+}
+
+impl From<KeyView<'_>> for KeyOwned {
+    fn from(k: KeyView<'_>) -> Self {
+        k.to_owned()
+    }
+}
+
 impl Borrow<str> for KeyOwned {
     fn borrow(&self) -> &str {
-        &self.0
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for KeyOwned {
+    fn as_ref(&self) -> &str {
+        self.as_str()
     }
 }
 
@@ -150,6 +185,11 @@ impl KeyOwned {
         KeyOwned(k.into())
     }
 
+    /// Returns the underlying key string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
     /// Returns a read-only [`KeyView`] of this owned key.
     pub fn view(&self) -> KeyView<'_> {
         KeyView(match &self.0 {
@@ -165,7 +205,13 @@ pub struct KeyView<'a>(RefStr<'a>);
 
 impl Borrow<str> for KeyView<'_> {
     fn borrow(&self) -> &str {
-        &self.0
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for KeyView<'_> {
+    fn as_ref(&self) -> &str {
+        self.as_str()
     }
 }
 
@@ -227,6 +273,13 @@ impl fmt::Display for DebugValue<'_> {
     }
 }
 
+#[cfg(feature = "serde")]
+impl serde::Serialize for DebugValue<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
+    }
+}
+
 /// A value captured through its [`fmt::Display`] representation.
 #[derive(Clone, Copy)]
 pub struct DisplayValue<'a>(&'a dyn fmt::Display);
@@ -247,6 +300,13 @@ impl fmt::Debug for DisplayValue<'_> {
 impl fmt::Display for DisplayValue<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for DisplayValue<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
     }
 }
 
@@ -310,6 +370,24 @@ impl<'a> ListValue<'a> {
             ListValueState::Borrowed(v) => ListValueIter(ListValueIterState::Borrowed(v.iter())),
             ListValueState::Owned(v) => ListValueIter(ListValueIterState::Owned(v.iter())),
         }
+    }
+}
+
+impl<'a> IntoIterator for ListValue<'a> {
+    type Item = ValueView<'a>;
+    type IntoIter = ListValueIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for &ListValue<'a> {
+    type Item = ValueView<'a>;
+    type IntoIter = ListValueIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -411,6 +489,24 @@ impl<'a> MapValue<'a> {
                 .rev()
                 .find_map(|(k, v)| (k.view().as_str() == key).then(|| v.view())),
         }
+    }
+}
+
+impl<'a> IntoIterator for MapValue<'a> {
+    type Item = (KeyView<'a>, ValueView<'a>);
+    type IntoIter = MapValueIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for &MapValue<'a> {
+    type Item = (KeyView<'a>, ValueView<'a>);
+    type IntoIter = MapValueIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -522,6 +618,14 @@ impl<'a> Value<'a> {
             ValueState::Owned(o) => o.view(),
             ValueState::Debug(d) => ValueView::Debug(DebugValue(d)),
             ValueState::Display(d) => ValueView::Display(DisplayValue(d)),
+        }
+    }
+
+    /// Converts this borrowed value into an owned [`ValueOwned`].
+    pub fn to_owned(&self) -> ValueOwned {
+        match self.0 {
+            ValueState::Owned(o) => o.clone(),
+            _ => self.view().to_owned(),
         }
     }
 
@@ -825,11 +929,35 @@ impl_value_owned_from!(u128, |v| Self::u128(v));
 impl_value_owned_from!(usize, |v| Self::u64(v as u64));
 impl_value_owned_from!(f32, |v| Self::f64(f64::from(v)));
 impl_value_owned_from!(f64, |v| Self::f64(v));
+impl_value_owned_from!(std::num::NonZeroI8, |v| Self::i64(i64::from(v.get())));
+impl_value_owned_from!(std::num::NonZeroI16, |v| Self::i64(i64::from(v.get())));
+impl_value_owned_from!(std::num::NonZeroI32, |v| Self::i64(i64::from(v.get())));
+impl_value_owned_from!(std::num::NonZeroI64, |v| Self::i64(v.get()));
+impl_value_owned_from!(std::num::NonZeroI128, |v| Self::i128(v.get()));
+impl_value_owned_from!(std::num::NonZeroIsize, |v| Self::i64(v.get() as i64));
+impl_value_owned_from!(std::num::NonZeroU8, |v| Self::u64(u64::from(v.get())));
+impl_value_owned_from!(std::num::NonZeroU16, |v| Self::u64(u64::from(v.get())));
+impl_value_owned_from!(std::num::NonZeroU32, |v| Self::u64(u64::from(v.get())));
+impl_value_owned_from!(std::num::NonZeroU64, |v| Self::u64(v.get()));
+impl_value_owned_from!(std::num::NonZeroU128, |v| Self::u128(v.get()));
+impl_value_owned_from!(std::num::NonZeroUsize, |v| Self::u64(v.get() as u64));
 impl_value_owned_from!(String, |v| Self::str(v));
 impl_value_owned_from!(&'static str, |v| Self::str(v));
 impl_value_owned_from!(Cow<'static, str>, |v| Self::str(v));
 impl_value_owned_from!(Vec<u8>, |v| Self::bytes(v));
 impl_value_owned_from!(Box<[u8]>, |v| Self::bytes(v));
+
+impl From<Value<'_>> for ValueOwned {
+    fn from(v: Value<'_>) -> Self {
+        v.to_owned()
+    }
+}
+
+impl From<ValueView<'_>> for ValueOwned {
+    fn from(v: ValueView<'_>) -> Self {
+        v.to_owned()
+    }
+}
 
 impl<T: Into<ValueOwned>> From<Option<T>> for ValueOwned {
     fn from(v: Option<T>) -> Self {
@@ -1221,6 +1349,13 @@ impl fmt::Debug for KeyValues<'_> {
     }
 }
 
+#[cfg(feature = "serde")]
+impl serde::Serialize for KeyValues<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_map(self.iter())
+    }
+}
+
 impl KeyValues<'_> {
     /// Create an empty key-value collection.
     pub const fn empty() -> Self {
@@ -1289,6 +1424,24 @@ impl<'a> From<&'a [(Key<'a>, Value<'a>)]> for KeyValues<'a> {
 impl<'a> From<&'a [(KeyOwned, ValueOwned)]> for KeyValues<'a> {
     fn from(kvs: &'a [(KeyOwned, ValueOwned)]) -> Self {
         Self(KeyValuesState::Owned(kvs))
+    }
+}
+
+impl<'a> IntoIterator for KeyValues<'a> {
+    type Item = (KeyView<'a>, ValueView<'a>);
+    type IntoIter = KeyValuesIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for &KeyValues<'a> {
+    type Item = (KeyView<'a>, ValueView<'a>);
+    type IntoIter = KeyValuesIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 

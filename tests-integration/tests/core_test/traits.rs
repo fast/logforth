@@ -52,6 +52,11 @@ use logforth_core::record::RecordOwned;
 fn public_types_are_send_sync_and_unpin() {
     fn assert_send_sync_unpin<T: Send + Sync + Unpin>() {}
     fn assert_unpin<T: Unpin>() {}
+    fn assert_hash<T: std::hash::Hash>() {}
+
+    assert_hash::<Level>();
+    assert_hash::<LevelFilter>();
+    assert_hash::<FilterResult>();
 
     assert_send_sync_unpin::<Logger>();
     assert_send_sync_unpin::<LoggerBuilder>();

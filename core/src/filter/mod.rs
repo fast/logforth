@@ -34,7 +34,7 @@ use crate::record::LevelFilter;
 use crate::record::Record;
 
 /// The decision produced by evaluating a [`Filter`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FilterResult {
     /// Accepts the record immediately and bypasses remaining filters in the current dispatch.
     Accept,

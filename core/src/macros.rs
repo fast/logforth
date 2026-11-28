@@ -82,7 +82,7 @@ macro_rules! __log_impl {
                 let __logforth_logger: &$crate::Logger = __logforth_logger;
                 let __logforth_level: $crate::record::Level = $level;
                 if __logforth_logger.enabled(__logforth_level) {
-                    $crate::__private_log(
+                    $crate::__private::log(
                         __logforth_logger,
                         __logforth_level,
                         {
